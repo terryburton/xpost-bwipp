@@ -105,6 +105,7 @@ colour_sampling_test.ps                    once   unexplained
 colour_space_family_test.ps                once   unexplained
 composite_limit_test.ps                    once   unexplained
 counttomark_test.ps                        once   unexplained
+custom_color_test.ps                       once   unexplained
 dct_truncated_test.ps                      once   unexplained
 dev_gray_row_test.ps                       once   unexplained
 device_completion_test.ps                  once   unexplained
@@ -170,12 +171,13 @@ gc_save_view_test.ps                       zero
 gc_stack_segments_test.ps                  once   unexplained
 global_vm_invariant_test.ps                fits
 golden_page.ps                             fits
-golden_pages.ps                            costs  unexplained
+golden_pages.ps                            fits
 graphics_regression_test.ps                once   unexplained
 gstate_matrix_test.ps                      fits
 gstate_object_test.ps                      fits
 halftone_cell_test.ps                      once   unexplained
 halftone_matrix_test.ps                    once   unexplained
+idiom_test.ps                              zero
 image_matrix_test.ps                       costs  unexplained
 imaging_bbox_test.ps                       once   unexplained
 internal_debug_ops_test.ps                 zero
