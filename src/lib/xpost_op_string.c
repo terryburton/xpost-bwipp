@@ -238,7 +238,6 @@ int Ssearch(Xpost_Context *ctx,
             Xpost_Object str,
             Xpost_Object seek)
 {
-    word i;
     char *s, *k;
     Xpost_Object interval;
 
@@ -253,10 +252,50 @@ int Ssearch(Xpost_Context *ctx,
     }
     s = xpost_string_get_pointer(ctx, str);
     k = xpost_string_get_pointer(ctx, seek);
-    for (i = 0; i <= (str.comp_.sz - seek.comp_.sz); i++)
+
+    /* The leftmost occurrence of seek in str by Knuth-Morris-Pratt, in
+       time linear in the two lengths where the plain scan took their
+       product -- so a long string searched for a long one that nearly
+       matches it everywhere is no longer a way to spend a second of
+       uninterruptible work. An empty seek matches at the start, as the
+       plain scan did. */
     {
-        if (ancsearch(s+i, k, seek.comp_.sz))
+        unsigned int n = str.comp_.sz, m = seek.comp_.sz;
+        unsigned int ii, jj;
+        long found = -1;
+
+        if (m == 0)
+            found = 0;
+        else
         {
+            int *fail = malloc((size_t)m * sizeof(int));
+
+            if (!fail)
+                return VMerror;
+            fail[0] = 0;
+            for (ii = 1, jj = 0; ii < m; )
+            {
+                if (k[ii] == k[jj]) fail[ii++] = (int)++jj;
+                else if (jj) jj = (unsigned int)fail[jj - 1];
+                else fail[ii++] = 0;
+            }
+            for (ii = 0, jj = 0; ii < n; )
+            {
+                if (s[ii] == k[jj])
+                {
+                    ii++; jj++;
+                    if (jj == m) { found = (long)(ii - m); break; }
+                }
+                else if (jj) jj = (unsigned int)fail[jj - 1];
+                else ii++;
+            }
+            free(fail);
+        }
+
+        if (found >= 0)
+        {
+            unsigned int i = (unsigned int)found;
+
             interval = xpost_object_get_interval(str, i + seek.comp_.sz, str.comp_.sz - seek.comp_.sz - i);
             if (xpost_object_get_type(interval) == invalidtype)
                 return rangecheck;
