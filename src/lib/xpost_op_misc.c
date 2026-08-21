@@ -102,21 +102,45 @@ Xpost_Object bind(Xpost_Context *ctx,
      && xpost_object_get_access(ctx, p) < XPOST_OBJECT_TAG_ACCESS_UNLIMITED)
         return p;
 
+    /* Has this procedure been walked already? seen->ents is an
+       open-addressed hash set -- a slot holds ent+1, a zero slot is
+       empty, cap is a power of two -- so a procedure that reaches itself
+       is recognised in O(1), and one holding very many distinct
+       sub-procedures costs O(M) to bind rather than O(M squared). */
     ent = xpost_object_get_ent(p);
-    for (i = 0; i < seen->n; i++)
-        if (seen->ents[i] == ent)
-            return xpost_object_set_access(ctx, p, XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
-    if (seen->n == seen->cap)
+    if (seen->cap == 0 || (seen->n + 1) * 10 >= seen->cap * 7)
     {
-        int ncap = seen->cap ? seen->cap * 2 : 64;
-        unsigned int *nents = realloc(seen->ents, (size_t)ncap * sizeof(*nents));
+        int ncap = seen->cap ? seen->cap * 2 : 256;
+        unsigned int *nents = calloc((size_t)ncap, sizeof(*nents));
+        int k;
 
         if (!nents)
             return xpost_object_set_access(ctx, p, XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
+        for (k = 0; k < seen->cap; k++)
+            if (seen->ents[k])
+            {
+                unsigned int h = (seen->ents[k] * 2654435761u) & (unsigned)(ncap - 1);
+                while (nents[h]) h = (h + 1) & (unsigned)(ncap - 1);
+                nents[h] = seen->ents[k];
+            }
+        free(seen->ents);
         seen->ents = nents;
         seen->cap = ncap;
     }
-    seen->ents[seen->n++] = ent;
+    {
+        unsigned int key = ent + 1;
+        unsigned int h = (key * 2654435761u) & (unsigned)(seen->cap - 1);
+
+        while (seen->ents[h])
+        {
+            if (seen->ents[h] == key)
+                return xpost_object_set_access(ctx, p,
+                                               XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
+            h = (h + 1) & (unsigned)(seen->cap - 1);
+        }
+        seen->ents[h] = key;
+        seen->n++;
+    }
 
     for (i = 0; i < (integer)p.comp_.sz; i++)
     {
