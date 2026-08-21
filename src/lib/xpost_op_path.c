@@ -490,13 +490,27 @@ _path_append(Xpost_Context *ctx, Xpost_Object gstate, Xpost_Object *pathp,
     return 0;
 }
 
-/* currgstate is created once when the graphics subsystem loads and is
-   only ever mutated in place (setgstate, grestore and gstatecopy copy
-   into it, never rebind it), so the resolved dictionary can be cached
-   after the first lookup instead of searching the dictionary stack on
-   every path operator */
+/* A context's currgstate is created once when its graphics state is set
+   up and is only ever mutated in place (setgstate, grestore and
+   gstatecopy copy into it, never rebind it), so the resolved dictionary
+   can be cached after the first lookup instead of searching the
+   dictionary stack on every path operator.
+
+   The cache is per context, not per interpreter. Under Display
+   PostScript each forked context is given its OWN graphics state (fork
+   copies the graphics state stack, PLRM 2nd ed 7.1), so there is a
+   distinct currgstate for each, and a single cached dictionary would
+   hand one context the graphics state -- and so the current path -- of
+   another. The cache therefore records which context it belongs to and
+   is used only for that one; a default single-context run keeps the same
+   id throughout and so keeps the cache hot, while a context switch makes
+   the next path operator re-resolve for whichever context now runs. The
+   id is the context's unique identifier, which a later context never
+   reuses, so a table slot reused by a new context does not read a stale
+   entry. */
 static Xpost_Object _gstate_cache;
 static int _gstate_cached = 0;
+static unsigned int _gstate_cache_id = 0;
 
 static
 Xpost_Object _gstate(Xpost_Context *ctx)
@@ -504,7 +518,7 @@ Xpost_Object _gstate(Xpost_Context *ctx)
     Xpost_Object gd, gs;
     int ret;
 
-    if (_gstate_cached)
+    if (_gstate_cached && _gstate_cache_id == ctx->id)
         return _gstate_cache;
     ret = xpost_op_privatedict_load(ctx, namegraphicsdict);
     if (ret) return invalid;
@@ -516,6 +530,7 @@ Xpost_Object _gstate(Xpost_Context *ctx)
     {
         _gstate_cache = gs;
         _gstate_cached = 1;
+        _gstate_cache_id = ctx->id;
     }
     return gs;
 }
@@ -2283,6 +2298,7 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
     assert(ctx->gl->base);
 
     _gstate_cached = 0;
+    _gstate_cache_id = 0;
 
     if (xpost_object_get_type((namegraphicsdict = xpost_name_cons(ctx, ".graphicsdict"))) == invalidtype)
         return VMerror;

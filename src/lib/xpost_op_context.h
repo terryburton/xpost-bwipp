@@ -35,4 +35,8 @@
 
 int xpost_oper_init_context_ops(Xpost_Context *ctx, Xpost_Object sd);
 
+/* nonzero when the Display PostScript context operators were installed
+   (--enable-dps / xpost_dps_set); read by the mainloop's context switcher */
+int xpost_dps_enabled(void);
+
 #endif

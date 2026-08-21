@@ -9,10 +9,11 @@
 % on the --enable-dps opt-in, so this suite is run with that flag; their
 % behaviour where it reaches past the cited edition is pinned here.
 %
-% _switch_context returns the calling context unchanged, so a forked
-% context is never scheduled. join on a context that has not already
-% finished therefore cannot succeed; it reports rather than waiting
-% forever.
+% The interpreter schedules contexts cooperatively: a forked context runs
+% until it yields, blocks on I/O, or returns from its top-level procedure,
+% at which point the scheduler moves on. join runs the child and returns
+% the operands it left; detach lets a context free itself when it finishes
+% rather than wait to be joined.
 
 /completes { % { proc }  -  bool
     stopped not
@@ -36,10 +37,48 @@ clear
 { yield } completes (yield succeeds) assert
 clear
 
-% join on an unscheduled context terminates rather than waiting forever
-{ mark 2 3 { add } fork join } stopped
-    (join on an unscheduled context reports rather than hanging) assert
-clear
+% fork runs the child and join returns the operands it left, beneath a mark
+mark 2 3 { add } fork join
+counttomark 1 eq { 5 eq }{ false } ifelse
+    (fork then join returns the child's result) assert
+cleartomark
+
+% a forked context copies the parent's whole dictionary stack, so a name the
+% parent defined in userdict is found by the child, and the dictionaries are
+% shared, so a definition the child makes is seen by the parent
+/parent_def 314 def
+mark { parent_def } fork join
+counttomark 1 eq { 314 eq }{ false } ifelse
+    (a forked context inherits the parent's dictionary stack) assert
+cleartomark
+mark { /child_def 271 def } fork join cleartomark
+/child_def where { pop child_def 271 eq }{ false } ifelse
+    (a definition made in a forked context is shared with the parent) assert
+
+% the graphics state, unlike VM, is private to a context: a forked context
+% inherits the parent's but neither sees the other's later changes
+2 setlinewidth
+mark { currentlinewidth } fork join
+counttomark 1 eq { 2.0 eq }{ false } ifelse
+    (a forked context inherits the parent's graphics state) assert
+cleartomark
+2 setlinewidth
+mark { 9 setlinewidth } fork join cleartomark
+currentlinewidth 2.0 eq
+    (a change to a forked context's graphics state does not reach the parent) assert
+
+% the current path is part of that private graphics state, so a forked context
+% builds its own: the child's path operators must not reach the parent's path.
+% (Before this was fixed the path operators resolved a cached graphics state
+% belonging to whichever context ran first, so every context shared one path.)
+newpath 100 100 moveto
+mark { newpath 500 500 moveto 600 600 lineto currentpoint } fork join
+counttomark 2 eq { 600 eq exch 600 eq and }{ false } ifelse
+    (a forked context builds its own current path) assert
+cleartomark
+currentpoint 100 eq exch 100 eq and
+    (a forked context's current path does not disturb the parent's) assert
+newpath
 
 % the operands handed to a forked context are the ones above a mark, so a
 % stack without one has no count to hand over: the operand on top is not
@@ -61,6 +100,26 @@ clear
 /n 0 def
 { 40 { mark { } fork detach /n n 1 add store } repeat } stopped pop
 n 0 gt (forks were performed) assert
+clear
+
+% a forked context that ends on an error reports it through handleerror and
+% then terminates, so a later join of it is invalidcontext (PLRM 2nd ed 7.1: a
+% forked procedure runs effectively as `proc stopped { handleerror quit } if`,
+% and join of a context that did not run to a clean return is invalidcontext).
+% The child's handleerror writes its report to the output as it must; the
+% behaviour under test is join's answer. handleerror also clears the shared
+% $error/newerror, which the parent's own raise-and-catch below relies on.
+{ mark { 1 0 idiv } fork join } /invalidcontext
+    (join of a context that ended on an error is invalidcontext) raises
+clear
+
+% a context identifier is equatable: it equals itself and differs from another
+% context's, so a program can tell one context from another (PLRM 2nd ed 7.1:
+% an identifier means the same in every context)
+currentcontext currentcontext eq (a context identifier equals itself) assert
+mark { } fork dup /c exch def currentcontext ne
+    (a forked context's identifier differs from the parent's) assert
+c detach
 clear
 
 % the interpreter runs normally afterwards

@@ -77,6 +77,9 @@ xpost_dict_def_cached(Xpost_Context *ctx, Xpost_Memory_File *dmem,
 
 int xpost_op_any_load(Xpost_Context *ctx, Xpost_Object K);
 int xpost_op_privatedict_load(Xpost_Context *ctx, Xpost_Object K);
+/* copy the contents of dict S into dict D; used to give a forked context its
+   own private machinery dictionary (xpost_op_context.c) */
+int xpost_op_dict_copy(Xpost_Context *ctx, Xpost_Object S, Xpost_Object D);
 int xpost_oper_init_dict_ops(Xpost_Context *ctx, Xpost_Object sd);
 
 #endif

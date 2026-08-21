@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 363
+entries 365
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -110,6 +110,7 @@ entries 363
 .xpostsys /.checkargs
 .xpostsys /.checkpagefeatures
 .xpostsys /.checkpagehandlers
+.xpostsys /.childrun
 .xpostsys /.cidface
 .xpostsys /.cidtypemap
 .xpostsys /.cidstamp
@@ -201,6 +202,7 @@ entries 363
 .xpostsys /.formcachedrop
 .xpostsys /.fontsubstitutions
 .xpostsys /.fontroute
+.xpostsys /.forkcontext
 .xpostsys /.gcd
 .xpostsys /.glyphbytes
 .xpostsys /.glyphcharpath

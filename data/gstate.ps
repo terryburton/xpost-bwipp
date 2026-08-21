@@ -166,6 +166,48 @@ setglobal
     currentdict end
 } put
 
+% -  .forkcontext  -   (runs in a freshly forked context, before its procedure)
+% Give this context its own graphics state, copied from the one it still shares
+% with its parent, so a change it makes to its graphics state does not reach the
+% parent. PLRM 2nd ed 7.1: the graphics state is private to a context, and fork
+% forms the child by copying the graphics state stack -- the current state and
+% every gsave beneath it. fork shares the parent's privatedict (it is a struct
+% copy), and the graphics state lives there under .graphicsdict, so the child is
+% given its own copy of privatedict holding a private, copied .graphicsdict.
+% .privatedict and the C graphics operators both read the running context's
+% privatedict, so from here the child's graphics reach its own state while the
+% rest of privatedict's machinery stays shared. gstatecopy copies into a fresh
+% dictionary each time; the template returns a shared dictionary, so it is not
+% used here.
+.xpostsys /.forkcontext {
+    currentglobal false setglobal   % the graphics state is local
+    10 dict begin
+        /pgd //.privatedict /.graphicsdict get def   % the graphics dict shared with the parent
+        /gp pgd /gptr get def
+        % the gsave stack, each occupied slot copied into a gstate of its own
+        /newstack pgd /gstackarray get length array def
+        0 1 gp {
+            /i exch def
+            newstack i
+                pgd /gstackarray get i get
+                dup length 4 add dict
+                //.xpostsys /gstatecopy get exec
+            put
+        } for
+        % a private graphics dict, put into this context's own privatedict
+        /newgd <<
+            /currgstate
+                pgd /currgstate get
+                dup length 4 add dict
+                //.xpostsys /gstatecopy get exec
+            /gstackarray newstack
+            /gptr gp
+        >> def
+        //.privatedict /.graphicsdict newgd put
+    end
+    setglobal   % restore the VM mode the caller had
+} put
+
 % -  gsave  -
 % push graphics state
 /gsave [ ] {

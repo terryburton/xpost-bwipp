@@ -52,12 +52,17 @@ currentcontext type /contexttype eq
 % detaching a valid, freshly forked context is accepted (not invalidcontext)
 mark {} fork
 { detach } stopped { (DETACH-ERRORED\n) }{ (DETACH-OK\n) } ifelse print
+% fork runs the child cooperatively and join returns the result it left
+mark 2 3 { add } fork join
+counttomark 1 eq { 5 eq }{ false } ifelse
+    { (FORKJOIN-5\n) }{ (FORKJOIN-WRONG\n) } ifelse print
+cleartomark
 flush
 PS
 out=$(timeout 10 "$xpost" -q --no-sandbox --enable-dps -d null "$work/enabled.ps" </dev/null 2>&1)
 st=$?
 verdict_run "$st" "$out" "the --enable-dps run" || exit 1
-for want in FORK-INSTALLED SELFJOIN-INVALIDCONTEXT CC-YIELDS-CONTEXT DETACH-OK; do
+for want in FORK-INSTALLED SELFJOIN-INVALIDCONTEXT CC-YIELDS-CONTEXT DETACH-OK FORKJOIN-5; do
     case $out in
         *"$want"*) ;;
         *) echo "FAIL: --enable-dps run did not report $want; got: $out"; exit 1 ;;

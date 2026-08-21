@@ -452,7 +452,11 @@ int op_sysdictrelock(Xpost_Context *ctx)
 
    It is recorded once. The record is context state rather than virtual memory,
    so no `restore` puts back a dictionary displaced from it, and a second
-   install would stand for the rest of the run. */
+   install would stand for the rest of the run. A context fork makes is given
+   its own private dictionary directly, in xpost_context_fork3, not through this
+   operator, so this refusal still holds for every context: the operator is
+   reachable through internaldict, and a program that replaced the private
+   dictionary would displace the machinery that runs through it. */
 static
 int op_setprivatedict(Xpost_Context *ctx,
                       Xpost_Object D)

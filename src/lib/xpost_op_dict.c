@@ -392,7 +392,6 @@ int xpost_op_any_where(Xpost_Context *ctx,
 
 /* dict1 dict2  copy  dict2
    copy contents of dict1 to dict2 */
-static
 int xpost_op_dict_copy(Xpost_Context *ctx,
                        Xpost_Object S,
                        Xpost_Object D)

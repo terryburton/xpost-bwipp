@@ -41,7 +41,17 @@
  * @{
  */
 
-#define MAXCONTEXT 10
+/* The number of execution contexts (Display PostScript, PLRM 2nd ed 7.1)
+   that can exist at once, which is the ceiling fork raises limitcheck at.
+   PLRM leaves the number implementation-defined; the Display PostScript
+   Client Library manual puts a real server's limit "on the order of 50 to
+   100", so this sits at the top of that range with headroom rather than at
+   a token handful. The table of this many Xpost_Context structures is
+   allocated once with the interpreter (an empty slot is only the structure,
+   ~3 KB; a context's stacks are allocated in shared VM when fork creates
+   it), so the cost of the unused slots a single-context run leaves is a
+   fixed, modest one. A power of two keeps the slot index a mask. */
+#define MAXCONTEXT 128
 
 /**
  * @brief valid values for Xpost_Context::vmmode

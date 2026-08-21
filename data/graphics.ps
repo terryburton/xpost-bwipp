@@ -29,11 +29,17 @@ systemdict begin
     % The implementation procedures anchor under reserved names so
     % the collector keeps them.
     % Both the state dictionary and the procedures that reach it are local,
-    % and privatedict is the local dictionary they belong in, so they are
-    % put there outright rather than anchored in userdict for the finalizer
-    % to move. The procedure takes the dictionary as a value rather than
-    % baking the name, which is what a // reference would have needed the
-    % name on the dictionary stack for.
+    % and privatedict is the local dictionary they belong in, so they are put
+    % there outright rather than anchored in userdict for the finalizer to move.
+    % The accessor either holds the graphics dictionary as a value -- fast, and
+    % correct while there is only one context -- or reaches it through the
+    % running context's privatedict every time, so a context forked from this
+    % one finds its own private graphics state (PLRM 2nd ed 7.1) rather than the
+    % one this ran in. Only a fork needs the second form, and a fork happens
+    % only when the context operators were installed, so .dpsenabled chooses:
+    % a default run keeps the baked value it always had. .privatedict is baked
+    % as the operator (//) so the deferred form does not depend on a name being
+    % reachable on the dictionary stack.
     currentglobal false setglobal
     .privatedict /.graphicsdict <<
         /currgstate 12 dict
@@ -41,7 +47,10 @@ systemdict begin
         /gptr -1
     >> put
     .privatedict /.graphicsdictproc
-        [ .privatedict /.graphicsdict get ] cvx put
+        .dpsenabled
+            { { //.privatedict /.graphicsdict get } }
+            { [ .privatedict /.graphicsdict get ] cvx } ifelse
+        put
     setglobal
     % the operator is not local, so it is defined here, in systemdict
     /graphicsdict dup .privatedict /.graphicsdictproc get .wrapop def

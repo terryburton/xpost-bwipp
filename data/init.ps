@@ -91,6 +91,22 @@ currentglobal true setglobal
 % reads it when it wraps them.
 .xpostsys /.opsigs 200 dict put
 
+% A forked context runs its top-level procedure through this, so an error the
+% procedure raises is reported by handleerror and ends the context rather than
+% unwinding into the interpreter with no stopped context to catch the stop.
+% op_fork leaves the procedure on the operand stack and pushes this above it
+% (PLRM 2nd ed 7.1: a forked procedure runs effectively as
+% `proc stopped { handleerror quit } if`). `currentcontext detach` plays the
+% role of that quit: after reporting the error the context detaches itself, so
+% when .childrun returns it terminates outright instead of waiting to be
+% joined, and a later join of it is invalidcontext -- as PLRM requires of a
+% context that ended on an error rather than running to a clean return. detach
+% of the current context is permitted, and it only marks the context to free
+% itself on return, so the error's stop has already unwound when it runs. The
+% names are late-bound, so this line parses when the context operators are
+% absent (a default run never forks, so .childrun never runs).
+.xpostsys /.childrun { stopped { handleerror currentcontext detach } if } put
+
 
 % The operators whose bodies arrived already read-only. A body is bound
 % once the whole set has been promoted, which is the only moment at which

@@ -96,7 +96,6 @@ src/lib/xpost_main.c         _xpost_at_quit_n     counts  the functions register
   called when the library goes down
 src/lib/xpost_main.c         _xpost_init_count    counts  how deep the library's init and
   quit are nested, so the last quit is the one that takes it down
-src/lib/xpost_op_context.c   _join_wait_spins     counts  how many times a join has spun
   waiting, which is reported and never compared
 src/lib/xpost_name.c         _name_lookups        counts  the strings offered to the name
   mechanism that had to be looked up in the tree, which is a total of work done; it

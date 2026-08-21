@@ -575,6 +575,24 @@ unsigned int xpost_context_fork3(Xpost_Context *ctx,
        as it was */
     newctx->globs = NULL;
     newctx->globs_size = 0;
+    /* the name-resolution cache is the new context's own, not a share of
+       this one's. The struct copy above duplicated the pointers, which
+       would have the two contexts write one another's entries -- and,
+       worse, a grow in either reallocs the block the other still names,
+       and each frees it at exit. It is rebuilt lazily on first lookup;
+       the child's dictionary stack resolves the same names anyway, so
+       nothing is lost by starting empty. */
+    newctx->namecache_gen = NULL;
+    newctx->namecache_val = NULL;
+    newctx->namecache_size = 0;
+    /* the job baseline is a snapshot the job server captures of one
+       context's VM to restore that context between jobs; it belongs to
+       the context that took it. A forked context has taken none, so the
+       copied pointers above would have it name -- and, on capture,
+       replace and free -- the parent's images. Start it with none. */
+    newctx->job_baseline_lo = NULL;
+    newctx->job_baseline_gl = NULL;
+    newctx->job_baseline_ds = 0;
     newctx->lo = ctx->lo;
     /* The list is what the collector walks to find the contexts a memory
        file serves, and it holds MAXCONTEXT entries. One entry is added
@@ -599,8 +617,20 @@ unsigned int xpost_context_fork3(Xpost_Context *ctx,
     }
     newctx->lo->start = XPOST_MEMORY_COLLECT_START_LOCAL;
 
-    xpost_stack_push(newctx->lo, newctx->ds,
-            xpost_stack_bottomup_fetch(ctx->lo, ctx->ds, 0)); // systemdict
+    /* Copy the whole dictionary stack, not just systemdict: fork gives the
+       child the same name-lookup environment as the parent (PLRM 2nd ed 7.1
+       forms the child by "copying the dictionary and graphics state
+       stacks"). The dictionaries themselves stay in the shared VM -- only
+       the stack of references is the child's own -- so a name the parent
+       defined in userdict is found, and a def in the child reaches the same
+       shared dictionary. */
+    {
+        int n = xpost_stack_count(ctx->lo, ctx->ds);
+        int i;
+        for (i = 0; i < n; i++)
+            xpost_stack_push(newctx->lo, newctx->ds,
+                    xpost_stack_bottomup_fetch(ctx->lo, ctx->ds, i));
+    }
     return newcid;
 }
 

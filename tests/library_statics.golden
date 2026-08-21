@@ -26,6 +26,8 @@ src/lib/xpost_font.c            gcache_serving             cleared gcache_clear
 src/lib/xpost_font.c            gcache_state               cleared gcache_clear
 src/lib/xpost_font.c            program_head               cleared program_clear
 src/lib/xpost_font.c            _strike_scaled             cleared strike_clear
+src/lib/xpost_op_context.c      namedotchildrun            reset xpost_oper_init_context_ops
+src/lib/xpost_op_context.c      namedotforkcontext         reset xpost_oper_init_context_ops
 src/lib/xpost_op_font.c         face_cache                 cleared xpost_op_font_quit
 src/lib/xpost_op_font.c         _clip_memo                 cleared _clip_memo_drop
 src/lib/xpost_main.c            _xpost_data_dir            cleared _data_dir_drop

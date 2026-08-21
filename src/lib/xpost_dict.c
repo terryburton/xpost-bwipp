@@ -194,6 +194,15 @@ cont:
         case operatortype:  return L.mark_.padw < R.mark_.padw ? -1 :
                                    L.mark_.padw > R.mark_.padw ? 1 : 0;
 
+        /* two context identifiers name the same context when they carry
+           the same id, so they compare by it -- the same field the hash
+           reads, so a context used as a dictionary key hashes and
+           compares consistently. PLRM 2nd ed 7.1 gives a context an
+           identifier that means the same in every context; making the
+           handle equatable is what lets a program tell one from another. */
+        case contexttype:   return L.mark_.padw < R.mark_.padw ? -1 :
+                                   L.mark_.padw > R.mark_.padw ? 1 : 0;
+
         case dicttype: /*@fallthrough@*/ /*return !( xpost_object_get_ent(L) == xpost_object_get_ent(R) ); */
         case arraytype: return !( L.comp_.sz == R.comp_.sz
                                 && (L.tag&XPOST_OBJECT_TAG_DATA_FLAG_BANK) == (R.tag&XPOST_OBJECT_TAG_DATA_FLAG_BANK)
