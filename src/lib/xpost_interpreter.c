@@ -4585,6 +4585,24 @@ XPAPI void xpost_destroy(Xpost_Context *ctx)
 
     xpost_context_exit(ctx);
 
+    /* ctx is ctab[0]. A job that forked contexts left each of them its own
+       name-resolution cache in C heap, sharing ctx's virtual memory. The
+       slots go with itpdata below, but the caches they point to are
+       separate allocations that would be left behind, so release each here.
+       An unused slot holds a null pointer -- the table was zeroed at
+       startup -- which frees cleanly. */
+    {
+        unsigned int i;
+        for (i = 1; i < MAXCONTEXT; i++)
+        {
+            free(itpdata->ctab[i].namecache_gen);
+            free(itpdata->ctab[i].namecache_val);
+            itpdata->ctab[i].namecache_gen = NULL;
+            itpdata->ctab[i].namecache_val = NULL;
+            itpdata->ctab[i].namecache_size = 0;
+        }
+    }
+
     free(itpdata);
     itpdata = NULL;
     xpost_ctx = NULL;

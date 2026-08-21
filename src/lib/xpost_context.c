@@ -565,6 +565,13 @@ unsigned int xpost_context_fork3(Xpost_Context *ctx,
     ret = xpost_interpreter_cid_init(&newcid);
     if (!ret) return 0;
     newctx = xpost_interpreter_cid_get_context(newcid);
+    /* the slot may be one a finished context left behind: its
+       name-resolution cache is C heap the struct copy below would orphan,
+       so release it first. The cache is rebuilt lazily on first lookup,
+       so a freed one costs the new context nothing, and a slot never used
+       holds a null pointer here (the table is zeroed at startup). */
+    free(newctx->namecache_gen);
+    free(newctx->namecache_val);
     *newctx = *ctx; // struct copy for defaults
     newctx->id = newcid;
     newctx->state = C_IDLE;
