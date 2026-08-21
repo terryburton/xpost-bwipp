@@ -99,6 +99,7 @@ userdict begin
     /linejoin 0
     /miterlimit 10.0
     /overprint false
+    /overprintmode 0
     % the NeWS raster-operation code (setrasteropcode/currentrasteropcode).
     % Recorded here for a program to set and read back; a raster page is a
     % surface that replaces, which is the default (copy) and the only code the
@@ -1861,6 +1862,19 @@ put
 % -  currentoverprint  bool
 /currentoverprint [ ] {
     graphicsdict /currgstate get /overprint get
+} //.xpostsys /.defop get exec
+
+% int  setoverprintmode  -
+% The overprint mode refines overprint (0 the default, 1 the nonzero mode).
+% It reaches a separation-producing device the way overprint does; a
+% composite raster leaves it, like overprint, without effect.
+/setoverprintmode [ /integertype ] {
+    graphicsdict /currgstate get exch /overprintmode exch put
+} //.xpostsys /.defop get exec
+
+% -  currentoverprintmode  int
+/currentoverprintmode [ ] {
+    graphicsdict /currgstate get /overprintmode get
 } //.xpostsys /.defop get exec
 
 % int  setrasteropcode  -      (NeWS) set the raster-operation code

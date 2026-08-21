@@ -1058,6 +1058,95 @@ setglobal
         get exec
 } //.xpostsys /.defop get exec
 
+% Custom-colour convenience operators. A custom colour is a named spot ink
+% with a device fallback: findcmykcustomcolor and findrgbcustomcolor package
+% the fallback components with the name, and setcustomcolor enters the
+% Separation colour space (PLRM 4.8.4) whose alternate is that fallback and
+% whose tint transform scales the fallback by the tint. Because it is
+% shorthand over the Separation space, a separation-preserving device
+% receives the named colorant and a composite device reduces through the
+% alternate. The packaged object is [c m y k name] for CMYK and [r g b name]
+% for RGB, told apart by length. The tint transform bakes the components in,
+% mapping a tint t to [ct mt yt kt] (or [rt gt bt]), so the space carries its
+% own reduction.
+
+% obj  .customcolorspace  [/Separation name alt {transform}] : the Separation
+% space a custom-colour object is shorthand for. setcustomcolor and
+% customcolorimage share it so the object is unpacked one way only.
+.xpostsys /.customcolorspace {
+    dup length 5 eq {
+        aload pop                               % c m y k name
+        6 dict begin
+        /nm exch def /kk exch def /yy exch def /mm exch def /cc exch def
+        [ /Separation /nm load /DeviceCMYK
+          [ /dup load cc /mul load /exch load
+            /dup load mm /mul load /exch load
+            /dup load yy /mul load /exch load
+                      kk /mul load ] cvx ]
+        end
+    }{
+        dup length 4 eq {
+            aload pop                           % r g b name
+            5 dict begin
+            /nm exch def /bb exch def /gg exch def /rr exch def
+            [ /Separation /nm load /DeviceRGB
+              [ /dup load rr /mul load /exch load
+                /dup load gg /mul load /exch load
+                          bb /mul load ] cvx ]
+            end
+        }{
+            pop /setcustomcolor cvx /rangecheck signalerror
+        } ifelse
+    } ifelse
+} put
+
+/findcmykcustomcolor [ /numbertype /numbertype /numbertype /numbertype /stringtype ] {
+    5 array astore
+} //.xpostsys /.defop get exec
+
+/findrgbcustomcolor [ /numbertype /numbertype /numbertype /stringtype ] {
+    4 array astore
+} //.xpostsys /.defop get exec
+
+/setcustomcolor [ /arraytype /numbertype ] {
+    exch                                        % tint obj
+    //.xpostsys /.customcolorspace get exec setcolorspace
+    setcolor                                    % tint setcolor
+} //.xpostsys /.defop get exec
+
+% A custom-colour image paints a one-channel picture in the custom colour:
+% its samples are read as coverage, a dark sample laying down the full
+% colorant and a light one leaving the page, so the decode runs 1 to 0. The
+% object comes last, over the same operands image takes; the space it
+% installs is undone afterwards.
+/customcolorimage [ ] {
+    % w h bits matrix datasrc obj -- resolve the object's space first, before
+    % any begin or gsave, so a malformed object leaves nothing to unwind.
+    //.xpostsys /.customcolorspace get exec        % ... space
+    6 dict begin
+    /.sp exch def /.src exch def /.mtx exch def
+    /.bits exch def /.h exch def /.w exch def
+    gsave
+    .sp setcolorspace
+    << /ImageType 1 /Width .w /Height .h /BitsPerComponent .bits
+       /Decode [ 1 0 ] /ImageMatrix .mtx /DataSource /.src load >> image
+    grestore
+    end
+} //.xpostsys /.defop get exec
+
+% A separation image paints a one-channel picture in the current colour
+% space, its samples read straight as the single tint (decode 0 to 1). Unlike
+% the one-operand image form it honours a Separation or DeviceN space rather
+% than reading the samples as grey.
+/separationimage [ ] {
+    5 dict begin
+    /.src exch def /.mtx exch def
+    /.bits exch def /.h exch def /.w exch def
+    << /ImageType 1 /Width .w /Height .h /BitsPerComponent .bits
+       /Decode [ 0 1 ] /ImageMatrix .mtx /DataSource /.src load >> image
+    end
+} //.xpostsys /.defop get exec
+
 % setcolordict and currentcolordict dispatch a device colour through the
 % operator named for its space. A program may redefine setgray/setrgbcolor/
 % setcmykcolor (and the current* readers) -- a common trick for remapping the

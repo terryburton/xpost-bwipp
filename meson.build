@@ -1993,6 +1993,17 @@ test('colour-space-family',
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   timeout: 120)
 
+# Adobe's separation / custom-colour convenience operators
+# (findcmykcustomcolor, findrgbcustomcolor, setcustomcolor) are shorthand
+# over the Separation colour space: this holds their packaged objects and
+# the space they install to the shape both reference interpreters build.
+test('custom-color',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/custom_color_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  timeout: 120)
+
 # The same shape for the filters: every member that has both halves is
 # asked to encode a known string, decode it back, and leave alone the
 # bytes written after its end-of-data. The last is the question the
@@ -2191,6 +2202,15 @@ test('pdf-append-fail',
   args: [ xpost_exe, files('tests/pdf_append_fail_test.ps'), 'pdfwrite' ],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   suite: cost_fast + ['vmlimit'],
+  timeout: 120)
+
+# Overprint reaches the pdfwrite output: setting overprint or its mode emits an
+# ExtGState the page references, and a page that never sets it carries none.
+test('pdf-overprint',
+  find_program('tests/check-pdf-overprint.sh'),
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
   timeout: 120)
 
 # The same append-completeness contract on the svgwrite device, whose
@@ -5808,6 +5828,18 @@ test('resource-load',
   resource_load_exe,
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
+# Resources loaded from files on the search path: findresource loads an
+# instance laid out as dir/category/name, resourcestatus reports it on disk
+# (status 2) then in VM (status 0), an absent instance is remembered rather
+# than re-searched, and the standard categories answer GenericResourceDir /
+# ResourceFileName. The tree is built in the test, needing nothing external.
+test('resource-file',
+  find_program('tests/check-resource-file.sh'),
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 120)
 
 # The driver contract's rectangle definition: xpost_dev_rect_normalize()
 # is the one statement of which pixels FillRect paints (inclusive far

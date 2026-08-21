@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 365
+entries 373
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -165,6 +165,7 @@ entries 365
 .xpostsys /.curbandheight
 .xpostsys /.currecordspill
 .xpostsys /.cunit
+.xpostsys /.customcolorspace
 .xpostsys /.devicefor
 .xpostsys /.decode
 .xpostsys /.defcategory
@@ -176,6 +177,7 @@ entries 365
 .xpostsys /.devsendclip
 .xpostsys /.devtakespath
 .xpostsys /.dir
+.xpostsys /.distillerparams
 .xpostsys /.docap
 .xpostsys /.dsunwind
 .xpostsys /.endjob
@@ -204,6 +206,7 @@ entries 365
 .xpostsys /.fontroute
 .xpostsys /.forkcontext
 .xpostsys /.gcd
+.xpostsys /.genericresourcedir
 .xpostsys /.glyphbytes
 .xpostsys /.glyphcharpath
 .xpostsys /.glyphkey
@@ -315,6 +318,11 @@ entries 365
 .xpostsys /.refreshscreencell
 .xpostsys /.reportloadfailure
 .xpostsys /.reportpage
+.xpostsys /.resourcefilename
+.xpostsys /.resourcefind
+.xpostsys /.resourceknownmissing
+.xpostsys /.resourcemarkmissing
+.xpostsys /.resourcemissing
 .xpostsys /.resources
 .xpostsys /.rowbytes
 .xpostsys /.rownorm
@@ -431,6 +439,7 @@ gstate /linejoin
 gstate /linewidth
 gstate /miterlimit
 gstate /overprint
+gstate /overprintmode
 gstate /patbase
 gstate /patcomps
 gstate /patdict

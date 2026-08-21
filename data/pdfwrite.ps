@@ -62,6 +62,8 @@
         /.docinfo 8 dict def    % document metadata from DOCINFO pdfmarks
         currentdict //.internaldict /.pdfinit get exec    % create the content accumulator (outside VM)
         /.pdfimages 0 array def
+        /.opused 8 dict def   % overprint states used on this page -> ExtGState entries
+        /.oplast 0 def        % last overprint state emitted (0 = the default, nothing emitted)
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
@@ -299,7 +301,38 @@
     % colour components format at the accumulator's full precision
     % (.pdfnumstr), not the coordinate formatter's two decimals: two
     % decimals cannot represent 8-bit colour levels
+    % emit the overprint state as a graphics-state parameter when it changes.
+    % Overprint reaches a separation-producing device (which this is); a
+    % press workflow reads /OP, /op and /OPM from the ExtGState. The state
+    % is keyed so a paint re-emits only when it differs from the last, and
+    % each key used names an ExtGState entry the page's Resources declares.
+    % Nothing is emitted while overprint stays at its default, so a document
+    % that never touches overprint carries no ExtGState at all.
+    % no scratch dict here: .put reaches the content accumulator through
+    % currentdict, which a begin would displace, so the state is carried on
+    % the operand stack instead (opv opm statekey).
+    % PreserveOverprintSettings false (a distiller parameter) drops the
+    % overprint state from the output; the default carries it.
+    /.pdfoverprint { % -  .  -
+        //.xpostsys /.distillerparams get /PreserveOverprintSettings get false eq { }{
+        graphicsdict /currgstate get /overprint get
+        graphicsdict /currgstate get /overprintmode get        % opv opm
+        1 index { 1000 }{ 0 } ifelse 1 index add               % opv opm statekey
+        dup .oplast ne {
+            dup /.oplast exch store
+            dup .opused exch known not {
+                dup .opused exch 4 index 4 index 2 array astore put
+            } if
+            (/GS) .put dup 20 string cvs .put ( gs\n) .put
+            pop pop pop
+        }{
+            pop pop pop
+        } ifelse
+        } ifelse
+    } bind
+
     /.pdffillcolor { % c1 .. cN  .  -
+        .pdfoverprint
         graphicsdict /currgstate get /sepindex 2 copy known { get }{ pop pop null } ifelse
         dup null ne {
             .ncomps { exch pop } repeat
@@ -322,6 +355,7 @@
         } ifelse
     } bind
     /.pdfstrokecolor { % c1 .. cN  .  -
+        .pdfoverprint
         graphicsdict /currgstate get /sepindex 2 copy known { get }{ pop pop null } ifelse
         dup null ne {
             .ncomps { exch pop } repeat
@@ -710,7 +744,13 @@
             //.xpostsys /.vecout get /headered true put
         } if
         /Chunks currentdict //.internaldict /.pdfchunks get exec def
-        Chunks //.internaldict /.flatecompress get exec /flated exch def /Chunks exch def
+        % CompressPages false (a distiller parameter) leaves the content stream
+        % uncompressed, so the page is readable; the default compresses it.
+        //.xpostsys /.distillerparams get /CompressPages get false eq {
+            /flated false def
+        }{
+            Chunks //.internaldict /.flatecompress get exec /flated exch def /Chunks exch def
+        } ifelse
         /clen 0 def Chunks { length /clen exch clen add def } forall
         /hs height .pdfnumstr def
         /ws width .pdfnumstr def
@@ -796,6 +836,18 @@
             } for
             ( >>) .vw
         } if
+        .opused length 0 gt {
+            ( /ExtGState <<) .vw
+            .opused {
+                exch ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
+                aload pop                                   % op mode
+                ( /OPM ) .vw 20 string cvs .vw              % consume mode
+                ( /OP ) .vw dup { (true) }{ (false) } ifelse .vw
+                ( /op ) .vw { (true) }{ (false) } ifelse .vw
+                ( >>) .vw
+            } forall
+            ( >>) .vw
+        } if
         ( >> >>\nendobj\n) .vw
 
         % record the page in the tree's Kids list and bump the count
@@ -805,6 +857,8 @@
         % start the next page fresh
         currentdict //.internaldict /.pdfreset get exec
         /.pdfimages 0 array def
+        /.opused 8 dict def
+        /.oplast 0 def
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
     } //.xpostsys /.indict get exec } bind
 

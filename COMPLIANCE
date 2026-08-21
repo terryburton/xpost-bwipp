@@ -258,10 +258,8 @@ Level 2 operators
  [X] rectstroke
  [X] rectclip
  [X] selectfont
- [/] setcolorspace (device spaces, Separation, DeviceN, Indexed,
-     Pattern and the CIE-based families, rendered through fixed
-     daylight primaries; colour rendering dictionaries are recorded
-     and take no part)
+ [X] setcolorspace (all colour-space families; colour rendering dictionaries
+     are recorded, not applied)
  [X] currentcolorspace
  [X] setcolor
  [X] currentcolor
@@ -311,13 +309,11 @@ Level 2 operators
      and a procedure is called as the filter wants data or needs to be
      rid of it)
  [X] defineresource, findresource, resourcestatus, resourceforall,
-     undefineresource (an instance is held to the type its category
-     takes and left read-only, as the language requires)
- [ ] resource discovery by filename (no GenericResourceDir or
-     GenericResourcePathSep system parameter, and a category
-     implementation dictionary carries no ResourceFileName, so a program
-     cannot ask where a resource would be installed or found. Instances
-     reach the interpreter through its own search path instead)
+     undefineresource (an instance is held to the type its category takes
+     and left read-only; resourceforall enumerates the instances in VM, not
+     those present only as files on the search path)
+ [X] resource discovery by filename (GenericResourceDir, GenericResourcePathSep,
+     ResourceFileName; the directory is %null when the search path is empty)
  [X] Trapping procedure set: settrapparams, currenttrapparams, settrapzone
      (parameters recorded and queryable; no traps are generated, as the
      language leaves in-RIP trapping device-dependent)
@@ -326,10 +322,10 @@ Level 2 operators
  [X] packedarray (built as ordinary arrays), setpacking,
      currentpacking
  [X] setcmykcolor, currentcmykcolor
- [X] setoverprint, currentoverprint (recorded only)
- [ ] setoverprintmode, currentoverprintmode (the Level 3 overprint mode;
-     overprint itself is recorded only, so the mode that refines it has
-     nothing to act on here)
+ [X] setoverprint, currentoverprint (carried to the pdfwrite output; the
+     composite raster devices paint opaque)
+ [X] setoverprintmode, currentoverprintmode (carried to the pdfwrite output;
+     the composite raster devices paint opaque)
  [X] setsystemparams, currentsystemparams, setuserparams,
      currentuserparams, setdevparams, currentdevparams (accepted; the
      parameter sets are minimal. MaxOpStack, MaxDictStack and
@@ -390,13 +386,11 @@ Extensions
 
  [X] pdfmark (DOCINFO reaches the pdfwrite device; other mark types
      are consumed without effect)
- [ ] currentdistillerparams, setdistillerparams (Distiller's distillation
-     parameters; the pdfwrite device is configured through setpagedevice
-     instead)
- [ ] setcustomcolor, findcmykcustomcolor, findrgbcustomcolor,
-     customcolorimage, separationimage (Adobe's separation and custom-colour
-     convenience operators; the Separation colour space they are shorthand
-     for is reached through setcolorspace)
+ [X] currentdistillerparams, setdistillerparams (CompressPages and
+     PreserveOverprintSettings act on the pdfwrite output; other parameters
+     are recorded and handed back)
+ [X] setcustomcolor, findcmykcustomcolor, findrgbcustomcolor,
+     customcolorimage, separationimage
  [X] page-size operators of the printer products (letter, legal, a4,
      and the rest of the common set)
 

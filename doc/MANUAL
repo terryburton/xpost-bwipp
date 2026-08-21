@@ -692,8 +692,8 @@ a name whose value is a PostScript procedure lands in the array
 as the procedure itself, and an executable array nested inside
 another is pushed rather than executed.
 
-Nearly everything in systemdict here is an operator object. Of its 390
-entries 345 are operators; 20 hold a procedure, 2 hold a literal array
+Nearly everything in systemdict here is an operator object. Of its 401
+entries 356 are operators; 20 hold a procedure, 2 hold a literal array
 (the two standard encodings), and the rest are standard data such as the
 page sizes and $error. Every operator the language defines is here, and
 none of the interpreter's own machinery is -- that lives in an internal

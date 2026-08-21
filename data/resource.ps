@@ -50,6 +50,43 @@ true setglobal
         { pop pop }{ 32 dict put } ifelse
 } bind put
 
+% -  .genericresourcedir  string
+% The primary resource directory a program reads through GenericResourceDir:
+% the first entry of the host's resource search path, ended with the path
+% separator as PLRM C.3.6 requires. When the path is empty the build holds no
+% external resources, which PLRM writes as %null.
+.xpostsys /.genericresourcedir {
+    /.resourcepath //.xpostsys /.hostvalue get exec
+    dup length 0 gt {
+        0 get
+        dup length 0 gt { dup dup length 1 sub get 47 eq }{ true } ifelse
+        { }{
+            dup length 1 add string
+            dup 0 3 index putinterval
+            dup 2 index length 47 put
+            exch pop
+        } ifelse
+    }{
+        pop (%null)
+    } ifelse
+} bind put
+
+% name scratch  .resourcefilename  substring
+% The ResourceFileName every category carries: build GenericResourceDir, the
+% category name, the path separator and the instance name into the scratch
+% string and return the part used -- where the instance would be installed or
+% found. Runs with the category implementation dictionary current, so Category
+% resolves. The name is taken verbatim, as the reference interpreters take it.
+.xpostsys /.resourcefilename {
+    exch dup type /stringtype ne { 128 string cvs } if   % scratch namestr
+    exch 0                                                % namestr scratch 0
+    currentsystemparams /GenericResourceDir get      3 copy putinterval length add
+    Category 128 string cvs                           3 copy putinterval length add
+    currentsystemparams /GenericResourcePathSep get  3 copy putinterval length add
+    2 index                                          3 copy putinterval length add
+    0 exch getinterval exch pop
+} bind put
+
 % name  .defcategory  -
 % Bring a resource category into existence with an implementation
 % dictionary that need only name the category it implements. A category
@@ -59,7 +96,8 @@ true setglobal
 .xpostsys /.defcategory {
     dup //.xpostsys /.resources get exch known { pop }{
         dup //.xpostsys /.catinstances get exec
-        //.xpostsys /.resources get /Category get exch dup << /Category 3 -1 roll >> put
+        //.xpostsys /.resources get /Category get exch dup
+            << /Category 3 -1 roll /ResourceFileName //.xpostsys /.resourcefilename get >> put
     } ifelse
 } bind put
 
@@ -166,33 +204,78 @@ setglobal
     { dup wcheck { readonly } if } if
 } //.xpostsys /.defop get exec
 
-% key category  .loadresource  bool
-% On a findresource miss, try to load the named instance from the search
-% path. Each directory is tried in order; the first file found is run in
-% global VM -- so its defineresource lands in the shared instance table
-% and persists across restore -- and the search stops. Returns whether a
-% file was run.
-.xpostsys /.loadresource {
+% category -> a dict of instance names known ABSENT from the search path. A
+% miss records here so a repeated lookup of a resource that is not on the path
+% answers without walking it again -- the path is fixed for a run. Present
+% instances are cached by defineresource in the instance table, which every
+% caller consults first, so this holds only negatives; a name defined later is
+% found there and never reaches this.
+.xpostsys /.resourcemissing 16 dict put
+
+% key category  .resourceknownmissing  bool
+% The instance is identified by name; a key given as a string interns to the
+% same name a name key would, so the memo keys on the name and matches either.
+.xpostsys /.resourceknownmissing {
+    exch dup type /stringtype eq { cvn } if exch
+    //.xpostsys /.resourcemissing get exch 2 copy known
+        { get exch known }{ pop pop pop false } ifelse
+} bind put
+
+% key category  .resourcemarkmissing  -
+% .resourcemissing is global (it outlives restore, as the instance table does);
+% create the per-category sub-dict and intern the name in global VM so the
+% global memo never holds a local object.
+.xpostsys /.resourcemarkmissing {
+    currentglobal true setglobal
+    3 1 roll exch dup type /stringtype eq { cvn } if exch
+    //.xpostsys /.resourcemissing get exch 2 copy known not
+        { 2 copy 16 dict put } if
+    get exch true put
+    setglobal
+} bind put
+
+% key category  .resourcefind  file true | false
+% Walk the resource search path for the named instance and return the OPEN,
+% confined file (not run) or false. This is the ONE place the path is walked
+% and the confined open (.resourcefileopen) is reached: findresource's load
+% and resourcestatus's probe both go through here, so the file-access decision
+% has a single site. The directories are what the run's host settled, in order
+% (empty until it names one: xpost_add_resource_dir, -I).
+.xpostsys /.resourcefind {
     2 dict begin
     /category exch def
     /key exch def
-    /loaded false def
-    % the directories searched, in order: what the run's host settled,
-    % empty until it names one (xpost_add_resource_dir, -I)
+    /.rf false def
+    /.rok false def
     /.resourcepath //.xpostsys /.hostvalue get exec {
         % dir
         category 128 string cvs
         key 128 string cvs
-        .resourcefileopen {
-            % execute the already-opened, confined file directly; running it
-            % by name would reopen it outside the confined path
-            currentglobal exch true setglobal cvx exec setglobal
-            /loaded true def
-            exit
-        } if
+        .resourcefileopen { /.rf exch def /.rok true def exit } if
     } forall
-    loaded
+    .rok { .rf true }{ false } ifelse
     end
+} bind put
+
+% key category  .loadresource  bool
+% On a findresource miss, load the named instance from the search path via
+% .resourcefind and run it in global VM -- so its defineresource lands in the
+% shared instance table and persists across restore. A miss is recorded so the
+% path is not walked again for the same absent name.
+.xpostsys /.loadresource {
+    2 copy //.xpostsys /.resourceknownmissing get exec {
+        pop pop false
+    }{
+        2 copy //.xpostsys /.resourcefind get exec {
+            % key category file -- run the already-opened, confined file
+            % directly; running it by name would reopen it outside the path
+            currentglobal exch true setglobal cvx exec setglobal
+            pop pop true
+        }{
+            //.xpostsys /.resourcemarkmissing get exec
+            false
+        } ifelse
+    } ifelse
 } bind put
 
 % key category  findresource  instance
@@ -244,21 +327,30 @@ setglobal
     //.xpostsys /.resources get category known not {
         end /resourcestatus cvx /undefined signalerror
     } if
-    key category
-    end
-    2 copy .gscratch /.lresources get exch 2 copy known {
-        get exch known {
-            pop pop 0 0 true
-        }{
-            //.xpostsys /.resources get exch 2 copy known not
-                { pop pop pop false }
-                { get exch known { 0 0 true }{ false } ifelse } ifelse
-        } ifelse
+    % An instance in VM reports status 0, size 0 (a local instance shadows a
+    % global one). An instance not in VM but available as a file on the search
+    % path reports status 2, size -1 -- its presence without loading it -- the
+    % way findresource would reach it, through the one search-and-open site.
+    % An unavailable instance is remembered so a repeat query does not re-walk
+    % the path.
+    .gscratch /.lresources get category 2 copy known { get }{ pop pop << >> } ifelse
+    key known {
+        end 0 0 true
     }{
-        pop pop pop
-        //.xpostsys /.resources get exch 2 copy known not
-            { pop pop pop false }
-            { get exch known { 0 0 true }{ false } ifelse } ifelse
+        //.xpostsys /.resources get category get key known {
+            end 0 0 true
+        }{
+            key category //.xpostsys /.resourceknownmissing get exec {
+                end false
+            }{
+                key category //.xpostsys /.resourcefind get exec {
+                    closefile end 2 -1 true
+                }{
+                    key category //.xpostsys /.resourcemarkmissing get exec
+                    end false
+                } ifelse
+            } ifelse
+        } ifelse
     } ifelse
 } //.xpostsys /.defop get exec
 

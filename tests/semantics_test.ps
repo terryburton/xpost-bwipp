@@ -338,6 +338,21 @@ false setstrokeadjust
 currentrasteropcode 12 eq (the raster op code defaults to replace) assert
 6 setrasteropcode currentrasteropcode 6 eq (the raster op code is recorded) assert
 12 setrasteropcode
+currentoverprintmode 0 eq (the overprint mode defaults to zero) assert
+1 setoverprintmode currentoverprintmode 1 eq (the overprint mode is recorded) assert
+0 setoverprintmode
+currentdistillerparams type /dicttype eq (currentdistillerparams answers a dict) assert
+currentdistillerparams /CompressPages get (a seeded parameter has its default) assert
+<< /CompressPages false >> setdistillerparams
+currentdistillerparams /CompressPages get not (setdistillerparams records a change) assert
+currentdistillerparams /PreserveOverprintSettings get (an untouched parameter keeps its default) assert
+<< /EmbedAllFonts true >> setdistillerparams
+currentdistillerparams /EmbedAllFonts get (a parameter this build does not act on is still accepted) assert
+currentdistillerparams /CompressPages true put
+currentdistillerparams /CompressPages get not (currentdistillerparams hands back a copy) assert
+<< /LockDistillerParams true >> setdistillerparams
+<< /CompressPages true >> setdistillerparams
+currentdistillerparams /CompressPages get not (a set after the lock is ignored) assert
 /StandardEncoding findencoding length 256 eq
 (findencoding resolves through the Encoding category) assert
 % findcolorrendering forms intent.deviceconfig.halftone and answers true

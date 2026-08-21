@@ -1006,6 +1006,10 @@ setglobal
 % to ask, and answers nought to both.
 /currentsystemparams [ ] {
     << /RealFormat (IEEE) /ByteOrder true /MaxFontCache 1048576
+       % where external resources are found: the first resource directory,
+       % separated by /. Reported, not set -- the search path is the host's.
+       /GenericResourceDir //.xpostsys /.genericresourcedir get exec
+       /GenericResourcePathSep (/)
        /MaxBandBytes
            //.xpostsys /.bandbudget 2 copy known
                { get exec }{ pop pop 0 } ifelse
@@ -1872,6 +1876,36 @@ setglobal
     } if
     cleartomark
 } def
+
+% -    currentdistillerparams  dict
+% dict setdistillerparams        -
+% The parameters that steer PDF production. This build produces PDF through the
+% pdfwrite device, which setpagedevice configures; setdistillerparams records
+% whatever a program sets and currentdistillerparams hands the set back, so a
+% program that configures production through them runs. Only the parameters
+% this build acts on are seeded, so a default read reports what is honoured
+% rather than a knob that does nothing: CompressPages leaves the pdfwrite
+% content stream uncompressed, PreserveOverprintSettings keeps the overprint
+% state in the output, and LockDistillerParams, once true, holds the recorded
+% set against further change. Any other parameter a program sets is still
+% accepted and read back.
+.xpostsys /.distillerparams <<
+    /CompressPages true
+    /PreserveOverprintSettings true
+    /LockDistillerParams false
+>> put
+
+/setdistillerparams [ /dicttype ] {
+    //.xpostsys /.distillerparams get /LockDistillerParams get {
+        pop
+    }{
+        { //.xpostsys /.distillerparams get 3 1 roll put } forall
+    } ifelse
+} //.xpostsys /.defop get exec
+
+/currentdistillerparams [ ] {
+    //.xpostsys /.distillerparams get dup length dict copy
+} //.xpostsys /.defop get exec
 
 %   /fontname size  selectfont  -
 % /fontname matrix  selectfont  -

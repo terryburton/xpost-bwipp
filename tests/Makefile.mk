@@ -110,6 +110,8 @@ tests/check-test-devices.sh \
 tests/check-test-quality.sh \
 tests/check-test-timeouts.sh \
 tests/check-vecbase.sh \
+tests/check-pdf-overprint.sh \
+tests/check-resource-file.sh \
 tests/check-compaction-safe-point.sh \
 tests/check-vm-address.sh \
 tests/check-vm-address-fields.sh \
@@ -387,6 +389,7 @@ tests/path_walk_cost_test.ps \
 tests/pattern_phase_test.ps \
 tests/pattern_space_test.ps \
 tests/colour_space_family_test.ps \
+tests/custom_color_test.ps \
 tests/filter_family_test.ps \
 tests/pdf_append_fail_test.ps \
 tests/pdf_bigfill_test.ps \

@@ -1,0 +1,86 @@
+% Custom-colour convenience operators: findcmykcustomcolor,
+% findrgbcustomcolor, setcustomcolor.
+%
+% A custom colour is a named spot ink with a device fallback. The find*
+% operators package the fallback components with the name; setcustomcolor
+% enters the Separation colour space (PLRM 4.8.4) whose alternate is that
+% fallback and whose tint transform reduces [c m y k] at tint t to
+% [ct mt yt kt]. The packaged object is [c m y k name] for CMYK and
+% [r g b name] for RGB, told apart by length.
+%
+% run-ps-test.sh passes iff this prints SUCCESS (failcount reached zero).
+
+/failcount 0 def
+/assert { % bool (name) . -
+    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
+} def
+/assertnear { % val expected (name) . -
+    3 1 roll sub abs 0.001 lt exch assert
+} def
+
+% ---- findcmykcustomcolor packages [c m y k name] ----
+/o 1 0 0 0 (MyCyan) findcmykcustomcolor def
+o type /arraytype eq        (findcmykcustomcolor returns an array) assert
+o length 5 eq               (a cmyk custom object holds five elements) assert
+o 0 get 1 (its first element is the cyan component) assertnear
+o 4 get (MyCyan) eq         (its last element is the colorant name) assert
+
+% ---- setcustomcolor installs a Separation space over DeviceCMYK ----
+o 0.5 setcustomcolor
+currentcolorspace 0 get /Separation eq   (setcustomcolor installs a Separation space) assert
+currentcolorspace 1 get (MyCyan) eq      (the Separation names the colorant) assert
+currentcolorspace 2 get /DeviceCMYK eq   (its alternate space is DeviceCMYK) assert
+currentcolor 0.5 (the current colour is the tint) assertnear
+currentcmykcolor            % c m y k
+/k4 exch def /y4 exch def /m4 exch def /c4 exch def
+c4 0.5 (cyan reduces to half the tint) assertnear
+m4 0.0 (magenta stays zero) assertnear
+y4 0.0 (yellow stays zero) assertnear
+k4 0.0 (black stays zero) assertnear
+
+% ---- findrgbcustomcolor / setcustomcolor over DeviceRGB ----
+/r 0.2 0.4 0.8 (MyBlue) findrgbcustomcolor def
+r type /arraytype eq        (findrgbcustomcolor returns an array) assert
+r length 4 eq               (an rgb custom object holds four elements) assert
+r 3 get (MyBlue) eq         (its last element is the colorant name) assert
+r 0.5 setcustomcolor
+currentcolorspace 0 get /Separation eq   (rgb setcustomcolor installs a Separation space) assert
+currentcolorspace 2 get /DeviceRGB eq    (its alternate space is DeviceRGB) assert
+currentrgbcolor             % r g b
+/b3 exch def /g3 exch def /r3 exch def
+r3 0.1 (red reduces to 0.5*0.2) assertnear
+g3 0.2 (green reduces to 0.5*0.4) assertnear
+b3 0.4 (blue reduces to 0.5*0.8) assertnear
+
+% ---- customcolorimage / separationimage ----
+% (colour and decode direction are adjudicated by rendering; here we hold
+% their surface: they exist, they run, and they leave the graphics state
+% as they found it.)
+systemdict /customcolorimage known (customcolorimage is defined) assert
+systemdict /separationimage known  (separationimage is defined) assert
+
+% customcolorimage images through the object's own space and restores the
+% caller's space afterward
+/DeviceRGB setcolorspace
+1 0 0 0 (Spot) findcmykcustomcolor /oi exch def
+{ 2 1 8 [2 0 0 1 0 0] {<00FF>} oi customcolorimage } stopped not
+    (customcolorimage completes) assert
+currentcolorspace dup type /arraytype eq { 0 get } if /DeviceRGB eq
+    (customcolorimage restores the caller's colour space) assert
+
+% a malformed object is rejected before it disturbs the graphics state
+/DeviceRGB setcolorspace
+{ 2 1 8 [2 0 0 1 0 0] {<00FF>} [ 1 2 3 ] customcolorimage } stopped
+    (customcolorimage rejects a malformed object) assert
+clear
+currentcolorspace dup type /arraytype eq { 0 get } if /DeviceRGB eq
+    (a rejected customcolorimage leaves the space intact) assert
+
+% separationimage images a one-channel picture in the current space
+[ /Separation (Spot) /DeviceGray {} ] setcolorspace
+{ 2 1 8 [2 0 0 1 0 0] {<00FF>} separationimage } stopped not
+    (separationimage completes in a Separation space) assert
+
+failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+flush
+quit
