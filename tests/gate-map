@@ -268,6 +268,7 @@ graphics test clip-*
 graphics test colorspace-cycle
 graphics test colorspace-matrix
 graphics test colour-*
+graphics test custom-color
 graphics test empty-clip
 graphics test fillpoly-arity
 graphics test fill-span

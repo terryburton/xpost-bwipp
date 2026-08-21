@@ -10,9 +10,10 @@
 #   $1  path to the built xpost binary
 set -u
 xpost=${1:?usage: check-resource-file.sh <xpost binary>}
-tree=$(mktemp -d)
-prog=$(mktemp)
-trap 'rm -rf "$tree" "$prog"' EXIT INT TERM
+. "$(dirname "$0")/guard-paths.sh"
+guard_workdir
+tree="$work"
+prog="$work/prog.ps"
 
 mkdir -p "$tree/Resource/Category" "$tree/Resource/MyCat"
 cat > "$tree/Resource/Category/MyCat" <<'EOF'
@@ -55,7 +56,7 @@ failcount 0 eq { (SUCCESS\n) print }{ (FAILURES: ) print failcount 20 string cvs
 flush
 EOF
 
-out=$("$xpost" -q -I "$tree/Resource" "$prog" </dev/null 2>&1)
+out=$("$xpost" -q -d null -I "$tree/Resource" "$prog" </dev/null 2>&1)
 printf '%s\n' "$out"
 case $out in
     *SUCCESS*) exit 0 ;;

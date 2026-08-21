@@ -65,6 +65,33 @@ path_anchor() {
     esac
 }
 
+# Run a program under a wall-clock limit, on the hosts that carry a
+# command for it and on the ones that do not. The base system of macOS
+# has no timeout(1), and a wrapper naming it outright has every run exit
+# 127 there -- which reads as the program failing rather than as the
+# limit being unavailable. So the limit is kept where the command is
+# missing rather than dropped: what it guards is a run that hangs, and
+# the shell does the same job with a sleeper beside the run, whichever
+# finishes first deciding. The sleeper's output goes nowhere, so a
+# command substitution around a call does not wait on it as well.
+#   $1  the limit in seconds; the rest is the command and its arguments
+if command -v timeout > /dev/null 2>&1; then
+    run_limited() { _rl=$1; shift; timeout "$_rl" "$@"; }
+elif command -v gtimeout > /dev/null 2>&1; then
+    run_limited() { _rl=$1; shift; gtimeout "$_rl" "$@"; }
+else
+    run_limited() {
+        _rl=$1; shift
+        "$@" &
+        _rl_job=$!
+        ( sleep "$_rl"; kill -9 "$_rl_job" ) > /dev/null 2>&1 &
+        _rl_watch=$!
+        wait "$_rl_job"; _rl_rc=$?
+        kill "$_rl_watch" > /dev/null 2>&1
+        return $_rl_rc
+    }
+fi
+
 # Whether the peak resident size of a run of the program under test can
 # be read on this machine.
 #

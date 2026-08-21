@@ -614,6 +614,7 @@ method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage pdfwrite svgwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
+method .pdfoverprint dscwrite pdfwrite
 method .playmake record
 method .pushcolor bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .put dscwrite pdfwrite svgwrite
@@ -685,6 +686,8 @@ state miny bbox
 state .ncomps dscwrite pdfwrite
 state .nextobj dscwrite pdfwrite
 state .opaque bbox
+state .oplast dscwrite pdfwrite
+state .opused dscwrite pdfwrite
 state OutputFileName every
 state .pdffillcolor dscwrite pdfwrite
 state .pdfimages dscwrite pdfwrite

@@ -11,20 +11,24 @@
 set -u
 xpost=$1
 . "$(dirname "$0")/verdict.sh"
+# the runs are made from the scratch directory so their files can be named
+# relatively: a native interpreter driven by a POSIX shell cannot open a
+# file named to it by the shell's absolute path
+xpost=$(path_anchor "$xpost")
 verdict_workdir
 
 # An out-of-range EarlyChange is refused at the filter, before any encoding.
-cat > "$work/bad.ps" <<PS
-/f ($work/o.lzw) (w) file def
+cat > "$work/bad.ps" <<'PS'
+/f (o.lzw) (w) file def
 { f << /EarlyChange -1000000 >> /LZWEncode filter } stopped
-    { \$error /errorname get /rangecheck eq { (REFUSED-NEG\n) } { (WRONG-ERROR\n) } ifelse }
+    { $error /errorname get /rangecheck eq { (REFUSED-NEG\n) } { (WRONG-ERROR\n) } ifelse }
     { (ACCEPTED-NEG\n) } ifelse print
 { f << /EarlyChange 2 >> /LZWEncode filter } stopped
-    { \$error /errorname get /rangecheck eq { (REFUSED-2\n) } { (WRONG-ERROR\n) } ifelse }
+    { $error /errorname get /rangecheck eq { (REFUSED-2\n) } { (WRONG-ERROR\n) } ifelse }
     { (ACCEPTED-2\n) } ifelse print
 flush
 PS
-out=$(timeout 10 "$xpost" -q --no-sandbox -d null "$work/bad.ps" </dev/null 2>&1)
+out=$(cd "$work" && run_limited 10 "$xpost" -q --no-sandbox -d null bad.ps </dev/null 2>&1)
 st=$?
 verdict_run "$st" "$out" "the out-of-range EarlyChange run" || exit 1
 case $out in
@@ -40,18 +44,18 @@ esac
 echo "out-of-range EarlyChange refused"
 
 # A valid EarlyChange still encodes and round-trips.
-cat > "$work/rt.ps" <<PS
+cat > "$work/rt.ps" <<'PS'
 /orig 5000 string def
 0 1 orig length 1 sub { /i exch def orig i i 256 mod put } for
-/ef ($work/rt.lzw) (w) file def
+/ef (rt.lzw) (w) file def
 /enc ef << /EarlyChange 1 >> /LZWEncode filter def
 enc orig writestring enc closefile ef closefile
-/df ($work/rt.lzw) (r) file << /EarlyChange 1 >> /LZWDecode filter def
+/df (rt.lzw) (r) file << /EarlyChange 1 >> /LZWDecode filter def
 /back 5000 string def
 df back readstring pop /got exch def df closefile
 got orig eq { (RT-OK\n) } { (RT-MISMATCH\n) } ifelse print flush
 PS
-out=$(timeout 10 "$xpost" -q --no-sandbox -d null "$work/rt.ps" </dev/null 2>&1)
+out=$(cd "$work" && run_limited 10 "$xpost" -q --no-sandbox -d null rt.ps </dev/null 2>&1)
 st=$?
 verdict_run "$st" "$out" "the round-trip run" || exit 1
 case $out in

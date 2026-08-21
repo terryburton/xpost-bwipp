@@ -98,6 +98,7 @@ callback_reentry_test.ps                   once   unexplained
 cid_show_test.ps                           once   unexplained
 cli_sandbox_test.ps                        once   unexplained
 clip_region_test.ps                        once   unexplained
+colorspace_cycle_test.ps                   zero
 colorspace_matrix_test.ps                  once   unexplained
 colour_range_test.ps                       fits
 colour_sampling_test.ps                    once   unexplained
@@ -114,14 +115,14 @@ device_features_test.ps                    fits
 device_getpix_destroyed_test.ps            once   unexplained
 device_ground_test.ps                      zero
 device_private_test.ps                     once   unexplained
-device_restore_retired_test.ps             costs  unexplained
+device_restore_retired_test.ps             zero
 device_retire_restored_test.ps             once   unexplained
 empty_clip_test.ps                         once   unexplained
 entity_limit_test.ps                       once/fits  unexplained
 error_dict_test.ps                         zero
 error_unwind_test.ps                       once   unexplained
 execform_cache_test.ps                     once   unexplained
-file_lifetime_test.ps                      costs  unexplained
+file_lifetime_test.ps                      zero
 file_refusal_test.ps                       once   unexplained
 filenameforall_large_test.ps               once   unexplained
 fill_span_test.ps                          once   unexplained
@@ -136,11 +137,11 @@ filter_leak_test.ps                        fits
 filter_matrix_test.ps                      zero
 filter_predictor_test.ps                   zero
 filter_proc_test.ps                        once   unexplained
-filter_source_life_test.ps                 costs  unexplained
+filter_source_life_test.ps                 zero
 font_bigbuf_test.ps                        fits
 font_cache_bound_test.ps                   fits
 font_cache_evict_test.ps                   zero
-font_directory_test.ps                     costs  unexplained
+font_directory_test.ps                     zero
 font_face_release_test.ps                  fits
 font_glyph_colour_test.ps                  fits
 font_glyph_identity_test.ps                fits
@@ -165,6 +166,7 @@ gc_deep_chain_test.ps                      once   unexplained
 gc_diagnostics_test.ps                     zero
 gc_large_dict_pressure_test.ps             once   unexplained
 gc_large_dict_test.ps                      once   unexplained
+gc_save_view_test.ps                       zero
 gc_stack_segments_test.ps                  once   unexplained
 global_vm_invariant_test.ps                fits
 golden_page.ps                             fits
@@ -183,6 +185,7 @@ large_object_test.ps                       zero
 local_vm_invariant_test.ps                 zero
 loop_exit_test.ps                          fits
 mask_cache_range_test.ps                   once   unexplained
+name_intern_test.ps                        zero
 name_lookup_cost_test.ps                   fits
 namespace_test.ps                          zero
 noface_refusal_test.ps                     once   quits at its skip guard on a build with a face library
@@ -208,7 +211,7 @@ op_file_edges_test.ps                      once   unexplained
 op_file_limit_test.ps                      once   unexplained
 op_filenameforall_test.ps                  zero
 op_fontcache_test.ps                       once   unexplained
-op_glyphcontext_test.ps                    costs  unexplained
+op_glyphcontext_test.ps                    zero
 op_gstate_types_test.ps                    zero
 op_hexstring_test.ps                       fits
 op_index_type_test.ps                      zero
@@ -245,7 +248,7 @@ oversize_page_test.ps                      zero
 page_cover_test.ps                         once   unexplained
 page_extent_test.ps                        once   unexplained
 page_handlers_test.ps                      once   unexplained
-page_lifetime_test.ps                      costs  unexplained
+page_lifetime_test.ps                      fits
 path_bounds_test.ps                        once   unexplained
 path_recycle_test.ps                       fits
 path_walk_cost_test.ps                     zero
@@ -255,6 +258,7 @@ pdf_append_fail_test.ps                    once   unexplained
 pdf_bigfill_test.ps                        fits
 pdf_global_vm_test.ps                      zero
 pdf_pipe_test.ps                           zero
+printobject_overflow_test.ps               zero
 privatedict_install_test.ps                once   unexplained
 quit_run_test.ps                           once   unexplained
 raster_class_test.ps                       once   unexplained
@@ -280,6 +284,7 @@ save_restore_sweep_cost_test.ps            once   unexplained
 save_restore_test.ps                       once   unexplained
 scanner_eof_test.ps                        zero
 semantics_test.ps                          once   unexplained
+setdash_finite_test.ps                     zero
 setpagedevice_failure_test.ps              once   unexplained
 show_clip_test.ps                          once   unexplained
 show_pattern_test.ps                       once   unexplained
@@ -290,7 +295,7 @@ stencil_mask_size_test.ps                  zero
 stream_exec_test.ps                        zero
 subinterval_retention_test.ps              zero
 svg_append_fail_test.ps                    once   unexplained
-tamper_dispatch_test.ps                    costs  unexplained
+tamper_dispatch_test.ps                    fits
 testlib.ps                                 zero
 testlib_contract_test.ps                   zero
 thin_stroke_test.ps                        zero

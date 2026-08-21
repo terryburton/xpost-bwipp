@@ -24,7 +24,7 @@ PS
 # Post-fix this is milliseconds; the unclamped spin is about a second per
 # sample row -- roughly forty seconds for forty rows -- so a short deadline
 # divides the two cleanly. timeout returns 124 when it has to step in.
-out=$(timeout 15 "$xpost" -q -d pgm -o "$work/o.pgm" "$work/dos.ps" </dev/null 2>&1)
+out=$(run_limited 15 "$xpost" -q -d pgm -o "$work/o.pgm" "$work/dos.ps" </dev/null 2>&1)
 st=$?
 if [ "$st" -eq 124 ]; then
     echo "FAIL: the image render did not finish -- the device-row loop was not clamped"

@@ -12,10 +12,11 @@
 #   $1  path to the built xpost binary
 set -u
 xpost=${1:?usage: check-pdf-overprint.sh <xpost binary>}
+. "$(dirname "$0")/guard-paths.sh"
+guard_workdir
 fail=0
-oppdf=$(mktemp); plainpdf=$(mktemp); droppdf=$(mktemp); rawpdf=$(mktemp)
-opps=$(mktemp); plainps=$(mktemp); dropps=$(mktemp); rawps=$(mktemp)
-trap 'rm -f "$oppdf" "$plainpdf" "$droppdf" "$rawpdf" "$opps" "$plainps" "$dropps" "$rawps"' EXIT INT TERM
+oppdf="$work/op.pdf"; plainpdf="$work/plain.pdf"; droppdf="$work/drop.pdf"; rawpdf="$work/raw.pdf"
+opps="$work/op.ps"; plainps="$work/plain.ps"; dropps="$work/drop.ps"; rawps="$work/raw.ps"
 
 cat > "$opps" <<'EOF'
 1 0 0 0 setcmykcolor 100 100 200 200 rectfill

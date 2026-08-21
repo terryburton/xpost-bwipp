@@ -24,7 +24,7 @@ cat > "$work/hidden.ps" <<'PS'
 /currentcontext where { pop (CC-DEFINED\n) }{ (CC-HIDDEN\n) } ifelse print
 flush
 PS
-out=$(timeout 10 "$xpost" -q --no-sandbox -d null "$work/hidden.ps" </dev/null 2>&1)
+out=$(run_limited 10 "$xpost" -q --no-sandbox -d null "$work/hidden.ps" </dev/null 2>&1)
 st=$?
 verdict_run "$st" "$out" "the default (no --enable-dps) run" || exit 1
 for want in FORK-HIDDEN JOIN-HIDDEN CC-HIDDEN; do
@@ -59,7 +59,7 @@ counttomark 1 eq { 5 eq }{ false } ifelse
 cleartomark
 flush
 PS
-out=$(timeout 10 "$xpost" -q --no-sandbox --enable-dps -d null "$work/enabled.ps" </dev/null 2>&1)
+out=$(run_limited 10 "$xpost" -q --no-sandbox --enable-dps -d null "$work/enabled.ps" </dev/null 2>&1)
 st=$?
 verdict_run "$st" "$out" "the --enable-dps run" || exit 1
 for want in FORK-INSTALLED SELFJOIN-INVALIDCONTEXT CC-YIELDS-CONTEXT DETACH-OK FORKJOIN-5; do
