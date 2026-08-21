@@ -1,0 +1,79 @@
+% Idiom recognition (PLRM 3.12.1), run through `xpost -d null` by
+% run-ps-test.sh: prints SUCCESS iff every assertion holds.
+%
+% When the IdiomRecognition user parameter is true, bind compares the
+% procedure it has just bound against the template procedures held in the
+% IdiomSet resource instances in view and, on a match, returns the paired
+% substitute procedure. The comparison is by value and considers only the
+% top-level bound procedure, not the procedures nested within it.
+
+/failcount 0 def
+/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
+
+% IdiomRecognition is a user parameter, true by default.
+currentuserparams /IdiomRecognition known (IdiomRecognition is a user parameter) assert
+currentuserparams /IdiomRecognition get (IdiomRecognition defaults to true) assert
+
+% A non-boolean value for it is a typecheck, and the whole set is refused.
+{ << /IdiomRecognition 5 >> setuserparams false }
+stopped { $error /errorname get /typecheck eq } if
+(a non-boolean IdiomRecognition is refused) assert
+currentuserparams /IdiomRecognition get (a refused set leaves the value standing) assert
+
+% Build an IdiomSet with recognition off, so the templates are not themselves
+% recognised as idioms while they are being constructed.
+<< /IdiomRecognition false >> setuserparams
+/Demo <<
+  /add99 [ { 1 2 add } bind { 99 } bind ]
+  /snap  [ { transform 0.25 sub round 0.25 add exch 0.25 sub round 0.25 add exch itransform } bind
+           { } bind ]
+>> /IdiomSet defineresource pop
+<< /IdiomRecognition true >> setuserparams
+
+% A bound procedure that matches a template becomes the substitute.
+{ 1 2 add } bind exec 99 eq (a matching procedure takes the substitute) assert
+
+% The substitute may be empty; the snap idiom collapses to a no-op.
+/snapped { transform 0.25 sub round 0.25 add exch 0.25 sub round 0.25 add exch itransform } bind def
+/snapped load length 0 eq (an empty substitute is returned as such) assert
+
+% A procedure matching no template is returned unchanged.
+{ 9 9 add } bind exec 18 eq (a non-matching procedure is unchanged) assert
+
+% Only the top-level procedure is compared; a nested idiom is left alone.
+/nested { { 1 2 add } } bind def
+/nested load 0 get exec 3 eq (a nested idiom is not substituted) assert
+
+% Match is by value, not identity: an int template matches a real element,
+% and a procedure built without the scanner matches too.
+[ 1 2 /add cvx ] cvx bind exec 99 eq (a runtime-built procedure matches by value) assert
+
+% With recognition off, no substitution occurs.
+<< /IdiomRecognition false >> setuserparams
+{ 1 2 add } bind exec 3 eq (recognition off makes bind substitute nothing) assert
+<< /IdiomRecognition true >> setuserparams
+
+% The recognition state is reverted by restore.
+/snap save def
+<< /IdiomRecognition false >> setuserparams
+snap restore
+{ 1 2 add } bind exec 99 eq (restore reverts IdiomRecognition) assert
+
+% Local IdiomSet instances are considered in local allocation mode.
+false setglobal
+<< /IdiomRecognition false >> setuserparams
+/Local << /x [ { 3 4 add } bind { 55 } bind ] >> /IdiomSet defineresource pop
+<< /IdiomRecognition true >> setuserparams
+{ 3 4 add } bind exec 55 eq (a local IdiomSet is seen in local mode) assert
+
+% but not in global allocation mode.
+true setglobal
+{ 3 4 add } bind exec 7 eq (a local IdiomSet is not seen in global mode) assert
+false setglobal
+
+% A local substitute is not offered for a candidate in global VM: the
+% substitute would outlive the candidate's home.
+true setglobal /gcand { 3 4 add } bind def false setglobal
+/gcand load bind exec 7 eq (a global candidate is not given a local substitute) assert
+
+failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse

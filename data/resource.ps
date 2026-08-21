@@ -489,4 +489,129 @@ currentglobal true setglobal
 >> /ProcSet defineresource pop
 setglobal
 
+% ---- idiom recognition (PLRM 3.12.1) -----------------------------------
+% bind, when the IdiomRecognition user parameter is true, compares the
+% procedure it has just bound against every template procedure held in the
+% IdiomSet resource instances in view, and where one matches returns the
+% paired substitute procedure in its place. The comparison is by value, not
+% by key -- the one resource category selected that way -- so every instance
+% is walked. Only the top-level bound procedure is compared, not the nested
+% ones bind descended into; the substitute is returned as bind's result.
+currentglobal true setglobal
+
+% a b depth  .idiommatch  bool
+% Two procedures match when corresponding elements are equal in the sense
+% of eq, or are both arrays whose corresponding elements match in turn, to
+% a depth of ten. Attributes are disregarded, as eq disregards them, so the
+% working copies are taken literal to compare their contents without running
+% them. The depth bound also stops a procedure that refers to itself.
+.xpostsys /.idiommatch {
+    6 dict begin
+    /dep exch def /bb exch cvlit def /aa exch cvlit def
+    aa bb eq {
+        true
+    }{
+        aa type dup /arraytype eq exch /packedarraytype eq or
+        bb type dup /arraytype eq exch /packedarraytype eq or
+        and dep 10 lt and {
+            aa length bb length eq {
+                /res true def
+                0 1 aa length 1 sub {
+                    /ii exch def
+                    aa ii get bb ii get dep 1 add
+                    //.xpostsys /.idiommatch get exec
+                    not { /res false def exit } if
+                } for
+                res
+            }{ false } ifelse
+        }{ false } ifelse
+    } ifelse
+    end
+} bind put
+
+% cand instances  .idiomsearch  substitute true | false
+% Walk one IdiomSet instance dictionary, whose every value is a two-element
+% array of a template and a substitute, and return the first substitute
+% whose template matches the candidate. A substitute in local VM is not
+% offered for a candidate in global VM (it would outlive its home), which is
+% the one visibility rule bind applies beyond the allocation mode below.
+.xpostsys /.idiomsearch {
+    4 dict begin
+    /instances exch def /cand exch def /repl null def /found false def
+    instances {
+        exch pop                      % the value; the key is disregarded
+        dup 0 get                     % value template
+        /cand load exch 1 //.xpostsys /.idiommatch get exec {
+            1 get                     % the paired substitute
+            /cand load gcheck 1 index gcheck not and
+            { pop }
+            { /repl exch def /found true def exit }
+            ifelse
+        }{ pop } ifelse
+    } forall
+    found { /repl load true }{ false } ifelse
+    end
+} bind put
+
+% cand table  .idiomcat  substitute true | false
+% Walk the instances held in one IdiomSet resource table -- each value an
+% instance dictionary of template/substitute pairs -- and return the first
+% substitute any instance offers for the candidate. Which instance wins when
+% two hold the same template is not defined, so the first found is taken.
+.xpostsys /.idiomcat {
+    4 dict begin
+    /table exch def /cand exch def /repl null def /found false def
+    table {
+        exch pop                  % one instance dictionary
+        /cand load exch //.xpostsys /.idiomsearch get exec {
+            /repl exch def /found true def exit
+        }{ } ifelse
+    } forall
+    found { /repl load true }{ false } ifelse
+    end
+} bind put
+
+% cand  .idiomsub  cand'
+% bind's result passes through here. The global IdiomSet instances are always
+% in view; the local ones are added when the allocation mode is local, as bind
+% considers local resources only then. With no instances in either the
+% candidate is returned untouched without even reading the user parameter, so
+% the common bind pays only two dictionary lookups.
+.xpostsys /.idiomsub {
+    4 dict begin
+    /cand exch def
+    /g //.xpostsys /.resources get
+        dup /IdiomSet known { /IdiomSet get }{ pop << >> } ifelse def
+    /l currentglobal
+        { << >> }
+        { .gscratch /.lresources get
+          dup /IdiomSet known { /IdiomSet get }{ pop << >> } ifelse }
+        ifelse def
+    g length 0 eq l length 0 eq and {
+        /cand load
+    }{
+        //.internaldict /.idiomrecognition get exec {
+            /cand load g //.xpostsys /.idiomcat get exec {
+            }{
+                /cand load l //.xpostsys /.idiomcat get exec
+                { }{ /cand load } ifelse
+            } ifelse
+        }{
+            /cand load
+        } ifelse
+    } ifelse
+    end
+} bind put
+
+% -  .bindwrap  -   (installed as the bind operator by .finalize)
+% Run the plain bind kept in .internaldict, then offer its result to idiom
+% substitution. The two steps are what a LanguageLevel 3 bind is.
+.xpostsys /.bindwrap {
+    //.internaldict /.cbind get exec
+    //.xpostsys /.idiomsub get exec
+} bind put
+
+setglobal
+% ------------------------------------------------------------------------
+
 //.internaldict /QUIET known { }{ (eof resource.ps\n)print } ifelse

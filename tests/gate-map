@@ -406,6 +406,7 @@ language test dict-*
 language test error-*
 language test free-*
 language test fused-equivalence
+language test idiom
 language test internal-debug-ops
 language test interpreter
 language test interrupt

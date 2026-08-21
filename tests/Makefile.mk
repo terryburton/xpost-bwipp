@@ -299,6 +299,7 @@ tests/guard-paths.sh \
 tests/halftone_cell_test.ps \
 tests/halftone_matrix_test.ps \
 tests/host_settings.golden \
+tests/idiom_test.ps \
 tests/image_matrix_test.ps \
 tests/imaging_bbox_test.ps \
 tests/internal_debug_ops_test.ps \

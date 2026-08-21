@@ -374,6 +374,7 @@ static const char *_userparam_vmthreshold = "VMThreshold";
 static const char *_userparam_maxopstack = "MaxOpStack";
 static const char *_userparam_maxdictstack = "MaxDictStack";
 static const char *_userparam_maxexecstack = "MaxExecStack";
+static const char *_userparam_idiomrecognition = "IdiomRecognition";
 
 /* one parameter's present value, into the dictionary being reported */
 static
@@ -382,6 +383,16 @@ int _param_report(Xpost_Context *ctx, Xpost_Object d, const char *key,
 {
     return xpost_dict_put(ctx, d, xpost_name_cons(ctx, key),
                           xpost_int_cons(val));
+}
+
+/* a boolean parameter's present value, into the dictionary being
+   reported (IdiomRecognition is the one such) */
+static
+int _param_report_bool(Xpost_Context *ctx, Xpost_Object d, const char *key,
+                       int val)
+{
+    return xpost_dict_put(ctx, d, xpost_name_cons(ctx, key),
+                          xpost_bool_cons(val));
 }
 
 /* -  currentuserparams  dict
@@ -398,7 +409,7 @@ int currentuserparams(Xpost_Context *ctx)
     Xpost_Object d;
     int ret;
 
-    d = xpost_dict_cons(ctx, 5);
+    d = xpost_dict_cons(ctx, 6);
     if (xpost_object_get_type(d) == invalidtype)
         return VMerror;
 
@@ -415,6 +426,10 @@ int currentuserparams(Xpost_Context *ctx)
     if (ret)
         return ret;
     ret = _param_report(ctx, d, _userparam_maxexecstack, XPOST_EXEC_STACK_LIMIT);
+    if (ret)
+        return ret;
+    ret = _param_report_bool(ctx, d, _userparam_idiomrecognition,
+                             ctx->idiomrecognition);
     if (ret)
         return ret;
 
@@ -447,6 +462,29 @@ int _param_request(Xpost_Context *ctx, Xpost_Object D, const char *key,
     return 0;
 }
 
+/* the boolean value a dictionary offers for one parameter: absent where
+   it offers none, a typecheck where what it offers is not a boolean
+   (IdiomRecognition is the one such parameter) */
+static
+int _param_request_bool(Xpost_Context *ctx, Xpost_Object D, const char *key,
+                        int *val, int *have)
+{
+    Xpost_Object v;
+
+    if (have)
+        *have = 0;
+    v = xpost_dict_get(ctx, D, xpost_name_cons(ctx, key));
+    if (xpost_object_get_type(v) == invalidtype)
+        return 0;
+    if (xpost_object_get_type(v) != booleantype)
+        return typecheck;
+    if (val)
+        *val = v.int_.val;
+    if (have)
+        *have = 1;
+    return 0;
+}
+
 /* dict  setuserparams  -
    set the user interpreter parameters the dictionary names, leaving the
    rest as they were (PLRM 8.2 setuserparams).
@@ -469,6 +507,7 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
 {
     integer reclaim = 0, threshold = 0;
     int have_reclaim = 0, have_threshold = 0;
+    int idiom = 0, have_idiom = 0;
     int ret;
 
     /* the dictionary is searched, so it needs read access */
@@ -491,6 +530,10 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
     ret = _param_request(ctx, D, _userparam_maxexecstack, NULL, NULL);
     if (ret)
         return ret;
+    ret = _param_request_bool(ctx, D, _userparam_idiomrecognition,
+                              &idiom, &have_idiom);
+    if (ret)
+        return ret;
 
     if (have_reclaim && (reclaim == 0 || reclaim == -1 || reclaim == -2))
     {
@@ -504,6 +547,8 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
                                          : threshold;
         _vmthreshold_apply(ctx, ctx->vmthreshold);
     }
+    if (have_idiom)
+        ctx->idiomrecognition = idiom ? 1 : 0;
     return 0;
 }
 
@@ -525,6 +570,19 @@ int globalvmstatus (Xpost_Context *ctx)
 }
 
 
+/* -  .idiomrecognition  bool
+   the present value of the IdiomRecognition user parameter, for the
+   bind machinery to read cheaply without building the whole parameter
+   dictionary each time it binds */
+static
+int idiomrecognition_get(Xpost_Context *ctx)
+{
+    if (!xpost_stack_push(ctx->lo, ctx->os,
+                          xpost_bool_cons(ctx->idiomrecognition)))
+        return stackoverflow;
+    return 0;
+}
+
 int xpost_oper_init_param_ops(Xpost_Context *ctx,
                               Xpost_Object sd)
 {
@@ -544,6 +602,8 @@ int xpost_oper_init_param_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, "vmstatus", (Xpost_Op_Func)vmstatus, 0);
     INSTALL;
     op = xpost_operator_cons(ctx, "globalvmstatus", (Xpost_Op_Func)globalvmstatus, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".idiomrecognition", (Xpost_Op_Func)idiomrecognition_get, 0);
     INSTALL;
     op = xpost_operator_cons(ctx, ".vmentcount", (Xpost_Op_Func)vmentcount, 0);
     INSTALL;

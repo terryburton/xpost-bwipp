@@ -2614,8 +2614,16 @@ currentglobal true setglobal
     % before the move, so they carry their frozen references with them.
     .privatedict //.xpostsys /.bindscope get exec
 
-
-
+    % Install idiom recognition. The plain bind is kept in .internaldict and
+    % /bind becomes an operator that runs it and then offers the result to
+    % IdiomSet substitution (PLRM 3.12.1, LanguageLevel 3). This is done here,
+    % after every sweep above has bound the machinery with the plain operator,
+    % so only a program's own binds from now on carry the substitution step;
+    % it names the operand it takes so a non-procedure is refused as bind.
+    .internaldict /.cbind systemdict /bind get put
+    systemdict /bind
+        /bind .xpostsys /.bindwrap get [ /proctype ] .wrapopsig
+        put
 
     % userdict, errordict, $error and FontDirectory are names in systemdict for
     % local dictionaries; the userdict copies are dropped so each name resolves

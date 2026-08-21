@@ -143,6 +143,9 @@ int Zsave(Xpost_Context *ctx)
             (unsigned char)xpost_garbage_auto_banks(ctx);
     if (v.save_.lev < sizeof ctx->vmthreshold_hist / sizeof ctx->vmthreshold_hist[0])
         ctx->vmthreshold_hist[v.save_.lev] = ctx->vmthreshold;
+    if (v.save_.lev < sizeof ctx->idiomrecognition_hist)
+        ctx->idiomrecognition_hist[v.save_.lev] =
+            (unsigned char)ctx->idiomrecognition;
     if (!xpost_stack_push(ctx->lo, ctx->os, v))
         return stackoverflow;
     return 0;
@@ -302,6 +305,8 @@ int Vrestore(Xpost_Context *ctx,
         xpost_garbage_auto_banks_set(ctx, ctx->autobanks_hist[V.save_.lev]);
     if (V.save_.lev < sizeof ctx->vmthreshold_hist / sizeof ctx->vmthreshold_hist[0])
         ctx->vmthreshold = ctx->vmthreshold_hist[V.save_.lev];
+    if (V.save_.lev < sizeof ctx->idiomrecognition_hist)
+        ctx->idiomrecognition = ctx->idiomrecognition_hist[V.save_.lev];
 
     return 0;
 }

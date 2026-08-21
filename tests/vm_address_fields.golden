@@ -43,6 +43,7 @@ count    xpost_context.h:_Xpost_Context     es_run_base
 count    xpost_context.h:_Xpost_Context     globs_size
 count    xpost_context.h:_Xpost_Context     hold
 count    xpost_context.h:_Xpost_Context     id
+count    xpost_context.h:_Xpost_Context     idiomrecognition
 count    xpost_context.h:_Xpost_Context     ignoreinvalidaccess
 count    xpost_context.h:_Xpost_Context     job_baseline_ds
 count    xpost_context.h:_Xpost_Context     job_boundary_failed

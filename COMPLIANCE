@@ -314,6 +314,8 @@ Level 2 operators
      those present only as files on the search path)
  [X] resource discovery by filename (GenericResourceDir, GenericResourcePathSep,
      ResourceFileName; the directory is %null when the search path is empty)
+ [X] idiom recognition (IdiomSet resource category, IdiomRecognition user
+     parameter; the top-level bound procedure is compared by value)
  [X] Trapping procedure set: settrapparams, currenttrapparams, settrapzone
      (parameters recorded and queryable; no traps are generated, as the
      language leaves in-RIP trapping device-dependent)

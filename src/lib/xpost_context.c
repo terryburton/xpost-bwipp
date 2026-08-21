@@ -357,6 +357,7 @@ int xpost_context_init(Xpost_Context *ctx,
        count its banks are already paced by, so what currentuserparams
        reports before anybody sets it is what the run is doing */
     ctx->vmthreshold = XPOST_GARBAGE_COLLECTION_THRESHOLD;
+    ctx->idiomrecognition = 1;
     ctx->globs = NULL;
     ctx->globs_size = 0;
     ctx->job_baseline_lo = NULL;

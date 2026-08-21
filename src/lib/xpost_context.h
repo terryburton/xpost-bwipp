@@ -294,6 +294,14 @@ struct _Xpost_Context {
     integer vmthreshold;
     integer vmthreshold_hist[256];
 
+    /** Whether bind replaces a bound procedure that matches an IdiomSet
+        template with the paired substitute (PLRM 3.12.1). The
+        IdiomRecognition user parameter: held per context as a user
+        parameter is (PLRM C.1.1), and recorded at each save level so
+        restore reverts it (PLRM 8.2 restore). True at context start. */
+    int idiomrecognition;
+    unsigned char idiomrecognition_hist[256];
+
     /** Which banks a collection that runs of its own accord reclaims,
         at each save level, in the form xpost_garbage_auto_banks reports.
         That setting is the whole of the VMReclaim user parameter -- it

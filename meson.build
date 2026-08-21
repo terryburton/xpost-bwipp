@@ -3265,6 +3265,15 @@ test('op-bind',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# Idiom recognition: bind replaces a bound procedure matching an IdiomSet
+# template with the paired substitute, top level only, by value, honouring
+# the IdiomRecognition user parameter and the local/global visibility rules.
+test('idiom',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/idiom_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The operators taking more than one shape of operand list: every shape
 # the language defines is reached, and one matching none is refused.
 test('op-operand-shapes',
