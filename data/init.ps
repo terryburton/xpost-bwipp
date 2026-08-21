@@ -1025,6 +1025,77 @@ setglobal
 } //.xpostsys /.defop get exec
 /setsystemparams [ /dicttype ] { pop } //.xpostsys /.defop get exec
 
+% Display PostScript synchronisation (PLRM 2nd ed 7.1). lock and condition are
+% the two synchronisation objects; monitor, wait and notify coordinate contexts
+% through them. Scheduling is cooperative, so mutual exclusion between yields is
+% inherent -- a monitor's procedure runs atomically unless it yields or waits --
+% and these enforce it only across a context's own yield or wait, where they
+% block by yielding and re-checking, the way join does. The objects are ordinary
+% dictionaries whose value the shared VM shares between contexts exactly as PLRM
+% requires of a lock or condition; only these operators read or write them.
+% Installed on the --enable-dps opt-in, beside fork and join, so a default run
+% leaves the names undefined.
+.dpsenabled {
+    % -  lock  lock          a lock, free and unowned
+    /lock [ ] { << /held false /owner null >> } //.xpostsys /.defop get exec
+    % -  condition  condition   a condition
+    /condition [ ] { << /gen 0 >> } //.xpostsys /.defop get exec
+    % condition  notify  -      resume every context waiting on the condition
+    /notify [ /dicttype ] {
+        dup /gen exch /gen get 1 add put
+    } //.xpostsys /.defop get exec
+    % lock proc  monitor  -     acquire the lock, run proc, release it
+    /monitor [ /dicttype /arraytype ] {
+        exch                                   % proc lock
+        % monitor of a lock this context already holds is invalidcontext
+        dup /held get 1 index /owner get currentcontext eq and
+            { /monitor cvx /invalidcontext signalerror } if
+        % acquire: wait while another context holds it, then take it
+        { dup /held get not { exit } if yield } loop
+        dup /held true put
+        dup /owner currentcontext put
+        % Run the procedure, releasing the lock however it ends. The release
+        % is `{ theLock /held false put }` with the lock captured, so the whole
+        % is `{ proc } stopped { release stop } { release } ifelse` built with
+        % the lock embedded. It is assembled in a scratch dictionary popped
+        % before it runs, so the procedure runs in the caller's own dictionary
+        % and operand stack, disturbed by neither the lock nor this machinery.
+        % Releasing sets only /held: /owner is overwritten on the next acquire
+        % and read only while held, so leaving it stale is harmless.
+        3 dict begin
+            /m.lk exch def                     % proc
+            /m.pr exch def                     %
+            /m.td [ /m.lk load /held false /put load ] cvx def
+            [ [ /m.pr load /exec load ] cvx
+              /stopped load
+              [ /m.td load /exec load /stop load ] cvx
+              [ /m.td load /exec load ] cvx
+              /ifelse load ] cvx
+        end
+        exec
+    } //.xpostsys /.defop get exec
+    % lock condition  wait  -   release the lock, await notify, reacquire it
+    /wait [ /dicttype /dicttype ] {
+        2 dict begin
+        /.wcond exch def                       % lock
+        /.wlk exch def                         %
+        % wait on a lock this context does not hold is invalidcontext
+        .wlk /held get .wlk /owner get currentcontext eq and not
+            { end /wait cvx /invalidcontext signalerror } if
+        % release the lock and wait for a notify issued after this point
+        .wcond /gen get                        % startgen
+        .wlk /held false put
+        .wlk /owner null put
+        { .wcond /gen get 1 index gt { exit } if yield } loop
+        pop
+        % reacquire the lock before returning to the monitor
+        { .wlk /held get not { exit } if yield } loop
+        .wlk /held true put
+        .wlk /owner currentcontext put
+        end
+    } //.xpostsys /.defop get exec
+} if
+
 % Move the start procedures into privatedict, off the dict stack: the C fetches
 % them there (through ctx->privatedict) to prime a run, so a program never sees
 % them among systemdict's names. They bind with the rest of privatedict in

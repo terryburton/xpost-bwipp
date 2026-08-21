@@ -335,6 +335,9 @@ FontDirectory /st.uf known not (undefinefont removes the instance) assert
 true setstrokeadjust currentstrokeadjust (stroke adjustment is recorded) assert
 false setstrokeadjust
 0.5 setsmoothness currentsmoothness 0.5 eq (smoothness is recorded) assert
+currentrasteropcode 12 eq (the raster op code defaults to replace) assert
+6 setrasteropcode currentrasteropcode 6 eq (the raster op code is recorded) assert
+12 setrasteropcode
 /StandardEncoding findencoding length 256 eq
 (findencoding resolves through the Encoding category) assert
 % findcolorrendering forms intent.deviceconfig.halftone and answers true

@@ -122,6 +122,67 @@ mark { } fork dup /c exch def currentcontext ne
 c detach
 clear
 
+% fork or join with a save the program has not matched by a restore is
+% invalidcontext (PLRM 2nd ed 7.1)
+save /svg1 exch def
+{ mark { } fork } /invalidcontext
+    (fork with an unmatched save is invalidcontext) raises
+clear
+svg1 restore
+mark { } fork /svgctx exch def
+save /svg2 exch def
+{ svgctx join } /invalidcontext
+    (join with an unmatched save is invalidcontext) raises
+clear
+svg2 restore
+svgctx join cleartomark
+
+% the synchronisation operators coordinate contexts through a shared lock and
+% condition (PLRM 2nd ed 7.1). Scheduling is cooperative, so mutual exclusion
+% between yields is inherent; these carry the wait/notify coordination.
+
+% wait on a lock the context does not hold is invalidcontext
+{ lock condition wait } /invalidcontext
+    (wait on a lock not held is invalidcontext) raises
+clear
+
+% monitor of a lock the context already holds is invalidcontext, and the outer
+% monitor still gives the lock back
+/lk1 lock def
+{ lk1 { lk1 { } monitor } monitor } /invalidcontext
+    (monitor of a held lock is invalidcontext) raises
+clear
+lk1 /held get not (an invalidcontext leaves the lock free) assert
+
+% monitor releases the lock when its procedure raises, and re-raises the error
+/lk2 lock def
+{ lk2 { 1 0 idiv } monitor } /undefinedresult
+    (monitor re-raises its procedure's error) raises
+clear
+lk2 /held get not (monitor releases the lock on an error) assert
+
+% monitor runs its procedure in the caller's dictionary, not a private one
+/lk3 lock def
+lk3 { /monvar 271 def } monitor
+/monvar where { pop monvar 271 eq }{ false } ifelse
+    (a monitor procedure defines in the caller's dictionary) assert
+
+% a context waits on a condition until another notifies it: the consumer blocks
+% until the producer sets the shared value and notifies
+/mlk lock def /mcond condition def
+/box 2 dict def box /ready false put box /v 0 put
+mark {
+    mlk { { box /ready get { exit }{ mlk mcond wait } ifelse } loop
+          box /v get } monitor
+} fork /mcons exch def
+mark {
+    mlk { box /v 55 put box /ready true put mcond notify } monitor
+} fork /mprod exch def
+mcons join counttomark 1 eq { 55 eq }{ false } ifelse
+    (a context waits for another to notify a condition) assert
+cleartomark
+mprod join cleartomark
+
 % the interpreter runs normally afterwards
 1 2 add 3 eq (execution continues after the context operators) assert
 

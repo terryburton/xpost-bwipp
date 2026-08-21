@@ -99,6 +99,11 @@ userdict begin
     /linejoin 0
     /miterlimit 10.0
     /overprint false
+    % the NeWS raster-operation code (setrasteropcode/currentrasteropcode).
+    % Recorded here for a program to set and read back; a raster page is a
+    % surface that replaces, which is the default (copy) and the only code the
+    % marking honours -- other codes are stored but not composited.
+    /rasteropcode 12
     % stroke adjustment and smoothness are the device's own defaults, so
     % they sit here with the rest of the state a new device starts from
     /strokeadjust false
@@ -1856,6 +1861,21 @@ put
 % -  currentoverprint  bool
 /currentoverprint [ ] {
     graphicsdict /currgstate get /overprint get
+} //.xpostsys /.defop get exec
+
+% int  setrasteropcode  -      (NeWS) set the raster-operation code
+% The code selects how a source pixel would combine with the destination
+% (replace, xor, or, and, ...). It is recorded in the graphics state; a raster
+% page replaces, so the default (copy) is honoured and other codes are kept but
+% do not change how marks are composited. Any integer is accepted so a program
+% can carry the code it means through the state as the operator promises.
+/setrasteropcode [ /integertype ] {
+    graphicsdict /currgstate get exch /rasteropcode exch put
+} //.xpostsys /.defop get exec
+
+% -  currentrasteropcode  int  (NeWS) the current raster-operation code
+/currentrasteropcode [ ] {
+    graphicsdict /currgstate get /rasteropcode get
 } //.xpostsys /.defop get exec
 
 

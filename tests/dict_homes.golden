@@ -434,6 +434,7 @@ gstate /overprint
 gstate /patbase
 gstate /patcomps
 gstate /patdict
+gstate /rasteropcode
 gstate /redscreenangle
 gstate /redscreenfreq
 gstate /redscreenproc

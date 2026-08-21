@@ -409,19 +409,30 @@ Display Postscript
      moved them to the Display PostScript System manuals. A forked context
      shares VM and keeps its own stacks and graphics state, cooperatively
      scheduled -- concurrency, not preemption)
- [ ] context synchronisation (lock, condition, monitor, wait, notify)
- [ ] fork, join refused while a save is unmatched (PLRM 2nd ed 7.1 makes
-     either an invalidcontext with a save not yet matched by a restore)
- [/] multiple devices (setpagedevice switches the device mid-job; one
-     device per context at a time)
+ [X] context synchronisation (lock, condition, monitor, wait, notify; the
+     mutual exclusion they provide is inherent in the non-preemptive schedule
+     -- a monitor's procedure runs atomically unless it yields or waits -- and
+     they carry the wait/notify coordination between contexts. A lock or
+     condition is a dictionary, which shares its value between contexts as
+     PLRM requires of them, rather than a distinct type)
+ [X] fork, join refused while a save is unmatched (PLRM 2nd ed 7.1: either
+     is an invalidcontext with a save not yet matched by a restore)
+ [/] multiple devices (setpagedevice switches a context's device mid-job,
+     and each execution context carries its own graphics state and page
+     device, so forked contexts render to independent devices at once. What
+     remains is that a process runs at most one window device: the cooperative
+     loop has a single idle-hook seat for a device that needs constant event
+     attention, so two interactive windows at once are not served. File and
+     raster devices need no such seat and have no such limit)
 
 NeWS
 ----
 
  [X] getenv/putenv
  [X] magic dictionaries
- [ ] setrasteropcode
- [ ] currentrasteropcode
+ [X] setrasteropcode, currentrasteropcode (recorded only; a raster page
+     replaces, so the default copy is honoured and other codes are stored in
+     the graphics state but do not change how marks are composited)
  [ ] classes
  [ ] canvases
  [ ] process type objects (magic dictionary controlling a DPS context)

@@ -78,6 +78,18 @@ int xpost_op_currentcontext (Xpost_Context *ctx)
     return 0;
 }
 
+/* True if this context has a save the program has not yet matched with a
+   restore. PLRM 2nd ed 7.1 makes fork or join illegal then -- fork would give
+   the child a share of VM a pending restore is poised to roll back, and join
+   would splice a finished context's operands into it -- and both are to raise
+   invalidcontext. save and restore act on local VM, so its save stack is what
+   is asked; an empty stack is a context with nothing outstanding. */
+static int _unmatched_save(Xpost_Context *ctx)
+{
+    return xpost_stack_count(ctx->lo,
+                             xpost_memory_save_stack_ent(ctx->lo)) > 0;
+}
+
 /*
    mark obj1..objN proc  fork  context
    create context executing proc with obj1..objN as operands
@@ -87,6 +99,11 @@ int xpost_op_fork (Xpost_Context *ctx, Xpost_Object proc)
 {
     int cid, n, ret;
     Xpost_Context *newctx;
+
+    /* illegal with a save the program has not matched (PLRM 2nd ed 7.1),
+       and refused before any operand is read or context created */
+    if (_unmatched_save(ctx))
+        return invalidcontext;
 
     /* How many operands go to the new context is a question only a mark
        answers, and it is asked before anything is created so that a
@@ -231,7 +248,11 @@ static int _join_opcode = -1;
 static
 int xpost_op_join (Xpost_Context *ctx, Xpost_Object context)
 {
-    Xpost_Context *child = _context_checked(ctx, context.mark_.padw);
+    Xpost_Context *child;
+    /* illegal with a save the program has not matched (PLRM 2nd ed 7.1) */
+    if (_unmatched_save(ctx))
+        return invalidcontext;
+    child = _context_checked(ctx, context.mark_.padw);
     /* an invalid identifier, or the current context joining itself, is
        invalidcontext (PLRM 2nd ed 7.1: join of an identifier that is not a
        valid context, or that identifies the current context) */
