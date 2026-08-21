@@ -246,7 +246,7 @@ Level 1 operators
  [X] pathforall
  [X] version
  [X] eexec
- [ ] internaldict
+ [X] internaldict
  [X] cachestatus
  [X] setcachelimit
 
@@ -327,6 +327,9 @@ Level 2 operators
      currentpacking
  [X] setcmykcolor, currentcmykcolor
  [X] setoverprint, currentoverprint (recorded only)
+ [ ] setoverprintmode, currentoverprintmode (the Level 3 overprint mode;
+     overprint itself is recorded only, so the mode that refines it has
+     nothing to act on here)
  [X] setsystemparams, currentsystemparams, setuserparams,
      currentuserparams, setdevparams, currentdevparams (accepted; the
      parameter sets are minimal. MaxOpStack, MaxDictStack and
@@ -387,13 +390,28 @@ Extensions
 
  [X] pdfmark (DOCINFO reaches the pdfwrite device; other mark types
      are consumed without effect)
+ [ ] currentdistillerparams, setdistillerparams (Distiller's distillation
+     parameters; the pdfwrite device is configured through setpagedevice
+     instead)
+ [ ] setcustomcolor, findcmykcustomcolor, findrgbcustomcolor,
+     customcolorimage, separationimage (Adobe's separation and custom-colour
+     convenience operators; the Separation colour space they are shorthand
+     for is reached through setcolorspace)
  [X] page-size operators of the printer products (letter, legal, a4,
      and the rest of the common set)
 
 Display Postscript
 ------------------
 
- [X] multiple contexts
+ [X] multiple execution contexts (fork, join, detach, yield,
+     currentcontext; installed on the --enable-dps opt-in, so a run without
+     the flag leaves the names undefined. PLRM 2nd ed 7.1; the 3rd edition
+     moved them to the Display PostScript System manuals. A forked context
+     shares VM and keeps its own stacks and graphics state, cooperatively
+     scheduled -- concurrency, not preemption)
+ [ ] context synchronisation (lock, condition, monitor, wait, notify)
+ [ ] fork, join refused while a save is unmatched (PLRM 2nd ed 7.1 makes
+     either an invalidcontext with a save not yet matched by a restore)
  [/] multiple devices (setpagedevice switches the device mid-job; one
      device per context at a time)
 
@@ -486,6 +504,14 @@ Known behavioural deviations
      restriction on the program rather than on the interpreter, and refusing
      it would make an error of programs that run today.
 
+ [X] currentcontext, fork  a context identifier is a context-typed object
+     rather than the integer PLRM 2nd ed 7.1 describes. It carries the same
+     identifier -- it compares equal to itself and names the same context in
+     every context -- but its type is contexttype, so arithmetic on it is a
+     typecheck where the operators are defined to answer an integer. A typed
+     handle cannot be forged from a number a program computed, where an
+     integer identifier can.
+
  Reals are IEEE single precision (PLRM 3.3.2 permits single or double): results
  carry about seven significant figures and large values print in exponent form
  (4e+09).
@@ -493,15 +519,18 @@ Known behavioural deviations
 Implementation limits
 ---------------------
 
- Arrays, strings and dictionaries hold 65,535 elements (PLRM Appendix B.1);
- the large-object build carries them to memory instead. Past either, limitcheck.
+ xpost is built in two widths and its limits differ between them. In the
+ narrow build, its primary, an array, string or dictionary holds up to 65,535
+ elements (PLRM Appendix B.1); the wide build (WANT_LARGE_OBJECT) carries them
+ to whatever memory holds instead. Past either, limitcheck.
 
  There is a second limit on composites that Appendix B does not name, and a
  program inside every limit that appendix does list can still reach it: how
  many composites may exist at once. Every string, array and dictionary takes
- one number from a table however large it is, and there are 524,287 numbers
- (2,147,483,647 in the large-object build) of which the last thousand are not
- the program's: they are what the interpreter reports the exhaustion with.
+ one number from a table however large it is, and there are 524,287 of those
+ numbers in the narrow build and 2,147,483,647 in the wide, of which the last
+ thousand are not the program's: they are what the interpreter reports the
+ exhaustion with.
  Past that, limitcheck -- vmstatus says nothing about this limit, and the
  "maximum" it reports is not this ceiling.
 
@@ -512,3 +541,10 @@ Implementation limits
  garbage, where a save and its restore spend none. `1183615869 internaldict
  /.vmentcount get exec` reports how many numbers each of local and global VM
  has handed out.
+
+ A process holds up to 128 execution contexts at once, the same in both
+ builds. PLRM leaves the count
+ implementation-defined -- fork raises limitcheck at the ceiling -- and the
+ Display PostScript Client Library manual puts a server's on the order of 50
+ to 100. The table is allocated once with the interpreter, so an idle slot
+ costs only its structure.

@@ -91,10 +91,14 @@
  * fills, the row blitter, the sorters, the compressors) live under dot
  * names in an internal dictionary that is not on any lookup path;
  * nothing of the machinery's is defined where a program could shadow
- * it, and userdict starts holding nothing of the machinery at all.
- * This is hygiene rather than a security boundary: it makes the
- * interpreter robust against ordinary redefinition and keeps the
- * namespace a job sees empty of implementation detail.
+ * it. So systemdict holds the whole published language -- every
+ * operator the language defines is there, and none of the interpreter's
+ * own machinery is (bar six names the C reaches by name) -- and userdict
+ * and globaldict start empty, so a program begins with a clean namespace
+ * and adds only its own. This is hygiene rather than a security
+ * boundary: it makes the interpreter robust against ordinary
+ * redefinition and keeps the namespace a job sees empty of
+ * implementation detail.
  *
  * Within the graphics, the split between the two languages is drawn by
  * profiling rather than by principle. The raster device classes are
@@ -734,14 +738,30 @@
  *
  * Execution contexts are threads of PostScript execution inside one
  * interpreter, held in its context table; they are not multiple
- * interpreters. The @c fork operator shares both memory files with
- * the child and gives it stacks of its own; context identifiers are
+ * interpreters. The @c fork operator (installed on the @c --enable-dps
+ * opt-in) shares both memory files with the child and gives it an
+ * environment of its own: PLRM 2nd ed 7.1 makes a context private
+ * except for VM, so the stacks, the dictionary and graphics state
+ * stacks, and the current path are the child's, while VM -- and so
+ * userdict and every composite -- is shared. Context identifiers are
  * issued so a slot can be reused while every identifier in the
- * process's history stays unique. Blocking I/O is a scheduling
- * event: an operator that would block returns the loop an
- * i/o-blocked verdict, and the loop switches to another runnable
- * context -- and context validation happens exactly here, once per
- * switch, rather than once per object executed.
+ * process's history stays unique, and a context-typed handle carries
+ * one so a program cannot forge it from a number.
+ *
+ * Scheduling is cooperative -- concurrency, not preemption. A context
+ * runs until it yields, blocks on I/O, or returns from its top-level
+ * procedure; at each of those the loop takes the next runnable context
+ * from the table, wrapping, and a context waiting on a join or blocked
+ * on I/O is made runnable again as it is passed so it re-checks its
+ * condition. @c fork returns that verdict, so the child runs; @c join
+ * collects the child's operand stack when it finishes and @c detach
+ * lets it free itself instead of waiting. A forked procedure runs as
+ * @c "proc stopped { handleerror quit } if", so a context that ends on
+ * an error reports it and terminates, and a later join of it is
+ * @c invalidcontext. Context validation happens exactly at a switch,
+ * once per switch, rather than once per object executed. The whole
+ * mechanism reads @c xpost_dps_enabled first, so a run that never
+ * installed the operators keeps the single-context path it had.
  *
  * The same loop is the embedder's seam. A run can be created with
  * showpage semantics that suspend the program just before showpage
