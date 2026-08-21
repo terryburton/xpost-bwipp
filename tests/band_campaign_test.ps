@@ -614,6 +614,21 @@ banding {
             } if
             DEVICE dup /Emit get exec
             /dbn dbn 1 add store
+            % When this loop is a weighing, the transient of painting a
+            % band -- the graphics state a gsave takes and a grestore
+            % drops, the path a fill walks over -- is garbage the moment
+            % the band is emitted, but nothing has asked for it back and
+            % the arena it was taken from is what a resident-size reading
+            % follows. Left to gather it follows the number of bands, and
+            % a taller page is more bands, so the drawing this route
+            % repaints for each of them would enter a reading meant for
+            % the raster alone (drawplain above). The record route holds
+            % none of it, replaying each band's marks in compiled code;
+            % this route paints them afresh, so here it gives that
+            % transient back a band at a time, as a streaming band loop
+            % that meant to bound its own memory would. The matrix does
+            % not weigh, so it neither needs this nor pays for it.
+            MEMH 0 gt { 1 vmreclaim } if
         } for
         % and the call that holds nothing, which says the page is finished
         0 0 DEVICE dup /.moveband get exec
