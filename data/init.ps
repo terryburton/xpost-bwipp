@@ -543,6 +543,9 @@ systemdict begin
             } ifelse
         }{ pop (-array-) tprint } ifelse
     } def
+    % a packed array prints as an array does: the delimiters follow its
+    % executability and the elements print in turn
+    /packedarraytype /arraytype load def
     { cvsprint }
     dup /booleantype exch def
     dup /integertype exch def

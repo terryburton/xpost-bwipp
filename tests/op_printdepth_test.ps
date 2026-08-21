@@ -35,6 +35,8 @@ q 0 p put
 
 { [ 1 [ 2 [ 3 [ 4 [ 5 ] ] ] ] ] == } (a finitely nested array prints) works
 { [ 1 2 3 ] == } (a flat array prints) works
+{ 1 2 3 3 packedarray == } (a packed array prints) works
+{ 1 2 /add cvx 3 packedarray cvx == } (an executable packed array prints) works
 { { 1 2 add } == } stopped not (a procedure prints) assert
 { [ (a) /b 1 2.5 true null ] == } (an array of every simple type prints) works
 
