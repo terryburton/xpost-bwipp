@@ -273,6 +273,27 @@ gcache_insert(const void *k1, unsigned long long k2, const long m[4], long size,
     return e;
 }
 
+/* order two cache entries by the face and transform that make a
+   combination -- the key, the base size, the transform -- so that entries
+   of one combination sort together and the distinct ones can be counted in
+   a single pass. The glyph a combination was cached for (k2) is not part
+   of it. */
+static int _combo_cmp(const void *pa, const void *pb)
+{
+    const Xpost_Glyph_Entry *a = *(const Xpost_Glyph_Entry * const *)pa;
+    const Xpost_Glyph_Entry *b = *(const Xpost_Glyph_Entry * const *)pb;
+    int i;
+
+    if ((size_t)a->k1 != (size_t)b->k1)
+        return (size_t)a->k1 < (size_t)b->k1 ? -1 : 1;
+    if (a->size != b->size)
+        return a->size < b->size ? -1 : 1;
+    for (i = 0; i < 4; i++)
+        if (a->m[i] != b->m[i])
+            return a->m[i] < b->m[i] ? -1 : 1;
+    return 0;
+}
+
 void
 xpost_font_cache_status(long *bsize, long *bmax, long *msize, long *mmax,
                         long *csize, long *cmax, long *blimit)
@@ -280,16 +301,43 @@ xpost_font_cache_status(long *bsize, long *bmax, long *msize, long *mmax,
     const Xpost_Glyph_Entry *e, *f;
     long combos = 0;
 
-    /* distinct face-and-transform combinations held */
-    for (e = gcache_head; e; e = e->lnext)
+    /* Distinct face-and-transform combinations held. Sorting the entries by
+       combination and counting the runs finds them in n log n, where
+       comparing every entry against all before it was n squared -- the cost
+       a program could raise by asking for the cache's status with the cache
+       full. The order is by pointer identity and integer fields, so the
+       count is exact and does not depend on it; if the scratch array cannot
+       be had, the older pairwise scan gives the same answer. */
+    if (gcache_csize > 0)
     {
-        for (f = gcache_head; f != e; f = f->lnext)
-            if (f->k1 == e->k1 && f->size == e->size
-             && f->m[0] == e->m[0] && f->m[1] == e->m[1]
-             && f->m[2] == e->m[2] && f->m[3] == e->m[3])
-                break;
-        if (f == e)
-            combos++;
+        const Xpost_Glyph_Entry **arr =
+            malloc((size_t)gcache_csize * sizeof(*arr));
+        if (arr)
+        {
+            long n = 0, i;
+
+            for (e = gcache_head; e && n < gcache_csize; e = e->lnext)
+                arr[n++] = e;
+            qsort(arr, (size_t)n, sizeof(*arr), _combo_cmp);
+            combos = n ? 1 : 0;
+            for (i = 1; i < n; i++)
+                if (_combo_cmp(&arr[i - 1], &arr[i]) != 0)
+                    combos++;
+            free(arr);
+        }
+        else
+        {
+            for (e = gcache_head; e; e = e->lnext)
+            {
+                for (f = gcache_head; f != e; f = f->lnext)
+                    if (f->k1 == e->k1 && f->size == e->size
+                     && f->m[0] == e->m[0] && f->m[1] == e->m[1]
+                     && f->m[2] == e->m[2] && f->m[3] == e->m[3])
+                        break;
+                if (f == e)
+                    combos++;
+            }
+        }
     }
     *bsize = gcache_bsize; *bmax = gcache_bmax;
     *msize = combos;       *mmax = gcache_mmax;

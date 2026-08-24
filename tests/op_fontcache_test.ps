@@ -70,4 +70,21 @@ mark before aload pop setcacheparams
 { 4444 4 40000 setcacheparams } /unmatchedmark
     (setcacheparams without a mark is unmatchedmark) raises
 
+% --- cachestatus msize counts distinct face-and-transform combinations ---
+% Filing a face at several sizes makes each its own combination; msize (the
+% third value) counts them, and re-using one adds none. The count is taken
+% here with the cache at the limits it was found with, so a glyph files
+% rather than being turned away for its size.
+/msizeof { cachestatus 7 array astore 2 get } def
+/Courier findfont /F exch def
+/m0 msizeof def
+[ 101 103 107 109 113 127 131 ] { /sz exch def
+    F sz scalefont setfont 72 100 moveto (Ag) show } forall
+msizeof m0 sub 7 eq
+    (cachestatus counts each new face-and-size combination once) assert
+[ 101 103 107 ] { /sz exch def
+    F sz scalefont setfont 72 100 moveto (Ag) show } forall
+msizeof m0 sub 7 eq
+    (re-using a cached combination adds no combination) assert
+
 verdict
