@@ -6,6 +6,11 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
+//.internaldict /QUIET known { }{ (loading pattern.ps...)print } ifelse
+
+% Everything here defines into global VM.
+true setglobal
+
 % makepattern instantiates, setpattern
 % (color.ps) selects, and the painting operators tile the cells over
 % whatever region they would have painted.
@@ -119,7 +124,6 @@
 
 % -  .patternactive  bool
 % the current colour is a pattern
-currentglobal true setglobal
 .xpostsys begin
 /.patternactive {
     graphicsdict /currgstate get /colorspace get /Pattern eq
@@ -284,5 +288,5 @@ currentglobal true setglobal
     newpath
 } bind def
 end
-setglobal
 
+//.internaldict /QUIET known { }{ (eof pattern.ps\n)print } ifelse

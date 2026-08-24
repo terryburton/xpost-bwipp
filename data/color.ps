@@ -8,6 +8,9 @@
 
 //.internaldict /QUIET known { }{ (loading color.ps...)print } ifelse
 
+% Everything here defines into global VM.
+true setglobal
+
 % --- CIE-based colour spaces ---------------------------------------
 % The four CIE-based families reduce a colour to X Y Z the way the
 % language describes: per-component clamps to the declared ranges,
@@ -17,7 +20,6 @@
 % beyond the recorded stub take no part.
 
 % v lo hi  .cieclamp  v'
-currentglobal true setglobal
 .xpostsys begin
 % v {proc}  .decode  v'
 % run one of a colour space's decode procedures. Each family reduces a
@@ -284,7 +286,6 @@ currentglobal true setglobal
     end
 } bind def
 end
-setglobal
 
 % --- setting a colour that has to be converted first ----------------
 % An Indexed, Separation, DeviceN or CIE-based colour cannot be recorded
@@ -299,7 +300,6 @@ setglobal
 % inside the bracket, which puts back whatever the caller had parked
 % there. The conversion may set a colour of its own, in a space of the
 % same kind, which comes through here against the same pair.
-currentglobal true setglobal
 .xpostsys /.cskeys [ /.csspace /.csstash ] put
 
 % space comps {conv}  .withspace  -
@@ -412,7 +412,6 @@ currentglobal true setglobal
     /DeviceRGB setcolorspace
     setrgbcolor
 } bind put
-setglobal
 
 /setcolorspace [ /anytype ] {
     dup //.xpostsys /.csvalidate get exec
@@ -532,7 +531,6 @@ setglobal
 % for it and would make the array read-only, which is what stops a later
 % sweep from finishing the job -- and the name would stay dynamic for the
 % rest of the run, inside every operator reaching this helper.
-currentglobal true setglobal
 % The colour space families, and what kind of thing each one is.
 %
 % Every other statement about a space follows from its kind: a device
@@ -739,7 +737,6 @@ currentglobal true setglobal
     } ifelse
     end
 } put
-setglobal
 % The component count follows the current colour space, so the operand
 % stated is the topmost one: a component, or the pattern of a pattern
 % space, or the null object a pattern space holds before a pattern is
@@ -880,21 +877,17 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-currentglobal true setglobal
 .xpostsys /.min { % x y  . x (if x < y)
         %        y (otherwise)
     2 copy gt{exch}if pop
 } bind put
-setglobal
 % component  .c01  real in [0,1]
 % a colour component is clamped to the unit range (PLRM: values outside
 % 0 to 1 are adjusted to the nearest valid value). A pure global helper, so it
 % lives in .xpostsys beside .min and the colour conversions that freeze it in.
-currentglobal true setglobal
 .xpostsys /.c01 {
     cvr dup 0.0 lt { pop 0.0 } if dup 1.0 gt { pop 1.0 } if
 } bind put
-setglobal
 
 .xpostsys /ColorConversion << % <</dest <</source {source-to-dest conversion}>> >>
     /DeviceGray <<

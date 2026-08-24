@@ -8,6 +8,10 @@
 
 //.internaldict /QUIET known { }{ (loading paint.ps...)print } ifelse
 
+% Everything here defines into global VM, except the local routines
+% wrapped below.
+true setglobal
+
 % v  .cunit  v'
 % A colour component folded into the unit range, the nearest valid value
 % standing in for one outside it as setgray and its siblings substitute

@@ -16,12 +16,14 @@
 
 //.internaldict /QUIET known { }{ (loading shade.ps...)print } ifelse
 
+% Everything here defines into global VM.
+true setglobal
+
 % t fndict  .fneval  c0..cn-1
 % evaluate a PostScript function dictionary at t: exponential
 % interpolation (type 2), stitching (type 3), and one-input sampled
 % (type 0, byte-aligned sample depths) functions serve the shading
 % dictionaries producers write
-currentglobal true setglobal
 .xpostsys begin
 % The position is the caller's, so this opens no dictionary of its own:
 % a local one would take the /bp definitions with it and the stream
@@ -798,7 +800,6 @@ currentglobal true setglobal
     end
 } def
 end
-setglobal
 
 %   shdict  shfill  -
 % paint the shading over the current clip region; the current path

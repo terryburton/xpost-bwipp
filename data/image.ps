@@ -8,6 +8,9 @@
 
 //.internaldict /QUIET known { }{ (loading image.ps...\n)print } ifelse
 
+% Everything here defines into global VM.
+true setglobal
+
 % A raster class is one method suite --
 % Create through Emit, the scanline plot machinery and the pixel
 % accessors -- over a handful of parameters: the colour space, the
@@ -29,7 +32,6 @@
 
 (/qsort.ps) //.xpostsys /.loadmodule get exec
 
-currentglobal true setglobal
 
 .xpostsys /.rasterproto <<
     /dimensions [0 0]
@@ -923,7 +925,6 @@ currentglobal true setglobal
     } ifelse } ifelse
 } bind put
 
-setglobal
 
 (/pgmimage.ps) //.xpostsys /.loadmodule get exec
 (/pbmimage.ps) //.xpostsys /.loadmodule get exec

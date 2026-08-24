@@ -18,6 +18,9 @@
 
 //.internaldict /QUIET known { }{ (loading cid.ps...)print } ifelse
 
+% Everything here defines into global VM.
+true setglobal
+
 % The resource categories the composite font machinery keeps its
 % instances in. Stated here because this is the code that needs them,
 % through the one operation that brings a category into existence; each
@@ -137,7 +140,6 @@
 % The composite show machinery lives in the private global namespace,
 % reached across files by a frozen //.xpostsys reference, so a program
 % cannot see or disturb it. composefont and cshow below are public.
-currentglobal true setglobal
 .xpostsys begin
 
 % str pos cmapdict  .cmapnext  cid nbytes
@@ -468,7 +470,6 @@ currentglobal true setglobal
 >> def
 
 end
-setglobal
 
 %   key cmap fonts  composefont  font
 % assemble a Type 0 composite font: names resolve through their
@@ -509,7 +510,6 @@ setglobal
 % the character's advance in the font, measured without marking;
 % stack-pure, so a compiled program can run it with a caller's
 % leavings below its operands
-currentglobal true setglobal
 .xpostsys /.cshmeasure {
     gsave
     nulldevice
@@ -520,7 +520,6 @@ currentglobal true setglobal
 
 % font  .cshsetfont  -
 .xpostsys /.cshsetfont { graphicsdict /currgstate get /currfont 3 -1 roll put } put
-setglobal
 
 % cshow's walks compile into programs that run after the private dict
 % ends, so the procedure executes on the caller's stacks with no

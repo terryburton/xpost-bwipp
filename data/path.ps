@@ -8,6 +8,10 @@
 
 //.internaldict /QUIET known { }{ (loading path.ps...)print } ifelse
 
+% Everything here defines into global VM, except the local routines
+% wrapped below.
+true setglobal
+
 % The current path is maintained by the operators
 % in xpost_op_path.c (see the layout comment there). PostScript code
 % observes it with .pathempty and the .pathnext enumerator, and appends
@@ -29,7 +33,6 @@
 % that takes it off again however the walk ends, error included
 % (.indict, graphics.ps): a device method that walks a path is left the
 % dictionary stack it was handed whether the walk finished or stopped.
-currentglobal true setglobal
 .xpostsys /.devpathforall {
 10 dict
 {
@@ -44,7 +47,6 @@ currentglobal true setglobal
 } //.xpostsys /.indict get exec
 }
 bind put
-setglobal
 
 % move line curve close  pathforall  -
 % enumerate current path in user coordinates. The caller's
@@ -396,7 +398,6 @@ end
 % beyond the end; a projecting square extends half a width past it.
 % Each shape meets the stroke body only along the end's chord, so its
 % winding cannot cancel the body's under the nonzero rule.
-currentglobal true setglobal
 .xpostsys /.docap {
     currentlinecap 0 eq {
         pop pop pop
@@ -419,7 +420,6 @@ currentglobal true setglobal
         end
     } ifelse
 } put
-setglobal
 
 %
 % replace lineto segments . with 

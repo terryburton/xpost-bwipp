@@ -8,6 +8,10 @@
 
 //.internaldict /QUIET known { }{ (loading gstate.ps...)print } ifelse
 
+% Everything here defines into global VM; the graphics-state template is the
+% exception, wrapped in a local island below.
+true setglobal
+
 % .gstatetemplate yields a freshly-initialized dictionary
 % with the following values. currmatrix and scratchmatrix
 % are newly-allocated arrays. The template embeds local objects (the initial
@@ -415,7 +419,6 @@ end
         false
     } ifelse
 } //.xpostsys /.defop get exec
-currentglobal true setglobal
 /DefaultColorRendering 0 dict dup /ColorRenderingType 1 put
 /ColorRendering defineresource pop
 
@@ -451,7 +454,6 @@ currentglobal true setglobal
     % default instance, which is the only one this fleet registers.
     /GetSubstituteCRD { pop /DefaultColorRendering } bind
 >> /ProcSet defineresource pop
-setglobal
 
 % redproc greenproc blueproc grayproc  setcolortransfer  -
 % sample and record one transfer procedure per component; the grey

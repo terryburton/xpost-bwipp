@@ -16,6 +16,9 @@
 
 //.internaldict /QUIET known { }{ (loading font.ps...)print } ifelse
 
+% Everything here defines into global VM.
+true setglobal
+
 % Type 3 fonts render through their BuildChar procedure; Type 42 fonts
 % carry a TrueType program in /sfnts, reassembled and opened as a
 % memory face by .loadfont42 so the C text operators use it exactly
@@ -28,7 +31,6 @@
 % the build must not inherit. The nesting count is what the operator is
 % mid-use of across the call -- a build procedure may show text, which
 % builds glyphs against the same count -- so the bracket puts it back.
-currentglobal true setglobal
 .xpostsys /.buildkeys [ /.inglyph ] put
 % the capture pair the glyph cache is mid-use of while a build runs
 .xpostsys /.t3capkeys [ /.t3want /.t3cap ] put
@@ -61,7 +63,6 @@ currentglobal true setglobal
     graphicsdict exch /.inglyph exch put
     //.xpostsys /.pexec get exec
 } put
-setglobal
 
 % font  .fontroute  /composite | /build | /face
 % Which machinery paints a glyph from this font, and the only place that
@@ -372,7 +373,6 @@ setglobal
 % declare the glyph's metrics and turn the build's marks into a
 % coverage mask: painting swaps to a raster sized from the glyph box
 % under the transform in force, shifted onto it in device space
-currentglobal true setglobal
 .xpostsys /.maskcapture {
     16 dict begin
     {ury urx lly llx wy wx}{exch def}forall
@@ -425,7 +425,6 @@ currentglobal true setglobal
     } if
     end
 } put
-setglobal
 
 /setcachedevice [ /numbertype /numbertype /numbertype /numbertype /numbertype /numbertype ] {
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse
@@ -451,7 +450,6 @@ setglobal
 % graphics states the build branches open, and this procedure's own
 % dictionary, are closed by the same bracket whichever way a build
 % leaves.
-currentglobal true setglobal
 .xpostsys /.t3build {
     {
     20 dict begin
@@ -565,9 +563,7 @@ currentglobal true setglobal
     end
     } //.xpostsys /.t3capkeys get 0 //.xpostsys /.callout get exec
 } put
-setglobal
 
-currentglobal true setglobal
 % /opname  .needpoint  -
 % The showing operators place glyphs from the current point, so there
 % has to be one.
@@ -817,7 +813,6 @@ currentglobal true setglobal
     { exch pop //.xpostsys /.showoutline get exec }
     { pop exch pop exec } ifelse
 } put
-setglobal
 
 /show [ /stringtype ] {
     /show //.xpostsys /.needfont get exec
@@ -1023,9 +1018,7 @@ setglobal
 % kshow's compiled program paints through the implementation's own
 % show, captured here while the name still holds this file's
 % procedure -- an array, which a compiled program pushes as data
-currentglobal true setglobal
 .xpostsys /.kshowshow /show load put
-setglobal
 
 /kshow [ /proctype /stringtype ] {
     /kshow //.xpostsys /.needfont get exec
@@ -1152,7 +1145,6 @@ setglobal
 % advances by glyphs, not bytes
 % str  .glyphbytes  w -- the byte width of the glyph at the position,
 % hidden in the private namespace and reached by a frozen reference
-currentglobal true setglobal
 .xpostsys /.glyphbytes { % str p -> w
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
@@ -1165,7 +1157,6 @@ currentglobal true setglobal
         pop pop pop 1
     } ifelse
 } put
-setglobal
 
 /xshow [ /stringtype /anytype ] {
     /xshow //.xpostsys /.needfont get exec
@@ -1240,7 +1231,6 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-currentglobal true setglobal
 % outline  .outlinepath  -
 % Append an outline to the current path. The segments arrive from
 % .stringoutline or .glyphoutline in the face's y-up glyph space
@@ -1367,7 +1357,6 @@ currentglobal true setglobal
     cpax cpay moveto
     end
 } put
-setglobal
 
 %   str bool  charpath  -
 % Append the text's glyph outlines to the current path and advance the
@@ -1498,9 +1487,7 @@ setglobal
 % the show machinery rebinds the current font while it works through
 % a composite; rootfont answers with the font the program set. The
 % original setfont is kept in the private namespace and reached frozen.
-currentglobal true setglobal
 .xpostsys /.rootsetfont /setfont load put
-setglobal
 /setfont [ /dicttype ] {
     % a font dictionary, not any dictionary: one without a FontMatrix
     % has nothing to set a size or an orientation from
@@ -1562,10 +1549,8 @@ setglobal
 
 % the required instances of the Encoding resource category, copied
 % into global VM where the instance tables live
-currentglobal true setglobal
 /StandardEncoding StandardEncoding dup length array copy /Encoding defineresource pop
 /ISOLatin1Encoding ISOLatin1Encoding dup length array copy /Encoding defineresource pop
-setglobal
 
 //.internaldict /QUIET known { }{ (eof font.ps\n)print } ifelse
 
