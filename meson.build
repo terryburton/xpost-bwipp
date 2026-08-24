@@ -2763,6 +2763,16 @@ test('dash-bound',
   timeout: 300,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The even-odd interior of a fill or clip is resolved over the rows the
+# device holds, not the rows a subject reaches, so a subject a program
+# sizes far off the page is bounded to the page rather than walked whole.
+test('eospan-bound',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/eospan_bound_test.ps') ],
+  suite: cost_fast,
+  timeout: 120,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Rectangle operators (PLRM 8.2): rectfill/rectstroke/rectclip accept the
 # numarray and numstring forms and rectstroke an optional trailing matrix.
 test('op-rect',

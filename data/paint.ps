@@ -205,18 +205,31 @@ true setglobal
     /subj exch def
     count /n0 exch def
     /d0 countdictstack def
+    % Only the rows the device holds carry a span; a subject reaching far
+    % above or below the page -- a program sizes its bounding box -- has its
+    % interior resolved over those rows and no others. Off-page bands
+    % describe no pixel and paint nothing, so meeting the interior to the
+    % page changes no mark while it bounds the work by the page's height
+    % rather than the subject's, which the program could make vast.
+    DEVICE /dimensions get 1 get /ph exch def
     {
-        { [ subj .eospanpoly ] } stopped {
+        { [ subj 0 ph .eospanpoly ] } stopped {
             count n0 sub { pop } repeat
             subj //.xpostsys /.polybounds get exec {
                 /yhi exch def pop /ylo exch def pop
-                /sl //.xpostsys /.cliptilerows get def
-                /ylim yhi ceiling cvi 1 add def
-                [ ylo floor cvi sl yhi ceiling cvi {
-                      /yb exch def
-                      subj yb yb sl add dup ylim gt { pop ylim } if
-                      //.xpostsys /.eospantile get exec
-                  } for ]
+                ylo 0 lt { /ylo 0 def } if
+                yhi ph gt { /yhi ph def } if
+                yhi ylo le {
+                    [ ]
+                }{
+                    /sl //.xpostsys /.cliptilerows get def
+                    /ylim yhi ceiling cvi 1 add def
+                    [ ylo floor cvi sl yhi ceiling cvi {
+                          /yb exch def
+                          subj yb yb sl add dup ylim gt { pop ylim } if
+                          //.xpostsys /.eospantile get exec
+                      } for ]
+                } ifelse
             }{
                 % a subject with no vertices covers no pixel
                 [ ]

@@ -1357,13 +1357,29 @@ int _eospanpoly_rows(Xpost_Context *ctx,
     struct rspan *rsp = NULL;
     int nrsp, lo, hi, i, m;
     int code;
-
-    code = _poly_resolved_spans(ctx, poly, &rsp, &nrsp, 1, NULL);
-    if (code)
-        return code;
+    /* Resolve the interior over the window's rows alone, the way a region
+       is (see _regionmeet): the scan conversion walks a boundary reaching
+       past the window -- a subject a program sizes runs far off the page --
+       but keeps no span there, so the work is bounded by the window and not
+       by how far the subject happens to reach. Without this the whole
+       interior was resolved and then the window cut from it, so the window
+       bounded the answer but not the walk that made it. */
+    Xpost_Span_Rows winrows;
+    const Xpost_Span_Rows *rows = NULL;
 
     lo = ylo.int_.val;
     hi = yhi.int_.val;
+    if (hi > lo)
+    {
+        winrows.lo = lo;
+        winrows.hi = hi - 1;
+        rows = &winrows;
+    }
+
+    code = _poly_resolved_spans(ctx, poly, &rsp, &nrsp, 1, rows);
+    if (code)
+        return code;
+
     for (i = 0, m = 0; i < nrsp; i++)
         if (rsp[i].band >= lo && rsp[i].band < hi)
             rsp[m++] = rsp[i];

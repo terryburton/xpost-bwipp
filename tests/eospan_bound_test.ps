@@ -1,0 +1,26 @@
+%!testlib
+% The even-odd interior of a fill or clip is resolved over the rows the
+% device holds, not the rows the subject reaches, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A subject reaching far above or below the page -- a program sizes its
+% bounding box -- covers no pixel there, so its interior is resolved over
+% the page's rows and no others. Resolving it over the subject's rows
+% instead walked a boundary the program made as tall as it liked, so an
+% eofill or eoclip of such a subject ran the row walk without end; bounded
+% to the page, it completes.
+{ << /PageSize [500 500] >> setpagedevice
+  newpath 10 10 moveto 490 10 lineto 250 100000000 lineto closepath
+  100 100 moveto 400 100 lineto 250 100000000 lineto closepath
+  eofill }
+    (an eofill of a subject reaching far off the page completes) works
+{ << /PageSize [500 500] >> setpagedevice
+  newpath 10 10 moveto 490 10 lineto 250 100000000 lineto closepath
+  eoclip 0 0 500 500 rectfill }
+    (an eoclip of a subject reaching far off the page completes) works
+% an ordinary on-page even-odd fill is untouched
+{ << /PageSize [500 500] >> setpagedevice
+  newpath 50 50 moveto 450 50 lineto 250 450 lineto closepath
+  150 150 moveto 350 150 lineto 250 350 lineto closepath eofill }
+    (an ordinary even-odd fill still fills) works
+verdict

@@ -361,6 +361,7 @@ tests/op_operand_types_test.ps \
 tests/op_packing_test.ps \
 tests/op_path_test.ps \
 tests/dash_bound_test.ps \
+tests/eospan_bound_test.ps \
 tests/op_printdepth_test.ps \
 tests/printobject_overflow_test.ps \
 tests/op_proc_filter_test.ps \

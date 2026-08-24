@@ -288,6 +288,7 @@ graphics test op-gstate-types
 graphics test op-initgraphics
 graphics test op-path
 graphics test dash-bound
+graphics test eospan-bound
 graphics test op-rect
 graphics test op-showstate
 graphics test operator-dictstack
