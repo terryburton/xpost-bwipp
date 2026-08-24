@@ -254,10 +254,10 @@ int Sgetenv(Xpost_Context *ctx,
         }
         strobj = xpost_string_cons(ctx, (unsigned int)n, r);
         if (xpost_object_get_type(strobj) == nulltype){
-	    free(str);
-	    free(r);
+            free(str);
+            free(r);
             return VMerror;
-	}
+        }
         xpost_stack_push(ctx->lo, ctx->os, strobj);
     }
     else

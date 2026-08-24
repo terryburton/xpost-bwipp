@@ -98,7 +98,7 @@ int xpost_op_string_mode_file (Xpost_Context *ctx,
     ret = xpost_file_open(ctx->lo, cfn, cmode, &f);
     if (ret){
         free(cfn);
-	free(cmode);
+        free(cmode);
         return ret;
     }
     xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));
@@ -805,10 +805,10 @@ int xpost_op_file_readhexstring (Xpost_Context *ctx,
     for (n = 0; n < S.comp_.sz; n++)
     {
         eof = read_hex_digit(f, &c[0]);
-	XPOST_LOG_INFO("read %c", c[0]);
+        XPOST_LOG_INFO("read %c", c[0]);
         if (!eof) eof = read_hex_digit(f, &c[1]);
         if (eof) break;
-	XPOST_LOG_INFO("read %c", c[1]);
+        XPOST_LOG_INFO("read %c", c[1]);
         s[n] = ((strchr(hex, toupper(c[0])) - hex) << 4)
              + (strchr(hex, toupper(c[1])) - hex);
     }

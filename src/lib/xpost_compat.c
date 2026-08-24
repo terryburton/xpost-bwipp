@@ -388,7 +388,7 @@ xpost_module_path_get(int (*fp)(void), char *buf, unsigned int size)
         return 0;
     }
     memcpy(&addr, &fp, sizeof addr);
-    
+
     if (VirtualQuery(addr, &mbi, sizeof(mbi)) &&
         (mbi.State == MEM_COMMIT) &&
         (mbi.AllocationBase))

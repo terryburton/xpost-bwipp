@@ -296,15 +296,15 @@ int xpost_context_init(Xpost_Context *ctx,
     ctx->nest_depth = 0;
     ctx->callback_error = 0;
 
-    ret = initlocal(ctx, xpost_interpreter_cid_get_context, 
-            xpost_interpreter_get_initializing, xpost_interpreter_set_initializing, 
+    ret = initlocal(ctx, xpost_interpreter_cid_get_context,
+            xpost_interpreter_get_initializing, xpost_interpreter_set_initializing,
             xpost_interpreter_alloc_local_memory, garbage_collect_function);
     if (!ret)
     {
         return 0;
     }
-    ret = initglobal(ctx, xpost_interpreter_cid_get_context, 
-            xpost_interpreter_get_initializing, xpost_interpreter_set_initializing, 
+    ret = initglobal(ctx, xpost_interpreter_cid_get_context,
+            xpost_interpreter_get_initializing, xpost_interpreter_set_initializing,
             xpost_interpreter_alloc_global_memory, garbage_collect_function);
     if (!ret)
     {

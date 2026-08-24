@@ -1141,12 +1141,12 @@ memory_writech(Xpost_File *f, int c)
     if (mf->write_next == mf->write_capacity){
         unsigned char *tmp;
         if (!mf->is_malloc)
-	    return EOF;
-	tmp = realloc(mf->contents, mf->write_capacity * 1.4 + 12);
-	if (!tmp)
-	    return EOF;
-	mf->contents = tmp;
-	mf->write_capacity = mf->write_capacity * 1.4 + 12;
+            return EOF;
+        tmp = realloc(mf->contents, mf->write_capacity * 1.4 + 12);
+        if (!tmp)
+            return EOF;
+        mf->contents = tmp;
+        mf->write_capacity = mf->write_capacity * 1.4 + 12;
     }
 
     mf->contents[ mf->write_next++ ] = c;
@@ -1167,7 +1167,7 @@ memory_close(Xpost_File *f)
       mf->read_limit =
       mf->write_next =
       mf->write_capacity = 0;
-    
+
     return 0;
 }
 
@@ -6264,11 +6264,11 @@ int xpost_file_read(char *buf, int size, int count, Xpost_File *fp)
     for (i = 0; i < count; ++i)
     {
         for (j = 0; j < size; ++j)
-	{
+        {
             c = xpost_file_getc(fp);
-	    if (c == EOF) return i;
+            if (c == EOF) return i;
             buf[k++] = c;
-	}
+        }
     }
 
     return i;

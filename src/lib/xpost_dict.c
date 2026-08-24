@@ -568,9 +568,9 @@ Xpost_Object clean_key (Xpost_Context *ctx,
         default: break;
         case stringtype:
         {
-	    char *s = xpost_string_allocate_cstring(ctx, k);
+            char *s = xpost_string_allocate_cstring(ctx, k);
             k = xpost_name_cons(ctx, s);
-	    free(s);
+            free(s);
             break;
         }
         case integertype:

@@ -1331,7 +1331,7 @@ int xpost_garbage_collect(Xpost_Memory_File *mem, int dosweep, int markall)
             _xpost_garbage_diag_verify(ctx, mem, markall);
         if (!isglobal && getenv("XPOST_GC_XBANK_CHECK") && ctx && ctx->gl)
             _xpost_garbage_diag_xbank(ctx, mem);
-        
+
         /* A bank is reclaimed only by a collection that marked it: a
            sweep of storage this walk did not cover would take objects
            that are still named. Marking crosses banks when it is asked

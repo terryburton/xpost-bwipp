@@ -4432,21 +4432,21 @@ run:
             else
                 XPOST_LOG_INFO("destroyed device");
         }
-	else if (xpost_object_get_type(Destroy) == arraytype)
-	{
-	    XPOST_LOG_INFO("running Destroy proc");
-	    xpost_stack_push(ctx->lo, ctx->os, device);
-	    /* the run this is tearing down stopped at its quit with the
-	       frames it had yet to return through still on the exec
-	       stack; a stop of this interval's own is what keeps the
-	       teardown from carrying on down into them */
-	    xpost_stack_push(ctx->lo, ctx->es, XPOST_OP(ctx, quit));
-	    xpost_stack_push(ctx->lo, ctx->es, Destroy);
+        else if (xpost_object_get_type(Destroy) == arraytype)
+        {
+            XPOST_LOG_INFO("running Destroy proc");
+            xpost_stack_push(ctx->lo, ctx->os, device);
+            /* the run this is tearing down stopped at its quit with the
+               frames it had yet to return through still on the exec
+               stack; a stop of this interval's own is what keeps the
+               teardown from carrying on down into them */
+            xpost_stack_push(ctx->lo, ctx->es, XPOST_OP(ctx, quit));
+            xpost_stack_push(ctx->lo, ctx->es, Destroy);
 
-	    ctx->quit = 0;
-	    if (mainloop(ctx) != XPOST_MAINLOOP_DONE)
-	        XPOST_LOG_ERR("the device's Destroy did not run to its end");
-	}
+            ctx->quit = 0;
+            if (mainloop(ctx) != XPOST_MAINLOOP_DONE)
+                XPOST_LOG_ERR("the device's Destroy did not run to its end");
+        }
     }
 
     _close_run_input(ctx);
