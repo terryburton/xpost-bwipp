@@ -35,6 +35,10 @@
 % included (.indict, graphics.ps).
 
 /.xpost_DSCWRITE .xpost_PDFWRITE dup length 2 add dict copy def
+% The output plumbing is inherited from that base: .vw (pdfwrite.ps)
+% appends a string to the shared vector output and carries the byte count.
+% This class overrides only what a DSC document states differently from a
+% PDF one -- the header, the operator prolog, and the per-page structure.
 
 % The process colour models a setpagedevice request may move this device
 % to. Said again rather than inherited, because a copy carries what it
@@ -107,12 +111,12 @@
         (/re { 4 2 roll moveto 1 index 0 rlineto\n) .vw
         (     0 exch rlineto neg 0 rlineto closepath } bind def\n) .vw
         (/f { fill } bind def\n) .vw
-    (/f* { eofill } bind def\n) .vw
-    (/q { gsave } bind def\n) .vw
-    (/Q { grestore } bind def\n) .vw
-    (/W { clip } bind def\n) .vw
-    (/W* { eoclip } bind def\n) .vw
-    (/n { newpath } bind def\n) .vw
+        (/f* { eofill } bind def\n) .vw
+        (/q { gsave } bind def\n) .vw
+        (/Q { grestore } bind def\n) .vw
+        (/W { clip } bind def\n) .vw
+        (/W* { eoclip } bind def\n) .vw
+        (/n { newpath } bind def\n) .vw
         (/S { stroke } bind def\n) .vw
         (/w { setlinewidth } bind def\n) .vw
         (/J { setlinecap } bind def\n) .vw
