@@ -530,8 +530,13 @@ Returning storage
 -----------------
 
 Storage a collection recovers goes on a free list, where a later allocation of a
-size it suits takes it. The region itself does not shrink, so the largest a job
-makes the region is the size it keeps.
+size it suits takes it. The reserved address range does not shrink -- an offset
+must go on being able to name any byte the arena could hold -- but the committed
+pages beneath it are handed back, so a server's resident footprint follows what a
+job needs and not the largest any job once reached. Two paths return them: an
+immediate `vmreclaim`, which closes the arena up and hands back the run it
+gathers (below), and the job boundary, which reverts a job's whole arena and
+hands back everything above the baseline cursor.
 
 A program asking for a collection with a positive `vmreclaim` operand gets more
 than a collection. The arena is closed up: the live entities are sorted by

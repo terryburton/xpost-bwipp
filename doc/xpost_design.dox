@@ -563,6 +563,15 @@
  * and faulting pages back later, and a program asking for it is
  * saying it would rather pay that than hold the memory.
  *
+ * The page return has a second caller: the job boundary
+ * (@ref design_jobs). No compaction runs there -- the revert has
+ * already brought the cursor down to the baseline, so the arena above
+ * it is the growth the finished job forced and is nobody's -- and the
+ * whole run above the cursor goes back in the one call, where
+ * compaction returns a gathered gap below it. The call and its two
+ * grains are the same either way; an idle server then holds the
+ * baseline arena and not the peak a passing job reached.
+ *
  * @section design_loop The interpreter loop
  *
  * The outermost loop runs one executable object per turn, and
@@ -704,7 +713,13 @@
  * stack contents revert with the objects), cannot fail part way (it
  * allocates nothing), and leaves no per-job garbage (the cursor
  * returns to the baseline), so one context can serve job after job
- * with encapsulation left on. The baseline is the initial VM a job
+ * with encapsulation left on. The bank's committed pages come back
+ * with its cursor: the growth a large job forced on the arena is
+ * returned to the operating system at the boundary -- the page return
+ * of @ref design_return -- and the arena's own bound comes down with
+ * the cursor, so @c globalvmstatus reports the arena a job begins
+ * from and a server's footprint tracks the job it is running rather
+ * than the largest it has ever run. The baseline is the initial VM a job
  * begins from -- the loaded language, a made device, and any
  * server-level prelude -- and @c exitserver and @c startjob fold a
  * run's definitions into it, so those definitions outlive the job.
@@ -712,6 +727,18 @@
  * share state. A job that ends in an error is routed through one
  * handler that reports and cleans up, so a failed job leaves the next
  * a clean interpreter.
+ *
+ * Putting the two banks back is not the whole of the revert. A few
+ * fields of the context name entities inside the arena from outside
+ * it -- the current page device and the procedure that retires it,
+ * the window a device draws into and its event handler, the two font
+ * directories, the object a run is executing -- and a field left
+ * naming an entity the revert has dropped is a dangling reference the
+ * next collection would follow into storage since handed to another
+ * object. So these are put back to the baseline with the banks, from
+ * the one list that declares them as the collector's roots; only the
+ * held job-stream channel is exempt, because it lives in C and the
+ * job layer opens and closes it around the boundary itself.
  *
  * A run's input may itself be a job-server channel carrying more than
  * one job, framed by the Control-D end-of-file the serial protocol
