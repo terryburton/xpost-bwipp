@@ -66,6 +66,9 @@ typedef struct
     unsigned int root; /**< the node the tree is entered at, 0 while empty */
     unsigned int n;    /**< nodes handed out, which is the highest number */
     unsigned int cap;  /**< nodes the storage holds */
+    unsigned int nnames; /**< names on this bank's name stack, so the next
+                              name's index is read here rather than counted
+                              off the stack on every intern */
 } tsttab;
 
 /* Nodes in the first allocation. A boot interns thousands, so this is a
@@ -152,6 +155,13 @@ static int _tsttab_grow(Xpost_Memory_File *mem, unsigned int want)
 
     _tsttab(mem)->cap =
         (unsigned int)((newsz - sizeof(tsttab)) / sizeof(tst));
+    /* A fresh table starts its name count from the stack as it stands --
+       the stack carries a reserved slot before any name -- so the index
+       addname reads from it is the one the stack would give. A grow
+       carried the count across in the copy above. */
+    if (!oldsz)
+        _tsttab(mem)->nnames =
+            xpost_stack_count(mem, xpost_memory_name_stack_ent(mem));
     return 1;
 }
 
@@ -392,8 +402,14 @@ int tstinsert(Xpost_Memory_File *mem,
             cur = child;
         } else if (key == val) {
             if (key == TST_END) {
-                unsigned int nstk = xpost_memory_name_stack_ent(mem);
-                _tstnode(mem, cur)->eq = xpost_stack_count(mem, nstk); /* payload at the terminator */
+                /* payload at the terminator: the index this name will
+                   take, which is the count of names on the stack -- read
+                   from the tree header in constant time, as addname does
+                   when it pushes the name there, rather than counted off
+                   the stack (an O(n) walk that made interning n names
+                   O(n^2)). The name is not pushed until addname runs, so
+                   the count here is the index it gets. */
+                _tstnode(mem, cur)->eq = _tsttab(mem)->nnames;
                 break;
             }
             s++, n--;
@@ -442,7 +458,14 @@ unsigned int addname(Xpost_Context *ctx,
     Xpost_Object str;
 
     names = xpost_memory_name_stack_ent(mem);
-    u = xpost_stack_count(mem, names);
+    /* The name being interned takes the index that is the count of names
+       already on the bank's stack. That count is carried in the tree
+       header and read here in constant time: recomputing it by walking
+       the stack, which only grows, made interning N distinct names cost
+       O(N^2) -- a program of many names spent it in the scanner. The
+       header is fetched fresh after each allocation below, since a grow
+       may move virtual memory. */
+    u = _tsttab(mem)->nnames;
 
     str = xpost_string_cons(ctx, n, s);
     if (xpost_object_get_type(str) == nulltype)
@@ -451,6 +474,7 @@ unsigned int addname(Xpost_Context *ctx,
         return 0;
     }
     xpost_stack_push(mem, names, str);
+    _tsttab(mem)->nnames = u + 1;
     return u;
 }
 
