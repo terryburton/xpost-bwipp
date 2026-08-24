@@ -300,7 +300,7 @@ end
 % inside the bracket, which puts back whatever the caller had parked
 % there. The conversion may set a colour of its own, in a space of the
 % same kind, which comes through here against the same pair.
-.xpostsys /.cskeys [ /.csspace /.csstash ] put
+.xpostsys /.cskeys [ /.csspace /.csstash /.convdepth ] put
 
 % space comps {conv}  .withspace  -
 % comps is the components as the program gave them.
@@ -311,6 +311,19 @@ end
 } bind put
 
 .xpostsys /.withspacebody {
+    % Bound the depth of procedure-driven colour conversion. A tint
+    % transform (or a CIE Decode, an Indexed lookup) may set a colour in a
+    % space whose own conversion re-enters here; the callout keeps the
+    % operand and dictionary stacks level across each re-entry, so neither
+    % overflow bounds it, and a transform that sets a colour in its own
+    % space would grow virtual memory without end and raise no catchable
+    % error. The count is a slot the callout saves and restores around this
+    % body (/.convdepth is in .cskeys), so it falls back as the conversion
+    % unwinds, whether that unwinds by returning or by this refusal.
+    graphicsdict /.convdepth known
+        { graphicsdict /.convdepth get 1 add }{ 1 } ifelse
+    dup 256 gt { pop /setcolor cvx /limitcheck signalerror } if
+    graphicsdict exch /.convdepth exch put
     3 1 roll
     graphicsdict exch /.csstash exch put
     graphicsdict exch /.csspace exch put

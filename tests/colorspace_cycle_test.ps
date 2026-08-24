@@ -29,6 +29,17 @@
 { /d [ /Separation /S /DeviceRGB { } ] def d 2 d put d setcolorspace } errname
     /typecheck eq (a Separation whose alternative is itself is refused) assert
 
+% A tint transform that sets a colour in its own space re-enters the
+% conversion without end. Each level is a fresh, one-step-reducible space
+% that the static walk above passes, so the cycle check does not catch it;
+% and the callout keeps the operand and dictionary stacks level across the
+% re-entry, so neither overflow does either. The conversion depth is
+% bounded instead -- limitcheck -- so the re-entry cannot grow virtual
+% memory without end and without a catchable error.
+{ /tt { pop [ /Separation /S /DeviceGray /tt load ] setcolorspace 0.5 setcolor 0 } def
+  [ /Separation /S /DeviceGray /tt load ] setcolorspace 0.5 setcolor } errname
+    /limitcheck eq (a tint transform recolouring in its own space is bounded) assert
+
 % ordinary nested spaces still reduce and are accepted
 { [ /Indexed /DeviceRGB 255 <000000> ] setcolorspace } errname
     null eq (an Indexed space over DeviceRGB is accepted) assert
