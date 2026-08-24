@@ -1816,6 +1816,19 @@ setglobal
                 32 sub /rep exch def
             }{
                 /op exch def
+                % A repeat count precedes an operator so that one run of
+                % arguments feeds it several times -- three coordinate pairs
+                % through one lineto. An operator that takes no arguments,
+                % closepath or ucache, consumes nothing however often it is
+                % repeated, so it never reaches the argument that would run
+                % out and bound the count: a single token could ask for it
+                % two billion times. An operator that does take arguments is
+                % bounded already, by the arguments running out. So a repeat
+                % of a no-argument operator is refused; an out-of-range
+                % operator is refused by the .upathargs fetch below.
+                //.xpostsys /.upathargs get op get 0 eq  rep 1 gt  and {
+                    /uappend cvx /rangecheck signalerror
+                } if
                 rep {
                     //.xpostsys /.upathargs get op get { args ai get /ai ai 1 add def } repeat
                     //.xpostsys /.upathops get op get cvx exec

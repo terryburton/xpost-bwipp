@@ -60,6 +60,20 @@ false upath length 0 gt (upath of a path yields a userpath) assert
 % --- setbbox takes four numbers (llx lly urx ury) ---
 { initgraphics newpath 12 24 36 48 setbbox } (setbbox accepts four numbers) works
 
+% --- an encoded userpath's repeat count cannot drive unbounded work ---
+% A repeat prefix precedes an operator to feed it one run of arguments
+% several times; before an operator that takes no arguments -- closepath
+% or ucache -- it would ask for that operator any number of times while
+% consuming nothing, so it is refused rather than run.
+{ [ [ ] [ 2147483647 11 ] ] uappend } /rangecheck
+    (a repeat count on a no-argument userpath operator is refused) raises
+{ [ [ ] [ 8000032 10 ] ] uappend } /rangecheck
+    (a repeated closepath in a userpath is refused) raises
+% a repeat before an operator that does take arguments is ordinary: two
+% coordinate pairs fed through one lineto after a moveto
+{ initgraphics newpath [ [10 10 40 40 70 10] [ 1 34 3 ] ] uappend }
+    (a repeat count on an operator that takes arguments still works) works
+
 % --- rcurveto: the three points are relative to the current point (PLRM 8.2) ---
 % Each pair displaces from the current point, not from the point before it, so
 % the curve rcurveto appends is the one curveto appends at the summed points.
