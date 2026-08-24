@@ -2058,11 +2058,17 @@ typedef struct
 } _flatten_dst;
 
 /* The most line segments one flatten may emit before it is refused. A real
-   curve flattens to a few hundred; a curve whose control points started
-   enormous asks for astronomically many tiny off-device segments, which
-   the depth cap alone still lets pile up. This is far above anything a
-   genuine path needs and far below a denial of service. */
-#define FLATTEN_MAX_SEGMENTS 4000000L
+   curve flattens to a few hundred, and the most intricate path a fill ever
+   hands over runs to some tens of thousands; a curve whose control points
+   started enormous asks instead for astronomically many tiny off-device
+   segments, which the depth cap alone still lets pile up -- and which the
+   fill clips away against the page as soon as they are made, so the whole
+   pile is built only to be discarded. The narrow build already refuses
+   such a path when the flattened points outrun a composite's length; this
+   is the same refusal for the wide build, whose composites are far longer,
+   set well above anything a genuine path needs and far below the half a
+   gigabyte and seconds the unbounded pile cost. */
+#define FLATTEN_MAX_SEGMENTS 131072L
 
 /* The deepest _chopcurve will subdivide. A curve converges to the
    flatness tolerance in a handful of levels; far more than this means the
