@@ -1,8 +1,7 @@
 /*
- * Xpost - a Level-2 Postscript interpreter
- * Copyright (C) 2013-2016, Michael Joshua Ryan
- * All rights reserved.
- * (BSD 3-clause; see COPYING)
+ * Xpost - a PostScript Level-3 interpreter
+ * Copyright (c) 2013-2016 Michael Joshua Ryan
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #ifndef XPOST_SPAN_H
