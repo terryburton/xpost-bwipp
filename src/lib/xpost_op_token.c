@@ -793,7 +793,12 @@ int puff(Xpost_Context *ctx,
     char *s = buf;
     while (isreg(c = next(ctx, src)))
     {
-        if (s - buf >= nbuf) return 0;
+        /* the buffer is full and the token is not done: stop with the
+           count that fills it. Every caller reads a full buffer as the
+           overflow it is and raises a limitcheck; a bare return of zero
+           here read instead as an empty token, so an over-long name was
+           silently cut to nothing rather than refused. */
+        if (s - buf >= nbuf) break;
         *s++ = c;
     }
     if (c == '\r')

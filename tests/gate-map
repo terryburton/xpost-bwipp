@@ -245,6 +245,7 @@ filter test op-readstring
 filter test op-string-filter
 filter test op-subfiledecode
 filter test scanner-eof
+filter test token-limit
 filter test statementedit
 filter test stream-exec
 filter width witness

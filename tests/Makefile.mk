@@ -552,6 +552,7 @@ tests/run-job-page-test.sh \
 tests/run-page-extent-test.sh \
 tests/run-startup-page-test.sh \
 tests/run-thin-stroke-test.sh \
+tests/run-token-limit-test.sh \
 tests/thin_stroke_test.ps \
 tests/token_sign_test.ps \
 tests/trapping_test.ps \

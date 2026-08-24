@@ -5248,6 +5248,16 @@ test('binary-tokens',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A token longer than the scanner's buffer is refused with a limitcheck, not
+# truncated to a shorter name with the rest read as fresh tokens. Read with
+# `file token` from a generated file, the only source that can reach the
+# buffer's length -- a string is shorter than the buffer.
+test('token-limit',
+  find_program('tests/run-token-limit-test.sh'),
+  args: [ xpost_exe ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Error reporting: a top-level job error prints the standard Adobe error line
 # and flush notice; a clean quit or a caught error prints neither.
 test('error-format',
