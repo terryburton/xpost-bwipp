@@ -360,3 +360,44 @@ rm -f "$clipps"
 printf '%s\n' "$out" | grep -q 'huge-hole clip bounded OK' || { echo "FAIL: a huge-hole clip was not bounded"; printf '%s\n' "$out" | grep 'huge-hole'; exit 1; }
 printf '%s\n' "$out" | grep -q 'ordinary clip clips OK'    || { echo "FAIL: an ordinary clip did not clip after the bound"; exit 1; }
 echo "clip bound OK"
+
+# separation registry at scale: the registry indexes a separation by name
+# so that a page naming many finds each in constant time, and the index
+# grows and is rebuilt as the count passes eight, sixteen and on. Register
+# twenty distinct separations, then reference every one of them again: the
+# second round must find each already there and add none, so the content
+# reaches /CS0 through /CS19 and never a /CS20 -- an index that lost an
+# entry across a rebuild would register it afresh and write one.
+sepscaleps=$(mktemp)
+cat > "$sepscaleps" <<EOF
+<< /OutputDevice /pdfwrite /OutputFile ($discard) /PageSize [100 100] >> setpagedevice
+/mark1 { newpath 10 10 moveto 5 0 rlineto 0 5 rlineto -5 0 rlineto closepath fill } def
+/useit { % i  -  register/reference separation number i and mark with it
+    /i exch def
+    [ /Separation i 8 string cvs cvn /DeviceGray { } ] setcolorspace
+    0.5 setcolor mark1
+} def
+1 1 20 { useit } for       % twenty distinct separations
+1 1 20 { useit } for       % every one referenced again -- must dedup
+/.pdfchunks 1183615869 internaldict /.pdfchunks get def
+/present { % (needle) (name)  .  -
+    exch DEVICE .pdfchunks 0 get exch search
+    { pop pop pop (ok ) print print (\n) print }
+    { pop (MISSING ) print print (\n) print } ifelse } def
+/absent { % (needle) (name)  .  -
+    exch DEVICE .pdfchunks 0 get exch search
+    { pop pop pop (PRESENT ) print print (\n) print }
+    { pop (ok ) print print (\n) print } ifelse } def
+(/CS19 cs) (the twentieth separation registered) present
+(/CS20 cs) (no twenty-first from a re-reference) absent
+showpage
+<< /OutputDevice /null >> setpagedevice
+quit
+EOF
+run_xpost "the separation-scale run" -d null -o /dev/null "$sepscaleps"
+rm -f "$sepscaleps"
+printf '%s\n' "$out" | grep -q 'MISSING' && { printf '%s\n' "$out" | grep -E 'MISSING|PRESENT'; echo "FAIL: separation registry lost an entry across a rebuild"; exit 1; }
+printf '%s\n' "$out" | grep -q 'PRESENT' && { printf '%s\n' "$out" | grep -E 'MISSING|PRESENT'; echo "FAIL: a re-referenced separation was registered afresh"; exit 1; }
+n=$(printf '%s\n' "$out" | grep -c '^ok ')
+[ "$n" = 2 ] || { echo "FAIL: expected 2 separation-scale probes, saw $n"; exit 1; }
+echo "separation registry at scale OK"

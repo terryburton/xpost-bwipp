@@ -3584,6 +3584,8 @@ typedef struct
     Pdf_Sep *seps;
     int nseps;
     int sepcap;
+    int *sephash;    /* name index: a separation's position + 1, 0 empty */
+    int sephashcap;  /* a power of two, or 0 when the index is absent */
 } Pdf_Acc;
 
 /* Load/store the accumulator struct via the device's /Private string. The raw
@@ -3643,6 +3645,9 @@ static void _pdf_acc_reclaim(void *block)
     a->seps = NULL;
     a->nseps = 0;
     a->sepcap = 0;
+    free(a->sephash);
+    a->sephash = NULL;
+    a->sephashcap = 0;
 }
 
 /* Create the content accumulator and stash it in the device's /Private. Called
@@ -3657,6 +3662,8 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
     a.seps = NULL;
     a.nseps = 0;
     a.sepcap = 0;
+    a.sephash = NULL;
+    a.sephashcap = 0;
     /* What this device holds is a buffer, which is not virtual memory: a
        device the run never retires -- one a restore took back, or one
        nothing named by the time a collection came round -- would take
@@ -3888,10 +3895,81 @@ static int _pdfnumstr(Xpost_Context *ctx, Xpost_Object num)
    content in the accumulator -- outside virtual memory -- so a `restore`
    cannot roll the registry away from content that already references it. */
 
+/* A name-keyed index over the registry so a separation is found in
+   constant time rather than by scanning every one registered before it,
+   which turned a page naming many separations into work rising with their
+   number squared. The index holds a separation's position plus one (zero
+   marks an empty slot) and is rebuilt when it would fill past half, so an
+   insertion is amortised constant. It holds positions, not pointers, so
+   growing the registry array leaves it valid; a name is confirmed by
+   comparison on a hit, so a collision never returns the wrong separation;
+   and if it cannot be allocated the search falls back to the scan and
+   stays correct. */
+static unsigned _pdf_sep_hash(const char *name, size_t namelen)
+{
+    unsigned h = 2166136261u;
+    size_t k;
+
+    for (k = 0; k < namelen; k++)
+    {
+        h ^= (unsigned char)name[k];
+        h *= 16777619u;
+    }
+    return h;
+}
+
+static void _pdf_sep_hash_place(Pdf_Acc *a, int idx)
+{
+    unsigned mask = (unsigned)a->sephashcap - 1;
+    unsigned h = _pdf_sep_hash(a->seps[idx].name, a->seps[idx].namelen) & mask;
+
+    while (a->sephash[h])
+        h = (h + 1) & mask;
+    a->sephash[h] = idx + 1;
+}
+
+/* size the index to hold every registered separation no more than half
+   full and place them all; on allocation failure give it up, so the
+   search falls back to the scan. */
+static void _pdf_sep_hash_rebuild(Pdf_Acc *a)
+{
+    int want = 8;
+    int i;
+
+    while (want < a->nseps * 2)
+        want *= 2;
+    free(a->sephash);
+    a->sephash = (int *)calloc((size_t)want, sizeof(int));
+    if (!a->sephash)
+    {
+        a->sephashcap = 0;
+        return;
+    }
+    a->sephashcap = want;
+    for (i = 0; i < a->nseps; i++)
+        _pdf_sep_hash_place(a, i);
+}
+
 static int _pdf_sep_find(Pdf_Acc *a, const char *name, size_t namelen)
 {
     int i;
 
+    if (a->sephash && a->sephashcap)
+    {
+        unsigned mask = (unsigned)a->sephashcap - 1;
+        unsigned h = _pdf_sep_hash(name, namelen) & mask;
+        int slot;
+
+        while ((slot = a->sephash[h]) != 0)
+        {
+            int idx = slot - 1;
+            if (a->seps[idx].namelen == namelen &&
+                memcmp(a->seps[idx].name, name, namelen) == 0)
+                return idx;
+            h = (h + 1) & mask;
+        }
+        return -1;
+    }
     for (i = 0; i < a->nseps; i++)
         if (a->seps[i].namelen == namelen &&
             memcmp(a->seps[i].name, name, namelen) == 0)
@@ -3965,6 +4043,9 @@ static int _pdfregsep(Xpost_Context *ctx,
             a.seps = NULL;
             a.nseps = 0;
             a.sepcap = 0;
+            free(a.sephash);
+            a.sephash = NULL;
+            a.sephashcap = 0;
             if (!_pdf_acc_put(ctx, priv, &a))
                 XPOST_LOG_ERR("cannot record the emptied separation list");
             return VMerror;
@@ -3985,6 +4066,12 @@ static int _pdfregsep(Xpost_Context *ctx,
         return VMerror;
     }
     i = a.nseps++;
+    /* keep the name index in step: grow and rebuild when it would fill
+       past half, otherwise place the one new name */
+    if (!a.sephash || a.sephashcap < a.nseps * 2)
+        _pdf_sep_hash_rebuild(&a);
+    else
+        _pdf_sep_hash_place(&a, i);
     if (!_pdf_acc_put(ctx, priv, &a))
         return VMerror;
     xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
