@@ -23,7 +23,7 @@
 # The count below is the size of the list, so that retiring an entry is
 # two edits and a set that shrank says so with a number that went down.
 
-entries 11
+entries 10
 
 # ---- bounded by the composite's own size field ----
 
@@ -33,7 +33,6 @@ size src/lib/xpost_op_file.c xpost_op_file_readline n
 size src/lib/xpost_op_file.c xpost_op_file_writehexstring n
 size src/lib/xpost_op_font.c _cid_emit_entry i
 size src/lib/xpost_op_font.c _loadfont42 i
-size src/lib/xpost_op_string.c Ssearch i
 
 # ---- bounded by something the check cannot read ----
 #
