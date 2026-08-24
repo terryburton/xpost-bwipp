@@ -1110,6 +1110,13 @@ true setglobal
         % the caller, who may reuse it (a Type 3 font mutating one
         % shared matrix per glyph is the classic case)
         mat matrix invertmatrix concat
+        % The colour a sample paints is a fixed function of the sample, so
+        % a run of one sample value need be selected as a colour only once:
+        % remember the last painted sample and skip setcolor while it holds.
+        % For a CIE, Separation or DeviceN image that runs the conversion
+        % once a run rather than once a pixel.
+        /prevsamp ncomp array def
+        /prevset false def
         0 1 height 1 sub { /y exch def
             multi {
                 0 1 ncomp 1 sub { /c exch def
@@ -1142,10 +1149,19 @@ true setglobal
                     inrange { /paintit false def } if
                 } if
                 paintit {
+                    /samesamp prevset def
                     0 1 ncomp 1 sub { /c exch def
-                        c //.xpostsys /.sampleat get exec dscale c get mul dbase c get add
+                        c //.xpostsys /.sampleat get exec
+                        dup prevsamp c get ne { /samesamp false def } if
+                        prevsamp exch c exch put
                     } for
-                    setcolor
+                    samesamp not {
+                        0 1 ncomp 1 sub { /c exch def
+                            prevsamp c get dscale c get mul dbase c get add
+                        } for
+                        setcolor
+                        /prevset true def
+                    } if
                     x y 1 1 rectfill
                 } if
             } for
