@@ -95,6 +95,7 @@ tests/check-opsigs-writer.sh \
 tests/check-page-output.sh \
 tests/run-pdf-docinfo-test.sh \
 tests/check-private-refs.sh \
+tests/check-ps-spacing.sh \
 tests/check-raster-classes.sh \
 tests/check-shadowed-operators.sh \
 tests/check-shared-helpers.sh \
