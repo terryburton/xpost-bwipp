@@ -1,2 +1,12 @@
+%!PS
+% readstring.ps
+%
+% Test payload for the run operator: a file whose program reads the file's
+% own remaining bytes with readstring. Run by data/test.ps; readstring
+% itself is covered by tests/op_readstring_test.ps.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 {currentfile 10 string readstring} exec
 abc

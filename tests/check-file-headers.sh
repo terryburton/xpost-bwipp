@@ -14,8 +14,7 @@
 # the ~24-line BSD boilerplate the identifier replaced, since a file
 # still carrying it is one the sweep did not reach. A PostScript data
 # file is held to the %!PS magic line first, then a comment naming the
-# file, a copyright and the identifier. readstring.ps is a bare test
-# fixture and is excepted by name.
+# file, a copyright and the identifier.
 #
 # Usage: check-file-headers.sh <source tree root>
 
@@ -57,7 +56,6 @@ done
 for f in "$src"/data/*.ps; do
     [ -f "$f" ] || continue
     b=$(basename "$f")
-    [ "$b" = readstring.ps ] && continue
     checked=$((checked + 1))
     h=$(head_of "$f")
     [ "$(head -n 1 "$f")" = '%!PS' ] \
