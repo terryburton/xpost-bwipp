@@ -156,6 +156,43 @@ static void stream_file_leak(Xpost_Showpage_Semantics semantics, const char *wha
     xpost_destroy(ctx);
 }
 
+/* A job that quits before reading its own Control-D leaves the delimiter
+ * unread, with tokens still ahead of it. PLRM 3.7.7 step 4 has the server
+ * flush the input to end-of-file at the boundary, so the delimiter is
+ * consumed here and the next job begins at its own start rather than on this
+ * job's tail. A server that did not flush would stall on the quit -- the next
+ * job never running -- or read the tail as part of it. */
+static void stream_quit(Xpost_Showpage_Semantics semantics, const char *what)
+{
+    Xpost_Context *ctx;
+    static const char prog[] =
+        "(first)print flush quit these tokens are past the quit\004"
+        "(second)print flush";
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
+                       XPOST_OUTPUT_MESSAGE_QUIET, XPOST_USE_SIZE, 100, 100);
+    if (!ctx)
+    {
+        report_failure("%s: xpost_create", what);
+        return;
+    }
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_jobserver_set(ctx, 1);
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+
+    outlen = 0;
+    (void) xpost_run(ctx, XPOST_INPUT_STRING, prog, sizeof prog - 1);
+    outbuf[outlen < sizeof outbuf ? outlen : sizeof outbuf - 1] = '\0';
+
+    if (!strstr(outbuf, "first"))
+        report_failure("%s: the quitting job did not run", what);
+    if (!strstr(outbuf, "second"))
+        report_failure("%s: the stream did not resync past a job's quit", what);
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     if (!xpost_init())
@@ -170,6 +207,8 @@ int main(void)
     stream_reclaim(XPOST_SHOWPAGE_RETURN, "reclaim-returning");
     stream_file_leak(XPOST_SHOWPAGE_NOPAUSE, "fileleak-nopause");
     stream_file_leak(XPOST_SHOWPAGE_RETURN, "fileleak-returning");
+    stream_quit(XPOST_SHOWPAGE_NOPAUSE, "quit-nopause");
+    stream_quit(XPOST_SHOWPAGE_RETURN, "quit-returning");
 
     xpost_quit();
     return verdict();

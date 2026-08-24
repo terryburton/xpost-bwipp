@@ -4094,7 +4094,19 @@ static int _job_stream_continues(Xpost_Context *ctx)
     if (xpost_object_get_type(ctx->run_input_file) != filetype)
         return 0;
     f = xpost_file_get_file_pointer(ctx->lo, ctx->run_input_file);
-    if (!f || !f->job_stream || !f->eot)
+    if (!f || !f->job_stream)
+        return 0;
+    /* A job that quit or errored before reading its own Control-D leaves eot
+       clear with the delimiter still ahead in the stream. PLRM 3.7.7 step 4:
+       flush the input to end-of-file -- read on and discard to the next
+       Control-D -- so it is consumed here and the following job begins at its
+       own start rather than reading this job's tail. xpost_file_getc returns
+       EOF at the Control-D and sets eot; at the true end of the stream it
+       returns EOF with eot still clear, which is the stream's real end and no
+       next job. */
+    while (!f->eot && xpost_file_getc(f) != EOF)
+        ;
+    if (!f->eot)
         return 0;
     f->eot = 0;
     return 1;
