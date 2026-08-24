@@ -68,23 +68,54 @@ true setglobal
         end end
         /CIDFont defineresource pop
     }
+    % A CMap's code spaces, ranges and single-code assignments arrive in
+    % blocks, and each block joins the ones before it. Rebuilding one array
+    % from all of them per block re-copied every entry gathered so far each
+    % time, so a CMap of N blocks cost 1+2+...+N -- the square of the count
+    % -- in time and in discarded arrays. Keep each block apart instead, in
+    % a list that grows a slot at a time, and join the blocks once when the
+    % CMap is closed. A CMap a large font carries in hundreds of blocks, or
+    % a program builds in thousands, then costs the number of entries rather
+    % than its square.
+    /.cmapaddblock {                    % block  /blkkey  .cmapaddblock  -
+        currentdict exch 2 copy known not { 2 copy 8 dict put } if
+        get dup length 3 -1 roll put
+    }
+    /.cmapflatten {                     % /blkkey /flatkey  .cmapflatten  -
+        currentdict 3 1 roll
+        6 dict begin
+        /fk exch def /bk exch def /cd exch def
+        cd bk known {
+            cd bk get /bd exch def
+            /tot 0 def
+            0 1 bd length 1 sub { bd exch get length tot add /tot exch store } for
+            tot array /fa exch def
+            /at 0 def
+            0 1 bd length 1 sub {
+                bd exch get /blk exch def
+                fa at blk putinterval
+                /at at blk length add store
+            } for
+            cd fk fa put
+            cd bk undef
+        } if
+        end
+    }
     /begincmap {}
-    /endcmap {}
+    /endcmap {
+        /.codespaceblk /.codespaces .cmapflatten
+        /.cidrangeblk /.cidranges .cmapflatten
+        /.cidcharblk /.cidchars .cmapflatten
+    }
     /begincodespacerange { pop mark }
     /endcodespacerange {
         counttomark array astore exch pop
-        /.newr exch def
-        /.codespaces currentdict /.codespaces known {
-            [ .codespaces aload pop .newr aload pop ]
-        }{ .newr } ifelse def
+        /.codespaceblk .cmapaddblock
     }
     /begincidrange { pop mark }
     /endcidrange {
         counttomark array astore exch pop
-        /.newr exch def
-        /.cidranges currentdict /.cidranges known {
-            [ .cidranges aload pop .newr aload pop ]
-        }{ .newr } ifelse def
+        /.cidrangeblk .cmapaddblock
     }
     /beginnotdefrange { pop mark }
     /endnotdefrange {
@@ -94,10 +125,7 @@ true setglobal
     /begincidchar { pop mark }
     /endcidchar {
         counttomark array astore exch pop
-        /.newr exch def
-        /.cidchars currentdict /.cidchars known {
-            [ .cidchars aload pop .newr aload pop ]
-        }{ .newr } ifelse def
+        /.cidcharblk .cmapaddblock
     }
     % single-descendant jobs select font 0; the association of later
     % ranges with other descendants is not kept
@@ -107,7 +135,8 @@ true setglobal
     % and single-CID assignments join those of the CMap under
     % construction where the naming appears, so a CMap that carries
     % only the codes it substitutes reaches the rest of its mapping
-    % through the one it names
+    % through the one it names. The other CMap is finished, so each of its
+    % joined mappings enters as a single further block.
     /usecmap {
         dup type /nametype eq { /CMap findresource } if
         /usecmap [ /dicttype ] //.xpostsys /.checkargs get exec
@@ -115,14 +144,12 @@ true setglobal
         3 dict begin
         /src exch def
         /dst exch def
-        [ /.codespaces /.cidranges /.cidchars ] {
-            /k exch def
-            src k known {
-                dst k
-                dst k known {
-                    [ dst k get aload pop src k get aload pop ]
-                }{ src k get } ifelse
-                put
+        [ [ /.codespaces /.codespaceblk ]
+          [ /.cidranges /.cidrangeblk ]
+          [ /.cidchars /.cidcharblk ] ] {
+            aload pop /bk exch def /fk exch def
+            src fk known {
+                dst begin src fk get bk .cmapaddblock end
             } if
         } forall
         end

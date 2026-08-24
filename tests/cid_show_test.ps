@@ -191,6 +191,42 @@ end
 } bind def
 /near { sub abs 0.001 lt } bind def
 
+% A CMap built from several blocks decodes the same as one built from a
+% single block: the same codes reach the same CIDs whether the ranges
+% arrived together or apart. The reference maps the codes 0, 1 and 2
+% through the single-block identity CMap; the CMaps below map the same
+% three codes to the same three CIDs across two range blocks and a char
+% block, exercising the join of the blocks, and one of them reaches its
+% third mapping through another CMap it names.
+/Sref { cidfnt 10 20 moveto CODES show } greysnap def
+/CIDInit /ProcSet findresource begin
+10 dict begin begincmap /CMapName /CIDShowMultiCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <0000> <FFFF> endcodespacerange
+ 1 begincidrange <0000> <0000> 0 endcidrange
+ 1 begincidrange <0001> <0001> 1 endcidrange
+ 1 begincidchar <0002> 2 endcidchar
+ endcmap CMapName currentdict end /CMap defineresource pop
+10 dict begin begincmap /CMapName /CIDShowBaseCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <0000> <FFFF> endcodespacerange
+ 1 begincidchar <0002> 2 endcidchar
+ endcmap CMapName currentdict end /CMap defineresource pop
+10 dict begin begincmap /CMapName /CIDShowUseCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <0000> <FFFF> endcodespacerange
+ /CIDShowBaseCMap usecmap
+ 1 begincidrange <0000> <0001> 0 endcidrange
+ endcmap CMapName currentdict end /CMap defineresource pop
+end
+/CIDShowMultiT0 /CIDShowMultiCMap [/CIDShowTest] composefont pop
+/CIDShowUseT0 /CIDShowUseCMap [/CIDShowTest] composefont pop
+/Smulti { /CIDShowMultiT0 findfont 20 scalefont setfont 10 20 moveto CODES show } greysnap def
+/Suse { /CIDShowUseT0 findfont 20 scalefont setfont 10 20 moveto CODES show } greysnap def
+Smulti inkof 0 gt (a several-block composite marks the page) check
+Smulti Sref differs 0 eq (a CMap of several blocks decodes as one of a single block) check
+Suse Sref differs 0 eq (a CMap reaching a mapping through usecmap decodes the same) check
+
 % StrokeWidth reaches user space through the font matrix, which the
 % composite carries to the descendant and the simple font carries alone
 /setlw {
