@@ -938,18 +938,21 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
     mem->compact_pending = 0;
     mem->path_walk.ent = 0;
 
-    /* Restore the arena's size to the baseline's. The revert pulled the
-       live cursor down; the arena bound comes down with it, so globalvmstatus
-       reports the arena a job begins from rather than the peak a large job
-       grew it to once, and a job that fills the free space fills the baseline
-       arena rather than one an earlier job left grown -- the figure a
-       fill-to-available job reads is the same on every job, whatever ran
-       before it. This is the arena's size, not its pages: the storage a large
-       job committed above the baseline stays mapped, and the next job to grow
-       into it re-uses it in place. Handing those pages back to the system is
-       vmreclaim's work, which a server does when it wants the footprint down;
-       its compaction (xpost_free_compact) returns them with the free-list
-       reconciliation a page-return needs and this boundary does not do. */
+    /* Hand back what the job grew. The revert pulled the live cursor down to
+       the baseline, so the pages the job committed above it are no longer
+       anyone's: release them to the system, so the worker's footprint tracks
+       the job it is running rather than the largest it ever ran, and bring
+       the arena's size down with the cursor, so globalvmstatus reports the
+       arena a job begins from and a job that fills the free space fills the
+       baseline rather than a peak an earlier job left. This is the page
+       return vmreclaim's compaction uses (xpost_memory_file_release_range);
+       the revert has already put the free lists back to the baseline's, so
+       the run above the cursor is handed back whole. A job whose peak fit
+       under the baseline pays nothing; one that grew the arena pays in
+       re-committing the room it needs the next time. */
+    if (mem->max > mem->high_water)
+        (void)xpost_memory_file_release_range(mem, mem->high_water,
+                                              mem->max - mem->high_water);
     if (mem->max > img->max)
         mem->max = img->max;
 }

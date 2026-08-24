@@ -5298,6 +5298,18 @@ test('check-vm-growth',
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 1800)
 
+# The page return, held to both callers. check-vm-growth holds the reported
+# figures to the baseline but cannot tell a page return from a rename; this
+# holds the process's resident memory, which only falls when the pages truly
+# go back, and to each of the two triggers -- vmreclaim within a job and the
+# boundary between jobs -- so neither can regress unwatched. Linux-only; it
+# skips where /proc/self/statm is absent.
+test('check-page-return',
+  find_program('tests/check-page-return.sh'),
+  suite: cost_slow,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 300)
+
 # One device roster. -d and setpagedevice are two spellings of one
 # selection, so the option parser's list, the interpreter's maker table
 # and the .devicemakers dictionary name the same devices -- and the test

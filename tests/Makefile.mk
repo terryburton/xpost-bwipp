@@ -33,6 +33,7 @@ tests/check-device-destroy.sh \
 tests/check-library-lifetime.sh \
 tests/check-counter-register.sh \
 tests/check-vm-growth.sh \
+tests/check-page-return.sh \
 tests/check-device-roster.sh \
 tests/check-device-facts.sh \
 tests/device-facts \
