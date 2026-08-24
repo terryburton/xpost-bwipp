@@ -169,6 +169,7 @@ count    xpost_memory.h:Xpost_Memory_Image  free_scan
 count    xpost_memory.h:Xpost_Memory_Image  free_substack
 count    xpost_memory.h:Xpost_Memory_Image  garbage_collect_auto
 count    xpost_memory.h:Xpost_Memory_Image  gc_ent_budget
+count    xpost_memory.h:Xpost_Memory_Image  max
 count    xpost_memory.h:Xpost_Memory_Image  nextent
 count    xpost_memory.h:Xpost_Memory_Image  start
 count    xpost_memory.h:Xpost_Memory_Image  threshold

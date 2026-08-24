@@ -855,6 +855,7 @@ int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img)
 
     img->used = mem->high_water;
     img->nextent = mem->table.nextent;
+    img->max = mem->max;
     tabbytes = (size_t)img->nextent * esz;
 
     img->store = malloc(img->used ? img->used : 1);
@@ -936,6 +937,21 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
     mem->garbage_collect_pending = 0;
     mem->compact_pending = 0;
     mem->path_walk.ent = 0;
+
+    /* Restore the arena's size to the baseline's. The revert pulled the
+       live cursor down; the arena bound comes down with it, so globalvmstatus
+       reports the arena a job begins from rather than the peak a large job
+       grew it to once, and a job that fills the free space fills the baseline
+       arena rather than one an earlier job left grown -- the figure a
+       fill-to-available job reads is the same on every job, whatever ran
+       before it. This is the arena's size, not its pages: the storage a large
+       job committed above the baseline stays mapped, and the next job to grow
+       into it re-uses it in place. Handing those pages back to the system is
+       vmreclaim's work, which a server does when it wants the footprint down;
+       its compaction (xpost_free_compact) returns them with the free-list
+       reconciliation a page-return needs and this boundary does not do. */
+    if (mem->max > img->max)
+        mem->max = img->max;
 }
 
 

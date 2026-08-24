@@ -426,6 +426,7 @@ typedef struct Xpost_Memory_Image
     unsigned int used;        /**< value-store cursor at capture */
     unsigned char *tab;       /**< copy of the first nextent table records */
     unsigned int nextent;     /**< table cursor at capture */
+    unsigned int max;         /**< arena size at capture, restored on revert */
     unsigned int start;       /**< first collectable entity at capture */
     unsigned int free_substack;
     unsigned int free_scan;
