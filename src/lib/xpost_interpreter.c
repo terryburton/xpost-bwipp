@@ -3913,6 +3913,15 @@ static void _make_start_device(Xpost_Context *ctx)
    lives outside virtual memory. Taken once, when the language and any
    server-level prelude have loaded -- the PLRM 3.7.7 "initial VM" a job
    begins from. Returns 1 on success. */
+/* The context's own object roots are snapshotted with the arena baseline and
+   put back with it: the arena revert cannot reach a field outside the arena,
+   and a root left naming an entity the revert discarded is a dangling
+   reference the next collection follows. run_input_file is excluded -- the
+   stream file a job wrapped is closed and re-primed by the job-stream logic
+   around the boundary, not reverted with the rest. */
+#define XPOST_JOB_SAVE_ROOT(f)    ctx->job_saved_##f = ctx->f;
+#define XPOST_JOB_RESTORE_ROOT(f) ctx->f = ctx->job_saved_##f;
+
 static int _job_capture_baseline(Xpost_Context *ctx)
 {
     if (!ctx->job_baseline_lo)
@@ -3929,6 +3938,7 @@ static int _job_capture_baseline(Xpost_Context *ctx)
     ctx->job_vmmode = ctx->vmmode;
     ctx->job_packing = ctx->packing;
     ctx->job_baseline_ds = xpost_stack_count(ctx->lo, ctx->ds);
+    XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_SAVE_ROOT)
     return 1;
 }
 
@@ -4006,6 +4016,13 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     _job_close_born_files(ctx->gl, ctx->job_baseline_gl);
     xpost_memory_image_restore(ctx->lo, ctx->job_baseline_lo);
     xpost_memory_image_restore(ctx->gl, ctx->job_baseline_gl);
+    {
+        /* put the object roots back to their baseline, save the stream file
+           the job-stream logic owns across the boundary */
+        Xpost_Object keep_run_input_file = ctx->run_input_file;
+        XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_RESTORE_ROOT)
+        ctx->run_input_file = keep_run_input_file;
+    }
     ctx->rand_next = ctx->job_rand_next;
     ctx->vmmode = ctx->job_vmmode;
     ctx->packing = ctx->job_packing;

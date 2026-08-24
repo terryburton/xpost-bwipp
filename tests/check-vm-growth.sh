@@ -124,7 +124,22 @@ fi
 
 # Run the whole corpus as one job server.
 xg_limit 600 "$xpost" -q --no-sandbox -d null --jobserver \
-    < "$work/stream" > "$work/out" 2>/dev/null
+    < "$work/stream" > "$work/out" 2>"$work/err"
+
+# A collection that cannot find an entity's table row is following a dangling
+# root -- a context field the boundary left naming an entity the revert
+# discarded. The corpus run as a job stream is where such a root is walked; a
+# program run on its own never crosses a boundary and never sees it. The
+# message is the collector's own, and it is held for here because the harness
+# would otherwise pass while the interpreter corrupted its own memory: the
+# used figures revert whatever the roots point at, and the corruption is
+# fatal only in some layouts.
+if grep -q 'cannot find table for ent' "$work/err" 2>/dev/null; then
+    echo "FAILURES: the collector followed a dangling context root across a job"
+    echo "      boundary -- a root left naming an entity the revert discarded:"
+    grep 'cannot find table for ent' "$work/err" | sed 's/^/      /' | head -3
+    exit 1
+fi
 
 # Hold every job's baseline reading to the first, and require the sentinel.
 awk '

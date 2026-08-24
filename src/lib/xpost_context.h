@@ -178,6 +178,9 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
     _(globalfontdir)
 
 #define XPOST_CONTEXT_DECLARE_ROOT(f) Xpost_Object f;
+/* baseline snapshot of one object root, filled when the job baseline is
+   captured and put back at the boundary revert */
+#define XPOST_CONTEXT_DECLARE_ROOT_SAVE(f) Xpost_Object job_saved_##f;
 
 /** @struct Xpost_Context
  * @brief The context structure for a thread of execution of ps code
@@ -210,6 +213,11 @@ struct _Xpost_Context {
     /* the objects the context holds on its own account; the collector
        walks exactly these, from the same list that declares them */
     XPOST_CONTEXT_OBJECT_ROOTS(XPOST_CONTEXT_DECLARE_ROOT)
+    /* the value each of those roots held at the job baseline: image_restore
+       reverts the arena an entity lives in, but a root is a field outside
+       the arena, so a root left naming an entity the revert discards is a
+       dangling reference the next collection would follow (PLRM 3.7.7). */
+    XPOST_CONTEXT_OBJECT_ROOTS(XPOST_CONTEXT_DECLARE_ROOT_SAVE)
 
     Xpost_Object op_restore_val[8];
 
