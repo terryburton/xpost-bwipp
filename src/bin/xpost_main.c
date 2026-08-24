@@ -325,6 +325,7 @@ _xpost_main_usage(FILE *out, const char *filename)
     fprintf(out, "  --no-graphics                      lock down and run without loading graphics\n");
     fprintf(out, "  --no-sandbox                       allow the program unrestricted file access\n");
     fprintf(out, "  --enable-dps                       install the Display PostScript context operators\n");
+    fprintf(out, "  --jobserver                        read standard input as a Control-D-framed job stream\n");
     fprintf(out, "  -g, --geometry=WxH{+-}X{+-}Y       geometry specification\n");
     fprintf(out, "  -s, --spill=auto|never|always      where a retained page's marks are held\n");
     fprintf(out, "  -b, --band-bytes=BYTES             what one band of a page may cost\n");
@@ -557,6 +558,7 @@ int main(int argc, char *argv[])
     int num_incs = 0;
     int no_graphics = 0;
     int no_sandbox = 0;
+    int jobserver = 0;
     int output_msg = XPOST_OUTPUT_MESSAGE_QUIET;
     int have_device;
     int width = -1;
@@ -736,6 +738,15 @@ int main(int argc, char *argv[])
             {
                 no_sandbox = 1;
             }
+            /* Read standard input as a job stream: a run of programs framed
+               by Control-D, each reverting the whole of virtual memory to
+               the initial-VM baseline at its boundary (PLRM 3.7.7 server
+               loop). The mechanism the embedding worker uses, offered to a
+               caller that drives the interpreter the same way. */
+            else if (!strcmp(argv[i], "--jobserver"))
+            {
+                jobserver = 1;
+            }
             else if (!strcmp(argv[i], "--enable-dps"))
             {
                 xpost_dps_set(1);
@@ -911,6 +922,9 @@ int main(int argc, char *argv[])
     if (no_graphics)
         xpost_skip_graphics_set(ctx, 1);
 
+    if (jobserver)
+        xpost_jobserver_set(ctx, 1);
+
     /* Naming the file the output goes to says what this invocation is:
        something waiting for that file, not somebody at a keyboard. So the
        run ends where the named program ends, which is where a job ends
@@ -1023,7 +1037,9 @@ int main(int argc, char *argv[])
     {
         Xpost_Run_Status status;
 
-        status = xpost_run(ctx, XPOST_INPUT_FILENAME, ps_file, 0);
+        status = jobserver
+            ? xpost_run(ctx, XPOST_INPUT_FILEPTR, stdin, 0)
+            : xpost_run(ctx, XPOST_INPUT_FILENAME, ps_file, 0);
         xpost_destroy(ctx);
 
         xpost_quit();
