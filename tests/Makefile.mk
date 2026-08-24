@@ -126,6 +126,7 @@ tests/vm_host_state.register \
 tests/check-wrapped-bind.sh \
 tests/cid_show_test.ps \
 tests/clip_region_test.ps \
+tests/qsort_test.ps \
 tests/clock_test.c \
 tests/colorspace_cycle_test.ps \
 tests/colorspace_matrix_test.ps \

@@ -419,6 +419,7 @@ language test op-*
 language test opsigs-writer
 language test privatedict-install
 language test private-refs
+language test qsort
 language test resource-*
 language test roll
 language test cli-sandbox

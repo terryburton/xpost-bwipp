@@ -1926,6 +1926,13 @@ test('clip-region',
   timeout: 120,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+test('qsort',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/qsort_test.ps') ],
+  suite: cost_fast,
+  timeout: 60,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # A clip region can end up covering no pixels at all. PLRM 7.5.1 makes
 # what a painting operation marks the intersection of two sets of pixels,
 # so an empty one is an answer and not a fault: every painter paints

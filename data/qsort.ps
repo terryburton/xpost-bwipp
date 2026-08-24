@@ -6,67 +6,40 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-%qsort.ps % quicksort for comparable base types
+% array       qsort  -
+% array proc  qsort  -
 %
-% exports 1 procedure:
-%
-%           array  qsort  -
-%      array proc  qsort  -
-% sort array contents in-place using proc or `lt` for comparisons
-
-% qsort, with its qsortdict helpers, lives in the private .xpostsys namespace
-% in global VM; call sites reach it as //.xpostsys /qsort get exec.
+% Sort an array in place, comparing adjacent elements with proc, or with
+% `lt` when none is given. The swap is the C operator .swap, so this
+% sorts arrays and not strings. qsort and its qsortdict helpers live in
+% the private .xpostsys namespace in global VM; a call site reaches it as
+% //.xpostsys /qsort get exec, and its array and comparison proc must be
+% in global VM too, since the sort runs in the global qsortdict.
 .xpostsys /qsort known { currentfile flushfile } if
 
 currentglobal true setglobal
 7 dict begin
 /qsortdict currentdict def
 
-%/args { dup 1 add copy -1 1 { -1 roll ==only( )=only } for pop ()= } def
-
-/swap { % a i j
-    2 index exch  % a i a j
-    4 copy get    % a i a j a i a_j
-    3 1 roll get  % a i a j a_j a_i
-    exch 4 1 roll % a i a_j a j a_i
-    put put
-} bind def
-
-% array left right pivotIndex
+% array left right pivotIndex  partition  storeIndex
 /partition { %4 args
-    %4 dict begin
-        %{pivotIndex right left arr}{exch def}forall
-        %/pivotValue arr pivotIndex get def
-        %arr pivotIndex right swap
-        %/storeIndex left def
-        %left 1 right 1 sub { % i
-            %arr 1 index get pivotValue lt { % i
-                %arr 1 index storeIndex swap
-                %/storeIndex storeIndex 1 add def
-            %} if pop
-        %arr storeIndex right swap
-        %storeIndex
-    %end
     3 index 1 index get % a l r pI p
     4 index 3 index 3 index % a l r pI p  a r pI
     .swap
-    %//swap exec % a l r pI p
     3 index % a l r pI p sI
     dup 1 5 index 1 sub { % a l r pI p sI  i
         6 index 1 index get 3 index cmp { % a l r pI p sI  i
             6 index exch 2 index % a l r pI p sI  a i sI
             .swap
-            %//swap exec % a l r pI p sI
             1 add % a l r pI p sI+1
         }{ pop } ifelse
     } for % a l r pI p sI
     5 index 1 index 5 index % a l r pI p sI  a sI r
     .swap
-    %//swap exec % a l r pI p sI
     6 1 roll pop pop pop pop pop
 } bind def
 
-% array left right
+% array left right  quicksort  -
 /quicksort { %3 args
     2 copy ge { pop pop pop }{
         3 copy
@@ -91,27 +64,3 @@ currentglobal true setglobal
 end % qsortdict
 .xpostsys 3 1 roll put
 setglobal
-
-currentfile flushfile %comment-out this line to test
-
-[ 8 3 9 2 4 83 0 29 1 8 22 55 12 99 201 333 999]
-dup qsort pstack
-dup { gt } qsort pstack pop
-(the quick fox jumped over the lazy dog) dup qsort pstack
-clear
-
-<<
-0 5
-1 12
-2 67
-3 900
-4 59
-5 32
->> dup qsort 
-dup [ exch { pop } forall ] dup qsort
-pstack
-{
-    2 copy get
-    exch =only( )=only =only(\n)print
-} forall
-

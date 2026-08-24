@@ -1,0 +1,61 @@
+%!PS
+% qsort_test.ps
+%
+% Exercise the private .xpostsys /qsort helper, which the shipped file
+% only ever ran inline. qsort is reached the way tamper_dispatch_test
+% reaches the namespace -- through a privatedict-anchored bound procedure
+% -- and run in global VM, since the sort keeps its state in the global
+% qsortdict. Prints SUCCESS iff every assertion holds.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
+/failed 0 def
+/assert { % bool (name) . -
+    exch { pop }
+    { (FAIL: ) print print (\n) print /failed failed 1 add store } ifelse
+} bind def
+
+% --- recover .xpostsys through a privatedict-anchored procedure ---
+/found null def
+/probe { % obj depth . -
+    2 dict begin /d exch def /o exch cvlit def
+    d 0 gt found null eq and {
+        o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
+        { o type /arraytype eq {
+            o rcheck { 0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
+    } if
+    end
+} def
+.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
+found null ne (the .xpostsys namespace is recoverable) assert
+found dup null ne { /qsort known }{ pop false } ifelse (it holds qsort) assert
+/qs found /qsort get def
+
+% --- the sort runs in global VM ---
+currentglobal true setglobal
+
+% true iff no adjacent pair breaks the order the comparison asks for
+/ordered? { % array {test} . bool
+    /t exch def /a exch def true
+    1 1 a length 1 sub {
+        /i exch def a i 1 sub get a i get t exec and
+    } for
+} bind def
+
+/A [ 8 3 9 2 4 83 0 29 1 8 22 55 12 99 201 333 999 ] def
+A qs
+A length 17 eq (the default sort preserves length) assert
+A { gt not } ordered? (the default sort is non-descending) assert
+A 0 get 0 eq (its least element is at the front) assert
+A 16 get 999 eq (its greatest is at the back) assert
+
+/B [ 8 3 9 2 4 83 0 29 1 8 22 55 12 99 201 333 999 ] def
+B { gt } qs
+B { lt not } ordered? (a gt sort is non-ascending) assert
+B 0 get 999 eq (its greatest element is at the front) assert
+
+setglobal
+
+failed 0 eq { (SUCCESS\n) print }
+{ (FAILED: ) print failed ==only ( assertions\n) print } ifelse
