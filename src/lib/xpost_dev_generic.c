@@ -1867,13 +1867,14 @@ int _linepix(Xpost_Context *ctx,
     int cap;
 
     /* the walk visits at most one pixel per step of the major axis,
-       and the major axis spans no more than the device does once the
-       segment is clipped -- but the segment is not clipped, so count
-       first and fill second rather than guess */
+       and the major axis is held to the device below, so the count
+       pass and the fill pass are each bounded by the device and not by
+       how far the segment was drawn: count first and fill second */
     xpost_dev_line_init(&line, xpost_object_number(x1),
                         xpost_object_number(y1),
                         xpost_object_number(x2),
                         xpost_object_number(y2));
+    xpost_dev_line_clip_major(&line, line.major_is_x ? w : h);
     while (xpost_dev_line_next(&line, &px, &py))
         if (px >= 0 && px < w && py >= 0 && py < h)
             n++;
@@ -1889,6 +1890,7 @@ int _linepix(Xpost_Context *ctx,
                         xpost_object_number(y1),
                         xpost_object_number(x2),
                         xpost_object_number(y2));
+    xpost_dev_line_clip_major(&line, line.major_is_x ? w : h);
     n = 0;
     while (xpost_dev_line_next(&line, &px, &py))
     {

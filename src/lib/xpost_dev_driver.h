@@ -1038,6 +1038,32 @@ xpost_dev_line_init(Xpost_Dev_Line *l,
     l->step = (l->da < 0.0) ? -1 : 1;
 }
 
+/* Hold the walk to a device `dim` pixels wide on the major axis. The
+   pixel a step yields is a pure function of its major coordinate, so
+   the coordinates that land off the device -- which the caller drops
+   anyway -- can be skipped before they are walked rather than after,
+   which bounds the walk by the device instead of by how far the
+   segment was drawn. The minor axis needs no bound of its own: the
+   major axis is the longer, so a major run held to `dim` holds the
+   minor within `dim` of its start as well. A segment lying wholly to
+   one side of the axis leaves an empty range and walks out at once. */
+static inline void
+xpost_dev_line_clip_major(Xpost_Dev_Line *l, int dim)
+{
+    if (l->degenerate)
+        return;
+    if (l->step > 0)
+    {
+        if (l->c < 0) l->c = 0;
+        if (l->cend > dim - 1) l->cend = dim - 1;
+    }
+    else
+    {
+        if (l->c > dim - 1) l->c = dim - 1;
+        if (l->cend < 0) l->cend = 0;
+    }
+}
+
 /* The next pixel, or 0 when the segment is walked out. */
 static inline int
 xpost_dev_line_next(Xpost_Dev_Line *l, int *px, int *py)
