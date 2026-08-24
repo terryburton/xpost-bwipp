@@ -182,6 +182,7 @@ true setglobal
             } for
             code rlo ge code rhi le and {
                 /cid rgs k 2 add get code rlo sub add def
+                exit
             } if
         } if
     } for
@@ -192,7 +193,7 @@ true setglobal
             0 1 w 1 sub { /b exch def
                 /rlo rlo 256 mul rgs k get b get add def
             } for
-            code rlo eq { /cid rgs k 1 add get def } if
+            code rlo eq { /cid rgs k 1 add get def exit } if
         } if
     } for
     cid w
