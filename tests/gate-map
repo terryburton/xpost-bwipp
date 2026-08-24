@@ -362,6 +362,7 @@ vm test large-object
 vm test memory-bounds
 vm test memory-grow
 vm test name-intern
+vm test dict-string-key-intern
 vm test operator-install-refusal
 vm test refusal-report
 vm test reloc-*

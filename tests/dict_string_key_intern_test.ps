@@ -1,0 +1,61 @@
+%!testlib
+% A read-only dictionary lookup with a string key does not intern a name,
+% run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A dictionary key that is a name is compared by its interned identity, so
+% a string key is resolved to the name it names before the lookup. A store
+% must intern -- its key is about to live in the dictionary -- but a read
+% (known/get/where/load/undef) that interned an unseen string would leave a
+% permanent name behind, one no collection reclaims, for a key that matched
+% nothing. A program probing a dictionary with unbounded distinct strings
+% would then grow the name table without end. The read resolves the string
+% without interning instead: a string that is not already a name is in no
+% dictionary, so the miss is answered and nothing is minted.
+
+% ---- the resolution is unchanged: a string key finds the name key it equals
+
+/d << /alpha 1 /beta 2 >> def
+
+{ d (alpha) known } (a string key equal to a stored name key is known) works
+d (alpha) known (a present string key reads as known) assert
+d (alpha) get 1 eq (a string key gets the value stored under the name) assert
+d (gamma) known not (an absent string key is not known) assert
+{ d (gamma) get } /undefined (get of an absent string key is undefined) raises
+
+% where resolves a string key across the dictionary stack
+d begin (alpha) where { pop true } { false } ifelse end
+/wf exch def
+wf (where finds a string key that names a defined name) assert
+(neverdefinedanywhere) where { pop false } { true } ifelse
+    (where does not find a string that names nothing) assert
+
+% undef by string key removes the entry named by the string
+d (beta) undef
+d (beta) known not (undef by string key removes the named entry) assert
+% undef of an absent key behaves the same whether the key is a string or a
+% name -- outcome is /ok or the error raised, and they must agree
+{ d (noSuchKey) undef } outcome
+{ d /noSuchKey undef } outcome
+eq (undef of an absent string key matches undef of an absent name key) assert
+
+% ---- probing with distinct strings does not grow virtual memory
+
+% reuse one buffer so building the key allocates nothing per iteration; the
+% only per-iteration allocation without the fix is the interned name. Both
+% the names and the count vmstatus reports are local here. Collection is
+% turned off so that the memory vmstatus reports is what is live rather
+% than what an arena reuse has reached (PLRM C.3.5): the reading before and
+% after the loop then measures exactly what the loop retained.
+false setglobal
+-2 vmreclaim
+/buf 24 string def
+vmstatus pop /used0 exch def pop
+1 1 8000 { buf cvs pop
+    d buf known pop } for
+vmstatus pop /used1 exch def pop
+% With the fix the loop interns nothing, so used barely moves; without it
+% 8000 distinct twenty-character names add well over a megabyte.
+used1 used0 sub 200000 lt
+    (probing with 8000 distinct string keys does not grow VM) assert
+
+verdict

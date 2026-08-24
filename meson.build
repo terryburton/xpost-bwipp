@@ -964,6 +964,17 @@ test('name-intern',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A dictionary lookup that stores nothing -- known/get/where/load/undef --
+# resolves a string key to the name it already names without interning it.
+# Interning on a read would leave a permanent name behind for a key that
+# matched nothing, so a program probing with unbounded distinct strings
+# would grow the name table without end; a store still interns.
+test('dict-string-key-intern',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/dict_string_key_intern_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # PLRM 8.2 gives the two clocks different jobs: realtime counts in real
 # time independently of the interpreter's execution, and usertime counts
 # the execution the interpreter has done. An interval spent asleep shows

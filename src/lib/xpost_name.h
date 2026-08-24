@@ -36,6 +36,15 @@ XPOST_TEST_VISIBLE Xpost_Object xpost_name_cons(Xpost_Context *ctx, const char *
  */
 Xpost_Object xpost_name_cons_n(Xpost_Context *ctx, const char *s, unsigned int n);
 
+/*
+   Resolve a counted string to the name object it already interns to, or
+   the invalid object if the string has never been interned as a name.
+   Searches both banks in the same order xpost_name_cons_n does but interns
+   nothing, so a read-only dictionary lookup can answer a miss without
+   minting a permanent name the program has no other use for.
+ */
+Xpost_Object xpost_name_find_n(Xpost_Context *ctx, const char *s, unsigned int n);
+
 /**
  * @brief Construct a name object in global VM regardless of the
  * current allocation mode. Operator names must live in the global

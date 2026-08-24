@@ -327,6 +327,7 @@ xpost_module_path_get
 xpost_name_cons
 xpost_name_cons_global
 xpost_name_cons_n
+xpost_name_find_n
 xpost_name_get_string
 xpost_name_init
 xpost_name_lookups

@@ -558,10 +558,20 @@ Xpost_Object xpost_dict_convert_extended_to_number (Xpost_Object e)
     return o;
 }
 
-/* make key the proper type for hashing */
+/* make key the proper type for hashing.
+
+   lookup_only asks for the key of a read that stores nothing: a string is
+   resolved to the name it already interns to, or to the invalid object if
+   it is not yet a name -- which cannot be a key of any dictionary, since
+   every key was interned when it was stored. A read that interned its
+   string key would leave a permanent name behind for a key that matched
+   nothing, so an untrusted program probing with unbounded distinct strings
+   would grow the name table without end. A store (lookup_only false) still
+   interns, because its key is about to live in the dictionary. */
 static
 Xpost_Object clean_key (Xpost_Context *ctx,
-                        Xpost_Object k)
+                        Xpost_Object k,
+                        int lookup_only)
 {
     switch(xpost_object_get_type(k))
     {
@@ -569,7 +579,9 @@ Xpost_Object clean_key (Xpost_Context *ctx,
         case stringtype:
         {
             char *s = xpost_string_allocate_cstring(ctx, k);
-            k = xpost_name_cons(ctx, s);
+            k = lookup_only
+                ? xpost_name_find_n(ctx, s, (unsigned int)strlen(s))
+                : xpost_name_cons(ctx, s);
             free(s);
             break;
         }
@@ -614,7 +626,8 @@ static
 dicrec *diclookup(Xpost_Context *ctx,
         /*@dependent@*/ Xpost_Memory_File *mem,
         Xpost_Object d,
-        Xpost_Object k)
+        Xpost_Object k,
+        int lookup_only)
 {
     dichead *dp;
     dicrec *tp;
@@ -623,9 +636,11 @@ dicrec *diclookup(Xpost_Context *ctx,
     unsigned int h;
     unsigned int i;
 
-    k = clean_key(ctx, k);
+    k = clean_key(ctx, k, lookup_only);
     if (xpost_object_get_type(k) == invalidtype)
-        return invalidrec;
+        /* a read whose string key is not an interned name matches nothing;
+           report the miss as an empty slot would, without a name to blame */
+        return lookup_only ? NULL : invalidrec;
 
     dp = (dichead *)xpost_ent_ptr_checked(mem, xpost_object_get_ent(d));
     if (!dp)
@@ -663,7 +678,7 @@ int xpost_dict_known_key(Xpost_Context *ctx,
 {
     dicrec *r;
 
-    r = diclookup(ctx, mem, d, k);
+    r = diclookup(ctx, mem, d, k, 1);
     if (r == NULL) return 0;
     if (r == invalidrec) return 0;
     return xpost_object_get_type(r->key) != nulltype;
@@ -683,7 +698,7 @@ Xpost_Object xpost_dict_get_memory (Xpost_Context *ctx,
 {
     dicrec *r;
 
-    r = diclookup(ctx, mem, d, k);
+    r = diclookup(ctx, mem, d, k, 1);
     if (r == invalidrec){
         XPOST_LOG_ERR("warning: invalid key\n");
         return invalid;
@@ -798,7 +813,7 @@ int xpost_dict_put_memory(Xpost_Context *ctx,
     /* canonicalise the key first: converting a new string key to a name
        allocates, which can collect or move the memory file; every
        pointer derived before that point would be stale */
-    k = clean_key(ctx, k);
+    k = clean_key(ctx, k, 0);
     if (xpost_object_get_type(k) == invalidtype)
         return VMerror;
 
@@ -806,7 +821,7 @@ int xpost_dict_put_memory(Xpost_Context *ctx,
     if (ret)
         return ret;
 
-    r = diclookup(ctx, mem, d, k);
+    r = diclookup(ctx, mem, d, k, 0);
 
     if (r == invalidrec){
         XPOST_LOG_ERR("warning: invalid key\n");
@@ -819,7 +834,7 @@ int xpost_dict_put_memory(Xpost_Context *ctx,
         if (ret)
             return ret;
 
-        r = diclookup(ctx, mem, d, k);
+        r = diclookup(ctx, mem, d, k, 0);
         if (r == NULL)
             return VMerror;
     }
@@ -837,7 +852,7 @@ int xpost_dict_put_memory(Xpost_Context *ctx,
             if (ret)
                 return ret;
 
-            r = diclookup(ctx, mem, d, k);
+            r = diclookup(ctx, mem, d, k, 0);
 
             if (r == NULL)
                 return VMerror;
@@ -916,14 +931,17 @@ int xpost_dict_undef_memory(Xpost_Context *ctx,
     if (ret)
         return ret;
 
-    k = clean_key(ctx, k); /* may allocate: derive pointers after */
+    k = clean_key(ctx, k, 1); /* may allocate: derive pointers after */
     if (xpost_object_get_type(k) == invalidtype)
-        return VMerror;
+        /* a string key that is not an interned name is in no dictionary,
+           so there is nothing to undefine -- the same answer as a key that
+           is a name but absent, below */
+        return undefined;
 
     dp = xpost_dict_head(mem, xpost_object_get_ent(d));
     tp = xpost_dict_table_of(dp);
 
-    e = diclookup(ctx, mem, d, k); /*find slot for key */
+    e = diclookup(ctx, mem, d, k, 1); /*find slot for key */
     if (e == NULL || e == invalidrec || xpost_object_get_type(e->key) == nulltype)
     {
         return undefined;

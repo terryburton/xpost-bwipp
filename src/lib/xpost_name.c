@@ -586,6 +586,46 @@ Xpost_Object xpost_name_cons(Xpost_Context *ctx,
     return xpost_name_cons_n(ctx, s, (unsigned int)strlen(s));
 }
 
+/* Resolve a string to an already-interned name without interning.
+   The search half of xpost_name_cons_n and nothing more: local bank
+   first, then global -- the same load-bearing order, so a string that is
+   a name in both banks resolves to the same object a store of it used as
+   a key. A string that is not yet a name returns the invalid object; the
+   caller reads that as "no such name, therefore in no dictionary". Nothing
+   is allocated, so the caller's characters are read in place, and a name
+   too long to have been interned (longer than the intern refuses) cannot
+   be present and is reported not found. */
+Xpost_Object xpost_name_find_n(Xpost_Context *ctx,
+                               const char *s,
+                               unsigned int n)
+{
+    unsigned int u;
+    Xpost_Object o = { 0 };
+
+    if (n > 65535u)
+        return invalid;
+
+    _name_lookup_charge();
+
+    u = tstsearch(ctx->lo, _tsttab_root(ctx->lo), s, n);
+    if (u)
+    {
+        o.mark_.tag = nametype; /* local */
+        o.mark_.pad0 = 0;
+        o.mark_.padw = u;
+        return o;
+    }
+    u = tstsearch(ctx->gl, _tsttab_root(ctx->gl), s, n);
+    if (u)
+    {
+        o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_BANK; /* global */
+        o.mark_.pad0 = 0;
+        o.mark_.padw = u;
+        return o;
+    }
+    return invalid;
+}
+
 /* construct a name object in global VM regardless of the current
    allocation mode, ignoring any local interning of the same string.
    The operator table records names by their global index; resolving
