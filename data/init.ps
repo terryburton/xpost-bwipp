@@ -1,3 +1,11 @@
+%!PS
+% init.ps
+%
+% Interpreter start-up, run before systemdict is sealed; builds the systemdict procedures.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 %init.ps is run before systemdict is made readonly
 %
 %systemdict /ud userdict put %trigger backup error handler
@@ -106,7 +114,6 @@ currentglobal true setglobal
 % names are late-bound, so this line parses when the context operators are
 % absent (a default run never forks, so .childrun never runs).
 .xpostsys /.childrun { stopped { handleerror currentcontext detach } if } put
-
 
 % The operators whose bodies arrived already read-only. A body is bound
 % once the whole set has been promoted, which is the only moment at which
@@ -634,7 +641,6 @@ systemdict begin
 /pstack [ ] { count dup 1 add copy //== repeat pop } //.xpostsys /.defop get exec
 end % back to systemdict
 
-
 /execdict 6 dict def
 execdict begin
     /quitflag false def
@@ -1120,12 +1126,7 @@ end % systemdict
 userdict begin
 false setglobal
 
-
-
-
 % (s1) (s2) (s3) ... (sN) n  ncat  (s1s2s3...sN)
-
-
 
 %traceon
 %debugloadon
@@ -1742,7 +1743,6 @@ currentglobal true setglobal
     put
     end
 } put
-
 
 .xpostsys /.upathopset <<
     /setbbox 4 /moveto 2 /rmoveto 2 /lineto 2 /rlineto 2 /curveto 6

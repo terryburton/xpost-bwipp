@@ -1,7 +1,14 @@
+%!PS
+% path.ps
+%
+% The current path, a packed byte string, and the path-construction operators over it.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 //.internaldict /QUIET known { }{ (loading path.ps...)print } ifelse
 
-
-% The current path is a packed byte string maintained by the operators
+% The current path is maintained by the operators
 % in xpost_op_path.c (see the layout comment there). PostScript code
 % observes it with .pathempty and the .pathnext enumerator, and appends
 % device-space elements with .devmoveto, .devlineto and .devcurveto.
@@ -13,11 +20,6 @@
 % Path Construction Operators
 
 .xpostsys /cpath { graphicsdict /currgstate get /currpath get } bind put
-
-
-
-
-
 
 %%-----------    above this line has be reimplemented in lib/xpost_op_path.c
 

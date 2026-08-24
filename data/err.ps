@@ -1,8 +1,11 @@
+%!PS
+
 % err.ps
 %
-% error dictionaries
-% run from init.ps
+% The error dictionaries, installed from init.ps.
 %
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
 
 //.internaldict /QUIET known { }{ (loading err.ps...\n) print } ifelse
 
@@ -17,7 +20,8 @@ $error begin
     /command null def
     /errorname null def
     /initializing true def
-    % the standard entries the reference interpreters carry: whether
+
+    % The standard entries the reference interpreters carry: whether
     % an error records the stacks into $error (settable to skip the
     % snapshot), and the extra context certain errors leave behind
     /recordstacks true def
@@ -25,17 +29,20 @@ $error begin
     /ostack null def
     /estack null def
     /dstack null def
-    % whether the standard handler reports an error as a binary object
+
+    % Whether the standard handler reports an error as a binary object
     % sequence rather than as text; the sequence needs binary encoding
     % to be enabled as well
     /binary false def
 end
+
 //.internaldict /QUIET known { }{ ($error installed...)print } ifelse
 
 /.error {
     false setglobal
     //$error exch /errorname exch put
     //$error exch /command exch put
+
     % An operator leaves nothing behind when it refuses. The stacks go
     % back to their depths at the innermost live wrapped call, which for
     % an operator written in PostScript drops what its body had pushed
@@ -53,6 +60,7 @@ end
             //$error /ostackarray 1000 array put
             //$error /dstackarray 50 array put
         } if
+
         % The snapshots must never raise inside the error machinery itself:
         % clamp each stack to its snapshot array's capacity. A clamped
         % operand snapshot keeps the topmost entries only; the deeper
@@ -219,4 +227,5 @@ setglobal
 currentglobal true setglobal
 /handleerror { errordict /handleerror get exec } def
 setglobal
+
 //.internaldict /QUIET known { }{ (\neof err.ps\n)print } ifelse

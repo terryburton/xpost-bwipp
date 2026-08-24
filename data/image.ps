@@ -1,6 +1,14 @@
+%!PS
+% image.ps
+%
+% The raster device base classes: Create through Emit, the scanline and pixel machinery.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 //.internaldict /QUIET known { }{ (loading image.ps...\n)print } ifelse
 
-% The raster device base classes. A raster class is one method suite --
+% A raster class is one method suite --
 % Create through Emit, the scanline plot machinery and the pixel
 % accessors -- over a handful of parameters: the colour space, the
 % number of colour components a paint delivers (.ncomp), how a scanline

@@ -1,4 +1,11 @@
-%!
+%!PS
+% prepr.ps
+%
+% The preview prompt: the interactive executive prompt.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 % prepr.ps
 % preview-prompt
 % If the stack is empty, it displays the standard, Adobe prompt
@@ -44,7 +51,6 @@ currentglobal true setglobal
     counttomark 2 idiv dup dict begin { def } repeat
     cleartomark currentdict end def
 } if
-
 
 /prompt {
     (PS) print

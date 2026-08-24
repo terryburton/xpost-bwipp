@@ -1,3 +1,11 @@
+%!PS
+% gstate.ps
+%
+% The graphics-state template and the gsave/grestore machinery.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 //.internaldict /QUIET known { }{ (loading gstate.ps...)print } ifelse
 
 % .gstatetemplate yields a freshly-initialized dictionary
@@ -129,8 +137,6 @@ end
     dup /scratchmatrix [ 1 0 0 1 0 0 ] put
 } put
 setglobal
-
-
 
 % Graphics State Operators -- Device Independent
 
@@ -1892,7 +1898,6 @@ put
     graphicsdict /currgstate get /rasteropcode get
 } //.xpostsys /.defop get exec
 
-
 % Graphics State Operators -- Device Dependent
 
 % num  setflat  -
@@ -1911,6 +1916,5 @@ put
 /currentflat [ ] {
     graphicsdict /currgstate get /flat get
 } //.xpostsys /.defop get exec
-
 
 //.internaldict /QUIET known { }{ (eof gstate.ps\n)print } ifelse

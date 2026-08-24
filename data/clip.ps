@@ -1,3 +1,11 @@
+%!PS
+% clip.ps
+%
+% The clipping region: setting it, resolving it, and meeting a paint against it.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+
 //.internaldict /QUIET known { }{ (loading clip.ps...)print } ifelse
 
 % region source  .setclipregion  -
@@ -236,7 +244,6 @@
     graphicsdict /currgstate get /currpath 3 -1 roll put
 } //.xpostsys /.defop get exec
 
-
 /clip [ ] {
     % the clip machinery consumes line segments, so the region is cut
     % from a flattened working copy; the caller's path is kept aside
@@ -298,7 +305,6 @@
     exch pop                                        % source region
     exch //.xpostsys /.setclipregion get exec
 } //.xpostsys /.defop get exec
-
 
 .xpostsys /p2abc { % x0 y0 x1 y1
     exch 3 index sub
@@ -405,7 +411,6 @@
 end }
 bind
 put
-
 
 % A subpath split off at a closepath enters through the bridge the
 % path walked from the closing point: its leading edge doubles its
