@@ -82,7 +82,8 @@
 .xpostsys /.clipmeet {
     graphicsdict /currgstate get
     dup /clipregion get
-    exch /clipcache get /serial get
+    exch dup /clipcache get /serial get
+    exch /device get dup /height known { /height get }{ pop 0 } ifelse
     .regionmeet
 } bind put
 
@@ -114,7 +115,9 @@
     /subj exch def
     count /n0 exch def
     { [ [ tx0 ty0 ] [ tx1 ty0 ] [ tx1 ty1 ] [ tx0 ty1 ] null ]
-      subj null ne { subj exch 0 .regionmeet } if
+      subj null ne { subj exch 0
+        graphicsdict /currgstate get /device get
+        dup /height known { /height get }{ pop 0 } ifelse .regionmeet } if
       //.xpostsys /.clipmeet get exec
     } stopped {
         count n0 sub { pop } repeat

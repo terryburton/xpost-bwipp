@@ -506,7 +506,8 @@ int _poly_resolved_spans(Xpost_Context *ctx,
                          Xpost_Object poly,
                          struct rspan **out,
                          int *nout,
-                         int evenodd)
+                         int evenodd,
+                         const Xpost_Span_Rows *rows)
 {
     Xpost_Span_Vertex *points;
     int code;
@@ -518,7 +519,7 @@ int _poly_resolved_spans(Xpost_Context *ctx,
     if (code)
         return code;
 
-    return _points_resolved_spans(points, (integer)poly.comp_.sz, NULL,
+    return _points_resolved_spans(points, (integer)poly.comp_.sz, rows,
                                   out, nout, evenodd);
 }
 
@@ -535,7 +536,8 @@ int _path_resolved_spans(Xpost_Context *ctx,
                          Xpost_Object path,
                          struct rspan **out,
                          int *nout,
-                         int evenodd)
+                         int evenodd,
+                         const Xpost_Span_Rows *rows)
 {
     Xpost_Span_Vertex *points;
     real *co;
@@ -554,7 +556,7 @@ int _path_resolved_spans(Xpost_Context *ctx,
     if (code)
         return code;
 
-    return _points_resolved_spans(points, (integer)npts, NULL,
+    return _points_resolved_spans(points, (integer)npts, rows,
                                   out, nout, evenodd);
 }
 
@@ -1223,7 +1225,8 @@ static
 int _regionmeet(Xpost_Context *ctx,
                 Xpost_Object subj,
                 Xpost_Object clip,
-                Xpost_Object serial)
+                Xpost_Object serial,
+                Xpost_Object height)
 {
     struct rspan *S = NULL, *out = NULL;
     struct rspan *C = NULL;
@@ -1232,8 +1235,25 @@ int _regionmeet(Xpost_Context *ctx,
     int si, ci;
     int sn;
     int code;
+    /* No pixel outside the page's rows is ever painted, so a region is
+       resolved over those rows alone: the scan conversion walks a
+       boundary reaching past them but keeps no span there, which bounds
+       both the work and the store by the page and not by how far a
+       clip path a program hands in happens to run. The meet intersects
+       these against the on-page subject regardless, so the pixels the
+       result names -- the only ones a paint can reach -- are unchanged.
+       A device that states no height (zero) is resolved whole. */
+    Xpost_Span_Rows pagerows;
+    const Xpost_Span_Rows *rows = NULL;
 
-    code = _poly_resolved_spans(ctx, subj, &S, &nS, 0);
+    if (height.int_.val > 0)
+    {
+        pagerows.lo = 0;
+        pagerows.hi = height.int_.val - 1;
+        rows = &pagerows;
+    }
+
+    code = _poly_resolved_spans(ctx, subj, &S, &nS, 0, rows);
     if (code)
         return code;
     nS = _rspans_to_columns(S, nS);
@@ -1252,8 +1272,8 @@ int _regionmeet(Xpost_Context *ctx,
            the path a graphics state stores its clip in; a region no
            single array describes has only the second form */
         code = xpost_object_get_type(clip) == stringtype
-             ? _path_resolved_spans(ctx, clip, &C, &nC, 0)
-             : _poly_resolved_spans(ctx, clip, &C, &nC, 0);
+             ? _path_resolved_spans(ctx, clip, &C, &nC, 0, rows)
+             : _poly_resolved_spans(ctx, clip, &C, &nC, 0, rows);
         if (code)
         {
             free(S);
@@ -1335,7 +1355,7 @@ int _eospanpoly(Xpost_Context *ctx,
     int nrsp;
     int code;
 
-    code = _poly_resolved_spans(ctx, poly, &rsp, &nrsp, 1);
+    code = _poly_resolved_spans(ctx, poly, &rsp, &nrsp, 1, NULL);
     if (code)
         return code;
 
@@ -1362,7 +1382,7 @@ int _eospanpoly_rows(Xpost_Context *ctx,
     int nrsp, lo, hi, i, m;
     int code;
 
-    code = _poly_resolved_spans(ctx, poly, &rsp, &nrsp, 1);
+    code = _poly_resolved_spans(ctx, poly, &rsp, &nrsp, 1, NULL);
     if (code)
         return code;
 
@@ -1402,7 +1422,7 @@ int _pathspanparts(Xpost_Context *ctx,
     int code;
 
     code = _path_resolved_spans(ctx, path, &rsp, &nrsp,
-                                evenodd.int_.val ? 1 : 0);
+                                evenodd.int_.val ? 1 : 0, NULL);
     if (code)
         return code;
 
@@ -4193,10 +4213,10 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".fillpoly", (Xpost_Op_Func)_fillpoly, 2, arraytype, dicttype); INSTALL;
     _fillpoly_opcode = op.mark_.padw;
     _region_memo_flush();
-    op = xpost_operator_cons(ctx, ".regionmeet", (Xpost_Op_Func)_regionmeet, 3,
-                             arraytype, arraytype, integertype); INSTALL;
-    op = xpost_operator_cons(ctx, ".regionmeet", (Xpost_Op_Func)_regionmeet, 3,
-                             arraytype, stringtype, integertype); INSTALL;
+    op = xpost_operator_cons(ctx, ".regionmeet", (Xpost_Op_Func)_regionmeet, 4,
+                             arraytype, arraytype, integertype, integertype); INSTALL;
+    op = xpost_operator_cons(ctx, ".regionmeet", (Xpost_Op_Func)_regionmeet, 4,
+                             arraytype, stringtype, integertype, integertype); INSTALL;
     op = xpost_operator_cons(ctx, ".newregionserial", (Xpost_Op_Func)_newregionserial, 0); INSTALL;
     op = xpost_operator_cons(ctx, ".eospanpoly", (Xpost_Op_Func)_eospanpoly, 1, arraytype); INSTALL;
     op = xpost_operator_cons(ctx, ".eospanpoly", (Xpost_Op_Func)_eospanpoly_rows, 3,

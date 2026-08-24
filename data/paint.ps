@@ -406,7 +406,9 @@
     /.inprobe exch def
     gsave .insp exec grestore
     /.inany false def
-    { .inprobe 0 .regionmeet length 2 gt { /.inany true def } if } forall
+    /.inh graphicsdict /currgstate get /device get
+        dup /height known { /height get }{ pop 0 } ifelse def
+    { .inprobe 0 .inh .regionmeet length 2 gt { /.inany true def } if } forall
     .inany
     end
 } put
