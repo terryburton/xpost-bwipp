@@ -4179,6 +4179,30 @@ void xpost_device_retire_restored(Xpost_Context *ctx, unsigned int level)
     _device_release(ctx, devdic, destroy);
 }
 
+/* Retire a page device a job installed, at the job boundary. Like the
+   restore retirement above, but held to the depth the baseline stood at
+   rather than a save level: the boundary reverts a whole job, so a device
+   installed above that depth is displaced and released here -- while
+   virtual memory is intact and the device's Destroy can still run and
+   reach its output -- because the image restore that follows drops the
+   device dictionary and only the release frees the raster or accumulator
+   it holds outside the arena. The baseline's own device, at or below that
+   depth, is left standing to serve the next job. */
+void xpost_device_retire_job(Xpost_Context *ctx, unsigned int baseline_depth)
+{
+    Xpost_Object devdic;
+    Xpost_Object destroy;
+
+    if (ctx->pagedevice_depth <= baseline_depth)
+        return;
+    devdic = ctx->pagedevice;
+    destroy = ctx->pagedevice_destroy;
+    ctx->pagedevice = null;
+    ctx->pagedevice_destroy = null;
+    ctx->pagedevice_depth = baseline_depth;
+    _device_release(ctx, devdic, destroy);
+}
+
 int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
                                        Xpost_Object sd)
 {

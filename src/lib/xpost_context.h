@@ -470,6 +470,9 @@ struct _Xpost_Context {
     dword job_rand_next;
     unsigned int job_vmmode;
     int job_packing;
+    unsigned int job_saved_pagedevice_depth; /**< pagedevice_depth at
+                                       baseline capture, to retire a
+                                       job-installed device at the boundary */
     unsigned int job_baseline_ds; /**< dict-stack depth at baseline capture,
                                        the depth startjob resets the stack to */
     int job_boundary_failed;

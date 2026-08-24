@@ -88,6 +88,7 @@ int xpost_dev_pdf_fmt_num(char *o, double v);
  * A restore that leaves the install standing retires nothing.
  */
 void xpost_device_retire_restored(Xpost_Context *ctx, unsigned int level);
+void xpost_device_retire_job(Xpost_Context *ctx, unsigned int baseline_depth);
 
 /**
  * @brief the page's ground, as channel values on the scale of @p scale

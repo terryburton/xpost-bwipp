@@ -87,7 +87,28 @@ grow='/keep 600 array def 0 1 599 { keep exch 65535 string put } for'
 } > "$work/between"
 "$xpost" -q --no-sandbox -d null --jobserver < "$work/between" > "$work/between.out" 2>/dev/null
 
-cat "$work/within.out" "$work/between.out" > "$work/out"
+# Between jobs, the device buffer: a page device holds a raster outside the
+# arena, reached only through the private string in its instance dictionary.
+# The boundary must retire a job's device -- run its Destroy -- or the buffer
+# is orphaned when the image restore drops that dictionary: a leak the arena
+# reclaim above cannot see, and a leak checker calls reachable because the
+# malloc stays reached through the arena. Held here by resident memory: a few
+# setpagedevice jobs against many must not grow by a buffer per job.
+setpd='<< /PageSize [500 500] >> setpagedevice'
+for spec in few:4 many:44; do
+    tag=${spec%:*}
+    n=${spec#*:}
+    {
+        i=0
+        while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$setpd"; i=$((i + 1)); done
+        printf '/rss { %s } def (DEVICE %s ) print rss 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
+    } > "$work/device.$tag"
+    "$xpost" -q --no-sandbox -d raster -o /dev/null --jobserver \
+        < "$work/device.$tag" > "$work/device.$tag.out" 2>/dev/null
+done
+
+cat "$work/within.out" "$work/between.out" \
+    "$work/device.few.out" "$work/device.many.out" > "$work/out"
 
 # Each pair must show resident memory fall by a clear margin. The growth is
 # about ten thousand pages; a return of a fifth of it is asked, which the
@@ -99,8 +120,11 @@ awk '
     /WITHIN after/  { wa = $3 }
     /BETWEEN peak/  { bp = $3 }
     /BETWEEN after/ { ba = $3 }
+    /DEVICE few/    { df = $3 }
+    /DEVICE many/   { dm = $3 }
     END {
         want = 5000     # pages, ~20MB, well under the ~39MB grown
+        grew = 2000     # pages, ~8MB; 40 leaked 500x500x3 buffers is ~7300
         bad = 0
         if (wp == "" || wa == "")
             { print "the within-job probe did not report both figures"; bad = 1 }
@@ -116,9 +140,16 @@ awk '
             printf "fell %d pages, and a return of the growth is at least %d\n", bp - ba, want
             bad = 1
         }
+        if (df == "" || dm == "")
+            { print "the device probe did not report both figures"; bad = 1 }
+        else if (dm - df > grew) {
+            printf "the job boundary did not retire the page device it installed:\n"
+            printf "resident grew %d pages over 40 extra setpagedevice jobs\n", dm - df
+            bad = 1
+        }
         if (bad) exit 1
         printf "within a job vmreclaim returned %d pages; between jobs the boundary\n", wp - wa
-        printf "returned %d -- each handed the growth of one job back\n", bp - ba
+        printf "returned %d and held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
     }
 ' "$work/out" > "$work/problems" 2>&1
 rc=$?

@@ -126,6 +126,7 @@ xpost_device_page_close
 xpost_device_page_open
 xpost_device_raster_block
 xpost_device_raster_bytes
+xpost_device_retire_job
 xpost_device_retire_restored
 xpost_dict_capacity_memory
 xpost_dict_compare_objects

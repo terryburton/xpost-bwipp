@@ -51,6 +51,7 @@ count    xpost_context.h:_Xpost_Context     job_encapsulated
 count    xpost_context.h:_Xpost_Context     job_packing
 count    xpost_context.h:_Xpost_Context     job_rand_next
 count    xpost_context.h:_Xpost_Context     job_snapshots
+count    xpost_context.h:_Xpost_Context     job_saved_pagedevice_depth
 count    xpost_context.h:_Xpost_Context     job_vmmode
 count    xpost_context.h:_Xpost_Context     jobserver
 count    xpost_context.h:_Xpost_Context     namebind_gen

@@ -49,6 +49,7 @@
 #include "xpost_oplib.h"
 #include "xpost_handle.h"  /* the release a device's block was issued to be given up by */
 #include "xpost_dev_raster.h"  /* the arrangements a lent page may be asked for in */
+#include "xpost_dev_generic.h"  /* retire a job's page device at the boundary */
 
 static
 Xpost_Object namedollarerror; /* cached result of xpost_name_cons(ctx, "$error")
@@ -3938,6 +3939,7 @@ static int _job_capture_baseline(Xpost_Context *ctx)
     ctx->job_vmmode = ctx->vmmode;
     ctx->job_packing = ctx->packing;
     ctx->job_baseline_ds = xpost_stack_count(ctx->lo, ctx->ds);
+    ctx->job_saved_pagedevice_depth = ctx->pagedevice_depth;
     XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_SAVE_ROOT)
     return 1;
 }
@@ -4012,6 +4014,12 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
         ctx->job_boundary_failed = 1;
         return;
     }
+    /* Retire a page device the job installed over the baseline's, running
+       its Destroy while virtual memory is intact and its output files are
+       still open (as restore does, before its own file-close sweep): the
+       image restore below drops the device dictionary, and only the Destroy
+       frees the raster or accumulator the device holds outside the arena. */
+    xpost_device_retire_job(ctx, ctx->job_saved_pagedevice_depth);
     _job_close_born_files(ctx->lo, ctx->job_baseline_lo);
     _job_close_born_files(ctx->gl, ctx->job_baseline_gl);
     xpost_memory_image_restore(ctx->lo, ctx->job_baseline_lo);
