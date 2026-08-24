@@ -529,9 +529,44 @@ currentglobal true setglobal
     dup //.tridepthcap gt { pop //.tridepthcap } if
     end
 } def
+% -  .gtriclip  [uminx uminy umaxx umaxy] or null
+% The page, in the user space a mesh states its triangles in: a box a
+% triangle lying wholly past one edge of marks no pixel within. Two
+% device units of margin absorb the inverse transform's rounding, and a
+% rotated CTM only widens the box, so it never excludes a point the page
+% holds. A device that states no size disables the test with a null.
+/.gtriclip {
+    8 dict begin
+    graphicsdict /currgstate get /device get /d exch def
+    d /width known d /height known and {
+        /W d /width get def /H d /height get def
+        /uminx 9e99 def /uminy 9e99 def /umaxx -9e99 def /umaxy -9e99 def
+        [ [ -2 -2 ] [ W 2 add -2 ] [ W 2 add H 2 add ] [ -2 H 2 add ] ] {
+            aload pop itransform /uy exch def /ux exch def
+            ux uminx lt { /uminx ux def } if  ux umaxx gt { /umaxx ux def } if
+            uy uminy lt { /uminy uy def } if  uy umaxy gt { /umaxy uy def } if
+        } forall
+        [ uminx uminy umaxx umaxy ]
+    }{ null } ifelse
+    end
+} def
 /.gtri {
     6 dict begin
     /dpt exch def /vc exch def /vb exch def /va exch def
+    % A triangle lying wholly past one edge of the page marks nothing
+    % there, so its subdivision is skipped. This holds a mesh's cost to
+    % the page when a Decode or a stray coordinate throws a triangle's
+    % far corner an enormous distance off it, where the colour never
+    % comes flat over so wide a span and the depth cap alone would spend
+    % its whole budget subdividing fills the device only discards.
+    gclipbox dup null eq { pop false }{
+        aload pop /gy1 exch def /gx1 exch def /gy0 exch def /gx0 exch def
+        va 0 get gx0 lt vb 0 get gx0 lt and vc 0 get gx0 lt and
+        va 0 get gx1 gt vb 0 get gx1 gt and vc 0 get gx1 gt and or
+        va 1 get gy0 lt vb 1 get gy0 lt and vc 1 get gy0 lt and or
+        va 1 get gy1 gt vb 1 get gy1 gt and vc 1 get gy1 gt and or
+    } ifelse
+    { end }{
     /dd 0 def
     2 1 va length 1 sub { /i exch def
         va i get vb i get sub abs dup dd gt { /dd exch def }{ pop } ifelse
@@ -557,6 +592,7 @@ currentglobal true setglobal
         mab mbc mca dpt 1 sub //.xpostsys /.gtri get exec
     } ifelse
     end
+    } ifelse
 } def
 
 % shdict  .meshsh  -
@@ -564,6 +600,7 @@ currentglobal true setglobal
 % per-vertex colours
 /.meshsh {
     24 dict begin
+    /gclipbox //.gtriclip exec def
     % a lattice (type 5) mesh carries no per-vertex flag, so BitsPerFlag
     % may be absent from one of the two types this paints
     false 2 //.mrdinit exec
@@ -657,6 +694,7 @@ currentglobal true setglobal
 % colours blended bilinearly
 /.patchpaint {
     10 dict begin
+    /gclipbox //.gtriclip exec def
     % subdivision from the device size of the boundary points
     /mnx 9e99 def /mny 9e99 def /mxx -9e99 def /mxy -9e99 def
     0 1 11 { //.pgridmap exch get g exch get aload pop transform
