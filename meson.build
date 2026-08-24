@@ -5013,6 +5013,18 @@ test('setpagedevice-failure',
   suite: cost_slow,
   timeout: 300)
 
+# The page device accumulates its parameters, and a request naming a fresh
+# key on every call would grow the accumulated dictionary -- copied whole on
+# every call -- without end. The count of accumulated keys is bounded, so
+# such a request is refused rather than a run made to cost the square of its
+# calls; repeated standard requests, which replace keys already there, are
+# unaffected.
+test('setpagedevice-paramcap',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/setpagedevice_paramcap_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The page device's imaging bounding box (PLRM 6.2). A program declaring one
 # asserts that it paints no marks outside it, and PLRM leaves a device free to
 # render or to drop the marks that do fall outside -- which is what lets a

@@ -2219,6 +2219,21 @@ currentglobal true setglobal
             ifelse }
         ifelse def
         pd { merged 3 1 roll put } forall
+        % A request may name any keys, and every one accumulates: each
+        % call merges its request into the page-device dictionary the last
+        % call left -- what currentpagedevice reports and the next call
+        % starts from -- so a program adding a fresh key on every call
+        % grows that dictionary without bound. The whole of it is copied on
+        % each call, above, so that a restore can revert the slot to the
+        % dictionary a save saw; a dictionary grown without bound makes that
+        % copy cost more on every page, the square of the calls in all.
+        % Bound the accumulated keys well above the standard page-device
+        % parameters and any device's own, so a request naming that many
+        % distinct keys is refused rather than a run made to copy an
+        % ever-larger dictionary onto every page it prints.
+        merged length 512 gt {
+            end /setpagedevice cvx /limitcheck signalerror
+        } if
         /dev merged /OutputDevice 2 copy known { get }{ pop pop
             graphicsdict /.outputdevice 2 copy known
             { get }{ pop pop /pgm } ifelse

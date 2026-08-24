@@ -1,0 +1,36 @@
+%!testlib
+% The page device accumulates its parameters, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% setpagedevice merges each request into the page-device dictionary the
+% last call left, and currentpagedevice reports it, so a program that
+% names a fresh key on every call grows that dictionary without end. The
+% whole of it is copied on every call, to keep a restore able to put the
+% previous one back, so an unbounded dictionary makes an unbounded copy
+% on every page -- the cost of a run the square of its calls. The count
+% of accumulated keys is bounded well above the standard parameters and
+% any device's own, so a request naming that many distinct keys is
+% refused (limitcheck) rather than a run made to grow without end.
+
+% A rich request naming every standard parameter at once is far below the
+% bound and is accepted.
+{ << /PageSize [612 792] /HWResolution [72 72] /ImagingBBox null
+     /Orientation 0 /NumCopies 1 /MediaColor (white) /MediaType (plain)
+     /Duplex false /Tumble false /Collate false /BeginPage {} /EndPage {}
+     /Install {} /Policies << /PageSize 3 >> >> setpagedevice }
+    (a request naming the standard parameters is accepted) works
+
+% The same keys set again and again do not accumulate: each put replaces a
+% key already there, so the count does not move. Six hundred such requests
+% -- more than the bound -- prove it by not reaching the bound; were the
+% keys accumulating, this many would cross it and raise.
+{ 1 1 600 { pop << /PageSize [1 1] /NumCopies 1 >> setpagedevice } for }
+    (repeated identical requests do not accumulate to the bound) works
+
+% A program naming a distinct key on every call crosses the bound and is
+% refused, rather than growing the accumulated dictionary without end.
+{ 1 1 700 { /i exch def
+    << /PageSize [1 1] i 20 string cvs cvn i >> setpagedevice } for }
+    /limitcheck (naming a fresh key on every call is refused) raises
+
+verdict
