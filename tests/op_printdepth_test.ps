@@ -24,6 +24,16 @@ a 0 a put
 d /self d put
 { d == } (a self-referential dictionary prints and returns) works
 
+% Two references to itself, not one. Under a depth cap alone the printer
+% re-expands both branches at every level, so the array is walked 2^depth
+% times -- a tiny finite structure turned into unbounded work, reachable
+% automatically when handleerror dumps such an array off the operand
+% stack. A total-node budget bounds it, so this returns rather than runs.
+/b [ 0 0 ] def
+b 0 b put
+b 1 b put
+{ b == } (an array with two references to itself prints and returns) works
+
 % two arrays that contain each other
 /p [ 1 2 ] def
 /q [ 3 4 ] def

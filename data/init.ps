@@ -533,9 +533,19 @@ systemdict begin
     /typeprint { dup type exec } def
 
     /maxdepth 24 def
+    /maxnodes 65536 def
     /arraytype {
         dup rcheck {
-            depth maxdepth ge {
+            % A depth cap alone cannot bound the work of printing an array
+            % that refers to itself, or shares a subtree: each of the depth
+            % levels re-expands every branch, so an array holding two
+            % references to itself is walked 2^depth times. Count the arrays
+            % entered as well, and stop at a total far above any real
+            % structure, so == of a cyclic or richly-shared array truncates
+            % rather than running -- which handleerror printing the operand
+            % stack (data/err.ps) would otherwise do on an ordinary error.
+            /nodes nodes 1 add store
+            depth maxdepth ge nodes maxnodes gt or {
                 pop (-array-) tprint
             }{
                 /depth depth 1 add store
@@ -632,6 +642,7 @@ systemdict begin
     //==dict begin
         /cp 0 def
         /depth 0 def
+        /nodes 0 def
         { typeprint } stopped
     end            % pop ==dict whether typeprint succeeded or errored,
     { stop } if    % so an error inside == does not strand it on the
