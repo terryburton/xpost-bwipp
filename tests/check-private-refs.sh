@@ -142,9 +142,6 @@ mv "$work/present" "$work/have"
 sed 's|^systemdict ||' "$work/all" | awk '{print $NF}' | sort -u > "$work/known"
 : > "$work/baked"
 for f in "$src"/data/*.ps; do
-    case $(basename "$f") in
-        test.ps|readstring.ps) continue ;;
-    esac
     body=$(tr -d "$cr" < "$f" | sed 's|(%[^)]*)|(STR)|g; s|%.*||')
     # names this file defines at top level are on its own dictionary stack
     printf '%s\n' "$body" | grep -oE '^/[A-Za-z0-9._=-]+' | sed 's|^/||' >> "$work/known"

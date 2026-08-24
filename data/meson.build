@@ -25,9 +25,7 @@ xpost_data_src = files([
   'font.ps',
   'init.ps',
   'prepr.ps',
-  'qsort.ps',
-  'readstring.ps',
-  'test.ps'
+  'qsort.ps'
 ])
 
 install_data(xpost_data_src,

@@ -308,6 +308,7 @@ tests/idiom_test.ps \
 tests/image_matrix_test.ps \
 tests/imaging_bbox_test.ps \
 tests/internal_debug_ops_test.ps \
+tests/interpreter_test.ps \
 tests/interrupt_test.ps \
 tests/isolation_test.ps \
 tests/large_object_test.ps \

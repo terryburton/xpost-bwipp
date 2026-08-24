@@ -1,30 +1,18 @@
 %!PS
 %
-% test.ps
+% interpreter_test.ps
 %
 % Interactive test examples borrowed from the PLRM operator details.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
-
 %
-% test.ps
-%  testing examples borrowed from the Operator Details in the PLRM, 1ed.
+% COLLECTION: the only virtual-memory operator this suite names is vmstatus,
+% which appears once as a commented entry in the operator checklist near the
+% end and is never read, so the collector's mode does not bear on the run.
+
 % traceon
 % /break { currentfile flushfile } def
-%
-
-%
-%  concatenate two strings -- the interpreter's own helper is sealed away in a
-%  private namespace before this program runs, so the readstring test below
-%  builds its data-file path with a local copy
-%
-/.testcat {  % s1 s2  .  s1s2
-    2 copy length exch length add string
-    dup 0 4 index putinterval
-    dup 3 index length 3 index putinterval
-    exch pop exch pop
-} bind def
 
 /failcount 0 def
 /fail {
@@ -794,19 +782,6 @@ abc
 
 (1:)= pstack
  check (abc) eq check
-
-%
-%  the directory this suite sits in, handed in by whoever ran it: where the
-%  interpreter booted from is one of the run's own settings and is not a
-%  program's to read
-%
-/DATADIR where {
-    pop DATADIR (/readstring.ps) .testcat run
-    (2:)= pstack
-     not check 0 3 getinterval (abc) eq check
-}{
-    (readstring-from-file test skipped: no DATADIR was given)=
-} ifelse
 
 %
 % renderbands

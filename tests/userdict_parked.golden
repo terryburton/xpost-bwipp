@@ -26,7 +26,6 @@
 #   job workspaces       gstate.ps and err.ps open userdict to define
 #                        program-facing procedures; init.ps opens it
 #                        once for the same reason
-#   a test's question    test.ps asks whether currentdict is userdict
 #
 # QUIET is a userdict occupant with no row here because no boot file
 # writes it: -q writes systemdict and a -D definition lands in userdict
@@ -50,4 +49,3 @@ init.ps /statusdict
 init.ps /UserObjects
 init.ps /.xpostsys
 init.ps //.xpostsys
-test.ps eq

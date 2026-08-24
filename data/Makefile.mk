@@ -26,9 +26,7 @@ data/cid.ps \
 data/font.ps \
 data/init.ps \
 data/prepr.ps \
-data/qsort.ps \
-data/readstring.ps \
-data/test.ps
+data/qsort.ps
 
 psfilesdir = $(pkgdatadir)
 
@@ -59,7 +57,5 @@ data/cid.ps \
 data/font.ps \
 data/init.ps \
 data/prepr.ps \
-data/qsort.ps \
-data/readstring.ps \
-data/test.ps
+data/qsort.ps
 

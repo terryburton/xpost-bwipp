@@ -1,5 +1,5 @@
 #!/bin/sh
-# Meson test wrapper: run the PLRM-example conformance suite (data/test.ps)
+# Meson test wrapper: run the PLRM-example conformance suite (tests/interpreter_test.ps)
 # in the freshly built interpreter and pass iff it reports SUCCESS -- i.e.
 # the suite's internal failcount reached zero.
 #   $1  path to the built xpost binary

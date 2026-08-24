@@ -222,7 +222,6 @@ font width witness
 filter path src/lib/xpost_file.*
 filter path src/lib/xpost_op_file.*
 filter path src/lib/xpost_op_token.*
-filter path data/readstring.ps
 filter test binary-tokens
 filter test check-filter-facts
 filter test dct-truncated
@@ -395,7 +394,7 @@ language path data/err.ps
 language path data/prepr.ps
 language path data/qsort.ps
 language path data/resource.ps
-language path data/test.ps
+language path tests/interpreter_test.ps
 language test access
 language test array-swap-range
 language test bind-packed

@@ -887,8 +887,7 @@ endforeach
 # anything a program may read, so the directory is handed in as a definition.
 test('interpreter',
   find_program('tests/run-ps-test.sh'),
-  args: [ xpost_exe, files('data/test.ps'),
-          'DATADIR=(' + meson.current_source_dir() / 'data' + ')' ],
+  args: [ xpost_exe, files('tests/interpreter_test.ps') ],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   suite: cost_fast,
   timeout: 120)
