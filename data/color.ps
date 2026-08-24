@@ -795,9 +795,7 @@ setglobal
         % a pattern space arrives as an array: dispatch on the family
         dup type /arraytype eq { 0 get } if
         //.xpostsys /setcolordict get exch get exec
-    } ifelse
-    } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 % -  .csinitcolor  -
@@ -1103,8 +1101,7 @@ setglobal
             end
         }{
             pop /setcustomcolor cvx /rangecheck signalerror
-        } ifelse
-    } ifelse
+    } ifelse } ifelse
 } put
 
 /findcmykcustomcolor [ /numbertype /numbertype /numbertype /numbertype /stringtype ] {

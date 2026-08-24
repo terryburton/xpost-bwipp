@@ -209,11 +209,7 @@ setglobal
             dup /Private known not {
                 /definefont cvx /invalidfont signalerror
             } if
-        } ifelse
-    } ifelse
-    } ifelse
-    } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse } ifelse } ifelse
     dup /FontName known not {
         dup /FontName 3 index put
     } if
@@ -557,9 +553,7 @@ currentglobal true setglobal
                 //.xpostsys /.runbuild get exec
                 grestore
             } if
-        } ifelse
-    } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse
     % the advance this glyph declared, put where the showing operators read
     % it, and the enclosing build's record put back
     graphicsdict /currgstate get /currfont get
@@ -683,8 +677,7 @@ currentglobal true setglobal
                     }{
                         /xlo px def /xhi px def /ylo py def /yhi py def
                         /any true def
-                    } ifelse
-                } ifelse
+                } ifelse } ifelse
             } forall
             } ifelse
             h /clipbox null put
@@ -716,9 +709,7 @@ currentglobal true setglobal
                     h /clipbox [ xlo ylo xhi yhi ] put
                 }{
                     h exch /clipspans exch put
-                } ifelse
-            } ifelse
-        } ifelse
+        } ifelse } ifelse } ifelse
     } if
     end
 } put
@@ -780,8 +771,7 @@ currentglobal true setglobal
             } for
         }{
             psubj false charpath
-        } ifelse
-        } ifelse
+        } ifelse } ifelse
         currentpoint
         pstroke { //stroke exec }{ //fill exec } ifelse
     grestore
@@ -859,8 +849,7 @@ setglobal
     grestore
     itransform moveto
 
-    } ifelse
-    } ifelse
+    } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 /widthshow [ /numbertype /numbertype /integertype /stringtype ] {
@@ -914,8 +903,7 @@ setglobal
     end
     itransform moveto
 
-    } ifelse
-    } ifelse
+    } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 /ashow [ /numbertype /numbertype /stringtype ] {
@@ -966,8 +954,7 @@ setglobal
     end
     itransform moveto
 
-    } ifelse
-    } ifelse
+    } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 /awidthshow [ /numbertype /numbertype /integertype /numbertype /numbertype /stringtype ] {
@@ -1030,8 +1017,7 @@ setglobal
     end
     itransform moveto
 
-    } ifelse
-    } ifelse
+    } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 % kshow's compiled program paints through the implementation's own
@@ -1413,8 +1399,7 @@ setglobal
             cpfont cpstr //.xpostsys /.charpathstroked get exec
         }{
             cpfont cpstr //.xpostsys /.charpathoutline get exec
-        } ifelse
-    } ifelse
+    } ifelse } ifelse
     end
 } //.xpostsys /.defop get exec
 

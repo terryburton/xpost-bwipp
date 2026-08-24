@@ -282,8 +282,7 @@ setglobal
         }{
             //.xpostsys /.resourcemarkmissing get exec
             false
-        } ifelse
-    } ifelse
+    } ifelse } ifelse
 } bind put
 
 % key category  findresource  instance
@@ -356,10 +355,7 @@ setglobal
                 }{
                     key category //.xpostsys /.resourcemarkmissing get exec
                     end false
-                } ifelse
-            } ifelse
-        } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 % key category  undefineresource  -
@@ -409,8 +405,7 @@ setglobal
                         dup 63 eq exch s si get eq or { % ? or same character
                             /ti ti 1 add def /si si 1 add def /adv true def
                         } if
-                    } ifelse
-                } ifelse
+                } ifelse } ifelse
             } if
             adv not {
                 star 0 ge {
@@ -606,8 +601,7 @@ currentglobal true setglobal
             } ifelse
         }{
             /cand load
-        } ifelse
-    } ifelse
+    } ifelse } ifelse
     end
 } bind put
 

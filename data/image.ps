@@ -880,8 +880,7 @@ currentglobal true setglobal
             } for
             .outputfile (w) file
             .writepage
-        } ifelse
-        } ifelse
+        } ifelse } ifelse
     } //.xpostsys /.indict get exec } bind
 >> put
 
@@ -921,8 +920,7 @@ currentglobal true setglobal
             % built and known
             % here, so it is refused where it is read.
             /.makerasterclass cvx /rangecheck signalerror
-        } ifelse
-    } ifelse
+    } ifelse } ifelse
 } bind put
 
 setglobal

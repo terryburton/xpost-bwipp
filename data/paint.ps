@@ -144,8 +144,7 @@
             }{
                 /xlo px def /xhi px def /ylo py def /yhi py def
                 /any true def
-            } ifelse
-        } ifelse
+        } ifelse } ifelse
     } forall
     any { xlo ylo xhi yhi true }{ false } ifelse
     end
@@ -348,9 +347,7 @@
 
     flushpage
     newpath
-    } ifelse
-    } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 % -  eofill  -
@@ -382,9 +379,7 @@
 
         flushpage
         newpath
-    } ifelse
-    } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 % x y proc  .intest  bool
@@ -483,8 +478,7 @@
                 r t1 gt { /ok false def }{ r t0 gt { /t0 r def } if } ifelse
             }{
                 r t0 lt { /ok false def }{ r t1 lt { /t1 r def } if } ifelse
-            } ifelse
-        } ifelse
+        } ifelse } ifelse
     } forall
     ok t0 t1 le and {
         px dx t0 mul add py dy t0 mul add
@@ -590,9 +584,7 @@
     } ifelse
 
     newpath
-    } ifelse
-    } ifelse
-    } ifelse
+    } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
 % Row machinery: image data arrives from datasrc in arbitrary
@@ -1154,8 +1146,7 @@
                 } if
             } for
         } for
-        } ifelse
-        } ifelse
+        } ifelse } ifelse
 
         end
     grestore
