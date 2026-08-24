@@ -1,4 +1,5 @@
 %!PS
+%
 % image.ps
 %
 % The raster device base classes: Create through Emit, the scanline and pixel machinery.
@@ -8,28 +9,31 @@
 
 //.internaldict /QUIET known { }{ (loading image.ps...\n)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% A raster class is one method suite --
-% Create through Emit, the scanline plot machinery and the pixel
-% accessors -- over a handful of parameters: the colour space, the
-% number of colour components a paint delivers (.ncomp), how a scanline
-% row is allocated and what it costs, how components store into a row
-% and read back out of it, the coverage blender, and the page writer.
-% .rasterproto holds the suite once; .makerasterclass builds a class
-% from a parameter dictionary. The grayscale and rgb classes below are
-% parameter files over this generator, and the bilevel and TIFF classes
-% are dict-copies of those with the emission overridden.
 %
-% A method runs its body with a dictionary current -- the device's own,
-% or a scratch one where the body wants somewhere of its own to work --
-% and every one of them opens it through the bracket that takes it off
-% again however the body ends, error included (.indict, graphics.ps).
+%  A raster class is one method suite --
+%  Create through Emit, the scanline plot machinery and the pixel
+%  accessors -- over a handful of parameters: the colour space, the
+%  number of colour components a paint delivers (.ncomp), how a scanline
+%  row is allocated and what it costs, how components store into a row
+%  and read back out of it, the coverage blender, and the page writer.
+%  .rasterproto holds the suite once; .makerasterclass builds a class
+%  from a parameter dictionary. The grayscale and rgb classes below are
+%  parameter files over this generator, and the bilevel and TIFF classes
+%  are dict-copies of those with the emission overridden.
 %
-% In the method comments, IMAGE is an instance returned by Create and
-% c1..cN are the .ncomp colour components, each in [0,1].
-
+%  A method runs its body with a dictionary current -- the device's own,
+%  or a scratch one where the body wants somewhere of its own to work --
+%  and every one of them opens it through the bracket that takes it off
+%  again however the body ends, error included (.indict, graphics.ps).
+%
+%  In the method comments, IMAGE is an instance returned by Create and
+%  c1..cN are the .ncomp colour components, each in [0,1].
+%
 (/qsort.ps) //.xpostsys /.loadmodule get exec
 
 .xpostsys /.rasterproto <<
@@ -43,7 +47,7 @@ true setglobal
 
     /.copydict //.xpostsys /.classcopydict get
 
-    /Create { % width height IMAGE  .  IMAGE'
+    /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
     currentdict } //.xpostsys /.indict get exec
     dup /.copydict get exec
@@ -84,13 +88,13 @@ true setglobal
         % with, where one built row by row until the memory ran out
         % would ask the system for everything it could get before
         % failing, and answer the same error at the end of it.
-        height                      % spine elements
-        .rowcost                    % spine rowelements rowbytes
-        .bandrows 1 add             % spine rowelements rowbytes rows
-        dup 3 1 roll mul            % spine rowelements rows bytes
-        3 1 roll mul                % spine bytes elements
-        3 -1 roll add               % bytes elements'
-        exch                        % elements' bytes
+        height                      % Spine elements
+        .rowcost                    % Spine rowelements rowbytes
+        .bandrows 1 add             % Spine rowelements rowbytes rows
+        dup 3 1 roll mul            % Spine rowelements rows bytes
+        3 1 roll mul                % Spine bytes elements
+        3 -1 roll add               % Bytes elements'
+        exch                        % Elements' bytes
         //.internaldict /.vmreserve get exec not {
             setglobal
             /Create cvx /VMerror signalerror
@@ -124,7 +128,7 @@ true setglobal
     currentdict
     } //.xpostsys /.indict get exec } bind
 
-    /Destroy { % IMAGE  .  -
+    /Destroy {  % IMAGE  .  -
         pop
     } bind
 
@@ -140,14 +144,14 @@ true setglobal
     % as, and either is cleared plane for plane against a row of the
     % same shape, so a class stating a row of its own is cleared by what
     % it states rather than by an assumption about its shape.
-    /.rowclear { % row  .  -
+    /.rowclear {  % row  .  -
         dup type /stringtype eq {
             0 .zerorow putinterval
         }{
             0 1 2 index length 1 sub {  % row i
-                2 copy get 0            % row i plane 0
-                .zerorow 3 index get    % row i plane 0 zeroplane
-                putinterval pop         % row
+                2 copy get 0            % Row i plane 0
+                .zerorow 3 index get    % Row i plane 0 zeroplane
+                putinterval pop         % Row
             } for
             pop
         } ifelse
@@ -179,7 +183,7 @@ true setglobal
     % The run is held to the page and to the rows there are, so a caller
     % naming a run this raster cannot stand for gets the part of it that
     % it can rather than a write past the end of the spine.
-    /.moveband { % top rows IMAGE  .  -
+    /.moveband {  % top rows IMAGE  .  -
     {
         % the row to copy from, and the rows this device made, both
         % taken up at the first move: a device that never moves its band
@@ -208,8 +212,8 @@ true setglobal
             { /.bandrows height .bandtop sub def } if
         .bandrows .bandpool length gt { /.bandrows .bandpool length def } if
         0 1 .bandrows 1 sub {
-            dup .bandtop add               % i row-index
-            exch .bandpool exch get        % row-index row
+            dup .bandtop add               % I row-index
+            exch .bandpool exch get        % Row-index row
             dup .rowclear
             ImgData 3 1 roll put
         } for
@@ -227,10 +231,10 @@ true setglobal
     % wrapped past the top of its range. Truncation, not rounding, is
     % what the compiled fills do, so a page painted through either lands
     % on the same byte.
-    /.unitclamp { % c  .  c'
+    /.unitclamp {  % c  .  c'
         dup 0 lt { pop 0 }{ dup 1 gt { pop 1 } if } ifelse
     } bind
-    /.chan { % c  .  byte
+    /.chan {  % c  .  byte
         .unitclamp 255 mul cvi
     } bind
 
@@ -259,7 +263,7 @@ true setglobal
     % floor is monotone and the edges are whole numbers, so the two
     % orders answer alike, and a coordinate the page does not reach need
     % not be one an integer holds.
-    /.onpage { % x y  .  bool
+    /.onpage {  % x y  .  bool
         dup 0 lt exch height ge or
         exch dup 0 lt exch width ge or
         or not
@@ -283,13 +287,13 @@ true setglobal
     %
     % A device that has not been erased has no ground recorded, and its
     % rows stand as they were allocated, which is what it answers.
-    /.groundpix { % x y  .  c1..cN
+    /.groundpix {  % x y  .  c1..cN
         currentdict /.ground known {
-            mark 3 1 roll               % mark x y
-            { .to-int exch .to-int exch % mark x y
-              .ground aload pop         % mark x y c1..cN
-              .ncomp 2 add .ncomp roll  % mark c1..cN x y
-              .screenpix pop pop        % mark c1'..cN'
+            mark 3 1 roll               % Mark x y
+            { .to-int exch .to-int exch  % Mark x y
+              .ground aload pop         % Mark x y c1..cN
+              .ncomp 2 add .ncomp roll  % Mark c1..cN x y
+              .screenpix pop pop        % Mark c1'..cN'
             } stopped {
                 cleartomark
                 .ground aload pop
@@ -311,7 +315,7 @@ true setglobal
     % carrying no pixel refuses the write partway through .rowput, by
     % which point the stack is a shape no fixed count of pops answers,
     % and what is left over lands in the operands of whatever called.
-    /PutPix { % c1..cN x y IMAGE  .  -
+    /PutPix {  % c1..cN x y IMAGE  .  -
     {
         {
             .to-int exch .to-int exch
@@ -319,11 +323,11 @@ true setglobal
             dup height ge { stop } if
             1 index 0 lt { stop } if
             1 index width ge { stop } if
-            .screenpix                  % c1..cN x y
-            ImgData exch get            % c1..cN x row
+            .screenpix                  % C1..cN x y
+            ImgData exch get            % C1..cN x row
             dup .rowheld not { stop } if
-            exch                        % c1..cN row x
-            .ncomp 2 add 2 roll         % row x c1..cN
+            exch                        % C1..cN row x
+            .ncomp 2 add 2 roll         % Row x c1..cN
             .rowput
         } stopped {
             .ncomp 2 add { pop } repeat
@@ -339,11 +343,11 @@ true setglobal
     % answered for the pixel that was asked about, not for the page at
     % large: where this class screens what it stores, what the page
     % shows differs from one pixel to the next.
-    /GetPix { % x y IMAGE  .  c1..cN
+    /GetPix {  % x y IMAGE  .  c1..cN
     {
         2 copy .onpage {
-            .to-int exch .to-int exch   % x y
-            2 copy ImgData exch get     % x y x row
+            .to-int exch .to-int exch   % X y
+            2 copy ImgData exch get     % X y x row
             dup .rowheld
                 { 4 2 roll pop pop exch .rowget }
                 { pop pop .groundpix }
@@ -358,7 +362,7 @@ true setglobal
     % along its major axis, clipped to the device. This method walks
     % them through PutPix; the window devices walk the same list through
     % their own plot. Neither states the rule.
-    /DrawLine { % c1..cN x1 y1 x2 y2 IMAGE  .  -
+    /DrawLine {  % c1..cN x1 y1 x2 y2 IMAGE  .  -
     { {y2 x2 y1 x1}{exch def}forall .takecolor
         /lp x1 y1 x2 y2 width height //.internaldict /.linepix get exec def
         0 2 lp length 2 sub {
@@ -371,16 +375,16 @@ true setglobal
     %  |    |
     %  |    |
     %  |-----
-    /DrawRect { % c1..cN x y w h IMAGE  .  -
+    /DrawRect {  % c1..cN x y w h IMAGE  .  -
     { {h w y x}{exch def}forall .takecolor
         0 1 h 1 sub {
-            x 2 copy % h x h x
+            x 2 copy  % H x h x
             exch y add .pushcolor .ncomp 2 add .ncomp roll currentdict PutPix
             w add
             exch y add 1 add .pushcolor .ncomp 2 add .ncomp roll currentdict PutPix
         } for
         1 1 w {
-            x add y 2 copy % x+w y x+w y
+            x add y 2 copy  % X+w y x+w y
             .pushcolor .ncomp 2 add .ncomp roll currentdict PutPix
             h add exch 1 sub exch
             .pushcolor .ncomp 2 add .ncomp roll currentdict PutPix
@@ -394,15 +398,15 @@ true setglobal
     % compiled fills that replace it on a selected device, and the C
     % devices' own, take the same span from the same place. Nothing here
     % restates it, and nothing here has to agree with it by accident.
-    /FillRect { % c1..cN x y w h IMAGE  .  -
+    /FillRect {  % c1..cN x y w h IMAGE  .  -
     { {h w y x}{exch def}forall .takecolor
         x y w h width height //.internaldict /.rectspan get exec {
             /ry1 exch def /rx1 exch def /ry0 exch def /rx0 exch def
             .pushcolor
-            ry0 1 ry1 { % c1..cN y
-                rx0 1 rx1 { % c1..cN y x
-                    .ncomp 2 add copy exch % c1..cN y x c1..cN x y
-                    currentdict PutPix % c1..cN y x
+            ry0 1 ry1 {  % c1..cN y
+                rx0 1 rx1 {  % c1..cN y x
+                    .ncomp 2 add copy exch  % C1..cN y x c1..cN x y
+                    currentdict PutPix  % C1..cN y x
                     pop
                 } for
                 pop
@@ -413,7 +417,7 @@ true setglobal
 
     % expand a running device-space box to include a point; FillPoly
     % seeds minx/miny/maxx/maxy in the instance before the sweep
-    /.maxmin { % x y
+    /.maxmin {  % x y
         2 copy
         dup maxy gt { /maxy exch def }{ pop } ifelse
         dup maxx gt { /maxx exch def }{ pop } ifelse
@@ -431,7 +435,7 @@ true setglobal
 		{
         {Dy Dx Cy Cx By Bx Ay Ax}{exch def}forall
 
-        { %stopped
+        {  %stopped
             % reject degenerate line
             Ax Bx eq Ay By eq and
             Cx Dx eq Cy Dy eq and or {stop} if
@@ -463,7 +467,7 @@ true setglobal
 
             /ABpos Dx Cx Dx sub Dy mul Dy Cy sub div add def
             ABpos 0 lt
-            ABpos distAB gt or {stop} if % intersection not on segment
+            ABpos distAB gt or {stop} if  % Intersection not on segment
 
             Ax ABpos theCos mul add
             Ay ABpos theSin mul add
@@ -478,7 +482,7 @@ true setglobal
     %see xpost_dev_generic.c:_fillpoly(ctx,poly,dev) for the
     %implementation in current use (10/8/2014)
 
-    /FillPoly { % c1..cN polygon IMAGE  .  -
+    /FillPoly {  % c1..cN polygon IMAGE  .  -
     { {poly}{exch def}forall .takecolor
 
         /DEBUGFILL where { pop
@@ -517,16 +521,16 @@ true setglobal
                 (P=)=only P ==
                 (Q=)=only Q ==
             } if
-            x_max miny floor cvi .5 add % [ x_max miny+.5
+            x_max miny floor cvi .5 add  % [ x_max miny+.5
             1                           % [ x_max miny+.5 1
             maxy ceiling cvi .5 sub     % [ x_max miny+.5 1 maxy-.5
             {                           % [ ... x_max y
                 1 index exch            % [ ... x_max x_max y
                 -.5 1 index               % [ ... x_max x_max y -.5 y
                 4 2 roll
-                P aload pop Q aload pop % [ ... x_max  x_max y  -.5 y  Px Py  Qx Qy
+                P aload pop Q aload pop  % [ ... x_max  x_max y  -.5 y  Px Py  Qx Qy
                 .intersect {
-                    2 array astore exch % [ ... [x y] x_max
+                    2 array astore exch  % [ ... [x y] x_max
                 } if
             } for
             pop
@@ -541,7 +545,7 @@ true setglobal
             (FillPoly:<sort scanline intersection list>)=
         } if
         {
-        dup { % comparitor  % [x1 y1] [x2 y2] . bool
+        dup {  % comparitor  % [x1 y1] [x2 y2] . bool
             1 index 1 get
             1 index 1 get
             eq {            % y1 == y2
@@ -563,7 +567,7 @@ true setglobal
         /DEBUGFILL where { pop
             (FillPoly:<set pixels on each scanline>)=
         } if
-        aload length 2 idiv { % repeat
+        aload length 2 idiv {  % repeat
             exch aload pop
             3 2 roll aload pop
 
@@ -576,13 +580,13 @@ true setglobal
                     } if
                 } if
 
-                pop                        % xa ya xb
-                3 2 roll                   % ya xb xa
-                exch 1 exch                % ya xa 1 xb
+                pop                        % Xa ya xb
+                3 2 roll                   % Ya xb xa
+                exch 1 exch                % Ya xa 1 xb
                 dup width ge { pop width 1 sub } if
-                { % for                    % ya x
-                    .pushcolor .ncomp 1 add .ncomp roll % ya c1..cN x
-                    .ncomp 1 add index     % ya c1..cN x ya
+                {  % for                    % ya x
+                    .pushcolor .ncomp 1 add .ncomp roll  % Ya c1..cN x
+                    .ncomp 1 add index     % Ya c1..cN x ya
                     currentdict PutPix
                 } for
                 pop
@@ -590,7 +594,7 @@ true setglobal
 
         } repeat
 
-    } //.xpostsys /.indict get exec } bind %FillPoly
+    } //.xpostsys /.indict get exec } bind  %FillPoly
 
     % c1..cN  Ground  -
     % Take up the colour the page is being cleared to; PLRM 8.2 erases
@@ -616,11 +620,11 @@ true setglobal
     % save because raster memory is not part of virtual memory (PLRM
     % 3.7.3), and the ground the page was cleared to has to keep to the
     % page it describes.
-    /Ground { % c1..cN IMAGE  .  -
+    /Ground {  % c1..cN IMAGE  .  -
     {
         currentdict /.groundrow known {
             0 1 width 1 sub {            % c1..cN x
-                .groundrow exch          % c1..cN row x
+                .groundrow exch          % C1..cN row x
                 % the components stay for the next pixel, so the copy
                 % this one stores is taken from where they lie
                 .ncomp { .ncomp 1 add index } repeat
@@ -651,7 +655,7 @@ true setglobal
     % the next fills a row for the row it was asked about, and what it
     % answers stands only until the next call fills it again -- which is
     % what /.groundvaries above tells a caller collecting rows.
-    /.groundrowat { % y  .  row
+    /.groundrowat {  % y  .  row
         pop .groundrow
     } bind
 
@@ -664,7 +668,7 @@ true setglobal
     % arrives in -- so a page put out a band at a time carries at its
     % head the bytes a page put out whole carries.
     /.pnmmaxval (255\n)
-    /.writehead { % file  .  -
+    /.writehead {  % file  .  -
         dup .pnmmagic writestring
         dup width 20 string cvs writestring
         dup ( ) writestring
@@ -680,7 +684,7 @@ true setglobal
     % strip is the filter that compresses it -- and .writetail below is
     % what finishes that off. The file stays the one the header went to
     % and the one that is closed behind the page.
-    /.bandsink { % file  .  sink
+    /.bandsink {  % file  .  sink
     } bind
 
     % sink file  .writetail  -
@@ -689,7 +693,7 @@ true setglobal
     % points at rows it has not written yet finishes here instead, which
     % is the first moment the rows are all written and their extent is
     % known.
-    /.writetail { % sink file  .  -
+    /.writetail {  % sink file  .  -
         pop pop
     } bind
 
@@ -706,7 +710,7 @@ true setglobal
     % the inherited one on the page it writes whole -- one device
     % putting out two files for one page, and neither of them wrong
     % anywhere it could be seen.
-    /.writepage { % img file  .  -
+    /.writepage {  % img file  .  -
         3 dict {
         {/f /a}{exch def}forall
         f .writehead
@@ -734,7 +738,7 @@ true setglobal
     % the page. It is written a bandful at a time against an array as
     % long as the rows this device was made to hold, so the array stays
     % what it was however long a run one call is asked for.
-    /.bandwrite { % lo hi  .  -
+    /.bandwrite {  % lo hi  .  -
         /.bandhi exch def
         /.bandlo exch def
         /.bandcap currentdict /.bandpool known
@@ -795,7 +799,7 @@ true setglobal
     % rows is written by that same call, which is the first moment every
     % row has gone. A page finished stays finished, so a further call
     % writes nothing rather than a second page into the same file.
-    /.emitband { % -  .  -
+    /.emitband {  % -  .  -
         .bandpage /done known not {
             .bandpage /file known not {
                 .bandpage /file .outputfile (w) file put
@@ -842,7 +846,7 @@ true setglobal
     % a device put out the ordinary way carries none and takes the whole
     % page below, which is why a device that has not been asked to band
     % cannot be handed part of a page by accident.
-    /Emit { % IMAGE  .  -
+    /Emit {  % IMAGE  .  -
     {
         currentdict /.bandpage known { .emitband }{
         .groundvaries {
@@ -873,7 +877,7 @@ true setglobal
             % .bandrows that describes it.
             ImgData height array copy
             0 1 height 1 sub {              % page i
-                1 index 1 index get         % page i row
+                1 index 1 index get         % Page i row
                 .rowheld
                     { pop }
                     { 1 index exch dup .groundrowat put }
@@ -885,19 +889,21 @@ true setglobal
     } //.xpostsys /.indict get exec } bind
 >> put
 
-% spec  .makerasterclass  class
-% build a raster device class: the shared suite copied from
-% .rasterproto, overlaid with the parameter dictionary, then completed
-% with the colour take/push helpers its component count calls for.
 %
-% There are helpers for one component and for three, which is what the
-% fleet declares -- the grey and bilevel classes take one, the colour
-% and TIFF classes three, and the compiled devices copy one of those.
-% Any other count is refused rather than approximated; see below for
-% why that is the only honest answer available here.
+%  spec  .makerasterclass  class
+%  build a raster device class: the shared suite copied from
+%  .rasterproto, overlaid with the parameter dictionary, then completed
+%  with the colour take/push helpers its component count calls for.
 %
-% Load-time only.
-.xpostsys /.makerasterclass { % spec  .  class
+%  There are helpers for one component and for three, which is what the
+%  fleet declares -- the grey and bilevel classes take one, the colour
+%  and TIFF classes three, and the compiled devices copy one of those.
+%  Any other count is refused rather than approximated; see below for
+%  why that is the only honest answer available here.
+%
+%  Load-time only.
+%
+.xpostsys /.makerasterclass {  % spec  .  class
     //.xpostsys /.rasterproto get
     dup length 2 index length add 8 add dict
     copy

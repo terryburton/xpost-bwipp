@@ -1,4 +1,5 @@
 %!PS
+%
 % gstate.ps
 %
 % The graphics-state template and the gsave/grestore machinery.
@@ -8,18 +9,24 @@
 
 //.internaldict /QUIET known { }{ (loading gstate.ps...)print } ifelse
 
-% Everything here defines into global VM; the graphics-state template is the
-% exception, wrapped in a local island below.
+%
+%  Everything here defines into global VM; the graphics-state template is the
+%  exception, wrapped in a local island below.
+%
 true setglobal
 
-% .gstatetemplate yields a freshly-initialized dictionary
-% with the following values. currmatrix and scratchmatrix
-% are newly-allocated arrays. The template embeds local objects (the initial
-% path storage and the device), so it and its accessor stay in local VM.
+%
+%  .gstatetemplate yields a freshly-initialized dictionary
+%  with the following values. currmatrix and scratchmatrix
+%  are newly-allocated arrays. The template embeds local objects (the initial
+%  path storage and the device), so it and its accessor stay in local VM.
+%
 currentglobal false setglobal
-% the template embeds local objects, so it is a local dictionary and takes a
-% userdict anchor: systemdict is global and refuses a local value. The bake
-% below finds it there, and .finalize drops the anchor once it is frozen.
+%
+%  the template embeds local objects, so it is a local dictionary and takes a
+%  userdict anchor: systemdict is global and refuses a local value. The bake
+%  below finds it there, and .finalize drops the anchor once it is frozen.
+%
 userdict begin
 /.gstatetemplate <<
     % the space as set (what currentcolorspace reports; may be an array)
@@ -133,26 +140,29 @@ userdict begin
     /device null
 >> def
 end
-% the template proc lives in privatedict, off the dict stack; it freezes the
-% template dictionary defined above, so that dictionary needs no userdict anchor
-% and .finalize drops it. Callers reach the proc through .privatedict.
-.privatedict /.gstatetemplate { //.gstatetemplate % use template
-    dup /currmatrix [ 1 0 0 1 0 0 ] put  % allocate fresh arrays
+%
+%  the template proc lives in privatedict, off the dict stack; it freezes the
+%  template dictionary defined above, so that dictionary needs no userdict anchor
+%  and .finalize drops it. Callers reach the proc through .privatedict.
+%
+.privatedict /.gstatetemplate { //.gstatetemplate  % Use template
+    dup /currmatrix [ 1 0 0 1 0 0 ] put  % Allocate fresh arrays
     dup /scratchmatrix [ 1 0 0 1 0 0 ] put
 } put
 setglobal
 
-% Graphics State Operators -- Device Independent
-
-.xpostsys /gstatecopy { % dict1 dict2 . dict2'
+%
+%  Graphics State Operators -- Device Independent
+%
+.xpostsys /gstatecopy {  % dict1 dict2 . dict2'
     begin
-    { % key val
+    {  % key val
         %pstack()= %1 index =
         dup type /arraytype eq
-        1 index xcheck not and { % key val
-            1 index % key val key
-            currentdict 1 index known { % key val key  (key known in currentdict)
-                pop % key val
+        1 index xcheck not and {  % key val
+            1 index  % Key val key
+            currentdict 1 index known {  % key val key  (key known in currentdict)
+                pop  % Key val
                 % The value goes into storage of its own, never into
                 % whatever the entry already holds. An array reached from
                 % a graphics state entry is not the graphics state's to
@@ -168,10 +178,10 @@ setglobal
                 dup length array
                 copy
                 def
-            }{ % key val key   (key not known in currentdict)
-                exch % key key val
-                dup length array % key key val val2
-                copy % key key val2
+            }{  % key val key   (key not known in currentdict)
+                exch  % Key key val
+                dup length array  % Key key val val2
+                copy  % Key key val2
                 def
                 pop
             } ifelse
@@ -182,23 +192,25 @@ setglobal
     currentdict end
 } put
 
-% -  .forkcontext  -   (runs in a freshly forked context, before its procedure)
-% Give this context its own graphics state, copied from the one it still shares
-% with its parent, so a change it makes to its graphics state does not reach the
-% parent. PLRM 2nd ed 7.1: the graphics state is private to a context, and fork
-% forms the child by copying the graphics state stack -- the current state and
-% every gsave beneath it. fork shares the parent's privatedict (it is a struct
-% copy), and the graphics state lives there under .graphicsdict, so the child is
-% given its own copy of privatedict holding a private, copied .graphicsdict.
-% .privatedict and the C graphics operators both read the running context's
-% privatedict, so from here the child's graphics reach its own state while the
-% rest of privatedict's machinery stays shared. gstatecopy copies into a fresh
-% dictionary each time; the template returns a shared dictionary, so it is not
-% used here.
+%
+%  -  .forkcontext  -   (runs in a freshly forked context, before its procedure)
+%  Give this context its own graphics state, copied from the one it still shares
+%  with its parent, so a change it makes to its graphics state does not reach the
+%  parent. PLRM 2nd ed 7.1: the graphics state is private to a context, and fork
+%  forms the child by copying the graphics state stack -- the current state and
+%  every gsave beneath it. fork shares the parent's privatedict (it is a struct
+%  copy), and the graphics state lives there under .graphicsdict, so the child is
+%  given its own copy of privatedict holding a private, copied .graphicsdict.
+%  .privatedict and the C graphics operators both read the running context's
+%  privatedict, so from here the child's graphics reach its own state while the
+%  rest of privatedict's machinery stays shared. gstatecopy copies into a fresh
+%  dictionary each time; the template returns a shared dictionary, so it is not
+%  used here.
+%
 .xpostsys /.forkcontext {
-    currentglobal false setglobal   % the graphics state is local
+    currentglobal false setglobal   % The graphics state is local
     10 dict begin
-        /pgd //.privatedict /.graphicsdict get def   % the graphics dict shared with the parent
+        /pgd //.privatedict /.graphicsdict get def   % The graphics dict shared with the parent
         /gp pgd /gptr get def
         % the gsave stack, each occupied slot copied into a gstate of its own
         /newstack pgd /gstackarray get length array def
@@ -221,38 +233,47 @@ setglobal
         >> def
         //.privatedict /.graphicsdict newgd put
     end
-    setglobal   % restore the VM mode the caller had
+    setglobal   % Restore the VM mode the caller had
 } put
 
-% -  gsave  -
-% push graphics state
+%
+%  -  gsave  -
+%
+%  push graphics state
+%
 /gsave [ ] {
 graphicsdict begin
     /gptr gptr 1 add def
     gptr gstackarray length ge { /gsave cvx /limitcheck signalerror } if
-    gstackarray gptr gstate put % push copy on stack
-    currgstate /currpath 2 copy get .copypath put % make a new working copy of path
+    gstackarray gptr gstate put  % Push copy on stack
+    currgstate /currpath 2 copy get .copypath put  % Make a new working copy of path
 end
 } //.xpostsys /.defop get exec
 
-% -  grestore  -
-% pop graphics state
+%
+%  -  grestore  -
+%
+%  pop graphics state
+%
 /grestore [ ] {
 graphicsdict begin
     gptr -1 gt {
         gstackarray gptr get
             %dup {exch = ==} forall
         currgstate //.xpostsys /gstatecopy get exec pop
-        gptr 0 gt { %discard all but one element, for grestoreall
-            gstackarray gptr null put % discard stack copy
+        gptr 0 gt {  %discard all but one element, for grestoreall
+            gstackarray gptr null put  % Discard stack copy
         } if
         /gptr gptr 1 sub def
     } if
 end
 } //.xpostsys /.defop get exec
 
-% -  grestoreall  -
-% pop to bottommost graphics state
+%
+%  -  grestoreall  -
+%
+%  pop to bottommost graphics state
+%
 /grestoreall [ ] {
 graphicsdict begin
     /gptr -1 def
@@ -261,17 +282,20 @@ graphicsdict begin
 end
 } //.xpostsys /.defop get exec
 
-% -  initgraphics  -
-% Reset the eleven graphics state parameters PLRM 8.2 names -- the CTM,
-% the current point, the path, the clipping path, the colour space, the
-% colour, the line width, the line cap, the line join, the miter limit
-% and the dash pattern -- and leave every other one standing. The output
-% device, the font, stroke adjustment, the clipping path stack and every
-% device-dependent parameter are among those left alone. It touches the
-% graphics state only, not raster memory, and reports nothing.
 %
-% The body is the equivalent code the specification gives, so the eleven
-% are reset by the operators that own them and nothing reaches the rest.
+%  -  initgraphics  -
+%
+%  Reset the eleven graphics state parameters PLRM 8.2 names -- the CTM,
+%  the current point, the path, the clipping path, the colour space, the
+%  colour, the line width, the line cap, the line join, the miter limit
+%  and the dash pattern -- and leave every other one standing. The output
+%  device, the font, stroke adjustment, the clipping path stack and every
+%  device-dependent parameter are among those left alone. It touches the
+%  graphics state only, not raster memory, and reports nothing.
+%
+%  The body is the equivalent code the specification gives, so the eleven
+%  are reset by the operators that own them and nothing reaches the rest.
+%
 /initgraphics [ ] {
     initmatrix
     newpath
@@ -284,20 +308,23 @@ end
     [ ] 0 setdash
 } //.xpostsys /.defop get exec
 
-% -  .initdevicegstate  -
-% The graphics state a newly installed device starts from (PLRM 8.2
-% setpagedevice). The defaults come from the template, because the live
-% state holds the outgoing device's values; the template's device slot
-% has already been pointed at the incoming one.
 %
-% This is a wider reset than initgraphics: the halftone screen, the
-% transfer functions, stroke adjustment and overprint go back to their
-% defaults, because they describe how a device renders and the device
-% has just changed.
+%  -  .initdevicegstate  -
 %
-% Four parameters carry across, named here rather than derived, because
-% they describe the job and not the device: the font, flatness, black
-% generation and undercolour removal.
+%  The graphics state a newly installed device starts from (PLRM 8.2
+%  setpagedevice). The defaults come from the template, because the live
+%  state holds the outgoing device's values; the template's device slot
+%  has already been pointed at the incoming one.
+%
+%  This is a wider reset than initgraphics: the halftone screen, the
+%  transfer functions, stroke adjustment and overprint go back to their
+%  defaults, because they describe how a device renders and the device
+%  has just changed.
+%
+%  Four parameters carry across, named here rather than derived, because
+%  they describe the job and not the device: the font, flatness, black
+%  generation and undercolour removal.
+%
 .xpostsys /.initdevicegstate {
     4 dict begin
     /d.held 4 dict def
@@ -313,20 +340,24 @@ end
     initgraphics
 } put
 
-% -  gstate  gstate
-% A copy of the current graphics state, as a new gstate object (PLRM
-% 8.2). The template supplies the shape -- every slot the state has, and
-% freshly allocated matrices -- and the current state supplies the
-% values; the deep copy is gstatecopy's, the same one gsave and grestore
-% carry a state by, so the object holds its own arrays rather than
-% sharing the live state's.
+%
+%  -  gstate  gstate
+%  A copy of the current graphics state, as a new gstate object (PLRM
+%  8.2). The template supplies the shape -- every slot the state has, and
+%  freshly allocated matrices -- and the current state supplies the
+%  values; the deep copy is gstatecopy's, the same one gsave and grestore
+%  carry a state by, so the object holds its own arrays rather than
+%  sharing the live state's.
+%
 /gstate [ ] {
     .privatedict /.gstatetemplate get exec dup length dict copy
     graphicsdict /currgstate get exch //.xpostsys /gstatecopy get exec
 } //.xpostsys /.defop get exec
 
-% gstate  setgstate  -
-% set graphics state from gstate
+%
+%  gstate  setgstate  -
+%  set graphics state from gstate
+%
 /setgstate [ /dicttype ] {
     % the operand is examined before the current state is fetched
     dup /currmatrix known not
@@ -334,22 +365,28 @@ end
     graphicsdict /currgstate get copy pop
 } //.xpostsys /.defop get exec
 
-% gstate  currentgstate  gstate
-% copy current graphics state into given gstate object
+%
+%  gstate  currentgstate  gstate
+%  copy current graphics state into given gstate object
+%
 /currentgstate [ /dicttype ] {
     dup /currmatrix known not
         { /currentgstate cvx /typecheck signalerror } if
     graphicsdict /currgstate get exch //.xpostsys /gstatecopy get exec
 } //.xpostsys /.defop get exec
 
-% -  currentfont  dict
-% return current font from the graphics state
+%
+%  -  currentfont  dict
+%  return current font from the graphics state
+%
 /currentfont [ ] {
     graphicsdict /currgstate get /currfont get
 } //.xpostsys /.defop get exec
 
-% proc  settransfer  -
-% install the transfer procedure for every component
+%
+%  proc  settransfer  -
+%  install the transfer procedure for every component
+%
 /settransfer [ /proctype ] {
     /settransfer exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /transfer exch put
@@ -359,15 +396,19 @@ end
     dup /transfer get /bluetransfer exch put
 } //.xpostsys /.defop get exec
 
-% -  currenttransfer  proc
-% return the grey channel's transfer procedure
+%
+%  -  currenttransfer  proc
+%  return the grey channel's transfer procedure
+%
 /currenttransfer [ ] {
     graphicsdict /currgstate get /transfer get
 } //.xpostsys /.defop get exec
 
-% black generation and undercolor removal (recorded only: painting
-% converts by the additive-complement formulae), and the colour
-% rendering dictionary (recorded only)
+%
+%  black generation and undercolor removal (recorded only: painting
+%  converts by the additive-complement formulae), and the colour
+%  rendering dictionary (recorded only)
+%
 /setblackgeneration [ /proctype ] {
     /setblackgeneration exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /blackgen exch put
@@ -389,24 +430,26 @@ end
     graphicsdict /currgstate get /colorrendering get
 } //.xpostsys /.defop get exec
 
-% renderingintent  findcolorrendering  name bool
-% The name of a colour rendering dictionary for the requested intent
-% under the current device configuration and halftone, and whether that
-% dictionary satisfies the request exactly (PLRM 8.2).
 %
-% The name is renderingintent.deviceconfig.halftone: the intent verbatim
-% from the operand, and the other two parts obtained by calling the
-% ColorRendering procedure set. Going through the procedure set rather
-% than reading the two entries here is what PLRM 7.1.3 prescribes and
-% what lets a device customise the selection by overriding one procedure
-% instead of replacing the operator.
+%  renderingintent  findcolorrendering  name bool
+%  The name of a colour rendering dictionary for the requested intent
+%  under the current device configuration and halftone, and whether that
+%  dictionary satisfies the request exactly (PLRM 8.2).
 %
-% A dictionary of the formed name in the ColorRendering category
-% satisfies the request. Where there is none the substitute procedure
-% proposes an alternate and the answer is false, which is how a program
-% learns that the name it holds is a proposal rather than a match; a
-% true answer alongside a name nothing registered would tell it the
-% opposite of the truth.
+%  The name is renderingintent.deviceconfig.halftone: the intent verbatim
+%  from the operand, and the other two parts obtained by calling the
+%  ColorRendering procedure set. Going through the procedure set rather
+%  than reading the two entries here is what PLRM 7.1.3 prescribes and
+%  what lets a device customise the selection by overriding one procedure
+%  instead of replacing the operator.
+%
+%  A dictionary of the formed name in the ColorRendering category
+%  satisfies the request. Where there is none the substitute procedure
+%  proposes an alternate and the answer is false, which is how a program
+%  learns that the name it holds is a proposal rather than a match; a
+%  true answer alongside a name nothing registered would tell it the
+%  opposite of the truth.
+%
 /findcolorrendering [ [ /nametype ] [ /stringtype ] ] {
     /ColorRendering /ProcSet findresource
     dup /GetPageDeviceName get exec
@@ -422,11 +465,13 @@ end
 /DefaultColorRendering 0 dict dup /ColorRenderingType 1 put
 /ColorRendering defineresource pop
 
-% The parts of CRD selection a device is meant to be able to replace
-% (PLRM 7.1.3). They are a procedure set and not operators because that
-% is what the specification makes them, and because the point of them is
-% that a device overrides one: an operator in systemdict is sealed here,
-% and a procedure in a resource instance is not.
+%
+%  The parts of CRD selection a device is meant to be able to replace
+%  (PLRM 7.1.3). They are a procedure set and not operators because that
+%  is what the specification makes them, and because the point of them is
+%  that a device overrides one: an operator in systemdict is sealed here,
+%  and a procedure in a resource instance is not.
+%
 /ColorRendering <<
     % -  GetPageDeviceName  name
     % the device configuration part of a CRD name: the page device's own
@@ -455,11 +500,13 @@ end
     /GetSubstituteCRD { pop /DefaultColorRendering } bind
 >> /ProcSet defineresource pop
 
-% redproc greenproc blueproc grayproc  setcolortransfer  -
-% sample and record one transfer procedure per component; the grey
-% channel shares its slot with settransfer, and is the one painting
-% applies. Each procedure is called with a number in [0,1] and returns
-% one in the same range (PLRM 8.2), and setting it is what calls it.
+%
+%  redproc greenproc blueproc grayproc  setcolortransfer  -
+%  sample and record one transfer procedure per component; the grey
+%  channel shares its slot with settransfer, and is the one painting
+%  applies. Each procedure is called with a number in [0,1] and returns
+%  one in the same range (PLRM 8.2), and setting it is what calls it.
+%
 /setcolortransfer [ /proctype /proctype /proctype /proctype ] {
     4 array astore /setcolortransfer exch
     //.xpostsys /.samplecolortransfer get exec
@@ -470,8 +517,10 @@ end
     graphicsdict /currgstate get exch /redtransfer exch put
 } //.xpostsys /.defop get exec
 
-% -  currentcolortransfer  redproc greenproc blueproc grayproc
-% return every component's transfer procedure
+%
+%  -  currentcolortransfer  redproc greenproc blueproc grayproc
+%  return every component's transfer procedure
+%
 /currentcolortransfer [ ] {
     graphicsdict /currgstate get /redtransfer get
     graphicsdict /currgstate get /greentransfer get
@@ -479,8 +528,10 @@ end
     graphicsdict /currgstate get /transfer get
 } //.xpostsys /.defop get exec
 
-% copy the grey screen to the colour channels: setscreen installs one
-% screen for every component
+%
+%  copy the grey screen to the colour channels: setscreen installs one
+%  screen for every component
+%
 .xpostsys /.spreadgrayscreen {
     graphicsdict /currgstate get
     dup dup /screenfreq get /redscreenfreq exch put
@@ -494,38 +545,40 @@ end
     dup /screenproc get /bluescreenproc exch put
 } put
 
-% freq ang proc  .samplespot  -
-% evaluate a spot function across its halftone cell, once for each
-% pixel of the cell the screen actually renders through, sampled at
-% that pixel's centre. The language calls the spot when the screen is
-% installed and programs lean on the side effects -- the classic
-% pattern-cell idiom builds its cell there -- so the sampling must
-% cover the whole cell even though rendering itself stays continuous
-% tone. It shares the cell geometry with the rendered threshold cell,
-% so the number of calls and the arguments match what paint later
-% sees, rather than collapsing to one sample where the cell spans a
-% single device pixel.
-% /opname {proc}  .sampletransfer  {proc}
-% A transfer function maps one number in [0,1] to one number, and is
-% sampled across that range when it is set. The samples are taken for
-% their effect on the operand stack: a procedure that leaves anything
-% other than its one result is not a transfer function.
-% The procedure being sampled is the program's, and a procedure that
-% installs a transfer function of its own re-enters this one against the
-% same three slots, so the sampling runs inside the bracket. Nothing of
-% the bracket's own sits on the operand stack while the procedure runs,
-% which the depth check below depends on.
-% Each sample runs beneath the boundary: what fails in the procedure is
-% the program's own object failing, so the operand stack goes back to
-% what the procedure found (PLRM 3.11.1) and the operator that set the
-% function keeps the operand it consumed. The checks below are the
-% sampling reading what the procedure returned, and a refusal there is
-% the operator's own -- it comes after the boundary is gone.
-% The procedure comes back at the end for the caller to record, out of
-% the slot it was parked in rather than off a copy the caller left on
-% the operand stack: a copy left there would be the caller's working
-% value sitting under the program's procedure, in reach of it, and would
-% still be there for the caller's caller if the procedure failed.
+%
+%  freq ang proc  .samplespot  -
+%  evaluate a spot function across its halftone cell, once for each
+%  pixel of the cell the screen actually renders through, sampled at
+%  that pixel's centre. The language calls the spot when the screen is
+%  installed and programs lean on the side effects -- the classic
+%  pattern-cell idiom builds its cell there -- so the sampling must
+%  cover the whole cell even though rendering itself stays continuous
+%  tone. It shares the cell geometry with the rendered threshold cell,
+%  so the number of calls and the arguments match what paint later
+%  sees, rather than collapsing to one sample where the cell spans a
+%  single device pixel.
+%  /opname {proc}  .sampletransfer  {proc}
+%  A transfer function maps one number in [0,1] to one number, and is
+%  sampled across that range when it is set. The samples are taken for
+%  their effect on the operand stack: a procedure that leaves anything
+%  other than its one result is not a transfer function.
+%  The procedure being sampled is the program's, and a procedure that
+%  installs a transfer function of its own re-enters this one against the
+%  same three slots, so the sampling runs inside the bracket. Nothing of
+%  the bracket's own sits on the operand stack while the procedure runs,
+%  which the depth check below depends on.
+%  Each sample runs beneath the boundary: what fails in the procedure is
+%  the program's own object failing, so the operand stack goes back to
+%  what the procedure found (PLRM 3.11.1) and the operator that set the
+%  function keeps the operand it consumed. The checks below are the
+%  sampling reading what the procedure returned, and a refusal there is
+%  the operator's own -- it comes after the boundary is gone.
+%  The procedure comes back at the end for the caller to record, out of
+%  the slot it was parked in rather than off a copy the caller left on
+%  the operand stack: a copy left there would be the caller's working
+%  value sitting under the program's procedure, in reach of it, and would
+%  still be there for the caller's caller if the procedure failed.
+%
 .xpostsys /.tskeys [ /.tsproc /.tsop /.tsd ] put
 .xpostsys /.sampletransfer {
     //.xpostsys /.sampletransferbody get
@@ -548,22 +601,24 @@ end
     graphicsdict /.tsproc get
 } put
 
-% /opname [redproc greenproc blueproc grayproc]
-%     .samplecolortransfer  [redproc greenproc blueproc grayproc]
-% The four transfer functions of setcolortransfer, sampled one at a time
-% by the sampling above, each across [0,1] and each held to the same
-% shape. The grey channel goes first: it is the transfer function the
-% other three qualify, and the one currenttransfer reports.
-% Nothing of the four may stand on the operand stack while any one of
-% them runs, so they are parked in an array the bracket holds and read
-% out one at a time. A procedure that sets a transfer function of its
-% own re-enters this against the same two slots, so the sampling runs
-% inside the bracket.
-% Setting all four to one procedure is what settransfer does, and it
-% samples what settransfer samples: once. So a colour channel holding
-% the grey channel's own procedure is that same function and is not
-% sampled again -- object for object, two procedures that merely read
-% alike being two functions.
+%
+%  /opname [redproc greenproc blueproc grayproc]
+%      .samplecolortransfer  [redproc greenproc blueproc grayproc]
+%  The four transfer functions of setcolortransfer, sampled one at a time
+%  by the sampling above, each across [0,1] and each held to the same
+%  shape. The grey channel goes first: it is the transfer function the
+%  other three qualify, and the one currenttransfer reports.
+%  Nothing of the four may stand on the operand stack while any one of
+%  them runs, so they are parked in an array the bracket holds and read
+%  out one at a time. A procedure that sets a transfer function of its
+%  own re-enters this against the same two slots, so the sampling runs
+%  inside the bracket.
+%  Setting all four to one procedure is what settransfer does, and it
+%  samples what settransfer samples: once. So a colour channel holding
+%  the grey channel's own procedure is that same function and is not
+%  sampled again -- object for object, two procedures that merely read
+%  alike being two functions.
+%
 .xpostsys /.ctkeys [ /.ctrec /.ctop ] put
 .xpostsys /.samplecolortransfer {
     //.xpostsys /.samplecolortransferbody get
@@ -581,9 +636,11 @@ end
     graphicsdict /.ctrec get
 } put
 
-% i  .ctchannel  -
-% sample the colour channel at i of the record, unless it holds the grey
-% channel's procedure, which has been sampled already
+%
+%  i  .ctchannel  -
+%  sample the colour channel at i of the record, unless it holds the grey
+%  channel's procedure, which has been sampled already
+%
 .xpostsys /.ctchannel {
     graphicsdict /.ctrec get exch get
     dup graphicsdict /.ctrec get 3 get eq
@@ -592,12 +649,14 @@ end
           //.xpostsys /.sampletransfer get exec pop } ifelse
 } put
 
-% freq ang proc  .installscreen  -
-% Sample the spot function and leave this call's screen recorded. The
-% record is what setscreen is mid-use of across the sampling: the spot
-% function may install a screen of its own, which records over it in the
-% same graphics state slots, so the record is kept in a slot the bracket
-% holds and written again when the sampling is done.
+%
+%  freq ang proc  .installscreen  -
+%  Sample the spot function and leave this call's screen recorded. The
+%  record is what setscreen is mid-use of across the sampling: the spot
+%  function may install a screen of its own, which records over it in the
+%  same graphics state slots, so the record is kept in a slot the bracket
+%  holds and written again when the sampling is done.
+%
 .xpostsys /.ssreckeys [ /.ssrec ] put
 .xpostsys /.installscreen {
     //.xpostsys /.installscreenbody get
@@ -616,18 +675,20 @@ end
     //.xpostsys /.spreadgrayscreen get exec
 } put
 
-% rf ra rp gf ga gp bf ba bp kf ka kp  .installcolorscreen  -
-% The same for the four screens of setcolorscreen, one per component and
-% each with a cell of its own. A channel's spot function is sampled
-% across that channel's cell, so a procedure standing in two channels is
-% two cells and is sampled for each; the grey channel goes first, being
-% the one currentscreen reports.
-% The twelve are what setcolorscreen is mid-use of across the sampling,
-% for the same reason setscreen's three are, and none of them may stand
-% on the operand stack while a spot function runs. So they are parked in
-% a record the bracket holds, written to the graphics state before the
-% sampling so a spot function reads the screen being installed, and
-% written again after it so this call's screen is the one that stands.
+%
+%  rf ra rp gf ga gp bf ba bp kf ka kp  .installcolorscreen  -
+%  The same for the four screens of setcolorscreen, one per component and
+%  each with a cell of its own. A channel's spot function is sampled
+%  across that channel's cell, so a procedure standing in two channels is
+%  two cells and is sampled for each; the grey channel goes first, being
+%  the one currentscreen reports.
+%  The twelve are what setcolorscreen is mid-use of across the sampling,
+%  for the same reason setscreen's three are, and none of them may stand
+%  on the operand stack while a spot function runs. So they are parked in
+%  a record the bracket holds, written to the graphics state before the
+%  sampling so a spot function reads the screen being installed, and
+%  written again after it so this call's screen is the one that stands.
+%
 .xpostsys /.csreckeys [ /.csrec ] put
 .xpostsys /.installcolorscreen {
     //.xpostsys /.installcolorscreenbody get
@@ -645,11 +706,13 @@ end
     //.xpostsys /.recordcolorscreen get exec
 } put
 
-% i  .csspot  -
-% sample the spot function of the channel whose frequency, angle and
-% procedure lie at i, i+1 and i+2 of the record. A channel with no cell
-% to sample -- no frequency to give one, or a spot object that is not
-% something to execute -- is recorded without being sampled
+%
+%  i  .csspot  -
+%  sample the spot function of the channel whose frequency, angle and
+%  procedure lie at i, i+1 and i+2 of the record. A channel with no cell
+%  to sample -- no frequency to give one, or a spot object that is not
+%  something to execute -- is recorded without being sampled
+%
 .xpostsys /.csspot {
     dup graphicsdict /.csrec get exch get
     exch dup 1 add graphicsdict /.csrec get exch get
@@ -659,9 +722,12 @@ end
         { pop pop pop } ifelse
 } put
 
-% -  .recordcolorscreen  -
-% write the record's twelve values into the graphics state, each
-% component's screen into its own slots
+%
+%  -  .recordcolorscreen  -
+%
+%  write the record's twelve values into the graphics state, each
+%  component's screen into its own slots
+%
 .xpostsys /.recordcolorscreen {
     graphicsdict /.csrec get aload pop
     graphicsdict /currgstate get exch /screenproc exch put
@@ -680,12 +746,14 @@ end
     graphicsdict /currgstate get /halftonetransfer null put
 } put
 
-% The spot function is the program's, and a screen installed from inside
-% it re-enters the sampling against the same depth slot, so the sampling
-% runs inside the bracket. Nothing of the bracket's own sits on the
-% operand stack while the procedure runs, which the depth comparison
-% compiled into the program below depends on -- and which is also why a
-% spot function may leave entries there for the caller to harvest.
+%
+%  The spot function is the program's, and a screen installed from inside
+%  it re-enters the sampling against the same depth slot, so the sampling
+%  runs inside the bracket. Nothing of the bracket's own sits on the
+%  operand stack while the procedure runs, which the depth comparison
+%  compiled into the program below depends on -- and which is also why a
+%  spot function may leave entries there for the caller to harvest.
+%
 .xpostsys /.sskeys [ /.ssd0 ] put
 .xpostsys /.samplespot {
     //.xpostsys /.samplespotbody get
@@ -775,46 +843,54 @@ end
     exec
 } put
 
-% The threshold cell of a screening device. A bilevel device that
-% declares /ScreenPaint takes a cell built from the current screen:
-% the spot function samples across the cell and the pixels rank by
-% spot value, the lowest whitening first -- highlight dots open at
-% the spot minima, and the shadow dot at the maximum darkens last --
-% so each pixel's threshold is its rank.
-% The painting machinery refreshes the cell before it marks, so the
-% screen in force is the one the paint sees.
+%
+%  The threshold cell of a screening device. A bilevel device that
+%  declares /ScreenPaint takes a cell built from the current screen:
+%  the spot function samples across the cell and the pixels rank by
+%  spot value, the lowest whitening first -- highlight dots open at
+%  the spot minima, and the shadow dot at the maximum darkens last --
+%  so each pixel's threshold is its rank.
+%  The painting machinery refreshes the cell before it marks, so the
+%  screen in force is the one the paint sees.
+%
 
-% freq ang proc  .installscreencell  -
-% The screen tiles the device plane on a rotated integer lattice:
-% the angle becomes the nearest rational tangent b/a with the cell
-% diagonal near the requested frequency, the lattice vectors (a,b)
-% and (-b,a) map every device pixel into its cell, and the whole
-% repeating tile ranks together, the lowest spot values whitening
-% first. An axis-aligned screen falls out as b = 0.
-.xpostsys /.gcd { % m n .gcd g
+%
+%  freq ang proc  .installscreencell  -
+%  The screen tiles the device plane on a rotated integer lattice:
+%  the angle becomes the nearest rational tangent b/a with the cell
+%  diagonal near the requested frequency, the lattice vectors (a,b)
+%  and (-b,a) map every device pixel into its cell, and the whole
+%  repeating tile ranks together, the lowest spot values whitening
+%  first. An axis-aligned screen falls out as b = 0.
+%
+.xpostsys /.gcd {  % m n .gcd g
     { dup 0 eq { pop exit } if exch 1 index mod } loop
 } put
 
-% W H W2 H2  .celldet  n
-% the number of places in a cell that repeats along (W, H2) and
-% (-W2, H): the determinant of those two vectors, W*H + W2*H2. Every
-% cell shape the language describes is that one expression with sides
-% shared or absent. An axis-aligned W by H cell has no second rectangle,
-% so W2 and H2 are zero and the count is W*H. Two squares of side X and
-% Y are the rectangles X by X and Y by Y, so it is X*X + Y*Y. A lattice
-% chosen from a frequency and an angle repeats along (a, b) and (-b, a),
-% so it is a*a + b*b. Writing them apart is how they come to disagree.
+%
+%  W H W2 H2  .celldet  n
+%  the number of places in a cell that repeats along (W, H2) and
+%  (-W2, H): the determinant of those two vectors, W*H + W2*H2. Every
+%  cell shape the language describes is that one expression with sides
+%  shared or absent. An axis-aligned W by H cell has no second rectangle,
+%  so W2 and H2 are zero and the count is W*H. Two squares of side X and
+%  Y are the rectangles X by X and Y by Y, so it is X*X + Y*Y. A lattice
+%  chosen from a frequency and an angle repeats along (a, b) and (-b, a),
+%  so it is a*a + b*b. Writing them apart is how they come to disagree.
+%
 .xpostsys /.celldet {
     mul 3 1 roll mul add
 } bind put
 
-% W H W2 H2  .cellside  n
-% the side of the axis-aligned tile that repeats such a cell. The cell
-% lattice always contains (d, 0) and (0, d) for d the determinant, so a
-% tile of that side works, but it is not the smallest: sides that share
-% a factor describe a smaller cell scaled up, and the tile reduces by
-% that factor. Zero is answered for a cell with no places at all, which
-% has no tile -- the caller refuses those rather than dividing by them.
+%
+%  W H W2 H2  .cellside  n
+%  the side of the axis-aligned tile that repeats such a cell. The cell
+%  lattice always contains (d, 0) and (0, d) for d the determinant, so a
+%  tile of that side works, but it is not the smallest: sides that share
+%  a factor describe a smaller cell scaled up, and the tile reduces by
+%  that factor. Zero is answered for a cell with no places at all, which
+%  has no tile -- the caller refuses those rather than dividing by them.
+%
 .xpostsys /.cellside {
     3 index 1 index //.xpostsys /.gcd get exec
     2 index 4 index //.xpostsys /.gcd get exec
@@ -823,16 +899,18 @@ end
     dup 0 eq { exch pop }{ exch idiv } ifelse
 } bind put
 
-% The lattices a screen is chosen from do not depend on the screen. The
-% pair (a, b) ranges over the same small square whatever frequency and
-% angle are asked for; the angle a pair stands for, the size of the cell
-% it makes, and whether it is usable at all -- a tile no wider than
-% sixty-four, a cell no smaller than a pixel and a half -- follow from
-% the pair alone. So the usable ones are worked out once, here, instead
-% of at every setscreen, and worked out by the same two helpers that
-% measure the lattice finally chosen, so the search filters on exactly
-% the quantities it selects by. Each entry is four numbers: a, b, the
-% angle, and the cell size.
+%
+%  The lattices a screen is chosen from do not depend on the screen. The
+%  pair (a, b) ranges over the same small square whatever frequency and
+%  angle are asked for; the angle a pair stands for, the size of the cell
+%  it makes, and whether it is usable at all -- a tile no wider than
+%  sixty-four, a cell no smaller than a pixel and a half -- follow from
+%  the pair alone. So the usable ones are worked out once, here, instead
+%  of at every setscreen, and worked out by the same two helpers that
+%  measure the lattice finally chosen, so the search filters on exactly
+%  the quantities it selects by. Each entry is four numbers: a, b, the
+%  angle, and the cell size.
+%
 .xpostsys /.latticecands
 { 8 dict begin
     /span 25 def
@@ -859,25 +937,27 @@ end
     end
 } exec put
 
-% freq ang  .screenlattice  a b L q quad cand
-% the rotated integer lattice the screen tiles the device plane with:
-% the angle becomes the nearest rational tangent b/a whose cell
-% diagonal sits near the requested frequency. (a,b) and (-b,a) are the
-% lattice vectors, L the side of the repeating tile of L*L pixels,
-% q = a*a + b*b, and quad the whole quarter turns folded out of the
-% angle -- the lattice needs the angle only modulo ninety degrees, but
-% the spot pattern need not share the cell's symmetry, so the quarter
-% turns rotate the spot's argument instead. An axis-aligned screen
-% falls out as b = 0.
 %
-% cand is the angle within the quadrant that the chosen pair actually
-% stands for, taken from the candidate table rather than worked out
-% again from a and b. The table folds a quarter turn out of it where the
-% tangent is vertical, and a second expression that forgot to would call
-% an axis-aligned screen perpendicular -- which is what a second
-% expression did. The spot evaluation at install time and the
-% rendered threshold cell both build from this, so they sample the
-% same points.
+%  freq ang  .screenlattice  a b L q quad cand
+%  the rotated integer lattice the screen tiles the device plane with:
+%  the angle becomes the nearest rational tangent b/a whose cell
+%  diagonal sits near the requested frequency. (a,b) and (-b,a) are the
+%  lattice vectors, L the side of the repeating tile of L*L pixels,
+%  q = a*a + b*b, and quad the whole quarter turns folded out of the
+%  angle -- the lattice needs the angle only modulo ninety degrees, but
+%  the spot pattern need not share the cell's symmetry, so the quarter
+%  turns rotate the spot's argument instead. An axis-aligned screen
+%  falls out as b = 0.
+%
+%  cand is the angle within the quadrant that the chosen pair actually
+%  stands for, taken from the candidate table rather than worked out
+%  again from a and b. The table folds a quarter turn out of it where the
+%  tangent is vertical, and a second expression that forgot to would call
+%  an axis-aligned screen perpendicular -- which is what a second
+%  expression did. The spot evaluation at install time and the
+%  rendered threshold cell both build from this, so they sample the
+%  same points.
+%
 .xpostsys /.screenlattice {
     16 dict begin
     /ang exch def /freq exch def
@@ -1001,18 +1081,20 @@ end
     end
 } put
 
-% cell w h src  .setscreencell  -
-% The cell a screening device paints through, and what it was built
-% from. This is the one place a cell is installed, so it is the one
-% place a device can be told the screen has changed: a device that
-% declares /ScreenChanged is called here, with itself as its operand.
 %
-% What asks to be told is a device recording a page to be painted
-% again. The screen is state a marking call does not carry -- the
-% device paints through the cell it holds -- so a record that was not
-% told would replay under whatever screen its target held by then. It
-% is told where the cell changes rather than per mark, because that is
-% where a cell is built.
+%  cell w h src  .setscreencell  -
+%  The cell a screening device paints through, and what it was built
+%  from. This is the one place a cell is installed, so it is the one
+%  place a device can be told the screen has changed: a device that
+%  declares /ScreenChanged is called here, with itself as its operand.
+%
+%  What asks to be told is a device recording a page to be painted
+%  again. The screen is state a marking call does not carry -- the
+%  device paints through the cell it holds -- so a record that was not
+%  told would replay under whatever screen its target held by then. It
+%  is told where the cell changes rather than per mark, because that is
+%  where a cell is built.
+%
 .xpostsys /.setscreencell {
     DEVICE exch /.htsrc exch put
     DEVICE exch /.hth exch put
@@ -1023,10 +1105,13 @@ end
     } if
 } put
 
-% -  .refreshscreencell  -
-% bring a screening device's cell up to the screen in force: the
-% installed halftone dictionary's thresholds or spot function, else
-% the screen triple, rebuilt only when it has changed
+%
+%  -  .refreshscreencell  -
+%
+%  bring a screening device's cell up to the screen in force: the
+%  installed halftone dictionary's thresholds or spot function, else
+%  the screen triple, rebuilt only when it has changed
+%
 .xpostsys /.refreshscreencell {
     DEVICE /ScreenPaint known {
         4 dict begin
@@ -1071,13 +1156,15 @@ end
     } if
 } put
 
-% freq angle proc  setscreen  -
-% record the halftone screen for every component and evaluate the
-% spot function across the cell. xpost renders continuous tone, so
-% the screen does not affect the raster; the parameters are part of
-% the graphics state and round-trip through currentscreen and
-% currentcolorscreen
-% The spot function may be named rather than given.
+%
+%  freq angle proc  setscreen  -
+%  record the halftone screen for every component and evaluate the
+%  spot function across the cell. xpost renders continuous tone, so
+%  the screen does not affect the raster; the parameters are part of
+%  the graphics state and round-trip through currentscreen and
+%  currentcolorscreen
+%  The spot function may be named rather than given.
+%
 /setscreen [ [ /numbertype /numbertype /proctype ]
              [ /numbertype /numbertype /nametype ] ] {
     graphicsdict /currgstate get exch /screenproc exch put
@@ -1093,20 +1180,24 @@ end
     }{ pop } ifelse
 } //.xpostsys /.defop get exec
 
-% -  currentscreen  freq angle proc
-% return the grey channel's screen parameters
+%
+%  -  currentscreen  freq angle proc
+%  return the grey channel's screen parameters
+%
 /currentscreen [ ] {
     graphicsdict /currgstate get /screenfreq get
     graphicsdict /currgstate get /screenangle get
     graphicsdict /currgstate get /screenproc get
 } //.xpostsys /.defop get exec
 
-% rf ra rp gf ga gp bf ba bp kf ka kp  setcolorscreen  -
-% record one screen per component and evaluate each component's spot
-% function across its own cell; the grey channel shares its slots with
-% setscreen
-% Each spot function may be named rather than given, as setscreen's
-% may, so the frequencies and angles are what the shape can pin down.
+%
+%  rf ra rp gf ga gp bf ba bp kf ka kp  setcolorscreen  -
+%  record one screen per component and evaluate each component's spot
+%  function across its own cell; the grey channel shares its slots with
+%  setscreen
+%  Each spot function may be named rather than given, as setscreen's
+%  may, so the frequencies and angles are what the shape can pin down.
+%
 /setcolorscreen [ /numbertype /numbertype /anytype
                   /numbertype /numbertype /anytype
                   /numbertype /numbertype /anytype
@@ -1114,16 +1205,18 @@ end
     //.xpostsys /.installcolorscreen get exec
 } //.xpostsys /.defop get exec
 
-% ht  .ht5component  ht'
-% a type 5 dictionary carries one halftone per colorant: grey
-% rendering takes its grey component, or the required Default
-% ht  .htgraytriple  ht'
-% A type 2 or type 4 carries four screens, one per primary, spelled as
-% entries prefixed Red, Green, Blue and Gray. This interpreter screens
-% grey, so the grey screen is the one that reaches a device, and it is
-% handed on as the single-screen type it corresponds to -- a type 2
-% becomes a type 1 and a type 4 a type 3. Nothing downstream then knows
-% there were four.
+%
+%  ht  .ht5component  ht'
+%  a type 5 dictionary carries one halftone per colorant: grey
+%  rendering takes its grey component, or the required Default
+%  ht  .htgraytriple  ht'
+%  A type 2 or type 4 carries four screens, one per primary, spelled as
+%  entries prefixed Red, Green, Blue and Gray. This interpreter screens
+%  grey, so the grey screen is the one that reaches a device, and it is
+%  handed on as the single-screen type it corresponds to -- a type 2
+%  becomes a type 1 and a type 4 a type 3. Nothing downstream then knows
+%  there were four.
+%
 .xpostsys /.htgraytriple {
     4 dict begin
     /src exch def
@@ -1143,19 +1236,21 @@ end
     end
 } put
 
-% ht  .htangledcell  ht'
-% A type 10's cell sits at an angle, and the screens here take an
-% axis-aligned tile. The two are reconcilable exactly: the cell lattice
-% is generated by (X, Y) and (-Y, X), whose determinant is the sample
-% count N, and that lattice contains (N, 0) and (0, N) -- so a tile of
-% side N repeats the angled cell with nothing lost.
 %
-% Which sample a device pixel takes follows from the same arithmetic.
-% The map (x, y) -> (xX + yY) mod N sends both generators to zero and is
-% onto, so it identifies each pixel's position in the cell and does so
-% uniquely. Square X's sample (i, j) therefore sits at residue
-% (iX + jY) mod N and square Y's at ((X+i)X + jY) mod N, which together
-% cover every residue once.
+%  ht  .htangledcell  ht'
+%  A type 10's cell sits at an angle, and the screens here take an
+%  axis-aligned tile. The two are reconcilable exactly: the cell lattice
+%  is generated by (X, Y) and (-Y, X), whose determinant is the sample
+%  count N, and that lattice contains (N, 0) and (0, N) -- so a tile of
+%  side N repeats the angled cell with nothing lost.
+%
+%  Which sample a device pixel takes follows from the same arithmetic.
+%  The map (x, y) -> (xX + yY) mod N sends both generators to zero and is
+%  onto, so it identifies each pixel's position in the cell and does so
+%  uniquely. Square X's sample (i, j) therefore sits at residue
+%  (iX + jY) mod N and square Y's at ((X+i)X + jY) mod N, which together
+%  cover every residue once.
+%
 .xpostsys /.htangledcell {
     12 dict begin
     /src exch def
@@ -1252,12 +1347,14 @@ end
     } if
 } put
 
-% ht  .htreadthresholds  -
-% a threshold-array halftone may deliver its thresholds through a
-% file (a filter over the program stream): sethalftone consumes
-% that data, so read it -- into a string put back in the
-% dictionary, where a screening device's cell can find it, or
-% drained when it exceeds a string
+%
+%  ht  .htreadthresholds  -
+%  a threshold-array halftone may deliver its thresholds through a
+%  file (a filter over the program stream): sethalftone consumes
+%  that data, so read it -- into a string put back in the
+%  dictionary, where a screening device's cell can find it, or
+%  drained when it exceeds a string
+%
 .xpostsys /.htreadthresholds {
     10 dict begin
     /ht exch def
@@ -1322,48 +1419,56 @@ end
     end
 } put
 
-% obj  .htnum  bool
-% a halftone parameter that has to be a number
+%
+%  obj  .htnum  bool
+%  a halftone parameter that has to be a number
+%
 .xpostsys /.htnum {
     type dup /integertype eq exch /realtype eq or
 } bind put
 
-% the tails of the entry names that state an extent. A screen frequency
-% and the sides of a cell are matched by their ending rather than listed
-% one by one, so that the per-primary copies a type 2 or a type 4 makes
-% of them -- RedFrequency, GrayWidth and the rest -- and the second
-% rectangle's Width2 and Height2 are all covered, and so is a name a
-% later type coins on the same pattern.
+%
+%  the tails of the entry names that state an extent. A screen frequency
+%  and the sides of a cell are matched by their ending rather than listed
+%  one by one, so that the per-primary copies a type 2 or a type 4 makes
+%  of them -- RedFrequency, GrayWidth and the rest -- and the second
+%  rectangle's Width2 and Height2 are all covered, and so is a name a
+%  later type coins on the same pattern.
+%
 .xpostsys /.htextentnames
     [ (Frequency) (Width) (Height) (Xsquare) (Ysquare) (Width2) (Height2) ]
 put
 
-% and the entries whose names end in one of those without stating one.
-% Matching by tail reaches a name nobody listed, which is what it is for,
-% and it reaches this: ActualFrequency is not an extent the program
-% states but a value the operator WRITES, set to the frequency actually
-% achieved (PLRM Table 7.4). A program supplies it with anything at all,
-% nought being the obvious choice, so reading it as an extent refuses the
-% dictionary the specification asks for.
 %
-% Whole names, not tails: the point is to name the exceptions exactly.
-% A type 5's colorants cannot need one -- their values are dictionaries
-% and nothing here looks at a value that is not a number.
+%  and the entries whose names end in one of those without stating one.
+%  Matching by tail reaches a name nobody listed, which is what it is for,
+%  and it reaches this: ActualFrequency is not an extent the program
+%  states but a value the operator WRITES, set to the frequency actually
+%  achieved (PLRM Table 7.4). A program supplies it with anything at all,
+%  nought being the obvious choice, so reading it as an extent refuses the
+%  dictionary the specification asks for.
+%
+%  Whole names, not tails: the point is to name the exceptions exactly.
+%  A type 5's colorants cannot need one -- their values are dictionaries
+%  and nothing here looks at a value that is not a number.
+%
 .xpostsys /.htextentexempt [ (ActualFrequency) ] put
 
-% ht  .htextent  -
-% Every entry stating an extent must state a positive one. A side of
-% zero or less encloses no area and a frequency of zero or less names no
-% screen, and a cell with no places in it cannot be screened with; PLRM
-% gives these entries a type but no bound, so the bound is the one both
-% of the interpreters this is measured against apply, refusing the
-% dictionary rather than building an empty cell from it.
 %
-% The rule is put to the dictionary rather than to a list of keys per
-% type, and .htvalidate asks it once after the type has had its say, so
-% every type is held to it -- including a type 5's components, which
-% .htvalidate reaches by calling itself. An entry whose value is not a
-% number is left to the type's own check, which names it a typecheck.
+%  ht  .htextent  -
+%  Every entry stating an extent must state a positive one. A side of
+%  zero or less encloses no area and a frequency of zero or less names no
+%  screen, and a cell with no places in it cannot be screened with; PLRM
+%  gives these entries a type but no bound, so the bound is the one both
+%  of the interpreters this is measured against apply, refusing the
+%  dictionary rather than building an empty cell from it.
+%
+%  The rule is put to the dictionary rather than to a list of keys per
+%  type, and .htvalidate asks it once after the type has had its say, so
+%  every type is held to it -- including a type 5's components, which
+%  .htvalidate reaches by calling itself. An entry whose value is not a
+%  number is left to the type's own check, which names it a typecheck.
+%
 .xpostsys /.htextent {
     4 dict begin
     /bad false def
@@ -1392,28 +1497,32 @@ put
     { /sethalftone cvx /rangecheck signalerror } if
 } bind put
 
-% The entries PLRM types that no halftone type requires, and the types
-% each one takes (PLRM Tables 7.4 to 7.9).
 %
-% Held by name over whatever dictionary arrives rather than per halftone
-% type, for the reason .htextent is: PLRM makes both available across
-% several types -- HalftoneName in every type it defines, AccurateScreens
-% in types 1 and 2 -- so a list per type would have to be extended for
-% every type, including one nobody had thought of yet.
+%  The entries PLRM types that no halftone type requires, and the types
+%  each one takes (PLRM Tables 7.4 to 7.9).
+%
+%  Held by name over whatever dictionary arrives rather than per halftone
+%  type, for the reason .htextent is: PLRM makes both available across
+%  several types -- HalftoneName in every type it defines, AccurateScreens
+%  in types 1 and 2 -- so a list per type would have to be extended for
+%  every type, including one nobody had thought of yet.
+%
 .xpostsys /.htoptypes <<
     /AccurateScreens [ /booleantype ]
     /HalftoneName [ /nametype /stringtype ]
 >> put
 
-% ht  .htoptional  -
-% Hold every optional entry the dictionary carries to the type PLRM gives
-% it. Neither value is read by anything here -- there is one screening
-% algorithm, so AccurateScreens leaves ordinary halftoning in force, and
-% HalftoneName is read by the CRD selection rather than by the screen --
-% but a value of the wrong type is still refused: currenthalftone hands
-% the dictionary back, so accepting one stores the fault where a later
-% reader meets it, and a program that misspells the value has no other
-% way of being told.
+%
+%  ht  .htoptional  -
+%  Hold every optional entry the dictionary carries to the type PLRM gives
+%  it. Neither value is read by anything here -- there is one screening
+%  algorithm, so AccurateScreens leaves ordinary halftoning in force, and
+%  HalftoneName is read by the CRD selection rather than by the screen --
+%  but a value of the wrong type is still refused: currenthalftone hands
+%  the dictionary back, so accepting one stores the fault where a later
+%  reader meets it, and a program that misspells the value has no other
+%  way of being told.
+%
 .xpostsys /.htoptional {
     3 dict begin
     /ht exch def
@@ -1430,21 +1539,23 @@ put
     end
 } bind put
 
-% name  .marktransfer  proc
-% The function a colour component goes through on its way to a mark:
-% the graphics state slot the name asks for, unless the halftone in
-% force carries one of its own.
 %
-% A halftone dictionary's TransferFunction OVERRIDES the one settransfer
-% or setcolortransfer put in the graphics state (PLRM Table 7.4) -- it
-% replaces it rather than composing with it, so a graphics state
-% function is not consulted at all while one is in force. It belongs to
-% the screen and not to the graphics state, and so it stands only where
-% there is a screen: a device that declares ScreenPaint takes it, a
-% continuous-tone device takes no effect from it whatever, and
-% currenttransfer goes on answering with the function settransfer put
-% there. It lasts exactly as long as the halftone that carried it;
-% installing any other screen puts the graphics state's own back.
+%  name  .marktransfer  proc
+%  The function a colour component goes through on its way to a mark:
+%  the graphics state slot the name asks for, unless the halftone in
+%  force carries one of its own.
+%
+%  A halftone dictionary's TransferFunction OVERRIDES the one settransfer
+%  or setcolortransfer put in the graphics state (PLRM Table 7.4) -- it
+%  replaces it rather than composing with it, so a graphics state
+%  function is not consulted at all while one is in force. It belongs to
+%  the screen and not to the graphics state, and so it stands only where
+%  there is a screen: a device that declares ScreenPaint takes it, a
+%  continuous-tone device takes no effect from it whatever, and
+%  currenttransfer goes on answering with the function settransfer put
+%  there. It lasts exactly as long as the halftone that carried it;
+%  installing any other screen puts the graphics state's own back.
+%
 .xpostsys /.marktransfer {
     DEVICE /ScreenPaint known {
         graphicsdict /currgstate get /halftonetransfer 2 copy known
@@ -1455,29 +1566,31 @@ put
         { exch pop } ifelse
 } bind put
 
-% ht eff  .htanswer  -
-% Tell a dictionary what its screen came to.
 %
-% PLRM Table 7.4 has sethalftone set ActualFrequency and ActualAngle,
-% where they are present, to the frequency and angle achieved, and leave
-% Frequency and Angle as the program wrote them -- those say what was
-% asked for and go on saying it. A dictionary that did not ask is not
-% answered, and one that cannot be written is left alone.
+%  ht eff  .htanswer  -
+%  Tell a dictionary what its screen came to.
 %
-% Only a screen searched for has an answer. A threshold array IS the
-% cell, so it settled for nothing and the entries mean nothing in the
-% types that carry one; the specification puts them in the type 1 table
-% alone, and that is the type asked for here -- of the screen that ended
-% up being installed, so a composite answers for the component that
-% reached the device.
+%  PLRM Table 7.4 has sethalftone set ActualFrequency and ActualAngle,
+%  where they are present, to the frequency and angle achieved, and leave
+%  Frequency and Angle as the program wrote them -- those say what was
+%  asked for and go on saying it. A dictionary that did not ask is not
+%  answered, and one that cannot be written is left alone.
 %
-% The answer is taken from the search rather than from the cell the
-% search went on to build, because a device that does not screen never
-% builds one and would otherwise have nothing to say about a screen it
-% was perfectly able to choose.
+%  Only a screen searched for has an answer. A threshold array IS the
+%  cell, so it settled for nothing and the entries mean nothing in the
+%  types that carry one; the specification puts them in the type 1 table
+%  alone, and that is the type asked for here -- of the screen that ended
+%  up being installed, so a composite answers for the component that
+%  reached the device.
 %
-% setscreen reaches no dictionary at all, which is the whole of why the
-% specification says the feature is not available there.
+%  The answer is taken from the search rather than from the cell the
+%  search went on to build, because a device that does not screen never
+%  builds one and would otherwise have nothing to say about a screen it
+%  was perfectly able to choose.
+%
+%  setscreen reaches no dictionary at all, which is the whole of why the
+%  specification says the feature is not available there.
+%
 .xpostsys /.htanswer {
     6 dict begin
     /eff exch def
@@ -1499,22 +1612,26 @@ put
     end
 } bind put
 
-% ht [ keys ]  .htrequire  -
-% every key the declared type demands, or the missing one is undefined
+%
+%  ht [ keys ]  .htrequire  -
+%  every key the declared type demands, or the missing one is undefined
+%
 .xpostsys /.htrequire {
     { 1 index exch known not
         { /sethalftone cvx /undefined signalerror } if } forall
     pop
 } bind put
 
-% W H W2 H2  .htcelllimit  -
-% An angled cell is screened by expanding it onto the axis-aligned tile
-% that repeats it, so what has to fit is the tile and not the cell. A
-% cell with no places has no tile, and is refused for its sides rather
-% than divided by. One whose tile will not fit a string is refused here
-% rather than truncated into a screen that is not the one asked for.
-% Both shapes that describe an angled cell come through here, so neither
-% can acquire a limit the other does not have.
+%
+%  W H W2 H2  .htcelllimit  -
+%  An angled cell is screened by expanding it onto the axis-aligned tile
+%  that repeats it, so what has to fit is the tile and not the cell. A
+%  cell with no places has no tile, and is refused for its sides rather
+%  than divided by. One whose tile will not fit a string is refused here
+%  rather than truncated into a screen that is not the one asked for.
+%  Both shapes that describe an angled cell come through here, so neither
+%  can acquire a limit the other does not have.
+%
 .xpostsys /.htcelllimit {
     //.xpostsys /.cellside get exec
     dup 0 eq
@@ -1523,11 +1640,13 @@ put
         { /sethalftone cvx /limitcheck signalerror } if
 } bind put
 
-% ht  .htvalidate  -
-% check a halftone dictionary against the type it declares before any
-% of it is recorded: a type this interpreter cannot screen with is a
-% rangecheck, a required entry that is absent an undefined, and an
-% entry of the wrong type a typecheck
+%
+%  ht  .htvalidate  -
+%  check a halftone dictionary against the type it declares before any
+%  of it is recorded: a type this interpreter cannot screen with is a
+%  rangecheck, a required entry that is absent an undefined, and an
+%  entry of the wrong type a typecheck
+%
 .xpostsys /.htvalidate {
     1 dict begin
     /ht exch def
@@ -1681,11 +1800,13 @@ put
     end
 } put
 
-% halftonedict  sethalftone  -
-% record the halftone dictionary. Every screen channel then answers
-% the dictionary itself in the spot-function position: behind its own
-% frequency and angle for a type 1 dictionary, behind 60 and 0 for
-% any other type
+%
+%  halftonedict  sethalftone  -
+%  record the halftone dictionary. Every screen channel then answers
+%  the dictionary itself in the spot-function position: behind its own
+%  frequency and angle for a type 1 dictionary, behind 60 and 0 for
+%  any other type
+%
 /sethalftone [ /dicttype ] {
     dup type /dicttype ne {
         /sethalftone cvx /typecheck signalerror
@@ -1728,9 +1849,11 @@ put
     //.xpostsys /.spreadgrayscreen get exec
 } //.xpostsys /.defop get exec
 
-% -  currenthalftone  halftonedict
-% return the halftone: the installed dictionary, or a type 1
-% dictionary over the grey screen when the screens were set directly
+%
+%  -  currenthalftone  halftonedict
+%  return the halftone: the installed dictionary, or a type 1
+%  dictionary over the grey screen when the screens were set directly
+%
 /currenthalftone [ ] {
     graphicsdict /currgstate get /halftone get
     dup null eq {
@@ -1743,8 +1866,10 @@ put
     } if
 } //.xpostsys /.defop get exec
 
-% -  currentcolorscreen  rf ra rp gf ga gp bf ba bp kf ka kp
-% return every component's screen parameters
+%
+%  -  currentcolorscreen  rf ra rp gf ga gp bf ba bp kf ka kp
+%  return every component's screen parameters
+%
 /currentcolorscreen [ ] {
     graphicsdict /currgstate get /redscreenfreq get
     graphicsdict /currgstate get /redscreenangle get
@@ -1760,7 +1885,9 @@ put
     graphicsdict /currgstate get /screenproc get
 } //.xpostsys /.defop get exec
 
-% flag  setstrokeadjust  -   (recorded only)
+%
+%  flag  setstrokeadjust  -   (recorded only)
+%
 /setstrokeadjust [ /booleantype ] {
     graphicsdict /currgstate get exch /strokeadjust exch put
 } //.xpostsys /.defop get exec
@@ -1769,7 +1896,9 @@ put
         { get }{ pop pop false } ifelse
 } //.xpostsys /.defop get exec
 
-% num  setsmoothness  -   (recorded only)
+%
+%  num  setsmoothness  -   (recorded only)
+%
 /setsmoothness [ /numbertype ] {
     graphicsdict /currgstate get exch /smoothness exch put
 } //.xpostsys /.defop get exec
@@ -1778,43 +1907,53 @@ put
         { get }{ pop pop 0.02 } ifelse
 } //.xpostsys /.defop get exec
 
-% num  setlinewidth  -
-% set line width
+%
+%  num  setlinewidth  -
+%  set line width
+%
 /setlinewidth [ /numbertype ] {
     graphicsdict /currgstate get exch cvr /linewidth exch put
 } //.xpostsys /.defop get exec
 
-% -  currentlinewidth  num
-% return current line width
+%
+%  -  currentlinewidth  num
+%  return current line width
+%
 /currentlinewidth [ ] {
     graphicsdict /currgstate get /linewidth get
 } //.xpostsys /.defop get exec
 
-% int  setlinecap  -
-% set shape of the ends for stroke (0=butt, 1=round, 2=square)
+%
+%  int  setlinecap  -
+%  set shape of the ends for stroke (0=butt, 1=round, 2=square)
+%
 /setlinecap [ /integertype ] {
     dup 0 lt 1 index 2 gt or
     { pop /setlinecap cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch /linecap exch put } ifelse
 } //.xpostsys /.defop get exec
 
-% -  currentlinecap  int
-% return current line cap
+%
+%  -  currentlinecap  int
+%  return current line cap
+%
 /currentlinecap [ ] {
     graphicsdict /currgstate get /linecap get
 } //.xpostsys /.defop get exec
 
-% array offset  setdash  -
-% A non-empty dash array must hold no negative element and not be all
-% zero. Its elements must also be finite and their sum -- the dash period
-% -- must stay within range, and so must the offset: an infinite or NaN
-% period makes the dash phase NaN, and the phase-reduction loop stroke
-% walks then compares and subtracts NaN forever, allocating nothing so no
-% VMerror ever breaks it -- an uninterruptible loop from an ordinary
-% program. The magnitude bound is tested with lt and gt because those are
-% the comparisons a NaN answers false to; le, ge and eq answer a NaN
-% true, and would let it through. A value out of the range earns
-% limitcheck; a negative element or an all-zero array keeps rangecheck.
+%
+%  array offset  setdash  -
+%  A non-empty dash array must hold no negative element and not be all
+%  zero. Its elements must also be finite and their sum -- the dash period
+%  -- must stay within range, and so must the offset: an infinite or NaN
+%  period makes the dash phase NaN, and the phase-reduction loop stroke
+%  walks then compares and subtracts NaN forever, allocating nothing so no
+%  VMerror ever breaks it -- an uninterruptible loop from an ordinary
+%  program. The magnitude bound is tested with lt and gt because those are
+%  the comparisons a NaN answers false to; le, ge and eq answer a NaN
+%  true, and would let it through. A value out of the range earns
+%  limitcheck; a negative element or an all-zero array keeps rangecheck.
+%
 /setdash [ /arraytype /numbertype ] {
     1 index dup length 0 gt {
         0.0 exch
@@ -1829,86 +1968,112 @@ put
     graphicsdict /currgstate get exch /dasharray exch put
 } //.xpostsys /.defop get exec
 
-% -  currentdash  array offset
+%
+%  -  currentdash  array offset
+%
 /currentdash [ ] {
     graphicsdict /currgstate get /dasharray get
     graphicsdict /currgstate get /dashoffset get
 } //.xpostsys /.defop get exec
 
-% int  setlinejoin  -
-% set shape of corners for stroke (0=miter, 1=round, 2=bevel)
+%
+%  int  setlinejoin  -
+%  set shape of corners for stroke (0=miter, 1=round, 2=bevel)
+%
 /setlinejoin [ /integertype ] {
     dup 0 lt 1 index 2 gt or
     { pop /setlinejoin cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch /linejoin exch put } ifelse
 } //.xpostsys /.defop get exec
 
-% -  currentlinejoin  int
-% return current line join
+%
+%  -  currentlinejoin  int
+%  return current line join
+%
 /currentlinejoin [ ] {
     graphicsdict /currgstate get /linejoin get
 } //.xpostsys /.defop get exec
 
-% num  setmiterlimit  -
+%
+%  num  setmiterlimit  -
+%
 /setmiterlimit [ /numbertype ] {
     dup 1 lt
     { pop /setmiterlimit cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch cvr /miterlimit exch put } ifelse
 } //.xpostsys /.defop get exec
 
-% -  currentmiterlimit  num
+%
+%  -  currentmiterlimit  num
+%
 /currentmiterlimit [ ] {
     graphicsdict /currgstate get /miterlimit get
 } //.xpostsys /.defop get exec
 
-% bool  setoverprint  -
+%
+%  bool  setoverprint  -
+%
 /setoverprint [ /booleantype ] {
     graphicsdict /currgstate get exch /overprint exch put
 } //.xpostsys /.defop get exec
 
-% -  currentoverprint  bool
+%
+%  -  currentoverprint  bool
+%
 /currentoverprint [ ] {
     graphicsdict /currgstate get /overprint get
 } //.xpostsys /.defop get exec
 
-% int  setoverprintmode  -
-% The overprint mode refines overprint (0 the default, 1 the nonzero mode).
-% It reaches a separation-producing device the way overprint does; a
-% composite raster leaves it, like overprint, without effect.
+%
+%  int  setoverprintmode  -
+%  The overprint mode refines overprint (0 the default, 1 the nonzero mode).
+%  It reaches a separation-producing device the way overprint does; a
+%  composite raster leaves it, like overprint, without effect.
+%
 /setoverprintmode [ /integertype ] {
     graphicsdict /currgstate get exch /overprintmode exch put
 } //.xpostsys /.defop get exec
 
-% -  currentoverprintmode  int
+%
+%  -  currentoverprintmode  int
+%
 /currentoverprintmode [ ] {
     graphicsdict /currgstate get /overprintmode get
 } //.xpostsys /.defop get exec
 
-% int  setrasteropcode  -      (NeWS) set the raster-operation code
-% The code selects how a source pixel would combine with the destination
-% (replace, xor, or, and, ...). It is recorded in the graphics state; a raster
-% page replaces, so the default (copy) is honoured and other codes are kept but
-% do not change how marks are composited. Any integer is accepted so a program
-% can carry the code it means through the state as the operator promises.
+%
+%  int  setrasteropcode  -      (NeWS) set the raster-operation code
+%  The code selects how a source pixel would combine with the destination
+%  (replace, xor, or, and, ...). It is recorded in the graphics state; a raster
+%  page replaces, so the default (copy) is honoured and other codes are kept but
+%  do not change how marks are composited. Any integer is accepted so a program
+%  can carry the code it means through the state as the operator promises.
+%
 /setrasteropcode [ /integertype ] {
     graphicsdict /currgstate get exch /rasteropcode exch put
 } //.xpostsys /.defop get exec
 
-% -  currentrasteropcode  int  (NeWS) the current raster-operation code
+%
+%  -  currentrasteropcode  int  (NeWS) the current raster-operation code
+%
 /currentrasteropcode [ ] {
     graphicsdict /currgstate get /rasteropcode get
 } //.xpostsys /.defop get exec
 
-% Graphics State Operators -- Device Dependent
+%
+%  Graphics State Operators -- Device Dependent
+%
 
-% num  setflat  -
-% The flatness parameter is an error tolerance in device pixels, and
-% PLRM gives it an acceptable range of 0.2 to 100: a number outside
-% that range is replaced by the nearest value inside it, with no error
-% raised, so a negative or an enormous tolerance names a valid one
-% rather than being refused. The substitution happens here because what
-% the parameter holds is the substituted value -- that is the number
-% currentflat answers with.
+%
+%  num  setflat  -
+%  The flatness parameter is an error tolerance in device pixels, and
+%  PLRM gives it an acceptable range of 0.2 to 100: a number outside
+%  that range is replaced by the nearest value inside it, with no error
+%  raised, so a negative or an enormous tolerance names a valid one
+%  rather than being refused. The substitution happens here because what
+%  the parameter holds is the substituted value -- that is the number
+%  currentflat answers with.
+%
 /setflat [ /numbertype ] {
     dup 0.2 lt { pop 0.2 }{ dup 100 gt { pop 100 } if } ifelse
     graphicsdict /currgstate get exch cvr /flat exch put

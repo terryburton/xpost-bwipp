@@ -1,4 +1,5 @@
 %!PS
+%
 % pgmimage.ps
 %
 % The PGM grayscale raster device.
@@ -8,30 +9,31 @@
 
 //.internaldict /QUIET known { }{ (loading pgmimage.ps...)print } ifelse
 
-.privatedict /newPGMIMAGEdevice { % width height  .  IMAGE-device-dict
+.privatedict /newPGMIMAGEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_PGMIMAGE get dup /Create get exec
 } put
 
-% .xpost_PGMIMAGE, the 8-bit grayscale raster class: the shared raster
-% method suite (.makerasterclass, image.ps) over one grey component per
-% pixel, a string row per scanline holding the scaled bytes, and
-% emission as a raw (P5) portable graymap. It uses the full range 0-255
-% of values and does not calculate the actual maximum value in the data
-% before transmitting; MaxVal is always 255.
 %
-% procedures (.xpost_PGMIMAGE is the Class dictionary, IMAGE an
-% instance returned by Create):
-%           width height .xpost_PGMIMAGE  Create  ->  IMAGE
-%                   val x y IMAGE  PutPix  ->  -
-%                       x y IMAGE  GetPix  ->  val
-%           val x1 y1 x2 y2 IMAGE  DrawLine  ->  -
-%      val x y width height IMAGE  DrawRect  ->  -
-%      val x y width height IMAGE  FillRect  ->  -
-%               val polygon IMAGE  FillPoly  ->  -
-%                           IMAGE  Emit  ->  -
-%                           IMAGE  Destroy  ->  -
-%                           dict1  .copydict  dict2
-
+%  .xpost_PGMIMAGE, the 8-bit grayscale raster class: the shared raster
+%  method suite (.makerasterclass, image.ps) over one grey component per
+%  pixel, a string row per scanline holding the scaled bytes, and
+%  emission as a raw (P5) portable graymap. It uses the full range 0-255
+%  of values and does not calculate the actual maximum value in the data
+%  before transmitting; MaxVal is always 255.
+%
+%  procedures (.xpost_PGMIMAGE is the Class dictionary, IMAGE an
+%  instance returned by Create):
+%            width height .xpost_PGMIMAGE  Create  ->  IMAGE
+%                    val x y IMAGE  PutPix  ->  -
+%                        x y IMAGE  GetPix  ->  val
+%            val x1 y1 x2 y2 IMAGE  DrawLine  ->  -
+%       val x y width height IMAGE  DrawRect  ->  -
+%       val x y width height IMAGE  FillRect  ->  -
+%                val polygon IMAGE  FillPoly  ->  -
+%                            IMAGE  Emit  ->  -
+%                            IMAGE  Destroy  ->  -
+%                            dict1  .copydict  dict2
+%
 /.xpost_PGMIMAGE <<
     /nativecolorspace /DeviceGray
     /.ncomp 1
@@ -55,7 +57,7 @@
     % whether a row of the raster is one the page holds. A grayscale row
     % is the pixels itself, so a held row is as long as the page is wide
     % and the empty row is as long as it holds pixels.
-    /.rowheld { % row  .  bool
+    /.rowheld {  % row  .  bool
         length 0 ne
     } bind
 
@@ -63,20 +65,20 @@
     % elements and the string bytes it takes: a string row is one byte
     % per pixel and no elements. Create prices the whole raster from this
     % before it builds any of it.
-    /.rowcost { % -  .  elements bytes
+    /.rowcost {  % -  .  elements bytes
         0 width
     } bind
 
     % scale a grey in [0,1] to the stored byte; a read is the byte
-    /.rowput { % row x c1  .  -
+    /.rowput {  % row x c1  .  -
         .chan put
     } bind
-    /.rowget { % row x  .  c1
+    /.rowget {  % row x  .  c1
         get
     } bind
 
     % raw (binary) format: each row string is already the raster bytes
-    /.writeband { % rows file  .  -
+    /.writeband {  % rows file  .  -
         exch { 1 index exch writestring } forall pop
     } bind
 

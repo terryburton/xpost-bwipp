@@ -1,4 +1,5 @@
 %!PS
+%
 % cid.ps
 %
 % CID-keyed composite fonts (PLRM 5.11): CIDInit, composefont, and the Type 0 composite show.
@@ -6,33 +7,40 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-% The CIDInit procedure set
-% builds CMap dictionaries, composefont assembles a Type 0 font from
-% a CMap and its descendant CIDFonts, and the composite show
-% machinery decodes character codes through the CMap to CIDs, maps
-% them to glyph indices through the descendant's CIDMap, and paints
-% the glyphs by index. A CIDFontType 2 descendant carries a TrueType
-% template in /sfnts with its outlines delivered incrementally in
-% /GlyphDirectory; the face is assembled (and reassembled as the
-% directory grows) by .cidface.
-
+%
+%  The CIDInit procedure set
+%  builds CMap dictionaries, composefont assembles a Type 0 font from
+%  a CMap and its descendant CIDFonts, and the composite show
+%  machinery decodes character codes through the CMap to CIDs, maps
+%  them to glyph indices through the descendant's CIDMap, and paints
+%  the glyphs by index. A CIDFontType 2 descendant carries a TrueType
+%  template in /sfnts with its outlines delivered incrementally in
+%  /GlyphDirectory; the face is assembled (and reassembled as the
+%  directory grows) by .cidface.
+%
 //.internaldict /QUIET known { }{ (loading cid.ps...)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% The resource categories the composite font machinery keeps its
-% instances in. Stated here because this is the code that needs them,
-% through the one operation that brings a category into existence; each
-% is already there, made with the rest of the standard categories when
-% resource.ps loaded, and .defcategory leaves an existing one alone.
+%
+%  The resource categories the composite font machinery keeps its
+%  instances in. Stated here because this is the code that needs them,
+%  through the one operation that brings a category into existence; each
+%  is already there, made with the rest of the standard categories when
+%  resource.ps loaded, and .defcategory leaves an existing one alone.
+%
 [ /CIDFont /CMap /ProcSet ] { //.xpostsys /.defcategory get exec } forall
 
-% The CIDInit procedure set: a program begins a dictionary, invokes
-% these operators to accumulate the code spaces and ranges into it,
-% and defines the result as a /CMap resource instance. The bracketed
-% operand lists arrive on the stack; each end operator gathers them
-% into (or appends to) an array in the dictionary under construction.
+%
+%  The CIDInit procedure set: a program begins a dictionary, invokes
+%  these operators to accumulate the code spaces and ranges into it,
+%  and defines the result as a /CMap resource instance. The bracketed
+%  operand lists arrive on the stack; each end operator gathers them
+%  into (or appends to) an array in the dictionary under construction.
+%
 /CIDInit <<
     % (Binary)|(Hex) length  StartData  -
     % the glyph data block that ends a CIDFont resource file: read it,
@@ -164,15 +172,19 @@ true setglobal
     /endrearrangedfont { cleartomark }
 >> /ProcSet defineresource pop
 
-% The composite show machinery lives in the private global namespace,
-% reached across files by a frozen //.xpostsys reference, so a program
-% cannot see or disturb it. composefont and cshow below are public.
+%
+%  The composite show machinery lives in the private global namespace,
+%  reached across files by a frozen //.xpostsys reference, so a program
+%  cannot see or disturb it. composefont and cshow below are public.
+%
 .xpostsys begin
 
-% str pos cmapdict  .cmapnext  cid nbytes
-% decode one character code: the code space whose byte width brackets
-% the bytes at pos names the width, the cid ranges (and single-cid
-% assignments) supply the CID; an unmapped code is CID 0
+%
+%  str pos cmapdict  .cmapnext  cid nbytes
+%  decode one character code: the code space whose byte width brackets
+%  the bytes at pos names the width, the cid ranges (and single-cid
+%  assignments) supply the CID; an unmapped code is CID 0
+%
 /.cmapnext {
     20 dict begin
     /cm exch def /p exch def /s exch def
@@ -227,11 +239,13 @@ true setglobal
     end
 } def
 
-% ciddict  .cidface  -
-% assemble (or reassemble) the descendant's face around the glyphs
-% delivered so far: the directory flattens into a glyph-indexed
-% array for the synthesizer, and the count is remembered so a grown
-% directory triggers a rebuild
+%
+%  ciddict  .cidface  -
+%  assemble (or reassemble) the descendant's face around the glyphs
+%  delivered so far: the directory flattens into a glyph-indexed
+%  array for the synthesizer, and the count is remembered so a grown
+%  directory triggers a rebuild
+%
 /.cidface {
     4 dict begin
     /d exch def
@@ -258,24 +272,26 @@ true setglobal
     end
 } def
 
-% str p fnt fidx0  .fmapnext  fidx code w
-% decode one character of a byte-mapped composite font: the font
-% selector, the code for the selected font, and the bytes consumed.
-% 8/8 splits two bytes, 1/7 and 9/7 split the top bit or nine of a
-% one- or two-byte code, and the SubsVector mapping walks its ranges
-% -- the leading byte gives the code width less one, each following
-% width-sized big-endian entry one range -- subtracting until the
-% code falls within one. The modal mappings thread their selection:
-% fidx0 is the selector in force, escape sequences (doubled under a
-% double-escape mapping to reach past 255) and shift bytes replace
-% it and belong to the code that follows, and a string ending inside
-% a prefix answers a code of -1, which paints nothing. Bytes past
-% the string's end read as zero
+%
+%  str p fnt fidx0  .fmapnext  fidx code w
+%  decode one character of a byte-mapped composite font: the font
+%  selector, the code for the selected font, and the bytes consumed.
+%  8/8 splits two bytes, 1/7 and 9/7 split the top bit or nine of a
+%  one- or two-byte code, and the SubsVector mapping walks its ranges
+%  -- the leading byte gives the code width less one, each following
+%  width-sized big-endian entry one range -- subtracting until the
+%  code falls within one. The modal mappings thread their selection:
+%  fidx0 is the selector in force, escape sequences (doubled under a
+%  double-escape mapping to reach past 255) and shift bytes replace
+%  it and belong to the code that follows, and a string ending inside
+%  a prefix answers a code of -1, which paints nothing. Bytes past
+%  the string's end read as zero
+%
 /.fmapnext {
     12 dict begin
     /fidx exch def /fnt exch def /p exch def /str exch def
     /p0 p def
-    /nb { % i . byte  (zero past the end)
+    /nb {  % i . byte  (zero past the end)
         dup str length lt { str exch get }{ pop 0 } ifelse
     } def
     /fm fnt /FMapType get def
@@ -345,9 +361,11 @@ true setglobal
     end
 } def
 
-% fnt fidx  .fmapdesc  font'
-% the descendant the font selector names through Encoding, with its
-% matrix carried through the composite's
+%
+%  fnt fidx  .fmapdesc  font'
+%  the descendant the font selector names through Encoding, with its
+%  matrix carried through the composite's
+%
 /.fmapdesc {
     3 dict begin
     /fidx exch def /fnt exch def
@@ -358,17 +376,18 @@ true setglobal
     end
 } def
 
-% fnt str  .showfmap  -
-% paint a string through a byte-mapped composite font: each decoded
-% code paints as a one-byte show under the selected descendant, so
-% any descendant kind -- including a nested composite -- renders
-% through the ordinary dispatch
-% .showhook is the composite walkers' per-character callback, invoked after
-% each character paints with its full (multi-byte, big-endian) code. A spacing
-% show operator binds it in its own scratch dictionary to advance the pen;
-% otherwise each walker defaults it to a no-op in its own scope (below), so the
-% name never reaches userdict.
-
+%
+%  fnt str  .showfmap  -
+%  paint a string through a byte-mapped composite font: each decoded
+%  code paints as a one-byte show under the selected descendant, so
+%  any descendant kind -- including a nested composite -- renders
+%  through the ordinary dispatch
+%  .showhook is the composite walkers' per-character callback, invoked after
+%  each character paints with its full (multi-byte, big-endian) code. A spacing
+%  show operator binds it in its own scratch dictionary to advance the pen;
+%  otherwise each walker defaults it to a no-op in its own scope (below), so the
+%  name never reaches userdict.
+%
 /.showfmap {
     12 dict begin
     /.showhook where { pop }{ /.showhook { pop } def } ifelse
@@ -398,19 +417,21 @@ true setglobal
     end
 } def
 
-% font str proc  .cmapwalk  -
-% Walk a string through a CMap-mapped composite font (the FMapType 9
-% of composefont), calling the procedure with each glyph's index in
-% the descendant's face. Each code decodes to a CID, the CID maps to a
-% glyph index through the descendant's CIDMap (GDBytes bytes per
-% entry, across the array of segments), and the descendant is the font
-% in force while the procedure runs, its face carried through the
-% composite's matrix.
 %
-% What becomes of the glyph is the procedure's and not the walk's,
-% because this is the only way to a CID-keyed glyph: a string names it
-% no other way, so taking its outline goes through here as painting it
-% does. The walk itself paints nothing.
+%  font str proc  .cmapwalk  -
+%  Walk a string through a CMap-mapped composite font (the FMapType 9
+%  of composefont), calling the procedure with each glyph's index in
+%  the descendant's face. Each code decodes to a CID, the CID maps to a
+%  glyph index through the descendant's CIDMap (GDBytes bytes per
+%  entry, across the array of segments), and the descendant is the font
+%  in force while the procedure runs, its face carried through the
+%  composite's matrix.
+%
+%  What becomes of the glyph is the procedure's and not the walk's,
+%  because this is the only way to a CID-keyed glyph: a string names it
+%  no other way, so taking its outline goes through here as painting it
+%  does. The walk itself paints nothing.
+%
 /.cmapwalk {
     20 dict begin
     /.showhook where { pop }{ /.showhook { pop } def } ifelse
@@ -483,11 +504,13 @@ true setglobal
     end
 } def
 
-% font str  .showtype0  -
-% Paint a string through a composite font: a CMap-mapped one goes by
-% the walk above, each glyph painted by the route the graphics state
-% settles; the byte-mapped FMapTypes decode and dispatch per
-% descendant instead.
+%
+%  font str  .showtype0  -
+%  Paint a string through a composite font: a CMap-mapped one goes by
+%  the walk above, each glyph painted by the route the graphics state
+%  settles; the byte-mapped FMapTypes decode and dispatch per
+%  descendant instead.
+%
 /.showtype0 {
     1 index /FMapType get 9 ne {
         //.xpostsys /.showfmap get exec
@@ -497,9 +520,11 @@ true setglobal
     } ifelse
 } def
 
-% a one-byte identity CMap: cshow's procedure sees the descendant
-% under byte codes, the idiom drivers use to repaint one glyph at a
-% time from inside the procedure
+%
+%  a one-byte identity CMap: cshow's procedure sees the descendant
+%  under byte codes, the idiom drivers use to repaint one glyph at a
+%  time from inside the procedure
+%
 /.bytecmap <<
     /.codespaces [ <00> <FF> ]
     /.cidranges [ <00> <FF> 0 ]
@@ -507,10 +532,12 @@ true setglobal
 
 end
 
-%   key cmap fonts  composefont  font
-% assemble a Type 0 composite font: names resolve through their
-% resource categories, the CMap decodes the codes, the descendants
-% carry the glyphs
+%
+%    key cmap fonts  composefont  font
+%  assemble a Type 0 composite font: names resolve through their
+%  resource categories, the CMap decodes the codes, the descendants
+%  carry the glyphs
+%
 /composefont [ /anytype /anytype /arraytype ] {
     1 index type dup /nametype ne exch dup /stringtype ne exch /dicttype ne and and
         { /composefont cvx /typecheck signalerror } if
@@ -536,16 +563,18 @@ end
     definefont
 } //.xpostsys /.defop get exec
 
-%   proc string  cshow  -
-% call the procedure for each character with its code and width,
-% painting nothing itself. Through a composite font the codes decode
-% by the CMap first, and while the procedure runs the current font
-% is the composite rebound to one-byte codes, so a show of the
-% code's byte inside the procedure paints the glyph the code named.
-% font charstring  .cshmeasure  wx wy
-% the character's advance in the font, measured without marking;
-% stack-pure, so a compiled program can run it with a caller's
-% leavings below its operands
+%
+%    proc string  cshow  -
+%  call the procedure for each character with its code and width,
+%  painting nothing itself. Through a composite font the codes decode
+%  by the CMap first, and while the procedure runs the current font
+%  is the composite rebound to one-byte codes, so a show of the
+%  code's byte inside the procedure paints the glyph the code named.
+%  font charstring  .cshmeasure  wx wy
+%  the character's advance in the font, measured without marking;
+%  stack-pure, so a compiled program can run it with a caller's
+%  leavings below its operands
+%
 .xpostsys /.cshmeasure {
     gsave
     nulldevice
@@ -554,25 +583,29 @@ end
     grestore
 } put
 
-% font  .cshsetfont  -
+%
+%  font  .cshsetfont  -
+%
 .xpostsys /.cshsetfont { graphicsdict /currgstate get /currfont 3 -1 roll put } put
 
-% cshow's walks compile into programs that run after the private dict
-% ends, so the procedure executes on the caller's stacks with no
-% machinery state live anywhere: no names for its defs to collide
-% with, its defs reaching the caller's dictionaries, its stack
-% leavings preserved -- every compiled operand is pushed just before
-% its consumer. The helper procedures embed at scan time as arrays,
-% which the programs push and exec as data.
 %
-% cshow is a looping context (PLRM 8.2), so the procedure may end the
-% walk with exit, and exit unwinds the execution stack to the frame of
-% the operator that runs the procedure repeatedly. A flattened program
-% has no such frame of its own, so each walk runs as the body of a loop
-% that its own end leaves: an exit from the procedure reaches the same
-% frame and abandons the rest of the walk, and the private dict is
-% already ended by then, so there is nothing of cshow's own left for the
-% exit to strand.
+%  cshow's walks compile into programs that run after the private dict
+%  ends, so the procedure executes on the caller's stacks with no
+%  machinery state live anywhere: no names for its defs to collide
+%  with, its defs reaching the caller's dictionaries, its stack
+%  leavings preserved -- every compiled operand is pushed just before
+%  its consumer. The helper procedures embed at scan time as arrays,
+%  which the programs push and exec as data.
+%
+%  cshow is a looping context (PLRM 8.2), so the procedure may end the
+%  walk with exit, and exit unwinds the execution stack to the frame of
+%  the operator that runs the procedure repeatedly. A flattened program
+%  has no such frame of its own, so each walk runs as the body of a loop
+%  that its own end leaves: an exit from the procedure reaches the same
+%  frame and abandons the rest of the walk, and the private dict is
+%  already ended by then, so there is nothing of cshow's own left for the
+%  exit to strand.
+%
 /cshow [ /proctype /stringtype ] {
     /cshow //.xpostsys /.needfont get exec
     graphicsdict /currgstate get /currfont get

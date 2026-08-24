@@ -1,4 +1,5 @@
 %!PS
+%
 % svgwrite.ps
 %
 % The svgwrite device: emit an SVG document from the recorded page.
@@ -8,35 +9,36 @@
 
 //.internaldict /QUIET known { }{ (loading svgwrite.ps...)print } ifelse
 
-.privatedict /newSVGWRITEdevice { % width height  .  IMAGE-device-dict
+.privatedict /newSVGWRITEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_SVGWRITE get dup /Create get exec
 } put
 
-% .xpost_SVGWRITE writes a single-page vector SVG: the marking methods append
-% path and rect elements and Emit wraps them in the document structure.
-% A sibling of the .xpost_PDFWRITE device sharing its content accumulator (the
-% .pdfinit/.pdfput/.pdfchunks/.pdffree ops are format-agnostic); only
-% the emitted syntax differs. Device coordinates are y-down, as SVG's
-% are, so they pass through unchanged -- no device-matrix prefix.
 %
-% Emit reports the page size in points (unscaling the device resolution
-% from the defaultmatrix fixup, as the bbox device does) with a viewBox
-% in device units, so any HWResolution yields the same physical page.
+%  .xpost_SVGWRITE writes a single-page vector SVG: the marking methods append
+%  path and rect elements and Emit wraps them in the document structure.
+%  A sibling of the .xpost_PDFWRITE device sharing its content accumulator (the
+%  .pdfinit/.pdfput/.pdfchunks/.pdffree ops are format-agnostic); only
+%  the emitted syntax differs. Device coordinates are y-down, as SVG's
+%  are, so they pass through unchanged -- no device-matrix prefix.
 %
-% A method runs its body with the device dictionary current, and opens it
-% through the bracket that takes it off again however the body ends, error
-% included (.indict, graphics.ps).
-
+%  Emit reports the page size in points (unscaling the device resolution
+%  from the defaultmatrix fixup, as the bbox device does) with a viewBox
+%  in device units, so any HWResolution yields the same physical page.
+%
+%  A method runs its body with the device dictionary current, and opens it
+%  through the bracket that takes it off again however the body ends, error
+%  included (.indict, graphics.ps).
+%
 /.xpost_SVGWRITE <<
     /nativecolorspace /DeviceRGB
     /dimensions [0 0]
-    /NoOutput true  % keep this device's own vector FillPoly (no rasterizing)
-    /VectorGlyphs true   % text operators emit glyph outlines, not bitmaps
+    /NoOutput true  % Keep this device's own vector FillPoly (no rasterizing)
+    /VectorGlyphs true   % Text operators emit glyph outlines, not bitmaps
     /VectorSyntax /svg   % ... spelled as SVG path data
 
     /.copydict //.xpostsys /.classcopydict get
 
-    /Create { % width height IMAGE  .  IMAGE'
+    /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
     % the page dimensions are points and need not be integral; adopt the
     % exact values when the page device machinery published them
@@ -44,7 +46,7 @@
     currentdict } //.xpostsys /.indict get exec
     dup /.copydict get exec
     {
-        currentdict //.internaldict /.pdfinit get exec    % create the content accumulator (outside VM)
+        currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
         % Where the identities written into the document are counted
         % from. A clipPath is referenced by identity, so no two of them
         % in one document may be named alike; and what has been written
@@ -65,48 +67,48 @@
     currentdict
     } //.xpostsys /.indict get exec } bind
 
-    /Destroy { % IMAGE  .  -
+    /Destroy {  % IMAGE  .  -
         dup //.internaldict /.pdffree get exec pop
     } bind
 
     % append a string to the content accumulator (held outside VM via /Private)
-    /.put { % str  .  -
+    /.put {  % str  .  -
         currentdict //.internaldict /.pdfput get exec
     } bind
 
     % append a number in SVG syntax (integer, or two decimals; never
     % exponential), through the vector writers' shared formatter
-    /.svgnum { % num  .  -
+    /.svgnum {  % num  .  -
         //.xpostsys /.num2str get exec .put
     } bind
 
     % append a colour as an rgb() percentage triple, quoted
-    /.svgrgb { % r g b  .  -
+    /.svgrgb {  % r g b  .  -
         ("rgb\() .put
         3 -1 roll 100 mul .svgnum (%,) .put
         exch 100 mul .svgnum (%,) .put
         100 mul .svgnum (%\)") .put
     } bind
 
-    /PutPix { % r g b x y IMAGE  .  -
+    /PutPix {  % r g b x y IMAGE  .  -
     { {y x b g r}{exch def}forall
         (<rect fill=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width="1" height="1"/>\n) .put
     } //.xpostsys /.indict get exec }
 
-    /GetPix { % x y IMAGE  .  r g b
+    /GetPix {  % x y IMAGE  .  r g b
         pop pop pop  0 0 0
     }
 
-    /DrawLine { % r g b x1 y1 x2 y2 IMAGE  .  -
+    /DrawLine {  % r g b x1 y1 x2 y2 IMAGE  .  -
     { {y2 x2 y1 x1 b g r}{exch def}forall
         (<path fill="none" stroke=) .put r g b .svgrgb
         ( d="M) .put x1 .svgnum ( ) .put y1 .svgnum
         (L) .put x2 .svgnum ( ) .put y2 .svgnum ("/>\n) .put
     } //.xpostsys /.indict get exec }
 
-    /DrawRect { % r g b x y w h IMAGE  .  -
+    /DrawRect {  % r g b x y w h IMAGE  .  -
     { {h w y x b g r}{exch def}forall
         (<rect fill="none" stroke=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
@@ -119,7 +121,7 @@
     % src/lib/xpost_dev_driver.h). Emitting w and h unchanged left this
     % device painting a rect a pixel short in each direction of every
     % other device's.
-    /FillRect { % r g b x y w h IMAGE  .  -
+    /FillRect {  % r g b x y w h IMAGE  .  -
     { {h w y x b g r}{exch def}forall
         w 0 lt { /x x w add def /w w neg def } if
         h 0 lt { /y y h add def /h h neg def } if
@@ -144,7 +146,7 @@
     % array holds overran it and aborted the job on every vector device,
     % where the fill of the same path did not; the same bytes are written
     % here, only without the array between the walk and the output.
-    /.emitdevpath { % -  .  n
+    /.emitdevpath {  % -  .  n
         /.dpstr //.xpostsys /cpath get exec def
         /.dpoff 0 def
         /.dpn 0 def
@@ -175,7 +177,7 @@
     % Count the device path's elements without emitting or collecting them,
     % so the stroke emitter can tell an empty path from one to draw before
     % it walks the path to draw it.
-    /.pathelems { % -  .  n
+    /.pathelems {  % -  .  n
         /.pcstr //.xpostsys /cpath get exec def
         /.pcoff 0 def
         /.pcn 0 def
@@ -242,7 +244,7 @@
                 /sibp sibp sic sub def
             } if
         } def
-        /siput { % str
+        /siput {  % str
             dup length sibp add 48000 gt { siflush } if
             sibuf sibp 2 index putinterval
             length sibp add /sibp exch def
@@ -287,8 +289,8 @@
     % the rule the flattening fill applies. The per-element formatting
     % walks the path in C (.svgfillpath), appending to the accumulator,
     % so subpath count costs no operand stack.
-    /FillPath { % r g b IMAGE  .  -
-        dup 5 1 roll            % keep the device for the clip close below
+    /FillPath {  % r g b IMAGE  .  -
+        dup 5 1 roll            % Keep the device for the clip close below
         //.internaldict /.svgfillpath get exec
         % a clip adopted for this fill ends with it
         {
@@ -304,7 +306,7 @@
     % Without this the fill would be cut to pixel-band spans before
     % reaching the device and arrive as one path per scanline; the shape
     % costs one element and keeps its curves.
-    /ClipPath { % path IMAGE  .  -
+    /ClipPath {  % path IMAGE  .  -
     {
         % the next identity this document has not used: the counter is
         % the one made at Create, which a restore does not reach
@@ -329,7 +331,7 @@
     % rather than lost to per-segment strokes. The path is collected
     % first (the walker runs in its own dictionary, away from this
     % device's methods) and emitted afterwards.
-    /StrokePath { % r g b IMAGE  .  -
+    /StrokePath {  % r g b IMAGE  .  -
     { {spb spg spr}{exch def}forall
         .pathelems 0 gt {
             (<path fill="none" stroke=) .put spr spg spb .svgrgb
@@ -348,7 +350,7 @@
         } if
     } //.xpostsys /.indict get exec }
 
-    /Emit { % IMAGE  .  -
+    /Emit {  % IMAGE  .  -
     {
         % an SVG document holds one page, so successive pages are written
         % to separate files: the name settled for this page carries the

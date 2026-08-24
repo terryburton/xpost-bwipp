@@ -1,4 +1,5 @@
 %!PS
+%
 % graphics.ps
 %
 % The graphics-state machinery and the graphics language installed into global systemdict.
@@ -8,9 +9,11 @@
 
 //.internaldict /QUIET known { }{ (loading graphics.ps...\n)print } ifelse
 
-% fallback definitions so this file can run standalone; in the normal flow
-% DATA_DIR is one of the settings this run made, and a run that settled no
-% directory answers with the null every unsettled setting answers with
+%
+%  fallback definitions so this file can run standalone; in the normal flow
+%  DATA_DIR is one of the settings this run made, and a run that settled no
+%  directory answers with the null every unsettled setting answers with
+%
 /DATA_DIR //.xpostsys /.hostvalue get exec null eq {
     currentglobal true setglobal
     .xpostsys /.hostdict get /DATA_DIR {} put
@@ -20,9 +23,11 @@
 } if
 
 true setglobal
-% The language is defined into systemdict, its final home, rather than
-% staged in userdict and swept there afterwards. systemdict is open here
-% -- the caller unlocked it -- and the finalizer relocks it.
+%
+%  The language is defined into systemdict, its final home, rather than
+%  staged in userdict and swept there afterwards. systemdict is open here
+%  -- the caller unlocked it -- and the finalizer relocks it.
+%
 systemdict begin
 
     % graphicsdict holds the live per-render graphics state -- currgstate and
@@ -73,7 +78,7 @@ systemdict begin
     /DEVICE dup .privatedict /.DEVICEproc get .wrapop def
 
     %breakhere
-    (/device.ps) //.xpostsys /.loadmodule get exec %loads and uses (/image.ps)
+    (/device.ps) //.xpostsys /.loadmodule get exec  %Loads and uses (/image.ps)
     (/gstate.ps) //.xpostsys /.loadmodule get exec
     %(/matrix.ps) //.xpostsys /.loadmodule get exec % moved to xpost_op_matrix.c
     (/color.ps) //.xpostsys /.loadmodule get exec
@@ -85,66 +90,83 @@ systemdict begin
     (/pattern.ps) //.xpostsys /.loadmodule get exec
     (/shade.ps) //.xpostsys /.loadmodule get exec
 
-% --- calling program code ------------------------------------------
-% The graphics language runs procedures the program wrote: a pattern's
-% PaintProc, a font's BuildChar, a tint transform, a colour space's
-% decode procedures, a spot function, a transfer function, an image's
-% data source. Every one of them is the interpreter handing control back
-% in the middle of the machinery's own work, and every one of them may
-% do anything at all, including calling the operator that called it and
-% raising an error.
 %
-% So they all go through one bracket. It runs the procedure with the
-% machinery's own dictionaries off the stack, and restores the graphics
-% state depth, the dictionary stack and the named graphicsdict slots
-% afterwards, whether the procedure returned or raised. Nothing about
-% the bracket may sit on the operand stack while the procedure runs --
-% the procedure takes its operands from there and leaves its results
-% there -- so what has to be remembered is baked into a program run
-% after it, off the execution stack.
+%  --- calling program code ------------------------------------------
 %
-% These procedures are defined here rather than in any one module
-% because they belong to no one caller; the modules above reach them by
-% fetching them at run time.
+%  The graphics language runs procedures the program wrote: a pattern's
+%  PaintProc, a font's BuildChar, a tint transform, a colour space's
+%  decode procedures, a spot function, a transfer function, an image's
+%  data source. Every one of them is the interpreter handing control back
+%  in the middle of the machinery's own work, and every one of them may
+%  do anything at all, including calling the operator that called it and
+%  raising an error.
+%
+%  So they all go through one bracket. It runs the procedure with the
+%  machinery's own dictionaries off the stack, and restores the graphics
+%  state depth, the dictionary stack and the named graphicsdict slots
+%  afterwards, whether the procedure returned or raised. Nothing about
+%  the bracket may sit on the operand stack while the procedure runs --
+%  the procedure takes its operands from there and leaves its results
+%  there -- so what has to be remembered is baked into a program run
+%  after it, off the execution stack.
+%
+%  These procedures are defined here rather than in any one module
+%  because they belong to no one caller; the modules above reach them by
+%  fetching them at run time.
+%
 currentglobal true setglobal
 .xpostsys begin
 
-% the empty operand of a bracket that names no slots and hides no
-% dictionary: shared, so that the common bracket allocates neither
+%
+%  the empty operand of a bracket that names no slots and hides no
+%  dictionary: shared, so that the common bracket allocates neither
+%
 /.conothing 0 array def
 
-% the re-raise, held as a program rather than a name so that a
-% redefinition of stop cannot reach the tail of a bracket
+%
+%  the re-raise, held as a program rather than a name so that a
+%  redefinition of stop cannot reach the tail of a bracket
+%
 /.costop [ /stop load ] cvx def
 
-% what a bracket records for a slot that was not there on the way in.
-% Putting null back instead would leave the slot defined and holding a
-% value its readers do not expect, so the slot is undefined again: an
-% object of its own says so, because null is a value a slot may hold.
+%
+%  what a bracket records for a slot that was not there on the way in.
+%  Putting null back instead would leave the slot defined and holding a
+%  value its readers do not expect, so the slot is undefined again: an
+%  object of its own says so, because null is a value a slot may hold.
+%
 /.coabsent 1 dict def
 
-% n  .gsunwind  -
-% grestore until the graphics state stack stands at depth n, so that a
-% gsave opened inside the bracket -- by the machinery or by the
-% procedure -- is closed, and the state it saved is back in force
+%
+%  n  .gsunwind  -
+%  grestore until the graphics state stack stands at depth n, so that a
+%  gsave opened inside the bracket -- by the machinery or by the
+%  procedure -- is closed, and the state it saved is back in force
+%
 /.gsunwind {
     { graphicsdict /gptr get 1 index le { exit } if grestore } loop
     pop
 } bind def
 
-% n  .dsunwind  -
-% end until the dictionary stack stands at depth n
+%
+%  n  .dsunwind  -
+%  end until the dictionary stack stands at depth n
+%
 /.dsunwind {
     { countdictstack 1 index le { exit } if end } loop
     pop
 } bind def
 
-% array  .cobeginall  -
-% begin each dictionary of the array, outermost first
+%
+%  array  .cobeginall  -
+%  begin each dictionary of the array, outermost first
+%
 /.cobeginall { { begin } forall } bind def
 
-% keys vals gd  .cosave  -
-% take down what each named slot holds on the way in
+%
+%  keys vals gd  .cosave  -
+%  take down what each named slot holds on the way in
+%
 /.cosave {
     2 index length 1 sub
     0 1 3 2 roll
@@ -158,10 +180,12 @@ currentglobal true setglobal
     pop pop pop
 } bind def
 
-% keys vals gd  .corestore  -
-% put each saved value back in the slot it came from. A slot that was
-% not there on the way in is undefined again rather than left holding a
-% value its readers do not expect.
+%
+%  keys vals gd  .corestore  -
+%  put each saved value back in the slot it came from. A slot that was
+%  not there on the way in is undefined again rather than left holding a
+%  value its readers do not expect.
+%
 /.corestore {
     2 index length 1 sub
     0 1 3 2 roll
@@ -176,43 +200,45 @@ currentglobal true setglobal
     pop pop pop
 } bind def
 
-% {proc} keys ndict  .callout  -
 %
-% Run the program's procedure so that what the caller was mid-use of is
-% the caller's again when it returns, however it returns.
+%  {proc} keys ndict  .callout  -
 %
-% keys names the graphicsdict slots the caller has parked something in;
-% their outgoing values are put back afterwards, so a procedure that
-% re-enters the machinery and writes the same slots cannot cost the
-% caller what it parked there. ndict is how many of the machinery's own
-% dictionaries stand between the procedure and the caller's scope; they
-% come off before the procedure runs and go back on after, so the
-% procedure's definitions land where the program's other definitions do
-% and the machinery's local names do not shadow the program's. The
-% graphics state stack comes back to the depth it stood at, so a gsave
-% left open -- by the procedure, or by the machinery's own setup inside
-% the bracket -- is closed and the state it saved restored.
+%  Run the program's procedure so that what the caller was mid-use of is
+%  the caller's again when it returns, however it returns.
 %
-% An error inside the procedure unwinds all of that and is then raised
-% again, so the caller's own error handling sees the original error.
-% The operand stack is the caller's own affair: what fails in here is
-% the caller failing, and its operands come back as they would from any
-% other part of its body. A procedure of the program's goes through
-% .pcallout below, which says otherwise.
+%  keys names the graphicsdict slots the caller has parked something in;
+%  their outgoing values are put back afterwards, so a procedure that
+%  re-enters the machinery and writes the same slots cannot cost the
+%  caller what it parked there. ndict is how many of the machinery's own
+%  dictionaries stand between the procedure and the caller's scope; they
+%  come off before the procedure runs and go back on after, so the
+%  procedure's definitions land where the program's other definitions do
+%  and the machinery's local names do not shadow the program's. The
+%  graphics state stack comes back to the depth it stood at, so a gsave
+%  left open -- by the procedure, or by the machinery's own setup inside
+%  the bracket -- is closed and the state it saved restored.
 %
-% keys may be null and ndict 0. The procedure's operands are whatever is
-% already on the operand stack, and what it leaves there is left there.
+%  An error inside the procedure unwinds all of that and is then raised
+%  again, so the caller's own error handling sees the original error.
+%  The operand stack is the caller's own affair: what fails in here is
+%  the caller failing, and its operands come back as they would from any
+%  other part of its body. A procedure of the program's goes through
+%  .pcallout below, which says otherwise.
 %
-% The bracket keeps its own workings off both stacks the procedure uses.
-% A dictionary of its own would be one the procedure could see, and
-% anything left on the operand stack would be beneath what the procedure
-% takes its operands from and leaves its results on. So the seven things
-% it has to remember lie on the operand stack only while the program
-% that unwinds afterwards is being built, beneath the mark and out of
-% reach of counttomark: an item k below the mark is at
-% counttomark k add index, whatever has been laid down above it so far.
-% They are discarded once the program holds them, leaving the program
-% itself to run.
+%  keys may be null and ndict 0. The procedure's operands are whatever is
+%  already on the operand stack, and what it leaves there is left there.
+%
+%  The bracket keeps its own workings off both stacks the procedure uses.
+%  A dictionary of its own would be one the procedure could see, and
+%  anything left on the operand stack would be beneath what the procedure
+%  takes its operands from and leaves its results on. So the seven things
+%  it has to remember lie on the operand stack only while the program
+%  that unwinds afterwards is being built, beneath the mark and out of
+%  reach of counttomark: an item k below the mark is at
+%  counttomark k add index, whatever has been laid down above it so far.
+%  They are discarded once the program holds them, leaving the program
+%  itself to run.
+%
 /.callout {
     % pr ks nd
     exch dup null eq { pop //.conothing } if exch
@@ -243,66 +269,73 @@ currentglobal true setglobal
     exec
 } bind def
 
-% {proc} keys ndict  .pcallout  -
 %
-% The same bracket for a procedure of the program's, which is what the
-% caller reaches for when it hands control back to the job: a pattern's
-% paint procedure, an image's data source, a colour space's decoding.
+%  {proc} keys ndict  .pcallout  -
 %
-% What fails inside such a procedure is the program's own object
-% failing, so the operand stack goes back to what the procedure found
-% (PLRM 3.11.1) and no further: the caller keeps the operands it
-% consumed reaching this point, and so does every caller beneath it.
-% Running the bracket beneath a boundary says so, and the saying holds
-% for the whole of the failure -- the re-raise at this bracket's tail,
-% and the re-raise of any bracket that catches it further out.
+%  The same bracket for a procedure of the program's, which is what the
+%  caller reaches for when it hands control back to the job: a pattern's
+%  paint procedure, an image's data source, a colour space's decoding.
 %
-% A procedure the machinery wrote goes through .callout instead: what
-% fails in there is the caller's own failure, and the caller's operands
-% come back as they would from anywhere else in its body.
+%  What fails inside such a procedure is the program's own object
+%  failing, so the operand stack goes back to what the procedure found
+%  (PLRM 3.11.1) and no further: the caller keeps the operands it
+%  consumed reaching this point, and so does every caller beneath it.
+%  Running the bracket beneath a boundary says so, and the saying holds
+%  for the whole of the failure -- the re-raise at this bracket's tail,
+%  and the re-raise of any bracket that catches it further out.
+%
+%  A procedure the machinery wrote goes through .callout instead: what
+%  fails in there is the caller's own failure, and the caller's operands
+%  come back as they would from anywhere else in its body.
+%
 /.pcallout { { //.callout exec } //.coexec } bind def
 
-% obj  .pexec  -
 %
-% The boundary alone, for a caller that hands control to the program
-% part-way through a body of its own: a Type 3 glyph's build procedure,
-% a transfer function being sampled, a spot function being sampled, a
-% colour space's conversion. The bracket around such a body is the
-% caller's, and what it does about the graphics state and the dictionary
-% stack is the caller's business; only this much of it belongs to the
-% program.
+%  obj  .pexec  -
 %
-% So the boundary stands where the program's object runs and nowhere
-% else. What the caller does before and after -- reading what the
-% procedure returned, and refusing on it -- is the caller refusing, and
-% its operands come back.
+%  The boundary alone, for a caller that hands control to the program
+%  part-way through a body of its own: a Type 3 glyph's build procedure,
+%  a transfer function being sampled, a spot function being sampled, a
+%  colour space's conversion. The bracket around such a body is the
+%  caller's, and what it does about the graphics state and the dictionary
+%  stack is the caller's business; only this much of it belongs to the
+%  program.
 %
-% The object runs exactly as exec would run it, and nothing of this sits
-% on the operand stack while it does.
+%  So the boundary stands where the program's object runs and nowhere
+%  else. What the caller does before and after -- reading what the
+%  procedure returned, and refusing on it -- is the caller refusing, and
+%  its operands come back.
+%
+%  The object runs exactly as exec would run it, and nothing of this sits
+%  on the operand stack while it does.
+%
 /.pexec { { exec } //.coexec } bind def
 
-% --- running a body with a dictionary current ------------------------
-% The other bracket, and the smaller one. A body that opens a dictionary
-% owes the dictionary stack the close, and an error part way through it
-% is a way out of the body like returning is: what the error handler runs
-% in, and everything after it, is then a dictionary somebody else opened,
-% where a name reads what it was never meant to read and a definition
-% lands where nobody will look for it.
 %
-% dict {body}  .indict  -
+%  --- running a body with a dictionary current ------------------------
 %
-% Run the body with the dictionary current and take that dictionary off
-% again however the body ends -- exactly the one this opened, so a body
-% that opens more of its own closes those itself. What stopped the body
-% is raised again once the dictionary is off, so the caller's error
-% handling sees the error the body raised.
+%  The other bracket, and the smaller one. A body that opens a dictionary
+%  owes the dictionary stack the close, and an error part way through it
+%  is a way out of the body like returning is: what the error handler runs
+%  in, and everything after it, is then a dictionary somebody else opened,
+%  where a name reads what it was never meant to read and a definition
+%  lands where nobody will look for it.
 %
-% The body's operands are whatever is already on the operand stack and
-% what it leaves there is left there: nothing of the bracket lies between
-% them while it runs. What fails in here is the caller failing, and its
-% operands come back as they would from any other part of its body; a
-% procedure of the program's goes through .pcallout above, which says
-% otherwise.
+%  dict {body}  .indict  -
+%
+%  Run the body with the dictionary current and take that dictionary off
+%  again however the body ends -- exactly the one this opened, so a body
+%  that opens more of its own closes those itself. What stopped the body
+%  is raised again once the dictionary is off, so the caller's error
+%  handling sees the error the body raised.
+%
+%  The body's operands are whatever is already on the operand stack and
+%  what it leaves there is left there: nothing of the bracket lies between
+%  them while it runs. What fails in here is the caller failing, and its
+%  operands come back as they would from any other part of its body; a
+%  procedure of the program's goes through .pcallout above, which says
+%  otherwise.
+%
 /.indict {
     exch begin stopped { end //.costop exec }{ end } ifelse
 } bind def
@@ -310,33 +343,36 @@ currentglobal true setglobal
 end
 setglobal
 
-% The binding pass below rebinds userdict and systemdict in place; it runs in
-% local VM (the [ currentdict systemdict ] array it builds is local).
+%
+%  The binding pass below rebinds userdict and systemdict in place; it runs in
+%  local VM (the [ currentdict systemdict ] array it builds is local).
+%
 false setglobal
 
-% The graphics machinery is implemented in PostScript and runs in the
-% middle of user programs, whose dictionaries are then on the dict
-% stack: an unbound operator name in these procedures can be captured
-% by an unrelated definition in a user dictionary (a variable named
-% /type or /copy, for example). Every procedure has to be bound --
-% including the methods of device class dictionaries, tables nested
-% inside tables, and the procedures the boot files left in systemdict.
 %
-% That sweep is not run here. Half the standard operators are written in
-% PostScript and are still procedures at this point; they become
-% operators only when .finalize promotes them. A sweep run now would
-% leave every reference to one of them a name, which is the outcome it
-% is meant to prevent -- and it would seal the procedures it walked,
-% because bind makes what it binds read-only and then will not descend
-% into a read-only array. The later, correctly timed sweep could not
-% come back for them, and the reference would stay dynamic for the rest
-% of the run.
+%  The graphics machinery is implemented in PostScript and runs in the
+%  middle of user programs, whose dictionaries are then on the dict
+%  stack: an unbound operator name in these procedures can be captured
+%  by an unrelated definition in a user dictionary (a variable named
+%  /type or /copy, for example). Every procedure has to be bound --
+%  including the methods of device class dictionaries, tables nested
+%  inside tables, and the procedures the boot files left in systemdict.
 %
-% .finalize sweeps these same dictionaries once the promotion is done,
-% which is the first moment at which a call from one standard operator
-% to another can be frozen. It runs immediately after this file is
-% loaded, so nothing executes in between.
-
-end %systemdict
+%  That sweep is not run here. Half the standard operators are written in
+%  PostScript and are still procedures at this point; they become
+%  operators only when .finalize promotes them. A sweep run now would
+%  leave every reference to one of them a name, which is the outcome it
+%  is meant to prevent -- and it would seal the procedures it walked,
+%  because bind makes what it binds read-only and then will not descend
+%  into a read-only array. The later, correctly timed sweep could not
+%  come back for them, and the reference would stay dynamic for the rest
+%  of the run.
+%
+%  .finalize sweeps these same dictionaries once the promotion is done,
+%  which is the first moment at which a call from one standard operator
+%  to another can be frozen. It runs immediately after this file is
+%  loaded, so nothing executes in between.
+%
+end  %Systemdict
 
 //.internaldict /QUIET known { }{ (eof graphics.ps\n)print } ifelse

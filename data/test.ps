@@ -1,4 +1,5 @@
 %!PS
+%
 % test.ps
 %
 % Interactive test examples borrowed from the PLRM operator details.
@@ -6,15 +7,19 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-%test.ps
-% testing examples borrowed from the Operator Details in the PLRM, 1ed.
-%traceon
-%/break { currentfile flushfile } def
+%
+% test.ps
+%  testing examples borrowed from the Operator Details in the PLRM, 1ed.
+% traceon
+% /break { currentfile flushfile } def
+%
 
-% concatenate two strings -- the interpreter's own helper is sealed away in a
-% private namespace before this program runs, so the readstring test below
-% builds its data-file path with a local copy
-/.testcat { % s1 s2  .  s1s2
+%
+%  concatenate two strings -- the interpreter's own helper is sealed away in a
+%  private namespace before this program runs, so the readstring test below
+%  builds its data-file path with a local copy
+%
+/.testcat {  % s1 s2  .  s1s2
     2 copy length exch length add string
     dup 0 4 index putinterval
     dup 3 index length 3 index putinterval
@@ -28,33 +33,40 @@
     %break
 } def
 /check {
-    {} %{ (success\n) print }
+    {}  %{ (success\n) print }
     //fail
     ifelse
 } def
-% tolerance compare for transcendental results: real math is inexact
-% (and reals are single-precision here), so comparing atan/cos/exp/ln
-% output against a decimal literal with eq is unreliable.
+%
+%  tolerance compare for transcendental results: real math is inexact
+%  (and reals are single-precision here), so comparing atan/cos/exp/ln
+%  output against a decimal literal with eq is unreliable.
+%
 /nearly { sub abs 0.001 lt } def
 
-% breakhere is an xpost debugger breakpoint; stub it as a no-op on
-% interpreters that lack it so the suite is portable
+%
+%  breakhere is an xpost debugger breakpoint; stub it as a no-op on
+%  interpreters that lack it so the suite is portable
+%
 /breakhere where { pop }{ /breakhere { } def } ifelse
 
-%(test: loading graphics...)=
-%flush
-%(*){=}128 string filenameforall
-%(../../data)
-%(/graphics.ps) //.xpostsys /.loadmodule get exec initgraphics
-%loadgraphics  %graphics support is now always loaded
-
+%
+% (test: loading graphics...)=
+% flush
+% (*){=}128 string filenameforall
+% (../../data)
+% (/graphics.ps) //.xpostsys /.loadmodule get exec initgraphics
+% loadgraphics  %graphics support is now always loaded
+%
 (Stack should be clear -V-\n)=
 pstack
 (                      -^-\n)=
 clear
 
 [ ] ==
-%traceon
+%
+% traceon
+%
 [ ] type /arraytype eq check
 { ] } stopped { $error /errorname get /unmatchedmark eq check }{ fail } ifelse
 
@@ -81,20 +93,28 @@ clear
     type /integertype eq and check
 
 (anchorsearch)=
-%(1)=
-(abbc) (ab) anchorsearch 
+%
+% (1)=
+%
+(abbc) (ab) anchorsearch
     true eq exch
     (ab) eq and exch
     (bc) eq and check
-%(2)=
+%
+% (2)=
+%
 (abbc) (bb) anchorsearch
     false eq exch
     (abbc) eq and check
-%(3)=
+%
+% (3)=
+%
 (abbc) (bc) anchorsearch
     false eq exch
     (abbc) eq and check
-%(4)=
+%
+% (4)=
+%
 (abbc) (B) anchorsearch
     false eq exch
     (abbc) eq and check
@@ -107,18 +127,20 @@ false false and false eq check
 99 1 and 1 eq check
 52 7 and 4 eq check
 
-%arc
-%arcn
-%arcto
-
+%
+% arc
+% arcn
+% arcto
+%
 (array)=
 3 array dup type /arraytype eq check
     aload pop null eq exch
     null eq and exch
     null eq and check
 
-%ashow
-
+%
+% ashow
+%
 (astore)=
 (a) (bcd) (ef) 3 array astore type /arraytype eq check
 
@@ -132,9 +154,10 @@ false false and false eq check
 (4: 4 4 atan 45.0 nearly check) ==
 4 4 atan 45.0 nearly check
 
-%awidthshow
-%banddevice
-
+%
+% awidthshow
+% banddevice
+%
 (begin)=
 2 dict dup begin currentdict eq check
 
@@ -148,15 +171,17 @@ false false and false eq check
 (bytesavailable)=
 currentfile bytesavailable =
 
-%cachestatus
-
+%
+% cachestatus
+%
 (ceiling)=
 3.2 ceiling 4.0 eq check
 -4.8 ceiling -4.0 eq check
 99 ceiling 99 eq check
 
-%charpath
-
+%
+% charpath
+%
 (clear)=
 7 8 6 7  5 9 0 7 6 4 6 8 77  8 6 9  7 8 6 clear
 count 0 eq check
@@ -165,18 +190,22 @@ count 0 eq check
 777 [ 8 7 6 5 4 cleartomark
 777 eq check
 
-%clip
-
+%
+% clip
+%
 (clippath)=
 clear clippath {}{}{}{} pathforall
 count 0 gt check
 clear
 
-%(closefile)=
+%
+% (closefile)=
+%
 
-%closepath
-%concat
-
+%
+% closepath
+% concat
+%
 (concatmatrix)=
 matrix matrix matrix concatmatrix
 aload pop
@@ -188,7 +217,7 @@ aload pop
     1 eq check
 
 (copy)=
-1 2 3 2 copy 
+1 2 3 2 copy
     count 5 eq check
     3 eq check
     2 eq check
@@ -204,8 +233,9 @@ a1 dup length array copy aload pop
     2 eq check
     1 eq check
 
-%copypage
-
+%
+% copypage
+%
 (cos)=
 0 cos 1.0 nearly check
 90 cos 0.0 nearly check
@@ -227,9 +257,10 @@ clear
 1 mark counttomark 0 eq check
 clear
 
-%currentcacheparams
-%currentdash
-
+%
+% currentcacheparams
+% currentdash
+%
 (currentdict)=
 currentdict ==
 
@@ -239,12 +270,13 @@ currentfile ==
 (currentflat)=
 currentflat 0 ne check
 
-%currentfont
-%currentgray
-%currenthsbcolor
-%currentlinecap
-%currentlinejoin
-
+%
+% currentfont
+% currentgray
+% currenthsbcolor
+% currentlinecap
+% currentlinejoin
+%
 (currentlinewidth)=
 currentlinewidth 0 ge check
 
@@ -252,22 +284,26 @@ currentlinewidth 0 ge check
 matrix currentmatrix
 false exch {
     0 ne or
-} forall true eq check % at least one non-zero value
+} forall true eq check  % At least one non-zero value
 
-%currentmiterlimit
-%currentpacking
-
+%
+% currentmiterlimit
+% currentpacking
+%
 (currentpoint)=
 5 5 moveto
 currentpoint count 2 eq check
 clear
 
-%currentrgbcolor
-%currentscreen
-%currenttransfer
+%
+% currentrgbcolor
+% currentscreen
+% currenttransfer
+%
 
-%curveto
-
+%
+% curveto
+%
 (cvi)=
 (1: (3.3E1) cvi 33 eq check)=
 (3.3E1) cvi 33 eq check
@@ -314,26 +350,32 @@ mark str cvs (-mark-) eq
 matrix defaultmatrix
 false exch {
     0 ne or
-} forall true eq check % at least one non-zero value
+} forall true eq check  % At least one non-zero value
 
-%definefont
-
+%
+% definefont
+%
 (dict)=
 1 dict type /dicttype eq check
 
-%/dictfull
+%
+% /dictfull
+%
 
-%(dictstack)=
-%/dictstackoverflow
-%/dictstackunderflow
-
+%
+% (dictstack)=
+% /dictstackoverflow
+% /dictstackunderflow
+%
 (div)=
 (1: 3 2 div 1.5 eq check)=
 3 2 div 1.5 eq check
 (2: 4 2 div 2.0 eq check)=
 4 2 div 2.0 eq check
 
-%dtransform
+%
+% dtransform
+%
 1 1 matrix dtransform
     1 eq check
     1 eq check
@@ -342,15 +384,17 @@ false exch {
 5 dup 5 eq check
     5 eq check
 
-%(echo)=
-
+%
+% (echo)=
+%
 (end)=
 end
 currentdict userdict eq check
 
-%eoclip
-%eofill
-
+%
+% eoclip
+% eofill
+%
 (eq)=
 (1: 4.0 4 eq check)=
 4.0 4 eq check
@@ -363,8 +407,9 @@ currentdict userdict eq check
 (5: [1 2 3] [1 2 3] eq check)=
 [1 2 3] [1 2 3] eq false eq check
 
-%erasepage
-
+%
+% erasepage
+%
 (errordict)=
 errordict type /dicttype eq check
 
@@ -384,9 +429,10 @@ errordict type /dicttype eq check
     3 eq and check
 3 2 /add cvx exec 5 eq check
 
-%(execstack)=
-%execstackoverflow
-
+%
+% (execstack)=
+% execstackoverflow
+%
 (executeonly)=
 (string) executeonly rcheck false eq check
 
@@ -402,21 +448,25 @@ errordict type /dicttype eq check
 (false)=
 false not check
 
-%(file)=
+%
+% (file)=
+%
 
-%fill
-%findfont
-%flattenpath
-
+%
+% fill
+% findfont
+% flattenpath
+%
 (floor)=
 3.2 floor 3.0 eq check
 -4.8 floor -5.0 eq check
 99 floor 99 eq check
 
-%(flush)=
-%(flushfile)=
-%FontDirectory
-
+%
+% (flush)=
+% (flushfile)=
+% FontDirectory
+%
 (for)=
 (1: 0 1 1 4 {add} for 10 eq check)=
 0 1 1 4 {add} for 10 eq check
@@ -457,8 +507,9 @@ d {} forall
         /abc eq and check
     } ifelse
 
-%framedevice
-
+%
+% framedevice
+%
 (ge)=
 (1: 4.2 4 ge check)=
 4.2 4 ge check
@@ -478,7 +529,7 @@ currentdict /mykey get (myvalue) eq check
 (a) 0 get 97 eq check
 
 (getinterval)=
-[9 8 7 6 5] 1 3 getinterval aload pop 
+[9 8 7 6 5] 1 3 getinterval aload pop
     6 eq exch
     7 eq and exch
     8 eq and check
@@ -490,7 +541,9 @@ matrix currentmatrix aload pop
 gsave gsave 2 2 matrix scale setmatrix
 grestore grestoreall
 matrix currentmatrix aload pop
-%pstack
+%
+% pstack
+%
     7 -1 roll eq check
     6 -1 roll eq check
     5 -1 roll eq check
@@ -498,10 +551,13 @@ matrix currentmatrix aload pop
     3 -1 roll eq check
     eq check
 
-%(gt)=
+%
+% (gt)=
+%
 
-%handleerror
-
+%
+% handleerror
+%
 (identmatrix)=
 matrix identmatrix aload pop
     0 eq check
@@ -516,8 +572,9 @@ matrix identmatrix aload pop
 4 2 idiv 2 eq check
 -5 2 idiv -2 eq check
 
-%idtransform
-
+%
+% idtransform
+%
 (if)=
 3 4 lt {(3 is less than 4)} if
     (3 is less than 4) { eq check } stopped not check
@@ -526,40 +583,53 @@ matrix identmatrix aload pop
 4 3 lt {(TruePart)} {(FalsePart)} ifelse
     (FalsePart) eq check
 
-%image
-%imagemask
-
+%
+% image
+% imagemask
+%
 (index)=
 (a)(b)(c)(d) 0 index (d) eq check
     3 index (a) eq check
     clear
 
-%initclip
-%initgraphics
-%initmatrix
+%
+% initclip
+% initgraphics
+% initmatrix
+%
 
-%interrupt
-%invalidaccess
-%invalidfileaccess
-%invalidfont
-%invalidrestore
+%
+% interrupt
+% invalidaccess
+% invalidfileaccess
+% invalidfont
+% invalidrestore
+%
 
-%invertmatrix
+%
+% invertmatrix
+%
 
-%ioerror
+%
+% ioerror
+%
 
-%itransform
-
+%
+% itransform
+%
 (known)=
 /mydict 5 dict def
 mydict /total 0 put
 mydict /total known check
 mydict /badname known not check
 
-%kshow
+%
+% kshow
+%
 
-%(le)=
-
+%
+% (le)=
+%
 (length)=
 [1 2 4] length 3 eq check
 [] length 0 eq check
@@ -571,9 +641,10 @@ mydict length 1 eq check
 (abc\n) length 4 eq check
 () length 0 eq check
 
-%limitcheck
-%lineto
-
+%
+% limitcheck
+% lineto
+%
 (ln)=
 10 ln 2.30259 nearly check
 100 ln 4.60517 nearly check
@@ -586,15 +657,17 @@ mydict length 1 eq check
 10 log 1.0 nearly check
 100 log 2.0 nearly check
 
-%(loop)=
-%(lt)=
-%makefont
-
+%
+% (loop)=
+% (lt)=
+% makefont
+%
 (mark)=
 mark [ eq check
 
-%matrix
-
+%
+% matrix
+%
 (maxlength)=
 /mydict 8 dict def
 mydict length 0 eq check
@@ -605,18 +678,20 @@ mydict maxlength 8 eq check
 5 2 mod 1 eq check
 -5 3 mod -2 eq check
 
-%moveto
-%(mul)=
-%(ne)=
-
+%
+% moveto
+% (mul)=
+% (ne)=
+%
 (neg)=
 4.5 neg -4.5 eq check
 -3 neg 3 eq check
 
-%newpath
-%(noaccess)=
-%nocurrentpoint
-
+%
+% newpath
+% (noaccess)=
+% nocurrentpoint
+%
 (not)=
 (1:)=
 true not false eq check
@@ -628,8 +703,9 @@ false not true eq check
 (null)=
 null 1 array 0 get eq check
 
-%nulldevice
-
+%
+% nulldevice
+%
 (or)=
 true true or true eq check
 true false or true eq check
@@ -637,18 +713,20 @@ false true or true eq check
 false false or false eq check
 17 5 or 21 eq check
 
-%packedarray
-%pathbbox
-%pathforall
-
+%
+% packedarray
+% pathbbox
+% pathforall
+%
 (pop)=
 1 2 3 pop 2 eq check clear
 1 2 3 pop pop 1 eq check
 
-%(print)=
-%(prompt)=
-%(pstack)=
-
+%
+% (print)=
+% (prompt)=
+% (pstack)=
+%
 (put)=
 (1:)=
 /ar [5 17 3 8] def
@@ -682,17 +760,19 @@ ar aload pop
 st 1 (de) putinterval
 st (ade) eq check
 
-%(quit)=
-
+%
+% (quit)=
+%
 (rand)=
 rand type /integertype eq check
 rand rand eq not check
 
-%rangecheck
-%(rcheck)=
-%rcurveto
-%(read)=
-
+%
+% rangecheck
+% (rcheck)=
+% rcurveto
+% (read)=
+%
 (readhexstring)=
 {currentfile 3 string readhexstring}exec
 616263
@@ -704,9 +784,10 @@ check (abc) eq check
 
 check (012) eq check
 
-%(readline)=
-%(readonly)=
-
+%
+% (readline)=
+% (readonly)=
+%
 (readstring)=
 {currentfile 3 string readstring}exec
 abc
@@ -714,9 +795,11 @@ abc
 (1:)= pstack
  check (abc) eq check
 
-% the directory this suite sits in, handed in by whoever ran it: where the
-% interpreter booted from is one of the run's own settings and is not a
-% program's to read
+%
+%  the directory this suite sits in, handed in by whoever ran it: where the
+%  interpreter booted from is one of the run's own settings and is not a
+%  program's to read
+%
 /DATADIR where {
     pop DATADIR (/readstring.ps) .testcat run
     (2:)= pstack
@@ -725,8 +808,9 @@ abc
     (readstring-from-file test skipped: no DATADIR was given)=
 } ifelse
 
-%renderbands
-
+%
+% renderbands
+%
 (repeat)=
 4{(abc)}repeat count 4 eq check
 1 2 3 4 3 {pop} repeat 1 eq check
@@ -734,21 +818,27 @@ abc
 mark 0 {(won't happen)} repeat mark eq check
 clear
 
-%resetfile
+%
+% resetfile
+%
 
-%(restore)=
+%
+% (restore)=
+%
 
-%reversepath
-%rlineto
-%rmoveto
-
+%
+% reversepath
+% rlineto
+% rmoveto
+%
 (roll)=
 (a)(b)(c) 3 -1 roll (a) ne {fail} if clear
 (a)(b)(c) 3 1 roll (b) ne {fail} if clear
 (a)(b)(c) 3 0 roll (c) ne {fail} if clear
 
-%rotate
-
+%
+% rotate
+%
 (round)=
 (1: 3.2 round 3.0 ne check)=
 3.2 round 3.0 eq check
@@ -761,17 +851,19 @@ clear
 (5: 99 round 99 ne check)=
 99 round 99 eq check
 
-%(rrand)=
-%(run)=
-
+%
+% (rrand)=
+% (run)=
+%
 breakhere
 (save)=
 /saveobj save def
 saveobj restore
 
-%scale
-%scalefont
-
+%
+% scale
+% scalefont
+%
 (search)=
 (1: (abbc) (ab) search not {fail} if clear)=
 (abbc) (ab) search not {fail} if clear
@@ -785,40 +877,45 @@ saveobj restore
 (4: (abbc) (B) search {fail} if clear)=
 (abbc) (B) search {fail} if clear
 
-%setcachedevice
-%setcachelimit
-%setcacheparams
-%setcharwidth
-%setdash
-%setflat
-%setfont
-%setgray
-%sethsbcolor
-%setlinecap
-%setlinejoin
-%setlinewidth
-%setmatrix
-%setmiterlimit
-%setpacking
-%setrgbcolor
-%setscreen
-%settransfer
-%show
-%showpage
+%
+% setcachedevice
+% setcachelimit
+% setcacheparams
+% setcharwidth
+% setdash
+% setflat
+% setfont
+% setgray
+% sethsbcolor
+% setlinecap
+% setlinejoin
+% setlinewidth
+% setmatrix
+% setmiterlimit
+% setpacking
+% setrgbcolor
+% setscreen
+% settransfer
+% show
+% showpage
+%
 
-%(sin)=
-%(sqrt)=
-%(srand)=
-%(stack)=
-%stackoverflow
-%stackunderflow
-%StandardEncoding
-%(start)=
-%status
-%stop
-
+%
+% (sin)=
+% (sqrt)=
+% (srand)=
+% (stack)=
+% stackoverflow
+% stackunderflow
+% StandardEncoding
+% (start)=
+% status
+% stop
+%
 (stopped)=
-%breakhere
+%
+% breakhere
+%
 { ... } stopped check
 
 (store)=
@@ -826,51 +923,56 @@ saveobj restore
 /abc where {}{currentdict} ifelse /abc 123 put
 abc 123 ne {fail} if
 
-%(string)=
-%stringwidth
-%stroke
-%strokepath
-%(sub)=
-%syntaxerror
-%(systemdict)=
-%timeout
-
+%
+% (string)=
+% stringwidth
+% stroke
+% strokepath
+% (sub)=
+% syntaxerror
+% (systemdict)=
+% timeout
+%
 (token)=
 (15(St1) {1 2 add}) token not {fail} if 15 eq check
 token not {fail} if (St1) eq check
 token not {fail} if type /arraytype eq check
 token not check
 
-%transform
-%translate
-%(true)=
-
+%
+% transform
+% translate
+% (true)=
+%
 (truncate)=
 3.2 truncate 3.0 eq check
 -4.8 truncate -4.0 eq check
 99 truncate 99 eq check
 
-%(type)=
-%typecheck
-%undefined
-%undefinedfilename
-%undefinedresult
-%unmatchedmark
-%unregistered
-%(userdict)=
-%usertime
-%version
-%VMerror
-%vmstatus
-%(wcheck)=
+%
+% (type)=
+% typecheck
+% undefined
+% undefinedfilename
+% undefinedresult
+% unmatchedmark
+% unregistered
+% (userdict)=
+% usertime
+% version
+% VMerror
+% vmstatus
+% (wcheck)=
+%
 
-%(where)=
-%widthshow
-%(write)=
-%(writehexstring)=
-%(writestring)=
-%(xcheck)=
-
+%
+% (where)=
+% widthshow
+% (write)=
+% (writehexstring)=
+% (writestring)=
+% (xcheck)=
+%
 (xor)=
 true true xor false eq check
 true false xor true eq check
@@ -885,5 +987,7 @@ failcount 0 eq {
     failcount =only ( FAILs) =
 } ifelse
 
-%traceon
+%
+% traceon
+%
 

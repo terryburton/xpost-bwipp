@@ -1,5 +1,5 @@
 %!PS
-
+%
 % err.ps
 %
 % The error dictionaries, installed from init.ps.
@@ -77,9 +77,9 @@ end
         } ifelse
         countexecstack //$error /estackarray get length le {
             //$error /estack //$error /estackarray get execstack
-            dup length 2 sub 0 exch getinterval put % trim 1:{ //$err... 2:{ //$err... execstack
+            dup length 2 sub 0 exch getinterval put  % Trim 1:{ //$err... 2:{ //$err... execstack
         } {
-            //$error /estack null put % too deep to snapshot
+            //$error /estack null put  % Too deep to snapshot
         } ifelse
         //$error /ostack get aload pop
     } if
@@ -88,22 +88,26 @@ end
     } if
     //$error /errorname get dup /stackoverflow eq { clear }{
         /dictstackoverflow eq {
-            end end %end end end end end end end end
+            end end  %End end end end end end end end
         } if
     } ifelse
     stop
 } def
-% signalerror is the standard operator programs call to raise an error; it
-% belongs in systemdict, so it is global and relocates there. The private
-% .error hook stays local (it runs the handler in local VM and records into
-% the local $error). It lives in privatedict, off the dict stack, reached
-% through the .privatedict operator; a global procedure may use the result
-% transiently. Mirror it in now so an error during graphics loading still
-% finds it; .finalize drops the userdict anchor.
+%
+%  signalerror is the standard operator programs call to raise an error; it
+%  belongs in systemdict, so it is global and relocates there. The private
+%  .error hook stays local (it runs the handler in local VM and records into
+%  the local $error). It lives in privatedict, off the dict stack, reached
+%  through the .privatedict operator; a global procedure may use the result
+%  transiently. Mirror it in now so an error during graphics loading still
+%  finds it; .finalize drops the userdict anchor.
+%
 .privatedict /.error userdict /.error get put
-% signalerror is a global operator and belongs with the language, so the
-% block the local error dictionaries need closes around it. errordict
-% below takes its value, so it has to be defined before that.
+%
+%  signalerror is a global operator and belongs with the language, so the
+%  block the local error dictionaries need closes around it. errordict
+%  below takes its value, so it has to be defined before that.
+%
 end
 currentglobal true setglobal
 /signalerror { .privatedict /.error get exec } def
@@ -221,9 +225,11 @@ end
 end
 setglobal
 
-% handleerror is a global operator in systemdict that calls the procedure
-% of the same name in errordict, so it is defined out here rather than
-% inside the userdict block the local error dictionaries needed.
+%
+%  handleerror is a global operator in systemdict that calls the procedure
+%  of the same name in errordict, so it is defined out here rather than
+%  inside the userdict block the local error dictionaries needed.
+%
 currentglobal true setglobal
 /handleerror { errordict /handleerror get exec } def
 setglobal

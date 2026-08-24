@@ -1,4 +1,5 @@
 %!PS
+%
 % pattern.ps
 %
 % Tiling patterns (PLRM 4.9): makepattern, setpattern, and tiling the cells over a region.
@@ -8,42 +9,48 @@
 
 //.internaldict /QUIET known { }{ (loading pattern.ps...)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% makepattern instantiates, setpattern
-% (color.ps) selects, and the painting operators tile the cells over
-% whatever region they would have painted.
+%
+%  makepattern instantiates, setpattern
+%  (color.ps) selects, and the painting operators tile the cells over
+%  whatever region they would have painted.
+%
 
-% dict /operator /absent  .patterntype  int
-% The kind of pattern a dictionary describes. PLRM 4.9.1 defines two: 1 a
-% tiling pattern, 2 a shading pattern, and nothing else.
 %
-% The three faults are three different errors, because they are three
-% different mistakes. PLRM Table 4.9 marks the entry required, so a
-% dictionary without one is not a pattern dictionary and the entry is
-% undefined. The table types it as an integer, so a value of another type
-% is a type error. And a code this interpreter has no machinery to paint
-% is out of range -- refused here rather than painted as though it were
-% the other type, which is what a dictionary whose code is merely "not 2"
-% would otherwise get.
+%  dict /operator /absent  .patterntype  int
+%  The kind of pattern a dictionary describes. PLRM 4.9.1 defines two: 1 a
+%  tiling pattern, 2 a shading pattern, and nothing else.
 %
-% The operator to name is stated by the caller, so the program is told
-% about the operator it wrote rather than about whichever piece of this
-% file reached the dictionary.
+%  The three faults are three different errors, because they are three
+%  different mistakes. PLRM Table 4.9 marks the entry required, so a
+%  dictionary without one is not a pattern dictionary and the entry is
+%  undefined. The table types it as an integer, so a value of another type
+%  is a type error. And a code this interpreter has no machinery to paint
+%  is out of range -- refused here rather than painted as though it were
+%  the other type, which is what a dictionary whose code is merely "not 2"
+%  would otherwise get.
 %
-% What an ABSENT entry means is also the caller's to say, because it is
-% not the same fault at every operator. makepattern is handed a prototype
-% to check, and an entry its table marks required and the dictionary does
-% not carry is undefined. setpattern is handed something that must
-% already be a pattern -- PLRM 8.2 defines it as an equivalence for
-% setcolorspace and setcolor and gives it no error list of its own, and
-% says its operand is a dictionary instantiated by makepattern -- so a
-% dictionary carrying no type is not a deficient pattern but the wrong
-% kind of operand, which is a type error. The two reference
-% implementations consulted split on this, one each way, and the
-% specification leaves the name open; what it does not leave open is that
-% only one place should know the vocabulary.
+%  The operator to name is stated by the caller, so the program is told
+%  about the operator it wrote rather than about whichever piece of this
+%  file reached the dictionary.
+%
+%  What an ABSENT entry means is also the caller's to say, because it is
+%  not the same fault at every operator. makepattern is handed a prototype
+%  to check, and an entry its table marks required and the dictionary does
+%  not carry is undefined. setpattern is handed something that must
+%  already be a pattern -- PLRM 8.2 defines it as an equivalence for
+%  setcolorspace and setcolor and gives it no error list of its own, and
+%  says its operand is a dictionary instantiated by makepattern -- so a
+%  dictionary carrying no type is not a deficient pattern but the wrong
+%  kind of operand, which is a type error. The two reference
+%  implementations consulted split on this, one each way, and the
+%  specification leaves the name open; what it does not leave open is that
+%  only one place should know the vocabulary.
+%
 .xpostsys /.patterntype {
     3 -1 roll
     dup /PatternType known not
@@ -56,18 +63,22 @@ true setglobal
     exch pop exch pop
 } put
 
-% dict /operator /entry  .patternneed  -
-% A required entry is there, or the program is told which one is not.
+%
+%  dict /operator /entry  .patternneed  -
+%  A required entry is there, or the program is told which one is not.
+%
 .xpostsys /.patternneed {
     3 -1 roll 1 index known not
         { exch cvx /undefined signalerror }{ pop pop } ifelse
 } put
 
-%   dict matrix  makepattern  pattern
-% instantiate a tiling pattern: a copy of the dictionary carrying the
-% pattern space -- the matrix concatenated with the CTM in effect
-% now, so later coordinate changes leave the tiling anchored -- under
-% /Implementation
+%
+%    dict matrix  makepattern  pattern
+%  instantiate a tiling pattern: a copy of the dictionary carrying the
+%  pattern space -- the matrix concatenated with the CTM in effect
+%  now, so later coordinate changes leave the tiling anchored -- under
+%  /Implementation
+%
 /makepattern [ /dicttype /arraytype ] {
     exch
     dup /makepattern /undefined //.xpostsys /.patterntype get exec 2 eq {
@@ -122,28 +133,32 @@ true setglobal
     readonly
 } //.xpostsys /.defop get exec
 
-% -  .patternactive  bool
-% the current colour is a pattern
+%
+%  -  .patternactive  bool
+%  the current colour is a pattern
+%
 .xpostsys begin
 /.patternactive {
     graphicsdict /currgstate get /colorspace get /Pattern eq
 } bind def
 
-% -  .colorroute  /pattern | /nomarks | /direct
-% How the current colour reaches the page, and the only place that
-% decides.
 %
-% Every painting operator asked one question here -- is the colour a
-% pattern -- and took the device route when the answer was no. That left
-% no room for a third answer, and there is one: a colour that can never
-% produce visible output marks nothing, which is neither tiling a pattern
-% nor handing a colour to the device. Naming the three routes is what
-% makes the missing one expressible at every operator rather than at
-% whichever ones somebody remembered.
+%  -  .colorroute  /pattern | /nomarks | /direct
+%  How the current colour reaches the page, and the only place that
+%  decides.
 %
-% The pattern route is first because it already carries a case of the
-% third: the null pattern paints nothing, and it does so inside the
-% tiling walk, where a pattern space's own empty colour belongs.
+%  Every painting operator asked one question here -- is the colour a
+%  pattern -- and took the device route when the answer was no. That left
+%  no room for a third answer, and there is one: a colour that can never
+%  produce visible output marks nothing, which is neither tiling a pattern
+%  nor handing a colour to the device. Naming the three routes is what
+%  makes the missing one expressible at every operator rather than at
+%  whichever ones somebody remembered.
+%
+%  The pattern route is first because it already carries a case of the
+%  third: the null pattern paints nothing, and it does so inside the
+%  tiling walk, where a pattern space's own empty colour belongs.
+%
 /.colorroute {
     graphicsdict /currgstate get /colorspace get /Pattern eq { /pattern }{
     graphicsdict /currgstate get /setspace get
@@ -151,17 +166,20 @@ true setglobal
     } ifelse
 } bind def
 
-% -  .patterntile  -
-% tile the current pattern colour over the current clip region: every
-% cell whose pattern-space step position meets the region's box runs
-% the pattern's paint procedure under the pattern space translated to
-% its position, clipped to the cell's BBox. An uncoloured pattern's
-% cells paint with the underlying colour; a coloured pattern's
-% procedure sets its own (the colour is reset first, so a procedure
-% that paints without setting one cannot re-enter the tiling).
-% The whole walk goes through the bracket: each cell opens a graphics
-% state and a paint procedure that raises would otherwise leave it open,
-% with this procedure's own dictionary on the stack behind it.
+%
+%  -  .patterntile  -
+%
+%  tile the current pattern colour over the current clip region: every
+%  cell whose pattern-space step position meets the region's box runs
+%  the pattern's paint procedure under the pattern space translated to
+%  its position, clipped to the cell's BBox. An uncoloured pattern's
+%  cells paint with the underlying colour; a coloured pattern's
+%  procedure sets its own (the colour is reset first, so a procedure
+%  that paints without setting one cannot re-enter the tiling).
+%  The whole walk goes through the bracket: each cell opens a graphics
+%  state and a paint procedure that raises would otherwise leave it open,
+%  with this procedure's own dictionary on the stack behind it.
+%
 /.patterntile {
     {
     16 dict begin
@@ -245,13 +263,16 @@ true setglobal
     } null 0 //.xpostsys /.callout get exec
 } bind def
 
-% -  .patternfill  -
-% paint the current path with the pattern colour: the path becomes
-% the clip and the pattern tiles across it
-% the region resolves to its spans unconditionally: the shading and
-% cell fills intersect against the resolved form, where a raw path
-% stored by the trivial branch of clip would not combine
-/.patternclip { % [ spans ... ] is the caller's
+%
+%  -  .patternfill  -
+%
+%  paint the current path with the pattern colour: the path becomes
+%  the clip and the pattern tiles across it
+%  the region resolves to its spans unconditionally: the shading and
+%  cell fills intersect against the resolved form, where a raw path
+%  stored by the trivial branch of clip would not combine
+%
+/.patternclip {  % [ spans ... ] is the caller's
     //.xpostsys /.clipstoreparts get exec
     % the region is pixel-band spans, which no single path under the
     % nonzero rule describes: a device that clips for itself has no

@@ -1,4 +1,5 @@
 %!PS
+%
 % pdfwrite.ps
 %
 % The pdfwrite device: emit a PDF document from the recorded page.
@@ -8,42 +9,43 @@
 
 //.internaldict /QUIET known { }{ (loading pdfwrite.ps...)print } ifelse
 
-.privatedict /newPDFWRITEdevice { % width height  .  IMAGE-device-dict
+.privatedict /newPDFWRITEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_PDFWRITE get dup /Create get exec
 } put
 
-% .xpost_PDFWRITE writes a vector PDF: the marking methods append content-stream
-% operators and the device wraps them in the PDF file structure. A multi-page
-% job collects every page into one document by default -- each showpage appends
-% a page (Emit) and Destroy closes the page tree, cross-reference table and
-% trailer; a %d in the output name selects a file per page instead. See Create,
-% Emit and .endfile for the two forms.
-% This is a clean-room implementation from the published PDF format (operators
-% g/G/rg/RG/k/K/m/l/re/f/S/cm and the object/xref/trailer layout); no
-% rasterizing.
 %
-% Separation colour spaces are preserved: the interpreter delivers each
-% (tint, space) pair to .registersep, which files the space in a registry
-% beside the content accumulator, and marks paint as /CS<i> cs t scn. Emit
-% writes the /ColorSpace resources with the tint transforms embedded as
-% functions, so a downstream workflow can image each separation as its own
-% plate.
+%  .xpost_PDFWRITE writes a vector PDF: the marking methods append content-stream
+%  operators and the device wraps them in the PDF file structure. A multi-page
+%  job collects every page into one document by default -- each showpage appends
+%  a page (Emit) and Destroy closes the page tree, cross-reference table and
+%  trailer; a %d in the output name selects a file per page instead. See Create,
+%  Emit and .endfile for the two forms.
+%  This is a clean-room implementation from the published PDF format (operators
+%  g/G/rg/RG/k/K/m/l/re/f/S/cm and the object/xref/trailer layout); no
+%  rasterizing.
 %
-% Coordinates arrive in device space (y-down); the content stream is prefixed
-% with the device matrix (1 0 0 -1 0 height cm) so device coordinates map to
-% PDF's y-up user space -- the same flip the raster devices apply, done once.
+%  Separation colour spaces are preserved: the interpreter delivers each
+%  (tint, space) pair to .registersep, which files the space in a registry
+%  beside the content accumulator, and marks paint as /CS<i> cs t scn. Emit
+%  writes the /ColorSpace resources with the tint transforms embedded as
+%  functions, so a downstream workflow can image each separation as its own
+%  plate.
 %
-% A method runs its body with the device dictionary current, and opens it
-% through the bracket that takes it off again however the body ends, error
-% included (.indict, graphics.ps).
+%  Coordinates arrive in device space (y-down); the content stream is prefixed
+%  with the device matrix (1 0 0 -1 0 height cm) so device coordinates map to
+%  PDF's y-up user space -- the same flip the raster devices apply, done once.
 %
-% Content is accumulated in a growable buffer held outside virtual memory -- via
-% the device's /Private string, like the raster devices' pixel buffer -- so that
-% it survives a `restore` the job may execute before showpage (the current
-% page's marks are not part of VM). Emit splits it into <=65500-byte strings
-% (the PostScript string limit) and deflate-compresses it, falling back to
-% uncompressed without zlib.
-
+%  A method runs its body with the device dictionary current, and opens it
+%  through the bracket that takes it off again however the body ends, error
+%  included (.indict, graphics.ps).
+%
+%  Content is accumulated in a growable buffer held outside virtual memory -- via
+%  the device's /Private string, like the raster devices' pixel buffer -- so that
+%  it survives a `restore` the job may execute before showpage (the current
+%  page's marks are not part of VM). Emit splits it into <=65500-byte strings
+%  (the PostScript string limit) and deflate-compresses it, falling back to
+%  uncompressed without zlib.
+%
 /.xpost_PDFWRITE <<
     % each paint reaches the content stream in the colour space it was
     % set in -- grey as g/G, RGB as rg/RG, CMYK as k/K -- so a press
@@ -54,12 +56,12 @@
     /nativecolorspace /Process
     /.colormodels << /Process true /DeviceRGB true /DeviceCMYK true >>
     /dimensions [0 0]
-    /NoOutput true  % keep this device's own vector FillPoly (no rasterizing)
-    /VectorGlyphs true  % text operators emit glyph outlines, not bitmaps
+    /NoOutput true  % Keep this device's own vector FillPoly (no rasterizing)
+    /VectorGlyphs true  % Text operators emit glyph outlines, not bitmaps
 
     /.copydict //.xpostsys /.classcopydict get
 
-    /Create { % width height IMAGE  .  IMAGE'
+    /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
     % the page dimensions are points and need not be integral; adopt the
     % exact values when the page device machinery published them
@@ -67,11 +69,11 @@
     currentdict } //.xpostsys /.indict get exec
     dup /.copydict get exec
     {
-        /.docinfo 8 dict def    % document metadata from DOCINFO pdfmarks
-        currentdict //.internaldict /.pdfinit get exec    % create the content accumulator (outside VM)
+        /.docinfo 8 dict def    % Document metadata from DOCINFO pdfmarks
+        currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
         /.pdfimages 0 array def
-        /.opused 8 dict def   % overprint states used on this page -> ExtGState entries
-        /.oplast 0 def        % last overprint state emitted (0 = the default, nothing emitted)
+        /.opused 8 dict def   % Overprint states used on this page -> ExtGState entries
+        /.oplast 0 def        % Last overprint state emitted (0 = the default, nothing emitted)
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
@@ -86,7 +88,7 @@
     % Take the ticket on the open document. The record names one ticket and
     % the device holding it is the one that finishes the document, so a device
     % that hands the document on and is then retired leaves it alone.
-    /.claimdoc { % IMAGE  .  -
+    /.claimdoc {  % IMAGE  .  -
     {
         //.xpostsys /.vecout get /docid get 1 add
         //.xpostsys /.vecout get /docid 2 index put
@@ -110,7 +112,7 @@
     % open left until the first Emit falls inside the page's save, whose
     % restore closes it again. One writing a different name is a different
     % document, so the open one is finished off before this one starts.
-    /.setupoutput { % IMAGE  .  -
+    /.setupoutput {  % IMAGE  .  -
     {
         //.xpostsys /.vecout get /ready get {
             currentdict /OutputFileName known {
@@ -186,7 +188,7 @@
         } ifelse
     } //.xpostsys /.indict get exec } bind
 
-    /Destroy { % IMAGE  .  -
+    /Destroy {  % IMAGE  .  -
         % finalise the accumulating file (page tree, cross-reference and
         % trailer) before releasing the content accumulator, and only from the
         % device holding the ticket on it: a page device change hands the open
@@ -237,7 +239,7 @@
     setglobal
 
     % append a string to the content accumulator (held outside VM via /Private)
-    /.put { % str  .  -
+    /.put {  % str  .  -
         currentdict //.internaldict /.pdfput get exec
     } bind
 
@@ -246,7 +248,7 @@
     % is where the cross-reference offsets come from. The count is kept here
     % rather than asked of the file because a stream that cannot be positioned
     % answers no offset, and the document is the same either way.
-    /.vw { % str  .  -
+    /.vw {  % str  .  -
         dup length //.xpostsys /.vecout get dup /bytepos get
         3 -1 roll add /bytepos exch put
         //.xpostsys /.vecout get /F get exch writestring
@@ -255,25 +257,25 @@
     % the field wants is read from the number alone and settled before the
     % pad itself is on the stack, so no count of positions stands between
     % the length taken and the number it belongs to.
-    /.vwoff { % n  .  -
-        20 string cvs dup length 10 exch sub    % s  padlen
+    /.vwoff {  % n  .  -
+        20 string cvs dup length 10 exch sub    % S  padlen
         //.xpostsys /.zeros get exch 0 exch getinterval .vw
         .vw
     } bind
     % take the next object number, advancing the shared counter
-    /.nextobj { % -  .  n
+    /.nextobj {  % -  .  n
         //.xpostsys /.vecout get dup /nextobj get
         dup 1 add 3 -1 roll /nextobj 3 -1 roll put
     } bind
     % record the file's current byte offset as object n's position
-    /.recordoff { % n  .  -
+    /.recordoff {  % n  .  -
         //.xpostsys /.vecout get /off get exch
         //.xpostsys /.vecout get /bytepos get put
     } bind
 
     % append a number in PDF syntax (integer, or two decimals; never
     % exponential), through the vector writers' shared formatter
-    /.pdfnum { % num  .  -
+    /.pdfnum {  % num  .  -
         //.xpostsys /.num2str get exec .put
     } bind
 
@@ -282,7 +284,7 @@
     % coordinate formatter's two decimals). The C op matches .put's own
     % formatting, so both the marking methods and separation registration
     % agree.
-    /.pdfnumstr { % num  .  str
+    /.pdfnumstr {  % num  .  str
         //.internaldict /.pdfnumstr get exec
     } bind
 
@@ -291,7 +293,7 @@
     % in the space it was set in (one grey component, three RGB or four
     % CMYK, read from the graphics state that produced it); a single
     % adopted model is three or four wide throughout
-    /.ncomps { % -  .  n
+    /.ncomps {  % -  .  n
         nativecolorspace /Process eq {
             graphicsdict /currgstate get /colorspace get
             dup /DeviceGray eq { pop 1 }{
@@ -321,11 +323,11 @@
     % the operand stack instead (opv opm statekey).
     % PreserveOverprintSettings false (a distiller parameter) drops the
     % overprint state from the output; the default carries it.
-    /.pdfoverprint { % -  .  -
+    /.pdfoverprint {  % -  .  -
         //.xpostsys /.distillerparams get /PreserveOverprintSettings get false eq { }{
         graphicsdict /currgstate get /overprint get
-        graphicsdict /currgstate get /overprintmode get        % opv opm
-        1 index { 1000 }{ 0 } ifelse 1 index add               % opv opm statekey
+        graphicsdict /currgstate get /overprintmode get        % Opv opm
+        1 index { 1000 }{ 0 } ifelse 1 index add               % Opv opm statekey
         dup .oplast ne {
             dup /.oplast exch store
             dup .opused exch known not {
@@ -338,7 +340,7 @@
         } ifelse } ifelse
     } bind
 
-    /.pdffillcolor { % c1 .. cN  .  -
+    /.pdffillcolor {  % c1 .. cN  .  -
         .pdfoverprint
         graphicsdict /currgstate get /sepindex 2 copy known { get }{ pop pop null } ifelse
         dup null ne {
@@ -359,7 +361,7 @@
                     .pdfnumstr .put ( rg\n) .put
         } ifelse } ifelse } ifelse
     } bind
-    /.pdfstrokecolor { % c1 .. cN  .  -
+    /.pdfstrokecolor {  % c1 .. cN  .  -
         .pdfoverprint
         graphicsdict /currgstate get /sepindex 2 copy known { get }{ pop pop null } ifelse
         dup null ne {
@@ -388,7 +390,7 @@
 
     % escape a separation name into PDF name syntax: regular characters
     % pass, delimiters and characters outside 33..126 become #xx
-    /.escname { % string  .  string'
+    /.escname {  % string  .  string'
         /.esrc exch def
         /.eout .esrc length 3 mul string def
         /.epos 0 def
@@ -425,7 +427,7 @@
     % numbers, operator names within the Type 4 set and nested
     % procedures pass; anything else (a bound operator, a literal name,
     % a string) disqualifies the procedure and sampling takes over
-    /.t4build { % proc  .  string true | false
+    /.t4build {  % proc  .  string true | false
         /.t4ok true def
         ({ )
         exch {  % str elem
@@ -454,7 +456,7 @@
     } bind
 
     % sample the tint transform at 256 points into 8-bit Type 0 data
-    /.t0build { % -  .  string
+    /.t0build {  % -  .  string
         256 .sepnout mul string /.smp exch def
         0 1 255 {
             /.si exch def
@@ -476,10 +478,10 @@
     % Returns false (no registration) when the alternate space is not a
     % device space the syntax can name; painting then falls back to the
     % tint-transformed process colour.
-    /.registersep { % tint space IMAGE  .  index true | false
+    /.registersep {  % tint space IMAGE  .  index true | false
     {
         /.sepspace exch def
-        pop  % the tint: the caller records it per-gstate
+        pop  % The tint: the caller records it per-gstate
         /.sepnout .sepspace 2 get
             dup /DeviceGray eq { pop 1 }{
             dup /DeviceRGB  eq { pop 3 }{
@@ -514,24 +516,24 @@
         } ifelse } ifelse
     } //.xpostsys /.indict get exec }
 
-    /PutPix { % c1..cN x y IMAGE  .  -
+    /PutPix {  % c1..cN x y IMAGE  .  -
     { {y x}{exch def}forall
         .pdffillcolor
         x .pdfnum ( ) .put y .pdfnum ( 1 1 re\nf\n) .put
     } //.xpostsys /.indict get exec }
 
-    /GetPix { % x y IMAGE  .  r g b
+    /GetPix {  % x y IMAGE  .  r g b
         pop pop pop  0 0 0
     }
 
-    /DrawLine { % c1..cN x1 y1 x2 y2 IMAGE  .  -
+    /DrawLine {  % c1..cN x1 y1 x2 y2 IMAGE  .  -
     { {y2 x2 y1 x1}{exch def}forall
         .pdfstrokecolor
         x1 .pdfnum ( ) .put y1 .pdfnum ( m\n) .put
         x2 .pdfnum ( ) .put y2 .pdfnum ( l\nS\n) .put
     } //.xpostsys /.indict get exec }
 
-    /DrawRect { % c1..cN x y w h IMAGE  .  -
+    /DrawRect {  % c1..cN x y w h IMAGE  .  -
     { {h w y x}{exch def}forall
         .pdfstrokecolor
         x .pdfnum ( ) .put y .pdfnum ( ) .put
@@ -544,7 +546,7 @@
     % src/lib/xpost_dev_driver.h). Emitting w and h unchanged left this
     % device painting a rectangle a pixel short in each direction of
     % every other device's.
-    /FillRect { % c1..cN x y w h IMAGE  .  -
+    /FillRect {  % c1..cN x y w h IMAGE  .  -
     { {h w y x}{exch def}forall
         w 0 lt { /x x w add def /w w neg def } if
         h 0 lt { /y y h add def /h h neg def } if
@@ -558,7 +560,7 @@
     % formatting is the hot loop, so it is done in C (.pdffillpoly),
     % appending to the accumulator; the colour is emitted here, where
     % separations are the device's business.
-    /FillPoly { % c1..cN polygon IMAGE  .  -
+    /FillPoly {  % c1..cN polygon IMAGE  .  -
     {
         /.polyarg exch def
         .pdffillcolor
@@ -574,7 +576,7 @@
     % that on every vector device where the fill of the same path did not.
     % The same bytes the collector wrote are written here, only without the
     % array between the walk and the output.
-    /.emitdevpath { % -  .  n
+    /.emitdevpath {  % -  .  n
         /.dpstr //.xpostsys /cpath get exec def
         /.dpoff 0 def
         /.dpn 0 def
@@ -606,7 +608,7 @@
     % them, so the stroke emitter can tell a path that marks nothing (and
     % must not commit the colour and line state) from one to draw, before
     % it walks the path again to draw it.
-    /.pathelems { % -  .  n
+    /.pathelems {  % -  .  n
         /.pcstr //.xpostsys /cpath get exec def
         /.pcoff 0 def
         /.pcn 0 def
@@ -628,7 +630,7 @@
     % formatting walks the path in C (.pdffillpath), appending to the
     % accumulator, so subpath count costs no operand stack; the colour
     % is emitted here, where separations are the device's business.
-    /FillPath { % c1..cN IMAGE  .  -
+    /FillPath {  % c1..cN IMAGE  .  -
     {
         .pdffillcolor
         currentdict //.internaldict /.pdffillpath get exec
@@ -645,14 +647,14 @@
     % arrive as one subpath per scanline; the shape costs a few operators
     % and keeps its curves. The clip lands inside the q/Q the fill's own
     % emission balances, so it governs that fill alone.
-    /ClipPath { % path IMAGE  .  -
+    /ClipPath {  % path IMAGE  .  -
     {
         % the path walker reads the current path, so install the clip
         % shape for the walk and put the working path back after. No
         % scratch dictionary is opened: the accumulator methods below
         % append through currentdict, which must stay the device.
-        graphicsdict /currgstate get /currpath get      % path saved
-        exch                                            % saved path
+        graphicsdict /currgstate get /currpath get      % Path saved
+        exch                                            % Saved path
         graphicsdict /currgstate get exch /currpath exch put
         (q\n) .put
         .emitdevpath pop
@@ -697,7 +699,7 @@
     % by the consumer rather than lost to per-segment strokes. The
     % path is collected first (the walker runs in its own dictionary,
     % away from this device's methods) and emitted afterwards.
-    /StrokePath { % c1..cN IMAGE  .  -
+    /StrokePath {  % c1..cN IMAGE  .  -
     {
         .pathelems 0 gt {
             .pdfstrokecolor
@@ -722,7 +724,7 @@
     % the same writer fills it and finishes it before the next page begins.
     % What differs between the two is where a document starts and ends, not
     % how a page is written into one, so that is all that is written twice.
-    /Emit { % IMAGE  .  -
+    /Emit {  % IMAGE  .  -
         % .setupoutput and the writer each run with the device current, so each
         % needs its own copy (get consumes one, the body the other)
         dup dup /.setupoutput get exec
@@ -745,7 +747,7 @@
     % are not emptied, because each is keyed by one of the counters reset
     % here and a document reads back only entries it wrote itself; what an
     % earlier document left above the count is never consulted.
-    /.begindoc { % IMAGE  .  -
+    /.begindoc {  % IMAGE  .  -
     {
         % the file is allocated global because the record that holds it is,
         % and a global dictionary may not hold a local object
@@ -772,7 +774,7 @@
     % cross-reference table. The content, separations and images are read here,
     % as the page is emitted, before any restore the job runs -- so none of
     % them need to outlive the page.
-    /.emitpage { % IMAGE  .  -
+    /.emitpage {  % IMAGE  .  -
     {
         //.xpostsys /.vecout get /headered get not {
             (%PDF-1.4\n) .vw
@@ -875,8 +877,8 @@
             ( /ExtGState <<) .vw
             .opused {
                 exch ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
-                aload pop                                   % op mode
-                ( /OPM ) .vw 20 string cvs .vw              % consume mode
+                aload pop                                   % Op mode
+                ( /OPM ) .vw 20 string cvs .vw              % Consume mode
                 ( /OP ) .vw dup { (true) }{ (false) } ifelse .vw
                 ( /op ) .vw { (true) }{ (false) } ifelse .vw
                 ( >>) .vw
@@ -901,7 +903,7 @@
     % the catalog (object 1), the document info if any DOCINFO arrived, then
     % the cross-reference table and trailer. Runs with the device dictionary
     % current, for the document info.
-    /.endfile { % IMAGE  .  -
+    /.endfile {  % IMAGE  .  -
     {
         //.xpostsys /.vecout get /headered get not {
             (%PDF-1.4\n) .vw //.xpostsys /.vecout get /headered true put

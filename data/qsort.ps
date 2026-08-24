@@ -1,4 +1,5 @@
 %!PS
+%
 % qsort.ps
 %
 % Quicksort for comparable base types; exports one procedure.
@@ -6,49 +7,55 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-% array       qsort  -
-% array proc  qsort  -
 %
-% Sort an array in place, comparing adjacent elements with proc, or with
-% `lt` when none is given. The swap is the C operator .swap, so this
-% sorts arrays and not strings. qsort and its qsortdict helpers live in
-% the private .xpostsys namespace in global VM; a call site reaches it as
-% //.xpostsys /qsort get exec, and its array and comparison proc must be
-% in global VM too, since the sort runs in the global qsortdict.
+%  array       qsort  -
+%  array proc  qsort  -
+%
+%  Sort an array in place, comparing adjacent elements with proc, or with
+%  `lt` when none is given. The swap is the C operator .swap, so this
+%  sorts arrays and not strings. qsort and its qsortdict helpers live in
+%  the private .xpostsys namespace in global VM; a call site reaches it as
+%  //.xpostsys /qsort get exec, and its array and comparison proc must be
+%  in global VM too, since the sort runs in the global qsortdict.
+%
 .xpostsys /qsort known { currentfile flushfile } if
 
 currentglobal true setglobal
 7 dict begin
 /qsortdict currentdict def
 
-% array left right pivotIndex  partition  storeIndex
-/partition { %4 args
-    3 index 1 index get % a l r pI p
-    4 index 3 index 3 index % a l r pI p  a r pI
+%
+%  array left right pivotIndex  partition  storeIndex
+%
+/partition {  %4 args
+    3 index 1 index get  % A l r pI p
+    4 index 3 index 3 index  % A l r pI p  a r pI
     .swap
-    3 index % a l r pI p sI
-    dup 1 5 index 1 sub { % a l r pI p sI  i
-        6 index 1 index get 3 index cmp { % a l r pI p sI  i
-            6 index exch 2 index % a l r pI p sI  a i sI
+    3 index  % A l r pI p sI
+    dup 1 5 index 1 sub {  % a l r pI p sI  i
+        6 index 1 index get 3 index cmp {  % a l r pI p sI  i
+            6 index exch 2 index  % A l r pI p sI  a i sI
             .swap
-            1 add % a l r pI p sI+1
+            1 add  % A l r pI p sI+1
         }{ pop } ifelse
-    } for % a l r pI p sI
-    5 index 1 index 5 index % a l r pI p sI  a sI r
+    } for  % A l r pI p sI
+    5 index 1 index 5 index  % A l r pI p sI  a sI r
     .swap
     6 1 roll pop pop pop pop pop
 } bind def
 
-% array left right  quicksort  -
-/quicksort { %3 args
+%
+%  array left right  quicksort  -
+%
+/quicksort {  %3 args
     2 copy ge { pop pop pop }{
         3 copy
-            2 copy exch sub 2 idiv % a l r arr left right pivotIndex
-            2 index add % pivotIndex = l + _(r-l)/2_
-            //partition exec  % a l r newpivotIndex
-        4 copy 1 add 3 2 roll pop exch % a l r p a p+1 r
-        7 3 roll % a p+1 r a l r p
-        exch pop 1 sub % a p+1 r  a l p-1
+            2 copy exch sub 2 idiv  % A l r arr left right pivotIndex
+            2 index add  % PivotIndex = l + _(r-l)/2_
+            //partition exec  % A l r newpivotIndex
+        4 copy 1 add 3 2 roll pop exch  % A l r p a p+1 r
+        7 3 roll  % A p+1 r a l r p
+        exch pop 1 sub  % A p+1 r  a l p-1
         quicksort
         quicksort
     } ifelse
@@ -61,6 +68,6 @@ currentglobal true setglobal
     0 1 index length 1 sub quicksort
     end
 } bind
-end % qsortdict
+end  % Qsortdict
 .xpostsys 3 1 roll put
 setglobal

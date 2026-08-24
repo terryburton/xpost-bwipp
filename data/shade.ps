@@ -1,4 +1,5 @@
 %!PS
+%
 % shade.ps
 %
 % Smooth shading (PLRM 4.9.3): shfill resolves a gradient to a stack of flat-colour fills.
@@ -6,29 +7,36 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-% shfill paints a shading dictionary
-% over the current clip region. The gradient resolves to a stack of
-% flat-colour fills through the ordinary paint pipeline: an axial
-% shading as bands across its axis, a radial one as circles painted
-% outside in, a triangle mesh by recursive subdivision. The band and
-% step counts follow the device size of the geometry, so the steps
-% stay within a device pixel or two.
-
+%
+%  shfill paints a shading dictionary
+%  over the current clip region. The gradient resolves to a stack of
+%  flat-colour fills through the ordinary paint pipeline: an axial
+%  shading as bands across its axis, a radial one as circles painted
+%  outside in, a triangle mesh by recursive subdivision. The band and
+%  step counts follow the device size of the geometry, so the steps
+%  stay within a device pixel or two.
+%
 //.internaldict /QUIET known { }{ (loading shade.ps...)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% t fndict  .fneval  c0..cn-1
-% evaluate a PostScript function dictionary at t: exponential
-% interpolation (type 2), stitching (type 3), and one-input sampled
-% (type 0, byte-aligned sample depths) functions serve the shading
-% dictionaries producers write
+%
+%  t fndict  .fneval  c0..cn-1
+%  evaluate a PostScript function dictionary at t: exponential
+%  interpolation (type 2), stitching (type 3), and one-input sampled
+%  (type 0, byte-aligned sample depths) functions serve the shading
+%  dictionaries producers write
+%
 .xpostsys begin
-% The position is the caller's, so this opens no dictionary of its own:
-% a local one would take the /bp definitions with it and the stream
-% would be read from the same place for ever.
-/.mrdbits { % nbits . v  (accumulated in a real, most significant first)
+%
+%  The position is the caller's, so this opens no dictionary of its own:
+%  a local one would take the /bp definitions with it and the stream
+%  would be read from the same place for ever.
+%
+/.mrdbits {  % nbits . v  (accumulated in a real, most significant first)
     dup 8 mod 0 eq bp 8 mod 0 eq and {
         8 idiv 0.0 exch {
             256 mul ds bp 8 idiv get add
@@ -43,17 +51,22 @@ true setglobal
         } repeat
     } ifelse
 } def
-% The widths PLRM 3.10.1 allows a sample to be. A sampled function's
-% DataSource is a continuous bit stream with no padding at a byte
-% boundary, so these are read by counting bits, the way a mesh stream is.
+%
+%  The widths PLRM 3.10.1 allows a sample to be. A sampled function's
+%  DataSource is a continuous bit stream with no padding at a byte
+%  boundary, so these are read by counting bits, the way a mesh stream is.
+%
 /.fnsamplebits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> def
 
-% -  .fnsampled  -
-% What a sampled function needs, defined in the CALLER's dictionary from
-% the f it holds: the sample width, the range and how many components
-% that makes, and the source the samples come out of. It opens no
-% dictionary of its own, because what it defines is what the caller
-% reads -- and both evaluators read the same things.
+%
+%  -  .fnsampled  -
+%
+%  What a sampled function needs, defined in the CALLER's dictionary from
+%  the f it holds: the sample width, the range and how many components
+%  that makes, and the source the samples come out of. It opens no
+%  dictionary of its own, because what it defines is what the caller
+%  reads -- and both evaluators read the same things.
+%
 /.fnsampled {
     /bps f /BitsPerSample get def
     //.fnsamplebits bps known not { /shfill cvx /rangecheck signalerror } if
@@ -64,11 +77,13 @@ true setglobal
     /max 2 bps exp 1 sub def
 } def
 
-% index  .fnsample  value
-% The sample at that index, as it stands in the stream. The samples are
-% adjacent with nothing between them, so an index names a bit position
-% and not a byte one. What scales it to its range is left to the caller,
-% which interpolates between two samples first and divides once.
+%
+%  index  .fnsample  value
+%  The sample at that index, as it stands in the stream. The samples are
+%  adjacent with nothing between them, so an index names a bit position
+%  and not a byte one. What scales it to its range is left to the caller,
+%  which interpolates between two samples first and divides once.
+%
 /.fnsample {
     bps mul /bp exch def
     bps //.mrdbits exec
@@ -131,10 +146,12 @@ true setglobal
     end
 } def
 
-% x y fn  .fneval2  c0..cn-1 n
-% evaluate a two-input function: a sampled function with a 2-D Size,
-% bilinear between the four bracketing samples, or an array of
-% two-input single-output functions, one per component
+%
+%  x y fn  .fneval2  c0..cn-1 n
+%  evaluate a two-input function: a sampled function with a 2-D Size,
+%  bilinear between the four bracketing samples, or an array of
+%  two-input single-output functions, one per component
+%
 /.fneval2 {
     dup type /arraytype eq {
         4 dict begin
@@ -171,7 +188,7 @@ true setglobal
         /j1 j0 1 add sy 1 sub 2 copy gt { exch } if pop def
         /fx ex i0 sub def
         /fy ey j0 sub def
-        /samp { % i j c . v  (sample scaled to 0..1)
+        /samp {  % i j c . v  (sample scaled to 0..1)
             3 1 roll sx mul add nc mul add //.fnsample exec max div
         } def
         0 1 nc 1 sub { /c exch def
@@ -187,11 +204,13 @@ true setglobal
     } ifelse
 } def
 
-% shdict  .fnsh  -
-% function-based shading (type 1): the domain rectangle, taken
-% through the optional Matrix, paints as a grid of cells a few
-% device pixels across, each filled flat with the function's colour
-% at its centre
+%
+%  shdict  .fnsh  -
+%  function-based shading (type 1): the domain rectangle, taken
+%  through the optional Matrix, paints as a grid of cells a few
+%  device pixels across, each filled flat with the function's colour
+%  at its centre
+%
 /.fnsh {
     14 dict begin
     /sh exch def
@@ -222,9 +241,11 @@ true setglobal
     end
 } def
 
-% t  .shcolor  -
-% set the colour the current shading's function gives at t; a mesh
-% shading passes components directly and skips the function
+%
+%  t  .shcolor  -
+%  set the colour the current shading's function gives at t; a mesh
+%  shading passes components directly and skips the function
+%
 /.shcolor {
     shfn null eq {
         pop
@@ -233,10 +254,12 @@ true setglobal
     } ifelse
 } def
 
-% x y  .clipbig  r
-% a radius from the given point that covers the whole clip region:
-% the farthest corner of the region's box, plus a margin. A region
-% covering no pixels bounds nothing and is covered by a radius of zero
+%
+%  x y  .clipbig  r
+%  a radius from the given point that covers the whole clip region:
+%  the farthest corner of the region's box, plus a margin. A region
+%  covering no pixels bounds nothing and is covered by a radius of zero
+%
 /.clipbig {
     6 dict begin
     /py exch def /px exch def
@@ -256,10 +279,12 @@ true setglobal
     end
 } def
 
-% shdict  .axialsh  -
-% bands across the axis, each a strip of the plane perpendicular to
-% it, painted with the function's colour at its midpoint; extended
-% ends paint half-plane caps in the end colours
+%
+%  shdict  .axialsh  -
+%  bands across the axis, each a strip of the plane perpendicular to
+%  it, painted with the function's colour at its midpoint; extended
+%  ends paint half-plane caps in the end colours
+%
 /.axialsh {
     20 dict begin
     /sh exch def
@@ -284,7 +309,7 @@ true setglobal
     /px uy neg def
     /py ux def
     /big x0 y0 //.clipbig exec def
-    /band { % sa sb  (fractions of the axis)  .band  -
+    /band {  % sa sb  (fractions of the axis)  .band  -
         6 dict begin
         /sb exch def /sa exch def
         newpath
@@ -317,11 +342,13 @@ true setglobal
     end
 } def
 
-% shdict  .radialsh  -
-% the circle family painted outside in: each step fills its whole
-% circle, the next smaller covering the centre, so the last leaves
-% the gradient; an extended outer end floods the clip first and an
-% extended inner end is the innermost circle itself
+%
+%  shdict  .radialsh  -
+%  the circle family painted outside in: each step fills its whole
+%  circle, the next smaller covering the centre, so the last leaves
+%  the gradient; an extended outer end floods the clip first and an
+%  extended inner end is the innermost circle itself
+%
 /.radialsh {
     20 dict begin
     /sh exch def
@@ -358,49 +385,58 @@ true setglobal
     end
 } def
 
-% mesh vertex readers.
 %
-% A packed DataSource is a bit stream, not a byte stream: PLRM 4.9.3
-% lets a coordinate be 1, 2, 4, 8, 12, 16, 24 or 32 bits and a colour
-% component 1, 2, 4, 8, 12 or 16, and the fields of one vertex are
-% packed against each other with no gaps. Only the END of a vertex is
-% padded to a byte, and for a patch only the end of the patch.
+%  mesh vertex readers.
 %
-% So the position is held in BITS. Two readers would drift, so there is
-% one, and the byte-at-a-time reading every stream written today needs
-% is a path through it rather than a second one: a field that begins on
-% a byte boundary and is a whole number of bytes is read a byte at a
-% time and everything else a bit at a time, which are the same number by
-% construction.
-% The field widths PLRM 4.9.3 allows, one set per entry. They are sets
-% rather than a range because the reader must be able to say which
-% widths it takes, and a program's data is unreadable if it guesses.
+%  A packed DataSource is a bit stream, not a byte stream: PLRM 4.9.3
+%  lets a coordinate be 1, 2, 4, 8, 12, 16, 24 or 32 bits and a colour
+%  component 1, 2, 4, 8, 12 or 16, and the fields of one vertex are
+%  packed against each other with no gaps. Only the END of a vertex is
+%  padded to a byte, and for a patch only the end of the patch.
+%
+%  So the position is held in BITS. Two readers would drift, so there is
+%  one, and the byte-at-a-time reading every stream written today needs
+%  is a path through it rather than a second one: a field that begins on
+%  a byte boundary and is a whole number of bytes is read a byte at a
+%  time and everything else a bit at a time, which are the same number by
+%  construction.
+%  The field widths PLRM 4.9.3 allows, one set per entry. They are sets
+%  rather than a range because the reader must be able to say which
+%  widths it takes, and a program's data is unreadable if it guesses.
+%
 /.mrdcoordbits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> def
 /.mrdcompbits << 1 true 2 true 4 true 8 true 12 true 16 true >> def
 /.mrdflagbits << 2 true 4 true 8 true >> def
-% - .mrdalign -
-% Step over the padding at the end of a vertex or a patch: what follows
-% begins on a byte boundary whatever the fields before it came to.
+%
+%  - .mrdalign -
+%
+%  Step over the padding at the end of a vertex or a patch: what follows
+%  begins on a byte boundary whatever the fields before it came to.
+%
 /.mrdalign {
     litds not { /bp bp 7 add 8 idiv 8 mul def } if
 } def
-% - .mrdmore bool
-% whether any of the source is still unread, counted in whichever unit
-% this source is read by
+%
+%  - .mrdmore bool
+%  whether any of the source is still unread, counted in whichever unit
+%  this source is read by
+%
 /.mrdmore {
     litds { dp ds length lt }{ bp ds length 8 mul lt } ifelse
 } def
-/.mrddec { % k nbits . value  (field k of Decode applied)
+/.mrddec {  % k nbits . value  (field k of Decode applied)
     dup //.mrdbits exec
     exch 2 exch exp 1 sub div
     /frv exch def /kk exch def
     dec kk 2 mul 1 add get dec kk 2 mul get sub frv mul
     dec kk 2 mul get add
 } def
-% a mesh DataSource may instead be an array of the flag, coordinate and
-% colour values directly (PLRM 4.9.3): then BitsPer* and Decode are ignored
-% and each field is one array element. /litds selects which reading applies.
-/.mrdflag { % - . flag
+%
+%  a mesh DataSource may instead be an array of the flag, coordinate and
+%  colour values directly (PLRM 4.9.3): then BitsPer* and Decode are ignored
+%  and each field is one array element. /litds selects which reading applies.
+%
+/.mrdflag {  % - . flag
     litds { ds dp get cvi /dp dp 1 add def }
           { bpf //.mrdbits exec cvi } ifelse
     % PLRM gives each mesh type the values its edge flag may take -- 0, 1
@@ -412,35 +448,37 @@ true setglobal
         /shfill cvx /rangecheck signalerror
     } if
 } def
-/.mrdpt { % - . [x y]
+/.mrdpt {  % - . [x y]
     litds { [ ds dp get ds dp 1 add get ] /dp dp 2 add def }
           { [ 0 bpc //.mrddec exec 1 bpc //.mrddec exec ] } ifelse
 } def
-/.mrdcolor { % - . [c0..cn-1]
+/.mrdcolor {  % - . [c0..cn-1]
     litds { [ ds dp ncomp getinterval aload pop ] /dp dp ncomp add def }
            { [ 0 1 ncomp 1 sub { /c exch def
                  c 2 add bpcm //.mrddec exec
              } for ] } ifelse
 } def
-/.mrdvertex { % - . [x y c0..cn-1]
+/.mrdvertex {  % - . [x y c0..cn-1]
     [ //.mrdpt exec aload pop //.mrdcolor exec aload pop ]
     % a vertex occupies a whole number of bytes, and for a free-form
     % mesh the flag read just before it belongs to the same one
     //.mrdalign exec
 } def
 
-% sh flagrequired  .mrdinit  -
-% Set the reader up for a shading whose shape arrives as a DataSource.
-% What it defines -- the shading, its Function, the source and the
-% position in it, and for a packed source the Decode array, the field
-% widths and the component count -- is defined in the CALLER's
-% dictionary, because the caller is what reads them. So this opens none
-% of its own.
 %
-% flagrequired says whether every type this painter takes carries a
-% per-vertex edge flag. A lattice mesh carries none, and its BitsPerFlag
-% may be absent; a patch mesh must state one. flagmax is the largest
-% value that flag may take for this painter's types.
+%  sh flagrequired  .mrdinit  -
+%  Set the reader up for a shading whose shape arrives as a DataSource.
+%  What it defines -- the shading, its Function, the source and the
+%  position in it, and for a packed source the Decode array, the field
+%  widths and the component count -- is defined in the CALLER's
+%  dictionary, because the caller is what reads them. So this opens none
+%  of its own.
+%
+%  flagrequired says whether every type this painter takes carries a
+%  per-vertex edge flag. A lattice mesh carries none, and its BitsPerFlag
+%  may be absent; a patch mesh must state one. flagmax is the largest
+%  value that flag may take for this painter's types.
+%
 /.mrdinit {
     /flagmax exch def
     /flagreq exch def
@@ -476,10 +514,12 @@ true setglobal
     } ifelse
 } def
 
-% [c0..cn-1]  .gsetcolor  -
-% set a mesh colour: components directly, or -- when the shading
-% carries a Function -- a single parametric value through it. The
-% mesh painters bind /shfn before any triangle paints
+%
+%  [c0..cn-1]  .gsetcolor  -
+%  set a mesh colour: components directly, or -- when the shading
+%  carries a Function -- a single parametric value through it. The
+%  mesh painters bind /shfn before any triangle paints
+%
 /.gsetcolor {
     shfn null eq {
         aload pop setcolor
@@ -488,11 +528,13 @@ true setglobal
     } ifelse
 } def
 
-% va vb vc depth  .gtri  -
-% paint a Gouraud triangle: subdivide at the edge midpoints until the
-% triangle sits within a couple of device pixels, then fill flat with
-% the corner average
-/.gmid { % va vb . vm
+%
+%  va vb vc depth  .gtri  -
+%  paint a Gouraud triangle: subdivide at the edge midpoints until the
+%  triangle sits within a couple of device pixels, then fill flat with
+%  the corner average
+%
+/.gmid {  % va vb . vm
     2 dict begin
     /b exch def /a exch def
     [ 0 1 a length 1 sub { /i exch def
@@ -500,27 +542,29 @@ true setglobal
     } for ]
     end
 } def
-% va vb vc  .tridepth  depth
-% How finely to subdivide a Gouraud triangle, from the size the triangle
-% comes to on the device. Each level halves an edge, so a triangle L
-% device units across needs log2(L/k) levels to bring its flat fills
-% down to k across, and a triangle already smaller than k needs none.
 %
-% k is half a device unit. The fills are flat, so what they approximate
-% is a colour that varies across every pixel, and a fill smaller than a
-% pixel is what lets each pixel take a colour of its own. MEASURED
-% against a mesh of small triangles carrying a full colour range: at one
-% unit the page is further from a per-pixel rendering than the constant
-% depth this replaced, and at half a unit it is the same page. At two
-% units it is worse and cheaper, at a quarter better and four times
-% dearer.
+%  va vb vc  .tridepth  depth
+%  How finely to subdivide a Gouraud triangle, from the size the triangle
+%  comes to on the device. Each level halves an edge, so a triangle L
+%  device units across needs log2(L/k) levels to bring its flat fills
+%  down to k across, and a triangle already smaller than k needs none.
 %
-% The cap is a cost bound and nothing else: 4^7 fills is the most one
-% triangle may ask for. MEASURED on a triangle covering a 384-unit page,
-% where the depth this asks for is exactly 7: the page stops changing
-% there -- 8 gives the same bytes -- because the flatness test below
-% takes over. Both painters ask this, so a patch's grid cells and a
-% mesh's triangles are subdivided by one rule.
+%  k is half a device unit. The fills are flat, so what they approximate
+%  is a colour that varies across every pixel, and a fill smaller than a
+%  pixel is what lets each pixel take a colour of its own. MEASURED
+%  against a mesh of small triangles carrying a full colour range: at one
+%  unit the page is further from a per-pixel rendering than the constant
+%  depth this replaced, and at half a unit it is the same page. At two
+%  units it is worse and cheaper, at a quarter better and four times
+%  dearer.
+%
+%  The cap is a cost bound and nothing else: 4^7 fills is the most one
+%  triangle may ask for. MEASURED on a triangle covering a 384-unit page,
+%  where the depth this asks for is exactly 7: the page stops changing
+%  there -- 8 gives the same bytes -- because the flatness test below
+%  takes over. Both painters ask this, so a patch's grid cells and a
+%  mesh's triangles are subdivided by one rule.
+%
 /.tridepthcap 7 def
 /.tridepth {
     8 dict begin
@@ -538,12 +582,14 @@ true setglobal
     dup //.tridepthcap gt { pop //.tridepthcap } if
     end
 } def
-% -  .gtriclip  [uminx uminy umaxx umaxy] or null
-% The page, in the user space a mesh states its triangles in: a box a
-% triangle lying wholly past one edge of marks no pixel within. Two
-% device units of margin absorb the inverse transform's rounding, and a
-% rotated CTM only widens the box, so it never excludes a point the page
-% holds. A device that states no size disables the test with a null.
+%
+%  -  .gtriclip  [uminx uminy umaxx umaxy] or null
+%  The page, in the user space a mesh states its triangles in: a box a
+%  triangle lying wholly past one edge of marks no pixel within. Two
+%  device units of margin absorb the inverse transform's rounding, and a
+%  rotated CTM only widens the box, so it never excludes a point the page
+%  holds. A device that states no size disables the test with a null.
+%
 /.gtriclip {
     8 dict begin
     graphicsdict /currgstate get /device get /d exch def
@@ -604,9 +650,11 @@ true setglobal
     } ifelse
 } def
 
-% shdict  .meshsh  -
-% free-form (type 4) and lattice-form (type 5) triangle meshes with
-% per-vertex colours
+%
+%  shdict  .meshsh  -
+%  free-form (type 4) and lattice-form (type 5) triangle meshes with
+%  per-vertex colours
+%
 /.meshsh {
     24 dict begin
     /gclipbox //.gtriclip exec def
@@ -660,8 +708,10 @@ true setglobal
     end
 } def
 
-% a0 a1 a2 a3 t  .bez1  v
-% a cubic Bezier component at parameter t
+%
+%  a0 a1 a2 a3 t  .bez1  v
+%  a cubic Bezier component at parameter t
+%
 /.bez1 {
     5 dict begin
     /t exch def /a3 exch def /a2 exch def /a1 exch def /a0 exch def
@@ -673,15 +723,19 @@ true setglobal
     end
 } def
 
-% the 4x4 control grid slot (row-major, rows pairing with u) for
-% each patch point p1..p16 in the data-stream order: the boundary
-% counterclockwise from the first corner, then the four interior
-% points
+%
+%  the 4x4 control grid slot (row-major, rows pairing with u) for
+%  each patch point p1..p16 in the data-stream order: the boundary
+%  counterclockwise from the first corner, then the four interior
+%  points
+%
 /.pgridmap [ 0 1 2 3 7 11 15 14 13 12 8 4 5 6 10 9 ] def
 
-% [w slot w slot ...]  .pmix  [x y]
-% a weighted combination of grid points, divided by 9: the Coons
-% interior points are ninths of boundary sums
+%
+%  [w slot w slot ...]  .pmix  [x y]
+%  a weighted combination of grid points, divided by 9: the Coons
+%  interior points are ninths of boundary sums
+%
 /.pmix {
     4 dict begin
     /spec exch def
@@ -696,11 +750,14 @@ true setglobal
     end
 } def
 
-% -  .patchpaint  -
-% paint the current 4x4 grid g with corner colours cols: collapse
-% the grid's columns at each u by .bez1, sweep the resulting curve
-% in v, and hand the cells to the Gouraud triangles with corner
-% colours blended bilinearly
+%
+%  -  .patchpaint  -
+%
+%  paint the current 4x4 grid g with corner colours cols: collapse
+%  the grid's columns at each u by .bez1, sweep the resulting curve
+%  in v, and hand the cells to the Gouraud triangles with corner
+%  colours blended bilinearly
+%
 /.patchpaint {
     10 dict begin
     /gclipbox //.gtriclip exec def
@@ -751,10 +808,12 @@ true setglobal
     end
 } def
 
-% shdict  .patchsh  -
-% Coons (type 6) and tensor-product (type 7) patch meshes. A Coons
-% patch completes to a tensor patch by the standard interior points,
-% so one surface serves both
+%
+%  shdict  .patchsh  -
+%  Coons (type 6) and tensor-product (type 7) patch meshes. A Coons
+%  patch completes to a tensor patch by the standard interior points,
+%  so one surface serves both
+%
 /.patchsh {
     30 dict begin
     % both patch types carry a flag on every patch, so BitsPerFlag is
@@ -801,14 +860,18 @@ true setglobal
 } def
 end
 
-%   shdict  shfill  -
-% paint the shading over the current clip region; the current path
-% survives untouched
+%
+%    shdict  shfill  -
+%  paint the shading over the current clip region; the current path
+%  survives untouched
+%
 .xpostsys begin
-% Which procedure paints each shading type (PLRM 4.9.3). Written as a
-% table rather than a chain of tests: the chain asked five questions of
-% one number and each arm had to leave the stack as the next one found
-% it, which two of them did not.
+%
+%  Which procedure paints each shading type (PLRM 4.9.3). Written as a
+%  table rather than a chain of tests: the chain asked five questions of
+%  one number and each arm had to leave the stack as the next one found
+%  it, which two of them did not.
+%
 /.shadepainters <<
     1 //.fnsh      2 //.axialsh   3 //.radialsh
     4 //.meshsh    5 //.meshsh
@@ -824,7 +887,7 @@ systemdict /shfill [ /dicttype ] {
     dup /ShadingType get
     //.shadepainters 1 index known not
         { pop pop /shfill cvx /rangecheck signalerror } if
-    //.shadepainters exch get exch          % proc shdict
+    //.shadepainters exch get exch          % Proc shdict
 
     gsave
     dup /ColorSpace get setcolorspace

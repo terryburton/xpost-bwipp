@@ -1,4 +1,5 @@
 %!PS
+%
 % init.ps
 %
 % Interpreter start-up, run before systemdict is sealed; builds the systemdict procedures.
@@ -6,85 +7,100 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-%init.ps is run before systemdict is made readonly
 %
-%systemdict /ud userdict put %trigger backup error handler
+% init.ps is run before systemdict is made readonly
+%
+% systemdict /ud userdict put %trigger backup error handler
+%
 
-%procedures in systemdict
+%
+% procedures in systemdict
+%
 
-% QUIET is a job convention, not machinery state: real-world job streams
-% execute it as a bare name -- tests/corpus/ghostscript/waterfal.ps reads
-% `QUIET not { ... } if` -- so it must resolve by ordinary dictionary
-% lookup, and a definition of it (-q writes systemdict, a -D definition
-% lands in userdict) is deliberately left where a program's lookup finds
-% it. The probe honours the same convention.
+%
+%  QUIET is a job convention, not machinery state: real-world job streams
+%  execute it as a bare name -- tests/corpus/ghostscript/waterfal.ps reads
+%  `QUIET not { ... } if` -- so it must resolve by ordinary dictionary
+%  lookup, and a definition of it (-q writes systemdict, a -D definition
+%  lands in userdict) is deliberately left where a program's lookup finds
+%  it. The probe honours the same convention.
+%
 /QUIET where { pop }{ (loading init.ps...\n) print } ifelse
 
-%(35\n) print
-%currentfile flushfile
-
-systemdict begin % make these definitions in systemdict
-true setglobal   % systemdict is global, so these allocations must be global
-
-% .xpostsys -- the interpreter's private namespace. Internal helper procedures
-% and their static tables live here, out of the names a program may use; only
-% the dotted anchor name is visible and the helpers hide behind it. A GLOBAL
-% dictionary anchored in userdict, sealed read-only and dropped from userdict at
-% lockdown; its mutable per-render state lives in .gscratch instead. It is global
-% so a global systemdict procedure may freeze a // reference to it (a global
-% object may not reference a local one); local machinery lives in privatedict.
 %
-% Convention -- a helper h is reached through a frozen // reference, in either of
-% two forms:
-%     .xpostsys /h { ... } put       ...  //.xpostsys /h get exec   % define, call
-%     .xpostsys begin /h { ... } def ...  //h exec ... end          % define, bake
-% The // freezes the dictionary (get form) or the helper object itself (baked
-% form) into the caller at scan time, so a program cannot shadow it. The get form
-% resolves h at run time, which mutual recursion and forward references need;
-% baking costs no run-time lookup but cannot express them. Helpers that were the
-% path/clip/image/graphics family use the get form; the colour/shading/pattern/
-% halftone families bake.
+% (35\n) print
+% currentfile flushfile
+%
+systemdict begin  % Make these definitions in systemdict
+true setglobal   % Systemdict is global, so these allocations must be global
+
+%
+%  .xpostsys -- the interpreter's private namespace. Internal helper procedures
+%  and their static tables live here, out of the names a program may use; only
+%  the dotted anchor name is visible and the helpers hide behind it. A GLOBAL
+%  dictionary anchored in userdict, sealed read-only and dropped from userdict at
+%  lockdown; its mutable per-render state lives in .gscratch instead. It is global
+%  so a global systemdict procedure may freeze a // reference to it (a global
+%  object may not reference a local one); local machinery lives in privatedict.
+%
+%  Convention -- a helper h is reached through a frozen // reference, in either of
+%  two forms:
+%      .xpostsys /h { ... } put       ...  //.xpostsys /h get exec   % define, call
+%      .xpostsys begin /h { ... } def ...  //h exec ... end          % define, bake
+%  The // freezes the dictionary (get form) or the helper object itself (baked
+%  form) into the caller at scan time, so a program cannot shadow it. The get form
+%  resolves h at run time, which mutual recursion and forward references need;
+%  baking costs no run-time lookup but cannot express them. Helpers that were the
+%  path/clip/image/graphics family use the get form; the colour/shading/pattern/
+%  halftone families bake.
+%
 currentglobal true setglobal
 userdict /.xpostsys 400 dict put
-% Recorded in the context as well, where the collector roots it and the C
-% reaches it. The anchor below is dropped at lockdown and what holds the
-% namespace afterwards is the references frozen into procedure bodies, which
-% no C code has; the caches C keeps here must be reachable from both sides.
+%
+%  Recorded in the context as well, where the collector roots it and the C
+%  reaches it. The anchor below is dropped at lockdown and what holds the
+%  namespace afterwards is the references frozen into procedure bodies, which
+%  no C code has; the caches C keeps here must be reachable from both sides.
+%
 userdict /.xpostsys get .setglobalprivatedict
 setglobal
 
-% .hostdict -- what this run's host settles, and nothing else.
 %
-% The dictionaries around it hold the language: the same names with the
-% same values however the interpreter was started. A few values are not
-% like that -- the directory the boot files were found in, the
-% directories a resource search covers, whether there is a user at the
-% other end of standard input -- and they are decided afresh on every
-% launch by the command line, the environment, the caller, or the state
-% of the process. Keeping them here and nowhere else is what makes
-% "is this the same for every run of this build?" a question about which
-% dictionary a name is in, rather than one about what the name means.
+%  .hostdict -- what this run's host settles, and nothing else.
 %
-% Every member is written by the host (xpost_interpreter.c,
-% _record_host_config and _record_session_kind), from the one table
-% there, once the language is in place; a setting the host has nothing
-% to say about is written as a null rather than left out. So nothing a
-% run reads here was settled by anything but this run.
+%  The dictionaries around it hold the language: the same names with the
+%  same values however the interpreter was started. A few values are not
+%  like that -- the directory the boot files were found in, the
+%  directories a resource search covers, whether there is a user at the
+%  other end of standard input -- and they are decided afresh on every
+%  launch by the command line, the environment, the caller, or the state
+%  of the process. Keeping them here and nowhere else is what makes
+%  "is this the same for every run of this build?" a question about which
+%  dictionary a name is in, rather than one about what the name means.
 %
-% Global, with the namespace holding it. A setting is made before the
-% program runs and read for the whole life of the context, so it has to
-% outlive the restores that end a job; local memory would revert it with
-% whichever job happened to be running.
+%  Every member is written by the host (xpost_interpreter.c,
+%  _record_host_config and _record_session_kind), from the one table
+%  there, once the language is in place; a setting the host has nothing
+%  to say about is written as a null rather than left out. So nothing a
+%  run reads here was settled by anything but this run.
+%
+%  Global, with the namespace holding it. A setting is made before the
+%  program runs and read for the whole life of the context, so it has to
+%  outlive the restores that end a job; local memory would revert it with
+%  whichever job happened to be running.
+%
 currentglobal true setglobal
 .xpostsys /.hostdict 16 dict put
 
-% /key  .hostvalue  value
-% What the host settled for this run under key. Every setting a run has
-% is written before a program runs, so a key that is not here is one no
-% run settles: the caller is asking for something that was never a
-% setting, and is told so where it asked instead of carrying a null off
-% somewhere else. A setting the host said nothing about answers null,
-% which is a value and reads as one.
+%
+%  /key  .hostvalue  value
+%  What the host settled for this run under key. Every setting a run has
+%  is written before a program runs, so a key that is not here is one no
+%  run settles: the caller is asking for something that was never a
+%  setting, and is told so where it asked instead of carrying a null off
+%  somewhere else. A setting the host said nothing about answers null,
+%  which is a value and reads as one.
+%
 .xpostsys /.hostvalue {
     //.xpostsys /.hostdict get exch 2 copy known
         { get }
@@ -94,45 +110,53 @@ currentglobal true setglobal
 setglobal
 
 currentglobal true setglobal
-% The operands each operator takes. The definitions fill this through
-% .defop, so the statement sits beside the body it describes; lockdown
-% reads it when it wraps them.
+%
+%  The operands each operator takes. The definitions fill this through
+%  .defop, so the statement sits beside the body it describes; lockdown
+%  reads it when it wraps them.
+%
 .xpostsys /.opsigs 200 dict put
 
-% A forked context runs its top-level procedure through this, so an error the
-% procedure raises is reported by handleerror and ends the context rather than
-% unwinding into the interpreter with no stopped context to catch the stop.
-% op_fork leaves the procedure on the operand stack and pushes this above it
-% (PLRM 2nd ed 7.1: a forked procedure runs effectively as
-% `proc stopped { handleerror quit } if`). `currentcontext detach` plays the
-% role of that quit: after reporting the error the context detaches itself, so
-% when .childrun returns it terminates outright instead of waiting to be
-% joined, and a later join of it is invalidcontext -- as PLRM requires of a
-% context that ended on an error rather than running to a clean return. detach
-% of the current context is permitted, and it only marks the context to free
-% itself on return, so the error's stop has already unwound when it runs. The
-% names are late-bound, so this line parses when the context operators are
-% absent (a default run never forks, so .childrun never runs).
+%
+%  A forked context runs its top-level procedure through this, so an error the
+%  procedure raises is reported by handleerror and ends the context rather than
+%  unwinding into the interpreter with no stopped context to catch the stop.
+%  op_fork leaves the procedure on the operand stack and pushes this above it
+%  (PLRM 2nd ed 7.1: a forked procedure runs effectively as
+%  `proc stopped { handleerror quit } if`). `currentcontext detach` plays the
+%  role of that quit: after reporting the error the context detaches itself, so
+%  when .childrun returns it terminates outright instead of waiting to be
+%  joined, and a later join of it is invalidcontext -- as PLRM requires of a
+%  context that ended on an error rather than running to a clean return. detach
+%  of the current context is permitted, and it only marks the context to free
+%  itself on return, so the error's stop has already unwound when it runs. The
+%  names are late-bound, so this line parses when the context operators are
+%  absent (a default run never forks, so .childrun never runs).
+%
 .xpostsys /.childrun { stopped { handleerror currentcontext detach } if } put
 
-% The operators whose bodies arrived already read-only. A body is bound
-% once the whole set has been promoted, which is the only moment at which
-% a call from one standard operator to another can be frozen; a body bound
-% at its definition is read-only by then, and bind ignores a read-only
-% array, so it keeps the names it was written with for the rest of the
-% run. Recording the name here rather than refusing on the spot is what
-% lets the whole set be reported at once, and what lets the check work in
-% the window before the error machinery is loaded. .finalize holds this
-% register to empty.
+%
+%  The operators whose bodies arrived already read-only. A body is bound
+%  once the whole set has been promoted, which is the only moment at which
+%  a call from one standard operator to another can be frozen; a body bound
+%  at its definition is read-only by then, and bind ignores a read-only
+%  array, so it keeps the names it was written with for the rest of the
+%  run. Recording the name here rather than refusing on the spot is what
+%  lets the whole set be reported at once, and what lets the check work in
+%  the window before the error machinery is loaded. .finalize holds this
+%  register to empty.
+%
 .xpostsys /.boundatdef 32 dict put
 
-% dict /name [ specs ] { proc }  .defopin  -
-% Define an operator into a named dictionary and record the operands it
-% takes, in one place. The dictionary is a parameter because an operator
-% does not always belong to the one that happens to be current: the
-% shading and page-device operators are written inside a block that has
-% made a private namespace current so their helper references resolve as
-% they are read, and they still have to land in systemdict.
+%
+%  dict /name [ specs ] { proc }  .defopin  -
+%  Define an operator into a named dictionary and record the operands it
+%  takes, in one place. The dictionary is a parameter because an operator
+%  does not always belong to the one that happens to be current: the
+%  shading and page-device operators are written inside a block that has
+%  made a private namespace current so their helper references resolve as
+%  they are read, and they still have to land in systemdict.
+%
 .xpostsys /.defopin {
     4 dict begin
     /d.proc exch def /d.sig exch def /d.name exch def /d.dict exch def
@@ -159,78 +183,94 @@ currentglobal true setglobal
     end
 } put
 
-% /name [ specs ] { proc }  .defop  -
-% The same, into the dictionary the definition is being read in, which is
-% where an operator belongs unless something says otherwise.
+%
+%  /name [ specs ] { proc }  .defop  -
+%  The same, into the dictionary the definition is being read in, which is
+%  where an operator belongs unless something says otherwise.
+%
 .xpostsys /.defop {
     currentdict 4 1 roll
     //.xpostsys /.defopin get exec
 } put
 setglobal
-% privatedict -- the interpreter's private LOCAL machinery dictionary. Recorded
-% in the context (where the collector roots it and C reaches it) but never placed
-% on the dict stack, so a program can neither name nor enumerate its members. It
-% is LOCAL because it holds local objects (the device class dictionaries, the
-% graphics scratch and template, the wrapped-operator anchor procedures) that a
-% global private dictionary may not hold. Reached from PostScript through the
-% .privatedict operator.
+%
+%  privatedict -- the interpreter's private LOCAL machinery dictionary. Recorded
+%  in the context (where the collector roots it and C reaches it) but never placed
+%  on the dict stack, so a program can neither name nor enumerate its members. It
+%  is LOCAL because it holds local objects (the device class dictionaries, the
+%  graphics scratch and template, the wrapped-operator anchor procedures) that a
+%  global private dictionary may not hold. Reached from PostScript through the
+%  .privatedict operator.
+%
 currentglobal false setglobal
 256 dict .setprivatedict
 setglobal
-% DATA_DIR, the directory this run found its boot files in, is handed in by the
-% bootstrap through userdict -- the only dictionary there is that early. Seed
-% the run's settings with it here, so the loader below can find the rest of the
-% modules, and drop the handover so it does not sit among the program's names.
-% The host writes it again, with everything else it settles, once the language
-% is in place; the copy is global because the settings are.
+%
+%  DATA_DIR, the directory this run found its boot files in, is handed in by the
+%  bootstrap through userdict -- the only dictionary there is that early. Seed
+%  the run's settings with it here, so the loader below can find the rest of the
+%  modules, and drop the handover so it does not sit among the program's names.
+%  The host writes it again, with everything else it settles, once the language
+%  is in place; the copy is global because the settings are.
+%
 userdict /DATA_DIR known {
     .xpostsys /.hostdict get /DATA_DIR userdict /DATA_DIR get dup length string copy put
     userdict /DATA_DIR undef
 } if
-% .gscratch returns the local scratch dictionary the machinery mutates each
-% render (strokedict, caches, local resources); it is a LOCAL object the
-% collector reclaims. A bound reference to the operator resists shadowing.
-% Defined before any module loads.
+%
+%  .gscratch returns the local scratch dictionary the machinery mutates each
+%  render (strokedict, caches, local resources); it is a LOCAL object the
+%  collector reclaims. A bound reference to the operator resists shadowing.
+%  Defined before any module loads.
+%
 currentglobal false setglobal
-% Both are local, and privatedict is the local dictionary the machinery
-% lives in, so they go there outright. The procedure takes the scratch
-% dictionary as a value: a // reference would have needed the name on the
-% dictionary stack, which is what forced the userdict anchor before. Only
-% the .gscratch operator that wraps it is a simple object fit for systemdict.
+%
+%  Both are local, and privatedict is the local dictionary the machinery
+%  lives in, so they go there outright. The procedure takes the scratch
+%  dictionary as a value: a // reference would have needed the name on the
+%  dictionary stack, which is what forced the userdict anchor before. Only
+%  the .gscratch operator that wraps it is a simple object fit for systemdict.
+%
 .privatedict /.gscratchdict 64 dict put
 .privatedict /.gscratchproc [ .privatedict /.gscratchdict get ] cvx put
 /.gscratch dup .privatedict /.gscratchproc get .wrapop def
 setglobal
 
 currentglobal true setglobal
-% The private C operators live under dot-prefixed names. Near the end of
-% graphics loading they are relocated out of systemdict into .internaldict, so
-% a program sees only the standard operators in systemdict while a font program
-% still reaches them through 1183615869 internaldict. The few operators fetched
-% by name during graphics loading are seeded here first, before that pass.
-% .rundied is seeded for the same reason from the other end: it records a
-% failure the caller is to see, and the failures it records include the
-% ones that stop graphics loading before the relocation pass is reached.
+%
+%  The private C operators live under dot-prefixed names. Near the end of
+%  graphics loading they are relocated out of systemdict into .internaldict, so
+%  a program sees only the standard operators in systemdict while a font program
+%  still reaches them through 1183615869 internaldict. The few operators fetched
+%  by name during graphics loading are seeded here first, before that pass.
+%  .rundied is seeded for the same reason from the other end: it records a
+%  failure the caller is to see, and the failures it records include the
+%  ones that stop graphics loading before the relocation pass is reached.
+%
 userdict /.internaldict 256 dict put
 [ /.fillpoly /.fillrectgray /.fillrectrgb /.blendpixgray /.blendpixrgb
   /.pdfinit /.pdfput /.flatecompress /.vmreserve /.rundied ]
 { dup systemdict exch get .internaldict 3 1 roll put } forall
 
-% int  internaldict  dict
-% the guarded accessor by which a font program reaches the private
-% operators; the password is part of the language folklore
+%
+%  int  internaldict  dict
+%  the guarded accessor by which a font program reaches the private
+%  operators; the password is part of the language folklore
+%
 /internaldict [ /integertype ] {
     1183615869 eq { //.internaldict }{
         /internaldict cvx /invalidaccess signalerror
     } ifelse
 } //.xpostsys /.defop get exec
 
-% Debug aids and the internal context-state markers are C operators, not part of
-% the language, and must not sit in a program's lookup path. The machinery
-% operators above are moved out of systemdict by the lockdown step, once its
-% bind pass has frozen the procedures that use them; these are graphics-independent
-% and used by nothing, so they move into .internaldict here, during init, and are
-% hidden whether or not graphics is ever loaded.
+%
+%  Debug aids and the internal context-state markers are C operators, not part of
+%  the language, and must not sit in a program's lookup path. The machinery
+%  operators above are moved out of systemdict by the lockdown step, once its
+%  bind pass has frozen the procedures that use them; these are graphics-independent
+%  and used by nothing, so they move into .internaldict here, during init, and are
+%  hidden whether or not graphics is ever loaded.
+%
 1 dict begin
 [ /dumpnames /dumpvm /debugloadon /debugloadoff /breakhere
   /_i_am_zombie_ /_i_am_free_ ]
@@ -242,19 +282,23 @@ userdict /.internaldict 256 dict put
 } forall
 end
 
-% QUIET, the -q startup flag, is handed in through systemdict by the C -- the
-% only dictionary that exists that early. It guards the interpreter's own
-% load-time progress messages and a program never needs it, so move it into
-% .internaldict now, before any banner guard runs. The guards below read it
-% through a frozen //.internaldict reference that no program can see or shadow.
+%
+%  QUIET, the -q startup flag, is handed in through systemdict by the C -- the
+%  only dictionary that exists that early. It guards the interpreter's own
+%  load-time progress messages and a program never needs it, so move it into
+%  .internaldict now, before any banner guard runs. The guards below read it
+%  through a frozen //.internaldict reference that no program can see or shadow.
+%
 systemdict /QUIET known
     { .internaldict /QUIET systemdict /QUIET get put systemdict /QUIET undef }
 if
 setglobal
 
-% statusdict holds device/product status a program may change, so it is a local
-% dictionary -- save and restore isolate a job's changes -- that systemdict names
-% (copyudtosd), like $error, errordict and userdict.
+%
+%  statusdict holds device/product status a program may change, so it is a local
+%  dictionary -- save and restore isolate a job's changes -- that systemdict names
+%  (copyudtosd), like $error, errordict and userdict.
+%
 currentglobal false setglobal
 userdict /statusdict <<
     /manualfeed false
@@ -262,8 +306,10 @@ userdict /statusdict <<
 >> put
 setglobal
 
-% the page-size convenience operators of the printer products, which
-% driver prologs invoke from their PPD feature blocks
+%
+%  the page-size convenience operators of the printer products, which
+%  driver prologs invoke from their PPD feature blocks
+%
 <<
     /letter      [ 612  792]
     /lettersmall [ 612  792]
@@ -282,15 +328,17 @@ setglobal
     /setpagedevice cvx 2 array astore cvx def
 } forall
 
-% the job server's dictionary. exitserver ends the encapsulated job and
-% starts an unencapsulated one, so the definitions made after it outlive
-% the job -- the idiom every driver prolog uses. It is `true password
-% startjob`, which the interpreter answers by folding the run's state into
-% the baseline at its end (see xpost_run); on a wrong password it raises
-% invalidaccess. A successful exitserver announces that permanent state may
-% change and, because startjob has reset the dictionary stack to the job's
-% base depth, no longer stands with serverdict begun. serverdict is a local
-% dictionary named in systemdict.
+%
+%  the job server's dictionary. exitserver ends the encapsulated job and
+%  starts an unencapsulated one, so the definitions made after it outlive
+%  the job -- the idiom every driver prolog uses. It is `true password
+%  startjob`, which the interpreter answers by folding the run's state into
+%  the baseline at its end (see xpost_run); on a wrong password it raises
+%  invalidaccess. A successful exitserver announces that permanent state may
+%  change and, because startjob has reset the dictionary stack to the job's
+%  base depth, no longer stands with serverdict begun. serverdict is a local
+%  dictionary named in systemdict.
+%
 currentglobal false setglobal
 userdict /serverdict 2 dict put
 serverdict /exitserver {
@@ -301,32 +349,42 @@ serverdict /exitserver {
 } put
 setglobal
 
-% startjob is a C operator (xpost_op_save.c): it is registered into
-% systemdict before this file runs, so nothing is defined for it here.
+%
+%  startjob is a C operator (xpost_op_save.c): it is registered into
+%  systemdict before this file runs, so nothing is defined for it here.
+%
 
-% the interpreter answers for the whole language
+%
+%  the interpreter answers for the whole language
+%
 /languagelevel 3 def
 
-% the shared-VM view of global VM, one and the same here
+%
+%  the shared-VM view of global VM, one and the same here
+%
 /setshared /setglobal load def
 /currentshared /currentglobal load def
 /scheck /gcheck load def
 /shareddict globaldict def
 
-% concatenate two strings -- a pure global helper, so it lives in .xpostsys
+%
+%  concatenate two strings -- a pure global helper, so it lives in .xpostsys
+%
 currentglobal true setglobal
-.xpostsys /.strcat { % a b  .  ab
+.xpostsys /.strcat {  % a b  .  ab
     2 copy
-    length exch length exch 1 index add % a b an bn+an
-    string dup 0 6 -1 roll putinterval % b an str
-    dup 4 2 roll exch putinterval % (ab)
+    length exch length exch 1 index add  % A b an bn+an
+    string dup 0 6 -1 roll putinterval  % B an str
+    dup 4 2 roll exch putinterval  % (ab)
 } bind put
 
-% intent deviceconfig halftone  .crdname  name
-% The three parts of a colour rendering dictionary's name, joined with
-% the separator PLRM 8.2 spells the name with. Each part may arrive as a
-% name or as a string and contributes its text either way, so the intent
-% goes in verbatim however the program supplied it.
+%
+%  intent deviceconfig halftone  .crdname  name
+%  The three parts of a colour rendering dictionary's name, joined with
+%  the separator PLRM 8.2 spells the name with. Each part may arrive as a
+%  name or as a string and contributes its text either way, so the intent
+%  goes in verbatim however the program supplied it.
+%
 .xpostsys /.crdname {
     4 dict begin
     /astext { dup type /stringtype ne { dup length string cvs } if } bind def
@@ -342,18 +400,21 @@ currentglobal true setglobal
 } bind put
 setglobal
 
-% -  .adoptexactpage  -
-% Take the page as the page device machinery measured it, where it has
-% been measured. A page is points and need not come to whole numbers of
-% them; a device whose marks carry a fraction says so by asking for the
-% exact extent here, and one whose page is rows of pixels has no use for
-% it and does not. Where nothing published an extent -- a device made
-% before any page device was installed -- the whole numbers the device
-% was created with are what it keeps.
 %
-% /width and /height are written into the dictionary the caller is in,
-% which is the device being built: a procedure does not stand a
-% dictionary of its own between the two.
+%  -  .adoptexactpage  -
+%
+%  Take the page as the page device machinery measured it, where it has
+%  been measured. A page is points and need not come to whole numbers of
+%  them; a device whose marks carry a fraction says so by asking for the
+%  exact extent here, and one whose page is rows of pixels has no use for
+%  it and does not. Where nothing published an extent -- a device made
+%  before any page device was installed -- the whole numbers the device
+%  was created with are what it keeps.
+%
+%  /width and /height are written into the dictionary the caller is in,
+%  which is the device being built: a procedure does not stand a
+%  dictionary of its own between the two.
+%
 currentglobal true setglobal
 .xpostsys /.adoptexactpage {
     graphicsdict /.exactpagedims 2 copy known {
@@ -364,32 +425,36 @@ currentglobal true setglobal
 } bind put
 setglobal
 
-% .loadmodule -- pull in one of the interpreter's own .ps files by name,
-% factoring the "(/x.ps) //.xpostsys /.loadmodule get exec" idiom that appears throughout
-% the machinery. In .xpostsys like every other helper, and global with it.
+%
+%  .loadmodule -- pull in one of the interpreter's own .ps files by name,
+%  factoring the "(/x.ps) //.xpostsys /.loadmodule get exec" idiom that appears throughout
+%  the machinery. In .xpostsys like every other helper, and global with it.
+%
 currentglobal true setglobal
-.xpostsys /.loadmodule { % (/name.ps)  .  -
+.xpostsys /.loadmodule {  % (/name.ps)  .  -
     /DATA_DIR //.xpostsys /.hostvalue get exec
     exch //.xpostsys /.strcat get exec run
 } bind put
 setglobal
 
-% key  .isclassname  bool
-% Whether a dictionary key names a device class. A class is defined
-% under a name of one shape and nothing else in the dictionaries the
-% mirror and the lockdown walk carries it, so the shape is what says
-% which keys are classes and no list of them has to be kept anywhere.
 %
-% What it reads is the spelling of a name, so it is about the language
-% rather than about graphics, and it lives here rather than beside the
-% device classes for that reason: the lockdown walks systemdict and asks
-% this of every key it finds, on a run that has loaded the device
-% classes and on one that has loaded no graphics at all. A predicate
-% reached only through a graphics module would answer the first and
-% raise on the second, taking the lockdown -- and with it every start
-% procedure -- down with it.
+%  key  .isclassname  bool
+%  Whether a dictionary key names a device class. A class is defined
+%  under a name of one shape and nothing else in the dictionaries the
+%  mirror and the lockdown walk carries it, so the shape is what says
+%  which keys are classes and no list of them has to be kept anywhere.
+%
+%  What it reads is the spelling of a name, so it is about the language
+%  rather than about graphics, and it lives here rather than beside the
+%  device classes for that reason: the lockdown walks systemdict and asks
+%  this of every key it finds, on a run that has loaded the device
+%  classes and on one that has loaded no graphics at all. A predicate
+%  reached only through a graphics module would answer the first and
+%  raise on the second, taking the lockdown -- and with it every start
+%  procedure -- down with it.
+%
 currentglobal true setglobal
-.xpostsys /.isclassname { % key  .  bool
+.xpostsys /.isclassname {  % key  .  bool
     dup type /nametype eq {
         60 string cvs dup length 7 ge {
             0 7 getinterval (.xpost_) eq
@@ -398,21 +463,23 @@ currentglobal true setglobal
 } bind put
 setglobal
 
-% The bind sweep the module loaders and the lockdown share. .bindone freezes
-% one value: bind substitutes an operator wherever a name in a procedure
-% currently resolves to one, so a program's later redefinition governs what
-% the program calls, never what the machinery calls; names holding procedures
-% or dictionaries stay dynamic, and non-procedures pass through untouched.
-% .bindscope descends nested dictionaries recursively, so a dispatch table
-% inside a dispatch table is covered structurally rather than by a remembered
-% per-procedure bind at its definition; the depth cap bounds the sweep on any
-% cyclic dictionary graph. Init-time helpers only -- nothing calls them while
-% a program runs.
+%
+%  The bind sweep the module loaders and the lockdown share. .bindone freezes
+%  one value: bind substitutes an operator wherever a name in a procedure
+%  currently resolves to one, so a program's later redefinition governs what
+%  the program calls, never what the machinery calls; names holding procedures
+%  or dictionaries stay dynamic, and non-procedures pass through untouched.
+%  .bindscope descends nested dictionaries recursively, so a dispatch table
+%  inside a dispatch table is covered structurally rather than by a remembered
+%  per-procedure bind at its definition; the depth cap bounds the sweep on any
+%  cyclic dictionary graph. Init-time helpers only -- nothing calls them while
+%  a program runs.
+%
 currentglobal true setglobal
-.xpostsys /.bindone { % value  .  -
+.xpostsys /.bindone {  % value  .  -
     dup type /arraytype eq 1 index xcheck and { bind } if pop
 } bind put
-.xpostsys /.bindscoped { % dict depth  .  -
+.xpostsys /.bindscoped {  % dict depth  .  -
     exch {
         exch pop
         dup type /dicttype eq {
@@ -426,58 +493,68 @@ currentglobal true setglobal
     } forall
     pop
 } bind put
-.xpostsys /.bindscope { % dict  .  -
+.xpostsys /.bindscope {  % dict  .  -
     8 //.xpostsys /.bindscoped get exec
 } bind put
 setglobal
 
+%
 %% predefined in xpost_interpreter.c:setlocalconfig()
 %%
-%/DATA_DIR 
-%    /PACKAGE_DATA_DIR dup where { %PACKAGE_DATA_DIR is passed from the config if is_installed is true
-%        exch get
-%    }{
-%        pop
-%        %EXE_DIR (/../../data) strcat
-%        %(./data)  % if is_installed is false, and no PACKAGE_DATA_DIR is defined, look for ps data in CWD/data
-%        false mark [
-%            /WIN32 where { pop
-%                (../../../data) %visual_studio/vc10/Debug
-%            } if
-%            (data) %repo root
-%            (../../data) %src/bin
-%            (../../../data) %visual_studio/vc10/Debug
-%        ]
-%        {
-%            {
-%                dup (/err.ps) strcat (r) file % false mark ... (DIR) file
-%                pop counttomark 2 add 1 roll cleartomark pop true mark % (DIR) true mark
-%            } stopped not { exit } if
-%        } forall
-%        cleartomark
-%        not { () } if % none of the above, try CWD
-%    } ifelse
-%def
+% /DATA_DIR 
+%     /PACKAGE_DATA_DIR dup where { %PACKAGE_DATA_DIR is passed from the config if is_installed is true
+%         exch get
+%     }{
+%         pop
+%         %EXE_DIR (/../../data) strcat
+%         %(./data)  % if is_installed is false, and no PACKAGE_DATA_DIR is defined, look for ps data in CWD/data
+%         false mark [
+%             /WIN32 where { pop
+%                 (../../../data) %visual_studio/vc10/Debug
+%             } if
+%             (data) %repo root
+%             (../../data) %src/bin
+%             (../../../data) %visual_studio/vc10/Debug
+%         ]
+%         {
+%             {
+%                 dup (/err.ps) strcat (r) file % false mark ... (DIR) file
+%                 pop counttomark 2 add 1 roll cleartomark pop true mark % (DIR) true mark
+%             } stopped not { exit } if
+%         } forall
+%         cleartomark
+%         not { () } if % none of the above, try CWD
+%     } ifelse
+% def
+%
 
-%(EXE_DIR =) print EXE_DIR print (\n) print
+%
+% (EXE_DIR =) print EXE_DIR print (\n) print
+%
 //.internaldict /QUIET known { }{ (DATA_DIR =) print
     /DATA_DIR //.xpostsys /.hostvalue get exec print (\n) print } ifelse
 
-%(1\n)print
-%/product (Xpost) def % now an operator in xpost_op_misc.c
-%/version (0) def % now an operator in xpost_op_misc.c
-%/revision 0 def % now an operator in xpost_op_misc.c
+%
+% (1\n)print
+% /product (Xpost) def % now an operator in xpost_op_misc.c
+% /version (0) def % now an operator in xpost_op_misc.c
+% /revision 0 def % now an operator in xpost_op_misc.c
+%
 /run [ /stringtype ] { (r) file cvx exec } //.xpostsys /.defop get exec
 /Run { (\() print dup =print (\) run\n) print flush run } def
 
-%(2\n)print
+%
+% (2\n)print
+%
 /=string 128 string def
-% the scratch string serves every cvs in the machinery: as an operator
-% pushing it, procedures binding as they load freeze the reference,
-% and a program may take the name for itself. Anchor the pusher procedure in
-% internaldict rather than systemdict so a program enumerating systemdict does
-% not see it; .wrapop freezes the procedure into the =string operator, and
-% internaldict keeps it alive thereafter.
+%
+%  the scratch string serves every cvs in the machinery: as an operator
+%  pushing it, procedures binding as they load freeze the reference,
+%  and a program may take the name for itself. Anchor the pusher procedure in
+%  internaldict rather than systemdict so a program enumerating systemdict does
+%  not see it; .wrapop freezes the procedure into the =string operator, and
+%  internaldict keeps it alive thereafter.
+%
 .internaldict /.=stringproc [ //=string ] cvx put
 /=string dup .internaldict /.=stringproc get .wrapop def
 /=print {
@@ -488,32 +565,46 @@ setglobal
 } bind def
 /=only //=print def
 
-%(3\n)print
+%
+% (3\n)print
+%
 /= [ /anytype ] {
     //=print exec
     (\n) print
 } //.xpostsys /.defop get exec
 
-%dumpnames dumpvm
-%debugloadon
+%
+% dumpnames dumpvm
+% debugloadon
+%
 
-%(/err.ps)
-%(.) [ {
-%    (XPOSTDIR) getenv %env
-%    exch pop exch pop
-%} stopped {cleartomark} if
-%exch strcat Run
-%(../../data)
+%
+% (/err.ps)
+% (.) [ {
+%     (XPOSTDIR) getenv %env
+%     exch pop exch pop
+% } stopped {cleartomark} if
+% exch strcat Run
+% (../../data)
+%
 
-%(4\n)print
+%
+% (4\n)print
+%
 (/err.ps) //.xpostsys /.loadmodule get exec
 
-%(5\n)print
+%
+% (5\n)print
+%
 /stack [ ] { count dup 1 add copy //= repeat pop } //.xpostsys /.defop get exec
 
-%(6\n)print
+%
+% (6\n)print
+%
 systemdict begin
-% ==
+%
+%  ==
+%
 24 dict begin
 /==dict currentdict def
     /rmargin 72 def
@@ -599,7 +690,7 @@ systemdict begin
     % otherwise -- so the output scans back to the same string
     /.es1 1 string def
     /.es3 3 string def
-    /.escbyte { % byte  .  -
+    /.escbyte {  % byte  .  -
         dup 92 eq { pop (\\\\) print }{
         dup 40 eq { pop (\\\() print }{
         dup 41 eq { pop (\\\)) print }{
@@ -644,13 +735,13 @@ systemdict begin
         /depth 0 def
         /nodes 0 def
         { typeprint } stopped
-    end            % pop ==dict whether typeprint succeeded or errored,
-    { stop } if    % so an error inside == does not strand it on the
+    end            % Pop ==dict whether typeprint succeeded or errored,
+    { stop } if    % So an error inside == does not strand it on the
                    % dict stack; re-raise once the dict stack is clean
-} end def % remove ==dict, installing == in userdict
+} end def  % Remove ==dict, installing == in userdict
 /== [ /anytype ] { ==only (\n) print } //.xpostsys /.defop get exec
 /pstack [ ] { count dup 1 add copy //== repeat pop } //.xpostsys /.defop get exec
-end % back to systemdict
+end  % Back to systemdict
 
 /execdict 6 dict def
 execdict begin
@@ -662,35 +753,37 @@ execdict begin
     /execdepth 0 def
 end
 
-% Report a start-up that never reached a program: the graphics language
-% could not be loaded, or the page device the run was started with could
-% not be built.
 %
-% The device and the page it was asked for are named, and so is the error
-% the attempt ended in. A caller that has to ask for something else needs
-% all three -- which device refused, what it was asked for and what limit
-% that reached -- and none of them is anything it can go and read
-% afterwards, because the run that knew them is over and wrote nothing.
-% PLRM 8.2 gives limitcheck for a limit of the implementation, which is
-% the name a page larger than a device can address comes back under; a
-% page larger than the memory to hold it comes back as VMerror. The
-% report names whichever was reached rather than deciding between them,
-% since a device refuses for its own reasons. Whatever the attempt ended
-% in, the name is read from $error.
+%  Report a start-up that never reached a program: the graphics language
+%  could not be loaded, or the page device the run was started with could
+%  not be built.
 %
-% The failure is recorded as well as printed. A start-up that produced no
-% page must not end with the status of a job that ran, or a caller
-% reading the status alone takes an interpreter that never started for a
-% program that started and drew nothing.
+%  The device and the page it was asked for are named, and so is the error
+%  the attempt ended in. A caller that has to ask for something else needs
+%  all three -- which device refused, what it was asked for and what limit
+%  that reached -- and none of them is anything it can go and read
+%  afterwards, because the run that knew them is over and wrote nothing.
+%  PLRM 8.2 gives limitcheck for a limit of the implementation, which is
+%  the name a page larger than a device can address comes back under; a
+%  page larger than the memory to hold it comes back as VMerror. The
+%  report names whichever was reached rather than deciding between them,
+%  since a device refuses for its own reasons. Whatever the attempt ended
+%  in, the name is read from $error.
 %
-% Reporting is given a stopped context of its own, for the reason
-% .handlejoberror is: the naming below asks for names and dictionaries
-% that a run stopped at an implementation limit may not have to give, and
-% a failure part way through the sentence must still reach the recording
-% that the exit status is read from.
+%  The failure is recorded as well as printed. A start-up that produced no
+%  page must not end with the status of a job that ran, or a caller
+%  reading the status alone takes an interpreter that never started for a
+%  program that started and drew nothing.
 %
-% in the private global namespace, reached by the start procedures below
-% through a frozen reference, so it does not sit visible in systemdict
+%  Reporting is given a stopped context of its own, for the reason
+%  .handlejoberror is: the naming below asks for names and dictionaries
+%  that a run stopped at an implementation limit may not have to give, and
+%  a failure part way through the sentence must still reach the recording
+%  that the exit status is read from.
+%
+%  in the private global namespace, reached by the start procedures below
+%  through a frozen reference, so it does not sit visible in systemdict
+%
 currentglobal true setglobal
 .xpostsys /.reportloadfailure {
     {
@@ -718,8 +811,10 @@ currentglobal true setglobal
 } put
 setglobal
 
-% initiate an interactive session with prompt
-% a postscript 'executive' session
+%
+%  initiate an interactive session with prompt
+%  a postscript 'executive' session
+%
 /start {
     currentglobal
     false setglobal
@@ -744,33 +839,35 @@ setglobal
     setglobal
 
     /executive load stopped
-    pop //quit % the operator
+    pop //quit  % The operator
 } def
 
-% report a top-level job error the way a job server does: the standard
-% error line (through handleerror), then -- only when an error really
-% occurred, not on a normal quit -- the notice that the rest of the job
-% is flushed to end of file. An interactive executive keeps going, so it
-% reports without this line.
 %
-% Whether an error occurred is read before anything else runs and the
-% rest of the report happens inside that answer, because nothing here may
-% rely on the operand stack surviving: an error recovers by restoring the
-% stack it recorded, so a report that raises one comes back to a stack
-% that is not the one it left.
+%  report a top-level job error the way a job server does: the standard
+%  error line (through handleerror), then -- only when an error really
+%  occurred, not on a normal quit -- the notice that the rest of the job
+%  is flushed to end of file. An interactive executive keeps going, so it
+%  reports without this line.
 %
-% Reporting is given a stopped context of its own. The branch this runs
-% from has spent the job's, so an error raised while reporting -- the
-% standard handler is a program's to replace, and even the standard one
-% asks for names, strings and dictionaries a run at an implementation
-% limit may not have to give -- would find no context to stop into and
-% take the remainder of the report with it, ending the job's output
-% mid-sentence with nothing to say it had ended. What survives that is
-% what this procedure holds in its own body: the two notices below are
-% its own strings and print without asking for anything.
+%  Whether an error occurred is read before anything else runs and the
+%  rest of the report happens inside that answer, because nothing here may
+%  rely on the operand stack surviving: an error recovers by restoring the
+%  stack it recorded, so a report that raises one comes back to a stack
+%  that is not the one it left.
 %
-% in the private global namespace, reached by the start procedures below through
-% a frozen reference, so it does not sit visible in systemdict
+%  Reporting is given a stopped context of its own. The branch this runs
+%  from has spent the job's, so an error raised while reporting -- the
+%  standard handler is a program's to replace, and even the standard one
+%  asks for names, strings and dictionaries a run at an implementation
+%  limit may not have to give -- would find no context to stop into and
+%  take the remainder of the report with it, ending the job's output
+%  mid-sentence with nothing to say it had ended. What survives that is
+%  what this procedure holds in its own body: the two notices below are
+%  its own strings and print without asking for anything.
+%
+%  in the private global namespace, reached by the start procedures below through
+%  a frozen reference, so it does not sit visible in systemdict
+%
 currentglobal true setglobal
 .xpostsys /.handlejoberror {
     $error /newerror get {
@@ -785,35 +882,38 @@ currentglobal true setglobal
 } put
 setglobal
 
-% -  .endjob  -
-% What a job does after its program: the page it painted and never asked
-% for is ended, and the stacks are put back to the state a job begins
-% with (PLRM 3.7.7, which clears the operand stack and resets the
-% dictionary stack as the last thing a job does before its virtual
-% memory reverts).
 %
-% Ending the page is allowed to fail and the failure is not reported:
-% the job is over and the program is no longer there to be told. What it
-% leaves behind is another matter. The page goes out through the
-% device's own methods, each of which makes the device dictionary
-% current while it works, and a method that stops part way -- an output
-% file that cannot be opened is the ordinary way for one to -- leaves
-% that dictionary current and the operands the failure met still on the
-% stack. A caller whose context outlives the job then begins the next
-% one on a dictionary stack a device sits on top of, where every
-% definition it makes lands in the device rather than in its own
-% namespace.
+%  -  .endjob  -
 %
-% Both stacks, and not the dictionary stack alone: the two are disturbed
-% by the same failure and are put back by the same act.
+%  What a job does after its program: the page it painted and never asked
+%  for is ended, and the stacks are put back to the state a job begins
+%  with (PLRM 3.7.7, which clears the operand stack and resets the
+%  dictionary stack as the last thing a job does before its virtual
+%  memory reverts).
 %
-% The two operators are taken as they stand here, before any program has
-% run: a job's own definitions are still in reach at this point, and a
-% program that redefined either name would otherwise decide what
-% resetting the stacks means.
+%  Ending the page is allowed to fail and the failure is not reported:
+%  the job is over and the program is no longer there to be told. What it
+%  leaves behind is another matter. The page goes out through the
+%  device's own methods, each of which makes the device dictionary
+%  current while it works, and a method that stops part way -- an output
+%  file that cannot be opened is the ordinary way for one to -- leaves
+%  that dictionary current and the operands the failure met still on the
+%  stack. A caller whose context outlives the job then begins the next
+%  one on a dictionary stack a device sits on top of, where every
+%  definition it makes lands in the device rather than in its own
+%  namespace.
 %
-% in the private global namespace, reached by the start procedures below
-% through a frozen reference, so it does not sit visible in systemdict
+%  Both stacks, and not the dictionary stack alone: the two are disturbed
+%  by the same failure and are put back by the same act.
+%
+%  The two operators are taken as they stand here, before any program has
+%  run: a job's own definitions are still in reach at this point, and a
+%  program that redefined either name would otherwise decide what
+%  resetting the stacks means.
+%
+%  in the private global namespace, reached by the start procedures below
+%  through a frozen reference, so it does not sit visible in systemdict
+%
 currentglobal true setglobal
 .xpostsys /.endjob {
     { //.xpostsys /.endjobpage get exec } stopped { } if
@@ -823,8 +923,10 @@ currentglobal true setglobal
 } put
 setglobal
 
-% execute postscript program from stdin, and handle errors,
-% but do not assume an interactive session
+%
+%  execute postscript program from stdin, and handle errors,
+%  but do not assume an interactive session
+%
 /startstdin {
     {
         //.xpostsys /loadgraphics get exec
@@ -845,15 +947,17 @@ setglobal
     quit
 } def
 
-% execute postscript program from a named file, and handle errors.
 %
-% The named program is a job and the job ends where the program ends (PLRM
-% 3.7.7). A run with a user at the other end of it is offered the interactive
-% executive first, which is a session and not part of the job: it reads
-% standard input and executes what it finds, so it is offered only where
-% standard input is somebody typing. The C settles that before the run and
-% leaves the answer in privatedict.
-/startfilename { % (filename)
+%  execute postscript program from a named file, and handle errors.
+%
+%  The named program is a job and the job ends where the program ends (PLRM
+%  3.7.7). A run with a user at the other end of it is offered the interactive
+%  executive first, which is a session and not part of the job: it reads
+%  standard input and executes what it finds, so it is offered only where
+%  standard input is somebody typing. The C settles that before the run and
+%  leaves the answer in privatedict.
+%
+/startfilename {  % (filename)
     {
         //.xpostsys /loadgraphics get exec
         //.xpostsys /.finalize get exec
@@ -873,11 +977,15 @@ setglobal
     //.xpostsys /.endjob get exec
     quit
 } def
-%currentfile flushfile
+%
+% currentfile flushfile
+%
 
-% execute a postscript program from a file object, which may represent
-% a stream with no associated "name".
-/startfile { % file-object
+%
+%  execute a postscript program from a file object, which may represent
+%  a stream with no associated "name".
+%
+/startfile {  % file-object
     //.internaldict /QUIET known { }{ (startfile\n)print } ifelse
     {
         //.xpostsys /loadgraphics get exec
@@ -888,7 +996,7 @@ setglobal
         quit
     } if
     {
-        cvx exec        % the file object has stayed on the stack
+        cvx exec        % The file object has stayed on the stack
     } stopped {
         //.internaldict /.rundied get exec
         //.xpostsys /.handlejoberror get exec
@@ -899,12 +1007,14 @@ setglobal
     quit
 } def
 
-% No-graphics start procedures, selected by --no-graphics. Each mirrors its
-% graphics-loading counterpart above but runs .finalize alone, without
-% loadgraphics: the interpreter is still locked down -- the standard operators
-% are promoted, the machinery's references frozen and the private namespaces
-% sealed and hidden -- while the graphics modules are never loaded. This exercises the path in which loadgraphics
-% is genuinely optional, and lets a program that needs no graphics avoid the cost.
+%
+%  No-graphics start procedures, selected by --no-graphics. Each mirrors its
+%  graphics-loading counterpart above but runs .finalize alone, without
+%  loadgraphics: the interpreter is still locked down -- the standard operators
+%  are promoted, the machinery's references frozen and the private namespaces
+%  sealed and hidden -- while the graphics modules are never loaded. This exercises the path in which loadgraphics
+%  is genuinely optional, and lets a program that needs no graphics avoid the cost.
+%
 /startstdinnographics {
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
@@ -919,7 +1029,7 @@ setglobal
     quit
 } def
 
-/startfilenamenographics { % (filename)
+/startfilenamenographics {  % (filename)
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
         //.internaldict /.rundied get exec
@@ -934,14 +1044,14 @@ setglobal
     quit
 } def
 
-/startfilenographics { % file-object
+/startfilenographics {  % file-object
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
         //.internaldict /.rundied get exec
         quit
     } if
     {
-        cvx exec        % the file object has stayed on the stack
+        cvx exec        % The file object has stayed on the stack
     } stopped {
         //.internaldict /.rundied get exec
         //.xpostsys /.handlejoberror get exec
@@ -949,18 +1059,20 @@ setglobal
     quit
 } def
 
-% Load the language and lock the interpreter down, and run no program.
-% Each start procedure above begins by doing this, and both halves are
-% idempotent, so one that has already run here repeats nothing. It is
-% separated out for a caller that has to have the language standing
-% before the run begins rather than as its first act: the load happens
-% once in the life of a context and leaves state behind it that virtual
-% memory does not hold, so it is not something a run can be made to do
-% again. Failure is left unreported here -- the start procedure that
-% follows meets it too, and reports it there as it does on its own.
 %
-% The language and nothing else. Which device this run has and which
-% page it is at are not language; making the device is the step below.
+%  Load the language and lock the interpreter down, and run no program.
+%  Each start procedure above begins by doing this, and both halves are
+%  idempotent, so one that has already run here repeats nothing. It is
+%  separated out for a caller that has to have the language standing
+%  before the run begins rather than as its first act: the load happens
+%  once in the life of a context and leaves state behind it that virtual
+%  memory does not hold, so it is not something a run can be made to do
+%  again. Failure is left unreported here -- the start procedure that
+%  follows meets it too, and reports it there as it does on its own.
+%
+%  The language and nothing else. Which device this run has and which
+%  page it is at are not language; making the device is the step below.
+%
 /loadlanguage {
     { //.xpostsys /loadgraphics get exec
       //.xpostsys /.finalize get exec } stopped pop
@@ -972,15 +1084,17 @@ setglobal
     quit
 } def
 
-% Make the device this run was started with, and run no program. The
-% counterpart of the language load above, for the same caller and for
-% the same reason: a device is made once in the life of a context, and
-% what it reaches through a handle is not virtual memory, so a device
-% made inside the bracket a job is run in would be unmade by the rewind
-% that ends the job while the state it held stayed where it was. The
-% step is idempotent -- a run that has a device keeps it -- so a start
-% procedure that has already been through this repeats nothing.
-% Failure is left unreported for the reason it is above.
+%
+%  Make the device this run was started with, and run no program. The
+%  counterpart of the language load above, for the same caller and for
+%  the same reason: a device is made once in the life of a context, and
+%  what it reaches through a handle is not virtual memory, so a device
+%  made inside the bracket a job is run in would be unmade by the rewind
+%  that ends the job while the state it held stayed where it was. The
+%  step is idempotent -- a run that has a device keeps it -- so a start
+%  procedure that has already been through this repeats nothing.
+%  Failure is left unreported for the reason it is above.
+%
 /startdevice {
     { //.xpostsys /.startdevice get exec } stopped pop
     quit
@@ -995,35 +1109,39 @@ setglobal
     flush
 } //.xpostsys /.defop get exec
 
-% System and device parameters. The current* operators return a fresh
-% dictionary of the present values; the set* operators apply the parameters they
-% recognise from the supplied dictionary and ignore the rest. The user
-% parameters belong to the context and revert with a restore, so
-% currentuserparams and setuserparams are operators over that state and are
-% not defined here.
+%
+%  System and device parameters. The current* operators return a fresh
+%  dictionary of the present values; the set* operators apply the parameters they
+%  recognise from the supplied dictionary and ignore the rest. The user
+%  parameters belong to the context and revert with a restore, so
+%  currentuserparams and setuserparams are operators over that state and are
+%  not defined here.
+%
 /setdevparams [ /stringtype /dicttype ] { pop pop } //.xpostsys /.defop get exec
 /currentdevparams [ /stringtype ] { pop 0 dict } //.xpostsys /.defop get exec
 
-% MaxBandBytes and CurBandHeight are the pair a program asks about
-% banding: the first says what one band of a page may cost, in bytes of
-% raster held at once, and the second the rows that bought on the device
-% now being painted into -- zero where it holds the page whole. They sit
-% with the Max* limits and the Cur* values, and mean what those mean: a
-% limit says what may be spent and a Cur* value says what is being spent.
 %
-% Both are reported and neither is set. PLRM Appendix G declares the
-% band-device setup operators obsolete and bars them from a page
-% description, so a program may not choose how its marks are held;
-% nothing bars it from being told what happened, and setsystemparams
-% below recognises no parameter at all, so there is no way to write
-% either one back. What chooses is the invocation.
+%  MaxBandBytes and CurBandHeight are the pair a program asks about
+%  banding: the first says what one band of a page may cost, in bytes of
+%  raster held at once, and the second the rows that bought on the device
+%  now being painted into -- zero where it holds the page whole. They sit
+%  with the Max* limits and the Cur* values, and mean what those mean: a
+%  limit says what may be spent and a Cur* value says what is being spent.
 %
-% Each is read where the band loop reads it -- the budget from
-% .bandbudget and the rows from .curbandheight, which asks .bandheight
-% (data/recorddev.ps, data/device.ps) -- so a program is told what the
-% loop went by rather than what a second copy of the arithmetic would
-% say. A run whose graphics never loaded has no band loop and no device
-% to ask, and answers nought to both.
+%  Both are reported and neither is set. PLRM Appendix G declares the
+%  band-device setup operators obsolete and bars them from a page
+%  description, so a program may not choose how its marks are held;
+%  nothing bars it from being told what happened, and setsystemparams
+%  below recognises no parameter at all, so there is no way to write
+%  either one back. What chooses is the invocation.
+%
+%  Each is read where the band loop reads it -- the budget from
+%  .bandbudget and the rows from .curbandheight, which asks .bandheight
+%  (data/recorddev.ps, data/device.ps) -- so a program is told what the
+%  loop went by rather than what a second copy of the arithmetic would
+%  say. A run whose graphics never loaded has no band loop and no device
+%  to ask, and answers nought to both.
+%
 /currentsystemparams [ ] {
     << /RealFormat (IEEE) /ByteOrder true /MaxFontCache 1048576
        % where external resources are found: the first resource directory,
@@ -1049,16 +1167,18 @@ setglobal
 } //.xpostsys /.defop get exec
 /setsystemparams [ /dicttype ] { pop } //.xpostsys /.defop get exec
 
-% Display PostScript synchronisation (PLRM 2nd ed 7.1). lock and condition are
-% the two synchronisation objects; monitor, wait and notify coordinate contexts
-% through them. Scheduling is cooperative, so mutual exclusion between yields is
-% inherent -- a monitor's procedure runs atomically unless it yields or waits --
-% and these enforce it only across a context's own yield or wait, where they
-% block by yielding and re-checking, the way join does. The objects are ordinary
-% dictionaries whose value the shared VM shares between contexts exactly as PLRM
-% requires of a lock or condition; only these operators read or write them.
-% Installed on the --enable-dps opt-in, beside fork and join, so a default run
-% leaves the names undefined.
+%
+%  Display PostScript synchronisation (PLRM 2nd ed 7.1). lock and condition are
+%  the two synchronisation objects; monitor, wait and notify coordinate contexts
+%  through them. Scheduling is cooperative, so mutual exclusion between yields is
+%  inherent -- a monitor's procedure runs atomically unless it yields or waits --
+%  and these enforce it only across a context's own yield or wait, where they
+%  block by yielding and re-checking, the way join does. The objects are ordinary
+%  dictionaries whose value the shared VM shares between contexts exactly as PLRM
+%  requires of a lock or condition; only these operators read or write them.
+%  Installed on the --enable-dps opt-in, beside fork and join, so a default run
+%  leaves the names undefined.
+%
 .dpsenabled {
     % -  lock  lock          a lock, free and unowned
     /lock [ ] { << /held false /owner null >> } //.xpostsys /.defop get exec
@@ -1070,7 +1190,7 @@ setglobal
     } //.xpostsys /.defop get exec
     % lock proc  monitor  -     acquire the lock, run proc, release it
     /monitor [ /dicttype /arraytype ] {
-        exch                                   % proc lock
+        exch                                   % Proc lock
         % monitor of a lock this context already holds is invalidcontext
         dup /held get 1 index /owner get currentcontext eq and
             { /monitor cvx /invalidcontext signalerror } if
@@ -1087,7 +1207,7 @@ setglobal
         % Releasing sets only /held: /owner is overwritten on the next acquire
         % and read only while held, so leaving it stale is harmless.
         3 dict begin
-            /m.lk exch def                     % proc
+            /m.lk exch def                     % Proc
             /m.pr exch def                     %
             /m.td [ /m.lk load /held false /put load ] cvx def
             [ [ /m.pr load /exec load ] cvx
@@ -1101,13 +1221,13 @@ setglobal
     % lock condition  wait  -   release the lock, await notify, reacquire it
     /wait [ /dicttype /dicttype ] {
         2 dict begin
-        /.wcond exch def                       % lock
+        /.wcond exch def                       % Lock
         /.wlk exch def                         %
         % wait on a lock this context does not hold is invalidcontext
         .wlk /held get .wlk /owner get currentcontext eq and not
             { end /wait cvx /invalidcontext signalerror } if
         % release the lock and wait for a notify issued after this point
-        .wcond /gen get                        % startgen
+        .wcond /gen get                        % Startgen
         .wlk /held false put
         .wlk /owner null put
         { .wcond /gen get 1 index gt { exit } if yield } loop
@@ -1120,10 +1240,12 @@ setglobal
     } //.xpostsys /.defop get exec
 } if
 
-% Move the start procedures into privatedict, off the dict stack: the C fetches
-% them there (through ctx->privatedict) to prime a run, so a program never sees
-% them among systemdict's names. They bind with the rest of privatedict in
-% .finalize, before any program can shadow the operator names they call.
+%
+%  Move the start procedures into privatedict, off the dict stack: the C fetches
+%  them there (through ctx->privatedict) to prime a run, so a program never sees
+%  them among systemdict's names. They bind with the rest of privatedict in
+%  .finalize, before any program can shadow the operator names they call.
+%
 [ /start /startstdin /startfilename /startfile
   /startstdinnographics /startfilenamenographics /startfilenographics
   /loadlanguage /loadlanguagenographics /startdevice ]
@@ -1132,20 +1254,25 @@ setglobal
     { pop } ifelse
 } forall
 
-end % systemdict
+end  % Systemdict
 
 userdict begin
 false setglobal
 
-% (s1) (s2) (s3) ... (sN) n  ncat  (s1s2s3...sN)
+%
+%  (s1) (s2) (s3) ... (sN) n  ncat  (s1s2s3...sN)
+%
 
-%traceon
-%debugloadon
-
+%
+% traceon
+% debugloadon
+%
 currentglobal
 false setglobal
-% //.xpostsys /.fontsubstitutions get: findfont's substitute-face table, hidden in the private
-% global namespace where a program cannot reach it
+%
+%  //.xpostsys /.fontsubstitutions get: findfont's substitute-face table, hidden in the private
+%  global namespace where a program cannot reach it
+%
 currentglobal true setglobal
 .xpostsys /.fontsubstitutions <<
     /Times-Roman (Nimbus Roman No9 L)
@@ -1163,35 +1290,43 @@ currentglobal true setglobal
 >> put
 setglobal
 
-% The FontDirectory holds defined fonts; findfont dictionaries for
-% host faces state the type of the program that backs them. It is a local
-% dictionary: a font defined in local VM goes away with the save level
-% that defined it.
+%
+%  The FontDirectory holds defined fonts; findfont dictionaries for
+%  host faces state the type of the program that backs them. It is a local
+%  dictionary: a font defined in local VM goes away with the save level
+%  that defined it.
+%
 /FontDirectory
 <<
 >> def
 setglobal
 
-end % userdict
+end  % Userdict
 
-% GlobalFontDirectory holds the fonts defined while the allocation mode was
-% global, and only those (PLRM 3.7). It is itself a global dictionary, so it
-% survives the restores that empty the local one, and it is a different
-% dictionary -- a program reading it must not see the local fonts.
-% SharedFontDirectory is the same dictionary under an older name.
+%
+%  GlobalFontDirectory holds the fonts defined while the allocation mode was
+%  global, and only those (PLRM 3.7). It is itself a global dictionary, so it
+%  survives the restores that empty the local one, and it is a different
+%  dictionary -- a program reading it must not see the local fonts.
+%  SharedFontDirectory is the same dictionary under an older name.
+%
 currentglobal true setglobal
 systemdict /GlobalFontDirectory << >> put
 systemdict /SharedFontDirectory systemdict /GlobalFontDirectory get put
 setglobal
 
-% The rest of the boot file defines the language too, so it goes where the
-% language lives. systemdict is still writeable here -- the interpreter
-% seals it only after this file has been read.
+%
+%  The rest of the boot file defines the language too, so it goes where the
+%  language lives. systemdict is still writeable here -- the interpreter
+%  seals it only after this file has been read.
+%
 systemdict begin
 
-% executive is a global procedure in systemdict. It reaches $error by name,
-% not with a frozen reference: $error is a name in systemdict for a dictionary
-% in local VM, and a global procedure may not freeze a local object.
+%
+%  executive is a global procedure in systemdict. It reaches $error by name,
+%  not with a frozen reference: $error is a name in systemdict for a dictionary
+%  in local VM, and a global procedure may not freeze a local object.
+%
 currentglobal true setglobal
 /executive [ ] {
     //execdict begin
@@ -1204,7 +1339,7 @@ currentglobal true setglobal
         (\n) print
     } ifelse
 
-    { %loop
+    {  %loop
         /quitflag false def
         $error /newerror false put
         /prompt load stopped {
@@ -1219,7 +1354,7 @@ currentglobal true setglobal
             cleartomark
             $error /newerror get {
                 $error /errorname get
-                /undefinedfilename ne { % ^d at prompt
+                /undefinedfilename ne {  % ^d at prompt
                     handleerror
                 } if
                 $error /newerror false put
@@ -1247,8 +1382,10 @@ setglobal
 
 (/qsort.ps) //.xpostsys /.loadmodule get exec
 
-% Named Resources: the Level 2 resource operators live in their own
-% data file
+%
+%  Named Resources: the Level 2 resource operators live in their own
+%  data file
+%
 (/resource.ps) //.xpostsys /.loadmodule get exec
 
 /findfont [ /anytype ] {
@@ -1274,10 +1411,10 @@ setglobal
             % names still resolves through its character map.
             dup /Encoding StandardEncoding dup length array copy put
             dup /BuildChar {} put
-        } stopped { % operator failed: 
-            //.xpostsys /.fontsubstitutions get exch 2 copy known { % try substitution
+        } stopped {  % operator failed:
+            //.xpostsys /.fontsubstitutions get exch 2 copy known {  % try substitution
                 get
-                findfont % call proc (tail-)recursively 
+                findfont  % Call proc (tail-)recursively
             }{
                 % nothing found and nothing to substitute: the
                 % operator yields a font or says why not
@@ -1288,8 +1425,10 @@ setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-% index any  defineuserobject  -
-% the user-object table lives in userdict, growing as indices demand
+%
+%  index any  defineuserobject  -
+%  the user-object table lives in userdict, growing as indices demand
+%
 /defineuserobject [ /integertype /anytype ] {
     exch
     dup 0 lt { /defineuserobject cvx /rangecheck signalerror } if
@@ -1304,51 +1443,59 @@ setglobal
     UserObjects exch 3 -1 roll put
 } //.xpostsys /.defop get exec
 
-% index  execuserobject  -
+%
+%  index  execuserobject  -
+%
 /execuserobject [ /integertype ] {
     UserObjects exch get exec
 } //.xpostsys /.defop get exec
 
-% index  undefineuserobject  -
+%
+%  index  undefineuserobject  -
+%
 /undefineuserobject [ /integertype ] {
     UserObjects exch null put
 } //.xpostsys /.defop get exec
 
-% formdict  .execformdirect  -
-% paint the form afresh: its matrix concatenates, its bounding box
-% clips, and the paint procedure runs with the dictionary at hand.
-% The paint procedure is the program's, so it runs beneath the
-% boundary: a failure inside it is that procedure's own object
-% failing, and the operand stack goes back to what the procedure
-% found rather than to execform's operand
+%
+%  formdict  .execformdirect  -
+%  paint the form afresh: its matrix concatenates, its bounding box
+%  clips, and the paint procedure runs with the dictionary at hand.
+%  The paint procedure is the program's, so it runs beneath the
+%  boundary: a failure inside it is that procedure's own object
+%  failing, and the operand stack goes back to what the procedure
+%  found rather than to execform's operand
+%
 currentglobal true setglobal
 .xpostsys /.execformdirect {
     gsave
     dup /Matrix get concat
-    dup /BBox get aload pop     % form llx lly urx ury
-    2 index sub                 % form llx lly urx h
-    exch 3 index sub exch       % form llx lly w h
+    dup /BBox get aload pop     % Form llx lly urx ury
+    2 index sub                 % Form llx lly urx h
+    exch 3 index sub exch       % Form llx lly w h
     rectclip
     dup /PaintProc get //.xpostsys /.pexec get exec
     grestore
 } put
 
-% formdict  .execformcapture  -
-% Paint a form for keeping: its matrix concatenates and the paint
-% procedure runs, and the bounding box does not clip.
 %
-% What the box would cut is nothing -- a form paints inside the box it
-% declares -- but cutting is not free of consequence. A shape the clip
-% has to cut is resolved into whole pixel rows above the device, where a
-% shape the clip leaves alone arrives as itself; the two paint the same
-% pixels, and only one of them can be carried somewhere else. A drawing
-% held for placing has to be the marks and not the rows they came to,
-% since the rows a shape covers depend on where it falls between pixels.
+%  formdict  .execformcapture  -
+%  Paint a form for keeping: its matrix concatenates and the paint
+%  procedure runs, and the bounding box does not clip.
 %
-% The caller clips instead, to the box out to whole pixels and one
-% further, so that a procedure painting outside the box it declared is
-% still held to about the box while a procedure painting inside it is
-% not cut at all.
+%  What the box would cut is nothing -- a form paints inside the box it
+%  declares -- but cutting is not free of consequence. A shape the clip
+%  has to cut is resolved into whole pixel rows above the device, where a
+%  shape the clip leaves alone arrives as itself; the two paint the same
+%  pixels, and only one of them can be carried somewhere else. A drawing
+%  held for placing has to be the marks and not the rows they came to,
+%  since the rows a shape covers depend on where it falls between pixels.
+%
+%  The caller clips instead, to the box out to whole pixels and one
+%  further, so that a procedure painting outside the box it declared is
+%  still held to about the box while a procedure painting inside it is
+%  not cut at all.
+%
 .xpostsys /.execformcapture {
     gsave
     dup /Matrix get concat
@@ -1358,9 +1505,11 @@ currentglobal true setglobal
 } put
 setglobal
 
-% formdict  .execformbox  bx by w h
-% the device pixel box holding the form's bounding box under the
-% current transformation and the form's own matrix
+%
+%  formdict  .execformbox  bx by w h
+%  the device pixel box holding the form's bounding box under the
+%  current transformation and the form's own matrix
+%
 currentglobal true setglobal
 .xpostsys /.execformbox {
     8 dict begin
@@ -1385,24 +1534,27 @@ currentglobal true setglobal
 } put
 setglobal
 
-% -  .formcachedrop  -
-% Give up every drawing the form cache is holding.
 %
-% A drawing is held by a recorder, and what a recorder holds is not
-% virtual memory: the collector neither reaches it nor gives it back, so
-% a drawing the cache stops naming would stay held for the life of the
-% run. The cache gives each one up before it stops naming it.
+%  -  .formcachedrop  -
 %
-% An entry naming no drawing is one that says a form cannot be held --
-% it paints outside the box it declared, so what a drawing carried would
-% differ from what painting it afresh does. There is nothing to give
-% back for such an entry, and it is passed over.
+%  Give up every drawing the form cache is holding.
 %
-% Called where the cache stops standing for anything: at the end of a
-% job, and where the page device is replaced, since a drawing is the
-% marks a form made for one device and carries that device's colour
-% space -- placing it in another would be a colour nobody named, and is
-% refused rather than painted.
+%  A drawing is held by a recorder, and what a recorder holds is not
+%  virtual memory: the collector neither reaches it nor gives it back, so
+%  a drawing the cache stops naming would stay held for the life of the
+%  run. The cache gives each one up before it stops naming it.
+%
+%  An entry naming no drawing is one that says a form cannot be held --
+%  it paints outside the box it declared, so what a drawing carried would
+%  differ from what painting it afresh does. There is nothing to give
+%  back for such an entry, and it is passed over.
+%
+%  Called where the cache stops standing for anything: at the end of a
+%  job, and where the page device is replaced, since a drawing is the
+%  marks a form made for one device and carries that device's colour
+%  space -- placing it in another would be a colour nobody named, and is
+%  refused rather than painted.
+%
 currentglobal true setglobal
 .xpostsys /.formcachedrop {
     graphicsdict /.formcache 2 copy known {
@@ -1413,39 +1565,41 @@ currentglobal true setglobal
 } bind put
 setglobal
 
-% formdict  execform  -
-% Paint a form.
 %
-% The paint procedure runs once for each form and each linear
-% transformation it is used under. What it paints is captured as a
-% drawing -- the marks it made, in the device's own coordinates, held by
-% a recorder standing in for the device -- and every execution after
-% that places the drawing where it is wanted rather than running the
-% procedure again. PLRM 4.7 permits saved output to stand in for
-% re-executing the procedure, and this is that latitude: it also says
-% that a change to the translation of the transformation does not
-% require the procedure to be run again, which is why the key carries
-% the linear part and the placement carries the position.
+%  formdict  execform  -
+%  Paint a form.
 %
-% A placement is a reference and not a copy. The drawing is held once
-% however many places it is put, and a form whose paint procedure uses a
-% form places that form's drawing inside its own -- so a page built of
-% forms inside forms costs each distinct form once, at its own
-% transformation, rather than their product. A placement is resolved
-% when the page is painted, which is what makes that true at any depth.
+%  The paint procedure runs once for each form and each linear
+%  transformation it is used under. What it paints is captured as a
+%  drawing -- the marks it made, in the device's own coordinates, held by
+%  a recorder standing in for the device -- and every execution after
+%  that places the drawing where it is wanted rather than running the
+%  procedure again. PLRM 4.7 permits saved output to stand in for
+%  re-executing the procedure, and this is that latitude: it also says
+%  that a change to the translation of the transformation does not
+%  require the procedure to be run again, which is why the key carries
+%  the linear part and the placement carries the position.
 %
-% What is placed is the marks, not a picture of them, so each placement
-% is painted at its own position rather than at the position the
-% procedure was run at. A form at a fractional position is therefore the
-% page the procedure would have painted there.
+%  A placement is a reference and not a copy. The drawing is held once
+%  however many places it is put, and a form whose paint procedure uses a
+%  form places that form's drawing inside its own -- so a page built of
+%  forms inside forms costs each distinct form once, at its own
+%  transformation, rather than their product. A placement is resolved
+%  when the page is painted, which is what makes that true at any depth.
 %
-% The cache serves where a drawing can be held for the device
-% (.newformrecord, src/lib/xpost_dev_record.c) and where the clip is a
-% rectangle holding the whole of the form's box: what reaches the
-% recorder is already cut to the clip, so a form the clip cuts would be
-% captured cut and placed cut somewhere the clip is not. Anything else
-% -- a device given whole paths, one that screens, a form dictionary
-% that cannot take its serial -- paints afresh.
+%  What is placed is the marks, not a picture of them, so each placement
+%  is painted at its own position rather than at the position the
+%  procedure was run at. A form at a fractional position is therefore the
+%  page the procedure would have painted there.
+%
+%  The cache serves where a drawing can be held for the device
+%  (.newformrecord, src/lib/xpost_dev_record.c) and where the clip is a
+%  rectangle holding the whole of the form's box: what reaches the
+%  recorder is already cut to the clip, so a form the clip cuts would be
+%  captured cut and placed cut somewhere the clip is not. Anything else
+%  -- a device given whole paths, one that screens, a form dictionary
+%  that cannot take its serial -- paints afresh.
+%
 /execform [ /dicttype ] {
     dup /FormType 2 copy known { get 1 eq }{ pop pop false } ifelse
     not { /execform cvx /rangecheck signalerror } if
@@ -1689,12 +1843,14 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-% User paths: the self-describing form is an executable array of the
-% path operators below; the encoded form pairs an operand source (a
-% number array or encoded number string) with a string of opcodes,
-% where an opcode of 32 or more repeats the following operator that
-% many fewer than its value times
-/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } //.xpostsys /.defop get exec    % the box is advisory here
+%
+%  User paths: the self-describing form is an executable array of the
+%  path operators below; the encoded form pairs an operand source (a
+%  number array or encoded number string) with a string of opcodes,
+%  where an opcode of 32 or more repeats the following operator that
+%  many fewer than its value times
+%
+/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } //.xpostsys /.defop get exec    % The box is advisory here
 /ucache [ ] {} //.xpostsys /.defop get exec
 
 currentglobal true setglobal
@@ -1703,9 +1859,11 @@ currentglobal true setglobal
 setglobal
 currentglobal true setglobal
 .xpostsys /.upathargs [ 4 2 2 2 2 6 6 5 5 5 0 0 ] put
-% obj /spec  .argok  bool
-% A spec names an object type, or one of two families: numbertype for
-% either number, proctype for an executable array.
+%
+%  obj /spec  .argok  bool
+%  A spec names an object type, or one of two families: numbertype for
+%  either number, proctype for an executable array.
+%
 .xpostsys /.argok {
     dup /anytype eq { pop pop true }{
     dup /numbertype eq {
@@ -1718,9 +1876,11 @@ currentglobal true setglobal
     } ifelse } ifelse } ifelse
 } put
 
-% /opname [ specs ]  .checkargs  -
-% The operands an operator takes, listed in operand order. The count is
-% settled before the types, so a short stack reports the shortage.
+%
+%  /opname [ specs ]  .checkargs  -
+%  The operands an operator takes, listed in operand order. The count is
+%  settled before the types, so a short stack reports the shortage.
+%
 .xpostsys /.checkargs {
     2 dict begin
     /a.t exch def /a.op exch def
@@ -1735,15 +1895,17 @@ currentglobal true setglobal
     end
 } put
 
-% dict name proc  .wrapwithsig  -
-% Install the procedure as an operator stating the operands it takes, in
-% operand order, so the dispatcher enforces the statement before the
-% procedure runs, exactly as for an operator written in C. The statement
-% is the one the definition recorded in .opsigs, and the promotion runs
-% over those statements, so there is always one to read. The operator
-% goes back into the dictionary its name was found in, which is not
-% always userdict: some of the standard operators written in PostScript
-% are defined straight into systemdict.
+%
+%  dict name proc  .wrapwithsig  -
+%  Install the procedure as an operator stating the operands it takes, in
+%  operand order, so the dispatcher enforces the statement before the
+%  procedure runs, exactly as for an operator written in C. The statement
+%  is the one the definition recorded in .opsigs, and the promotion runs
+%  over those statements, so there is always one to read. The operator
+%  goes back into the dictionary its name was found in, which is not
+%  always userdict: some of the standard operators written in PostScript
+%  are defined straight into systemdict.
+%
 .xpostsys /.wrapwithsig {
     3 dict begin
     /w.proc exch def /w.name exch def /w.dict exch def
@@ -1760,9 +1922,11 @@ currentglobal true setglobal
 >> put
 setglobal
 
-% obj  .upathcheck  obj
-% A user path is an executable array of numbers and user-path operator
-% names, or the encoded pair of an argument list and an operator string.
+%
+%  obj  .upathcheck  obj
+%  A user path is an executable array of numbers and user-path operator
+%  names, or the encoded pair of an argument list and an operator string.
+%
 currentglobal true setglobal
 .xpostsys /.upathcheck {
     4 dict begin
@@ -1798,7 +1962,9 @@ currentglobal true setglobal
 } put
 setglobal
 
-% userpath  uappend  -
+%
+%  userpath  uappend  -
+%
 /uappend [ /arraytype ] {
     //.xpostsys /.upathcheck get exec
     dup xcheck {
@@ -1840,8 +2006,10 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-% matrix and user path operands tell apart by shape: a matrix is a
-% six-element literal array of numbers
+%
+%  matrix and user path operands tell apart by shape: a matrix is a
+%  six-element literal array of numbers
+%
 currentglobal true setglobal
 .xpostsys /.isupmat {
     dup type /arraytype eq
@@ -1872,8 +2040,10 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-% bool  upath  userpath
-% the current path, written as a user path in current user space
+%
+%  bool  upath  userpath
+%  the current path, written as a user path in current user space
+%
 /upath [ /booleantype ] {
     [ exch { /ucache cvx } if
       pathbbox /setbbox cvx
@@ -1882,15 +2052,17 @@ setglobal
     ] cvx
 } //.xpostsys /.defop get exec
 
-% mark key value ... /TYPE  pdfmark  -
-% Route document metadata to a device that can carry it (the pdfwrite
-% device collects DOCINFO into its trailer); every other mark type,
-% and marks on devices without metadata, are consumed without effect.
-% The body is bound by the sweep that runs once graphics has loaded,
-% not here: DEVICE is not yet an operator at this point, and a bind
-% here would leave the name loose and the body read-only, so the sweep
-% could never come back for it and a program redefining DEVICE would
-% reach inside this one.
+%
+%  mark key value ... /TYPE  pdfmark  -
+%  Route document metadata to a device that can carry it (the pdfwrite
+%  device collects DOCINFO into its trailer); every other mark type,
+%  and marks on devices without metadata, are consumed without effect.
+%  The body is bound by the sweep that runs once graphics has loaded,
+%  not here: DEVICE is not yet an operator at this point, and a bind
+%  here would leave the name loose and the body read-only, so the sweep
+%  could never come back for it and a program redefining DEVICE would
+%  reach inside this one.
+%
 /pdfmark {
     counttomark 0 gt {
         dup /DOCINFO eq DEVICE /.docinfo known and {
@@ -1903,18 +2075,20 @@ setglobal
     cleartomark
 } def
 
-% -    currentdistillerparams  dict
-% dict setdistillerparams        -
-% The parameters that steer PDF production. This build produces PDF through the
-% pdfwrite device, which setpagedevice configures; setdistillerparams records
-% whatever a program sets and currentdistillerparams hands the set back, so a
-% program that configures production through them runs. Only the parameters
-% this build acts on are seeded, so a default read reports what is honoured
-% rather than a knob that does nothing: CompressPages leaves the pdfwrite
-% content stream uncompressed, PreserveOverprintSettings keeps the overprint
-% state in the output, and LockDistillerParams, once true, holds the recorded
-% set against further change. Any other parameter a program sets is still
-% accepted and read back.
+%
+%  -    currentdistillerparams  dict
+%  dict setdistillerparams        -
+%  The parameters that steer PDF production. This build produces PDF through the
+%  pdfwrite device, which setpagedevice configures; setdistillerparams records
+%  whatever a program sets and currentdistillerparams hands the set back, so a
+%  program that configures production through them runs. Only the parameters
+%  this build acts on are seeded, so a default read reports what is honoured
+%  rather than a knob that does nothing: CompressPages leaves the pdfwrite
+%  content stream uncompressed, PreserveOverprintSettings keeps the overprint
+%  state in the output, and LockDistillerParams, once true, holds the recorded
+%  set against further change. Any other parameter a program sets is still
+%  accepted and read back.
+%
 .xpostsys /.distillerparams <<
     /CompressPages true
     /PreserveOverprintSettings true
@@ -1933,8 +2107,10 @@ setglobal
     //.xpostsys /.distillerparams get dup length dict copy
 } //.xpostsys /.defop get exec
 
-%   /fontname size  selectfont  -
-% /fontname matrix  selectfont  -
+%
+%    /fontname size  selectfont  -
+%  /fontname matrix  selectfont  -
+%
 /selectfont [ /anytype /numbertype ] {
     dup type /arraytype eq {
         exch findfont
@@ -1947,11 +2123,15 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-% x y w h
-currentglobal true setglobal   % global .xpostsys helpers
-% .n2a decodes an encoded-number-string into a plain array, for the numstring forms
+%
+%  x y w h
+%
+currentglobal true setglobal   % Global .xpostsys helpers
+%
+%  .n2a decodes an encoded-number-string into a plain array, for the numstring forms
+%
 .xpostsys /.n2a /.numstring2array load put
-.xpostsys /.rect1 { %ccw in device space -- x y w h  appends one rectangle subpath
+.xpostsys /.rect1 {  %ccw in device space -- x y w h  appends one rectangle subpath
     dtransform 4 2 roll transform 4 2 roll
     dup 0 gt { neg 3 2 roll 1 index sub 3 1 roll } if
     1 index 0 lt { exch neg 4 3 roll 1 index sub 4 1 roll exch } if
@@ -1963,8 +2143,10 @@ currentglobal true setglobal   % global .xpostsys helpers
     neg 0 rlineto
     lineto
 } put
-% the operand is either four numbers (x y w h) for a single rectangle, or a
-% numarray / numstring holding 4n numbers for n rectangles (PLRM 8.2)
+%
+%  the operand is either four numbers (x y w h) for a single rectangle, or a
+%  numarray / numstring holding 4n numbers for n rectangles (PLRM 8.2)
+%
 .xpostsys /rect {
     dup type /stringtype eq { //.xpostsys /.n2a get exec } if
     dup type /arraytype eq {
@@ -1979,13 +2161,15 @@ currentglobal true setglobal   % global .xpostsys helpers
 } put
 setglobal
 
-% the painting pair works on its own path and leaves the caller's untouched;
-% rectclip clips by the rectangles alone and clears the path, as the language
-% specifies. rectstroke also accepts a trailing matrix, which is concatenated
-% to the CTM after the path is built but before stroking (PLRM 8.2).
-% Each takes four numbers, or the same numbers gathered into an array
-% or encoded in a string; rectstroke takes the matrix on top of any of
-% those, so its longer shapes are stated first to get first refusal.
+%
+%  the painting pair works on its own path and leaves the caller's untouched;
+%  rectclip clips by the rectangles alone and clears the path, as the language
+%  specifies. rectstroke also accepts a trailing matrix, which is concatenated
+%  to the CTM after the path is built but before stroking (PLRM 8.2).
+%  Each takes four numbers, or the same numbers gathered into an array
+%  or encoded in a string; rectstroke takes the matrix on top of any of
+%  those, so its longer shapes are stated first to get first refusal.
+%
 /rectfill [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
     { gsave newpath //.xpostsys /rect get exec fill grestore }
@@ -2008,8 +2192,10 @@ setglobal
     { newpath //.xpostsys /rect get exec clip newpath }
     //.xpostsys /.defop get exec
 
-% load graphics support. Global: the device-maker procedures baked into this
-% body are global, matching the global .xpostsys their table installs into.
+%
+%  load graphics support. Global: the device-maker procedures baked into this
+%  body are global, matching the global .xpostsys their table installs into.
+%
 currentglobal true setglobal
 .xpostsys /loadgraphics {
     % The load records its own completion below, so a lockdown that stops
@@ -2294,7 +2480,7 @@ currentglobal true setglobal
         % residue again: every route that makes a device arms before
         % its Create, so a leaving is overwritten and never inherited.
         /feat merged length dict def
-        merged { % key value
+        merged {  % key value
             1 index /OutputDevice eq
             2 index /PageSize eq or
             2 index /HWResolution eq or
@@ -2426,7 +2612,7 @@ currentglobal true setglobal
             << /PageSize [ DEVICE /dimensions get aload pop ] >>
         } ifelse
     } //.xpostsys /.defop get exec
-    end % systemdict
+    end  % Systemdict
 
     % The language stands. Recorded by the load itself, as the last thing
     % it does, so that the step after it stopping leaves this true: a
@@ -2455,26 +2641,28 @@ currentglobal true setglobal
     } ifelse
 } put
 
-% The interpreter lockdown. Runs once, after loadgraphics has loaded whatever it
-% is going to (or on its own if graphics is never loaded), when every helper the
-% machinery needs has been defined. It freezes the machinery's operator
-% references, promotes the procedure-implemented standard operators to real
-% operators, moves the private C operators into .internaldict, seals and hides
-% the private namespaces, and returns the device classes to local VM. The
-% language itself needs no moving: it is read into systemdict to begin with. loadgraphics does the loading; this does the
-% locking down -- so nothing unrelated to graphics is tied to loading it. Each
-% step records its own completion, the load in GRAPHICS_LOADED and this in
-% LOCKDOWN_DONE, which is what keeps each idempotent without either standing
-% for the other.
-% bool (what)  .mustbe  -
-% A start-up step whose order matters says so here. The steps below have
-% to run in one order and no other -- a name has to be an operator before
-% anything can freeze a reference to it, systemdict has to be open before
-% a name can be taken out of it -- and getting it wrong does not fail
-% where it happened. It fails later, somewhere unrelated, or not at all:
-% the interpreter finishes starting and answers wrongly ever after. So
-% each rule is checked where it is relied on, and a broken one stops the
-% run there rather than leaving a working-looking interpreter behind.
+%
+%  The interpreter lockdown. Runs once, after loadgraphics has loaded whatever it
+%  is going to (or on its own if graphics is never loaded), when every helper the
+%  machinery needs has been defined. It freezes the machinery's operator
+%  references, promotes the procedure-implemented standard operators to real
+%  operators, moves the private C operators into .internaldict, seals and hides
+%  the private namespaces, and returns the device classes to local VM. The
+%  language itself needs no moving: it is read into systemdict to begin with. loadgraphics does the loading; this does the
+%  locking down -- so nothing unrelated to graphics is tied to loading it. Each
+%  step records its own completion, the load in GRAPHICS_LOADED and this in
+%  LOCKDOWN_DONE, which is what keeps each idempotent without either standing
+%  for the other.
+%  bool (what)  .mustbe  -
+%  A start-up step whose order matters says so here. The steps below have
+%  to run in one order and no other -- a name has to be an operator before
+%  anything can freeze a reference to it, systemdict has to be open before
+%  a name can be taken out of it -- and getting it wrong does not fail
+%  where it happened. It fails later, somewhere unrelated, or not at all:
+%  the interpreter finishes starting and answers wrongly ever after. So
+%  each rule is checked where it is relied on, and a broken one stops the
+%  run there rather than leaving a working-looking interpreter behind.
+%
 .xpostsys /.mustbe {
     exch { pop }{
         (start-up ordering broken: ) print print (\n) print flush
@@ -2545,7 +2733,7 @@ currentglobal true setglobal
     % below is for: nothing is bound until every one of them is promoted,
     % so no outcome depends on the order they came out in.
     //.xpostsys /.opsigs get {
-        pop                                  % the statement; the key is the name
+        pop                                  % The statement; the key is the name
         dup where {
             exch 2 copy get
             dup type /arraytype eq 1 index xcheck and {
@@ -2587,7 +2775,7 @@ currentglobal true setglobal
     1 dict begin
     /n 0 def
     .privatedict /.wrappedprocs get {
-        pop                                  % the value; the key is the name
+        pop                                  % The value; the key is the name
         dup type /nametype eq {
             dup where {
                 1 index get type /operatortype ne { /n n 1 add store } if
@@ -2611,7 +2799,7 @@ currentglobal true setglobal
     1 dict begin
     /n 0 def
     //.xpostsys /.opsigs get {
-        pop                                  % the statement; the key is the name
+        pop                                  % The statement; the key is the name
         dup where {
             1 index get type /operatortype ne { /n n 1 add store } if
         }{ } ifelse
@@ -2722,9 +2910,9 @@ currentglobal true setglobal
     % is dropped, since what is walked here is what is being written to.
     [ systemdict { pop } forall ]
     { dup //.xpostsys /.isclassname get exec
-        { dup systemdict 1 index get dup length 16 add dict copy % name name localcopy
-          .privatedict 3 1 roll put                              % name (privatedict/name = localcopy)
-          systemdict exch undef }                                % drop the load-time anchor
+        { dup systemdict 1 index get dup length 16 add dict copy  % Name name localcopy
+          .privatedict 3 1 roll put                              % Name (privatedict/name = localcopy)
+          systemdict exch undef }                                % Drop the load-time anchor
         { pop } ifelse
     } forall
 
@@ -2803,10 +2991,12 @@ currentglobal true setglobal
 } put
 setglobal
 
-$error/initializing false put % ready to go!
+$error/initializing false put  % Ready to go!
 false setglobal
 
-% debug ps functions -- interpreter aids, not language operators, so private
+%
+%  debug ps functions -- interpreter aids, not language operators, so private
+%
 currentglobal true setglobal
 .xpostsys /doprompt {
     (\nbreak>)print flush
@@ -2827,9 +3017,11 @@ currentglobal true setglobal
 } put
 setglobal
 
-(/prepr.ps) //.xpostsys /.loadmodule get exec  % use nifty preview prompt!
+(/prepr.ps) //.xpostsys /.loadmodule get exec  % Use nifty preview prompt!
 
-end % systemdict
+end  % Systemdict
 
 //.internaldict /QUIET known { }{ (eof init.ps\n)print } ifelse
-%loadgraphics %called by start* procs
+%
+% loadgraphics %called by start* procs
+%

@@ -1,4 +1,5 @@
 %!PS
+%
 % font.ps
 %
 % Type 3 font handling and the font operators over the C fontconfig/freetype access.
@@ -6,100 +7,119 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-% Many font operators are implemented as C functions and
-% these use fontconfig and freetype to access host OS  fonts.
-% see src/lib/xpost_font.[ch] and src/lib/xpost_op_font.[ch]
+%
+%  Many font operators are implemented as C functions and
+%  these use fontconfig and freetype to access host OS  fonts.
+%  see src/lib/xpost_font.[ch] and src/lib/xpost_op_font.[ch]
+%
 
-% These procedures interface with the built-in operators,
-% performing special handling for Type 3 (postscript) fonts,
-% and calling the C operators for all other types.
-
+%
+%  These procedures interface with the built-in operators,
+%  performing special handling for Type 3 (postscript) fonts,
+%  and calling the C operators for all other types.
+%
 //.internaldict /QUIET known { }{ (loading font.ps...)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% Type 3 fonts render through their BuildChar procedure; Type 42 fonts
-% carry a TrueType program in /sfnts, reassembled and opened as a
-% memory face by .loadfont42 so the C text operators use it exactly
-% like a findfont face.
-% run a glyph-description procedure with the glyph flag raised: the
-% stencil painter blends mask edges only for glyphs, the way the
-% device's TextAlphaBits asks
-% A build procedure runs through the bracket: it is the program's, and
-% the operator that runs it works out of a dictionary of its own, which
-% the build must not inherit. The nesting count is what the operator is
-% mid-use of across the call -- a build procedure may show text, which
-% builds glyphs against the same count -- so the bracket puts it back.
+%
+%  Type 3 fonts render through their BuildChar procedure; Type 42 fonts
+%  carry a TrueType program in /sfnts, reassembled and opened as a
+%  memory face by .loadfont42 so the C text operators use it exactly
+%  like a findfont face.
+%  run a glyph-description procedure with the glyph flag raised: the
+%  stencil painter blends mask edges only for glyphs, the way the
+%  device's TextAlphaBits asks
+%  A build procedure runs through the bracket: it is the program's, and
+%  the operator that runs it works out of a dictionary of its own, which
+%  the build must not inherit. The nesting count is what the operator is
+%  mid-use of across the call -- a build procedure may show text, which
+%  builds glyphs against the same count -- so the bracket puts it back.
+%
 .xpostsys /.buildkeys [ /.inglyph ] put
-% the capture pair the glyph cache is mid-use of while a build runs
+%
+%  the capture pair the glyph cache is mid-use of while a build runs
+%
 .xpostsys /.t3capkeys [ /.t3want /.t3cap ] put
-% What a build declared, kept where the build itself cannot take it back.
-% A build procedure is the program's, and a program may bracket one in save
-% and restore -- generated PostScript commonly does, to unwind whatever the
-% glyph left behind. restore reverts local virtual memory wholesale, so
-% anything the machinery parks there while the build runs is reverted with
-% it, including a metric the build had already declared. This dictionary is
-% global, which restore leaves alone (PLRM 3.7.2): /advx and /advy are the
-% advance the build declared, and /capturing says its marks were going to a
-% capture raster rather than to the page.
+%
+%  What a build declared, kept where the build itself cannot take it back.
+%  A build procedure is the program's, and a program may bracket one in save
+%  and restore -- generated PostScript commonly does, to unwind whatever the
+%  glyph left behind. restore reverts local virtual memory wholesale, so
+%  anything the machinery parks there while the build runs is reverted with
+%  it, including a metric the build had already declared. This dictionary is
+%  global, which restore leaves alone (PLRM 3.7.2): /advx and /advy are the
+%  advance the build declared, and /capturing says its marks were going to a
+%  capture raster rather than to the page.
+%
 .xpostsys /.glyphstate << /advx 0 /advy 0 /capturing false >> put
-.xpostsys /.runbuild { % ... proc  .runbuild  ...
+.xpostsys /.runbuild {  % ... proc  .runbuild  ...
     //.xpostsys /.runbuildbody get
     //.xpostsys /.buildkeys get 1
     //.xpostsys /.callout get exec
 } put
-% .inglyph counts glyph-build nesting: a build procedure may itself show
-% text, so a bare flag would clear on the inner build and read false while
-% the outer build is still running. setcachedevice/setcharwidth are valid
-% while it is nonzero.
-% The build itself runs beneath the boundary: a failure in there is the
-% program's own object failing, so the operand stack goes back to what
-% the build found (PLRM 3.11.1) and the showing operator keeps the
-% operands it consumed getting here. The counting either side of it is
-% the machinery's, and a failure in that is the operator's own.
+%
+%  .inglyph counts glyph-build nesting: a build procedure may itself show
+%  text, so a bare flag would clear on the inner build and read false while
+%  the outer build is still running. setcachedevice/setcharwidth are valid
+%  while it is nonzero.
+%  The build itself runs beneath the boundary: a failure in there is the
+%  program's own object failing, so the operand stack goes back to what
+%  the build found (PLRM 3.11.1) and the showing operator keeps the
+%  operands it consumed getting here. The counting either side of it is
+%  the machinery's, and a failure in that is the operator's own.
+%
 .xpostsys /.runbuildbody {
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse 1 add
     graphicsdict exch /.inglyph exch put
     //.xpostsys /.pexec get exec
 } put
 
-% font  .fontroute  /composite | /build | /face
-% Which machinery paints a glyph from this font, and the only place that
-% decides. Thirteen sites read the type for themselves and between them
-% asked three questions -- is it composite, is it procedural, does a face
-% lie under it -- but each asked only the part it needed, so no two were
-% obliged to agree. Whether that mattered was not visible in any of them:
-% every site reads reasonably on its own, and a site asking half the
-% question simply treats the other half's fonts as ordinary ones.
 %
-% Naming the three routes makes the halves impossible to write. A site
-% wanting the face route asks for it, and a font that is neither
-% composite nor procedural is the only thing that answers.
+%  font  .fontroute  /composite | /build | /face
+%  Which machinery paints a glyph from this font, and the only place that
+%  decides. Thirteen sites read the type for themselves and between them
+%  asked three questions -- is it composite, is it procedural, does a face
+%  lie under it -- but each asked only the part it needed, so no two were
+%  obliged to agree. Whether that mattered was not visible in any of them:
+%  every site reads reasonably on its own, and a site asking half the
+%  question simply treats the other half's fonts as ordinary ones.
+%
+%  Naming the three routes makes the halves impossible to write. A site
+%  wanting the face route asks for it, and a font that is neither
+%  composite nor procedural is the only thing that answers.
+%
 .xpostsys /.fontroute {
     /FontType 2 copy known { get }{ pop pop -1 } ifelse
     dup 0 eq { pop /composite }{ 3 eq { /build }{ /face } ifelse } ifelse
 } put
 
-% The FontType a CIDFont carries, one per CIDFontType (PLRM Table 5.11).
-% The CIDFontType says where the glyph descriptions come from -- charstrings,
-% build procedures, TrueType descriptions, cached bitmaps -- and each has a
-% FontType of its own, distinct from the base-font type the same kind of
-% description carries. A CIDFontType 2 is stamped 11 and not the 42 a
-% TrueType base font would carry.
+%
+%  The FontType a CIDFont carries, one per CIDFontType (PLRM Table 5.11).
+%  The CIDFontType says where the glyph descriptions come from -- charstrings,
+%  build procedures, TrueType descriptions, cached bitmaps -- and each has a
+%  FontType of its own, distinct from the base-font type the same kind of
+%  description carries. A CIDFontType 2 is stamped 11 and not the 42 a
+%  TrueType base font would carry.
+%
 .xpostsys /.cidtypemap << 0 9 1 10 2 11 4 32 >> put
 
-% dict /operator  .cidstamp  dict
-% Stamp a CIDFont dictionary with the FontType its CIDFontType calls for.
-% PLRM 5.9 requires the entry of both definefont and defineresource, so
-% the correspondence and the refusal of a CIDFontType nobody defined live
-% here rather than once in each; the operator is named by the caller so
-% the refusal says which one was asked.
 %
-% Written whether or not the dictionary already carries a FontType. For a
-% CIDFont the CIDFontType is the authority: the FontType is derived from
-% it, so a program that wrote one itself wrote a value this can only
-% agree with or correct.
+%  dict /operator  .cidstamp  dict
+%  Stamp a CIDFont dictionary with the FontType its CIDFontType calls for.
+%  PLRM 5.9 requires the entry of both definefont and defineresource, so
+%  the correspondence and the refusal of a CIDFontType nobody defined live
+%  here rather than once in each; the operator is named by the caller so
+%  the refusal says which one was asked.
+%
+%  Written whether or not the dictionary already carries a FontType. For a
+%  CIDFont the CIDFontType is the authority: the FontType is derived from
+%  it, so a program that wrote one itself wrote a value this can only
+%  agree with or correct.
+%
 .xpostsys /.cidstamp {
     exch dup
     /CIDFontType 2 copy known not
@@ -114,7 +134,7 @@ true setglobal
     exch pop
 } bind put
 
-/definefont [ /anytype /dicttype ] { % /fontname -dict-
+/definefont [ /anytype /dicttype ] {  % /fontname -dict-
     dup type /dicttype ne
     2 index type /nulltype eq or {
         /definefont cvx /typecheck signalerror
@@ -260,27 +280,28 @@ true setglobal
     findfont
 } //.xpostsys /.defop get exec
 
-% scalefont and makefont build dictionaries and nothing else: each
-% returns a fresh copy of the font with the requested transform
-% concatenated onto its FontMatrix, leaving the operand font untouched.
-% The face itself is not resized here -- it is shared between every
-% dictionary made from the same findfont name, so its pixel scale is
-% derived from FontMatrix and the CTM by each text operator at use
-% time. This keeps fonts value-like (two sizes of one face coexist)
-% and makes the CTM matter where PostScript says it does: when the
-% glyphs are marked, not when the font is scaled.
-
-/scalefont [ /dicttype /numbertype ] { % font size  scalefont  font'
+%
+%  scalefont and makefont build dictionaries and nothing else: each
+%  returns a fresh copy of the font with the requested transform
+%  concatenated onto its FontMatrix, leaving the operand font untouched.
+%  The face itself is not resized here -- it is shared between every
+%  dictionary made from the same findfont name, so its pixel scale is
+%  derived from FontMatrix and the CTM by each text operator at use
+%  time. This keeps fonts value-like (two sizes of one face coexist)
+%  and makes the CTM matter where PostScript says it does: when the
+%  glyphs are marked, not when the font is scaled.
+%
+/scalefont [ /dicttype /numbertype ] {  % font size  scalefont  font'
     dup matrix scale makefont
 } //.xpostsys /.defop get exec
 
-/makefont [ /dicttype /arraytype ] { % font mat  makefont  font'
-    exch dup length 2 add dict copy         % mat font'
+/makefont [ /dicttype /arraytype ] {  % font mat  makefont  font'
+    exch dup length 2 add dict copy         % Mat font'
     dup /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
                                             % mat font' oldfm
-    3 -1 roll exch                          % font' mat oldfm
-    matrix concatmatrix                     % font' newfm
-    1 index /FontMatrix 3 -1 roll put       % font'
+    3 -1 roll exch                          % Font' mat oldfm
+    matrix concatmatrix                     % Font' newfm
+    1 index /FontMatrix 3 -1 roll put       % Font'
 } //.xpostsys /.defop get exec
 
 /setcharwidth [ /numbertype /numbertype ] {
@@ -296,61 +317,65 @@ true setglobal
     /yadvance 3 2 roll put
 } //.xpostsys /.defop get exec
 
-% Whether the colour in force is a pattern is asked here through
-% .patternactive (pattern.ps), which is the one place that question is
-% answered for anything that paints.
 %
-% It matters to text because a glyph reaches the page as coverage -- a
-% raster the face rendered, or a mask captured from a Type 3 build --
-% and coverage carries no colour, so whatever plots it can only plot it
-% in one. Text in a pattern therefore leaves that route for one where
-% the pattern's own paint runs. Which route each kind of text leaves for
-% is its own business; that the colour sends it there is not a thing
-% text decides, which is why it is not answered here.
+%  Whether the colour in force is a pattern is asked here through
+%  .patternactive (pattern.ps), which is the one place that question is
+%  answered for anything that paints.
+%
+%  It matters to text because a glyph reaches the page as coverage -- a
+%  raster the face rendered, or a mask captured from a Type 3 build --
+%  and coverage carries no colour, so whatever plots it can only plot it
+%  in one. Text in a pattern therefore leaves that route for one where
+%  the pattern's own paint runs. Which route each kind of text leaves for
+%  is its own business; that the colour sends it there is not a thing
+%  text decides, which is why it is not answered here.
+%
 
-% -  .glyphkey  [serial name] true
-%                                false
-% What the mask cache is asked to remember a glyph by. PLRM 5.5 says
-% what identifies a cached glyph: the font dictionary the description
-% came from, the character selector -- "a character name in a base
-% font" -- and the transform in force. The transform is carried
-% separately, so what is made here is the first two: the font's serial
-% beside the character's name.
 %
-% The character CODE is not it, and PLRM 5.5 rules it out by name:
-% "Note that a character code is not part of the glyph identification
-% in the font cache, since a given glyph may be selected in more than
-% one way." A code is a position in an encoding, and an encoding is a
-% mapping a program rewrites; the glyph is what the name at that
-% position denotes. Keying by the code files a mask under a position,
-% so the next font to put a different name at that position -- which is
-% the whole of what re-encoding is -- is served the mask of the glyph
-% that used to be there.
+%  -  .glyphkey  [serial name] true
+%                                 false
+%  What the mask cache is asked to remember a glyph by. PLRM 5.5 says
+%  what identifies a cached glyph: the font dictionary the description
+%  came from, the character selector -- "a character name in a base
+%  font" -- and the transform in force. The transform is carried
+%  separately, so what is made here is the first two: the font's serial
+%  beside the character's name.
 %
-% The serial is whatever the font dictionary carries under .fontid, and
-% a font dictionary is the program's to write: definefont stamps a
-% serial only where there is none, and nothing stops a program putting
-% its own there or taking it away. So a serial that is not an integer,
-% or one outside the range the key gives it, is a serial this key
-% cannot be made from, and that is answered rather than carried into
-% the cache. The same goes for the selector: a font whose encoding
-% holds something other than a name at the code names no glyph the
-% cache can be asked for, and builds direct.
+%  The character CODE is not it, and PLRM 5.5 rules it out by name:
+%  "Note that a character code is not part of the glyph identification
+%  in the font cache, since a given glyph may be selected in more than
+%  one way." A code is a position in an encoding, and an encoding is a
+%  mapping a program rewrites; the glyph is what the name at that
+%  position denotes. Keying by the code files a mask under a position,
+%  so the next font to put a different name at that position -- which is
+%  the whole of what re-encoding is -- is served the mask of the glyph
+%  that used to be there.
 %
-% What is guaranteed, and no more than this: two glyphs whose fonts
-% carry different serials never share a key, and neither do two glyphs
-% of one font under different names. Two font dictionaries that carry
-% the SAME serial do share keys, and are meant to -- that is the case
-% PLRM 5.6 sanctions, where a copy of a font differs from its original
-% only in FontName, FontInfo, FontMatrix or Encoding and may keep the
-% original's identity "because those changes do not affect the glyphs'
-% appearance or metrics". Since the selector is the name and not the
-% code, a re-encoded copy asks for the glyph it names, and the shared
-% serial costs it nothing but a shared entry for a shared glyph. What
-% is NOT guaranteed is a copy that keeps the serial while changing the
-% descriptions the names resolve to; PLRM 5.6 tells a program not to
-% carry an identity across that kind of change, and a program that does
-% has said two different glyphs are the same glyph.
+%  The serial is whatever the font dictionary carries under .fontid, and
+%  a font dictionary is the program's to write: definefont stamps a
+%  serial only where there is none, and nothing stops a program putting
+%  its own there or taking it away. So a serial that is not an integer,
+%  or one outside the range the key gives it, is a serial this key
+%  cannot be made from, and that is answered rather than carried into
+%  the cache. The same goes for the selector: a font whose encoding
+%  holds something other than a name at the code names no glyph the
+%  cache can be asked for, and builds direct.
+%
+%  What is guaranteed, and no more than this: two glyphs whose fonts
+%  carry different serials never share a key, and neither do two glyphs
+%  of one font under different names. Two font dictionaries that carry
+%  the SAME serial do share keys, and are meant to -- that is the case
+%  PLRM 5.6 sanctions, where a copy of a font differs from its original
+%  only in FontName, FontInfo, FontMatrix or Encoding and may keep the
+%  original's identity "because those changes do not affect the glyphs'
+%  appearance or metrics". Since the selector is the name and not the
+%  code, a re-encoded copy asks for the glyph it names, and the shared
+%  serial costs it nothing but a shared entry for a shared glyph. What
+%  is NOT guaranteed is a copy that keeps the serial while changing the
+%  descriptions the names resolve to; PLRM 5.6 tells a program not to
+%  carry an identity across that kind of change, and a program that does
+%  has said two different glyphs are the same glyph.
+%
 .xpostsys /.glyphkey {
     font /.fontid known {
         font /.fontid get
@@ -369,10 +394,12 @@ true setglobal
     }{ false } ifelse
 } bind put
 
-% wx wy llx lly urx ury  .maskcapture  -
-% declare the glyph's metrics and turn the build's marks into a
-% coverage mask: painting swaps to a raster sized from the glyph box
-% under the transform in force, shifted onto it in device space
+%
+%  wx wy llx lly urx ury  .maskcapture  -
+%  declare the glyph's metrics and turn the build's marks into a
+%  coverage mask: painting swaps to a raster sized from the glyph box
+%  under the transform in force, shifted onto it in device space
+%
 .xpostsys /.maskcapture {
     16 dict begin
     {ury urx lly llx wy wx}{exch def}forall
@@ -439,17 +466,19 @@ true setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-% font code  .t3build  -
-% render a Type 3 glyph through the glyph cache: a hit replays the
-% stored mask and its advances; a miss runs the build procedure,
-% capturing its marks when it declares setcachedevice, and paints
-% the fresh entry the same way a hit does.
-% The whole of it goes through the bracket. The capture pair is what
-% this procedure is mid-use of while a build runs, and a build may show
-% text of its own, which builds glyphs against the same pair; the
-% graphics states the build branches open, and this procedure's own
-% dictionary, are closed by the same bracket whichever way a build
-% leaves.
+%
+%  font code  .t3build  -
+%  render a Type 3 glyph through the glyph cache: a hit replays the
+%  stored mask and its advances; a miss runs the build procedure,
+%  capturing its marks when it declares setcachedevice, and paints
+%  the fresh entry the same way a hit does.
+%  The whole of it goes through the bracket. The capture pair is what
+%  this procedure is mid-use of while a build runs, and a build may show
+%  text of its own, which builds glyphs against the same pair; the
+%  graphics states the build branches open, and this procedure's own
+%  dictionary, are closed by the same bracket whichever way a build
+%  leaves.
+%
 .xpostsys /.t3build {
     {
     20 dict begin
@@ -564,59 +593,66 @@ true setglobal
     } //.xpostsys /.t3capkeys get 0 //.xpostsys /.callout get exec
 } put
 
-% /opname  .needpoint  -
-% The showing operators place glyphs from the current point, so there
-% has to be one.
+%
+%  /opname  .needpoint  -
+%  The showing operators place glyphs from the current point, so there
+%  has to be one.
+%
 .xpostsys /.needpoint {
     { currentpoint pop pop } stopped
         { cvx /nocurrentpoint signalerror }
         { pop } ifelse
 } put
 
-% /opname  .needfont  -
-% The current font's initial value is an invalid font dictionary, so a
-% program shows nothing until it selects one.
+%
+%  /opname  .needfont  -
+%  The current font's initial value is an invalid font dictionary, so a
+%  program shows nothing until it selects one.
+%
 .xpostsys /.needfont {
     graphicsdict /currgstate get /currfont 2 copy known
         { get /FontType known }{ pop pop false } ifelse
         { pop }{ cvx /invalidfont signalerror } ifelse
 } put
 
-% -  .showclip  -
-% Work out which device pixels the clip region in force covers and
-% leave the answer in the clip's own cache holder, where the glyph
-% raster route reads it.
 %
-% That route plots a rendered glyph straight through the device's pixel
-% methods rather than through the fill pipeline, so it meets the region
-% itself; PLRM 7.5.1 has it meet the same set of pixels a fill of the
-% same shape would, which is why the answer is worked out by the region
-% machinery here and not by a rule of the text route's own.
+%  -  .showclip  -
 %
-% /clipbox carries the region's device bounds when the region is a
-% rectangle -- what a page, a column or a text frame leaves -- since
-% then the bounds are the whole answer and no scan conversion is
-% needed. Otherwise /clipbox is null and /clipspans carries the region
-% resolved to pixel-band rectangles, the form .regionmeet reduces a
-% region to and every painter meets one in.
+%  Work out which device pixels the clip region in force covers and
+%  leave the answer in the clip's own cache holder, where the glyph
+%  raster route reads it.
 %
-% The resolving is done a tile of the page at a time, and /clipspans is
-% the array of tiles rather than one array of bands. A band costs five
-% array elements and an array's length is a bounded field, so a region
-% of enough bands outruns a single array: a page deep in rows outruns
-% one, and so does a page divided finely across them. The tiles start
-% as slices of rows, and a tile whose bands outrun its array is cut in
-% two and its halves resolved in its place, so how finely the region is
-% divided settles how small the tiles become and not whether the region
-% survives. Its bounds stand in for it only when the tiles themselves
-% cannot be held -- which reaches every pixel it covers, and some it
-% does not.
+%  That route plots a rendered glyph straight through the device's pixel
+%  methods rather than through the fill pipeline, so it meets the region
+%  itself; PLRM 7.5.1 has it meet the same set of pixels a fill of the
+%  same shape would, which is why the answer is worked out by the region
+%  machinery here and not by a rule of the text route's own.
 %
-% The answer belongs to the region and no other, so a graphics state
-% that shares the holder shares it, and a clip that installs a fresh
-% holder starts again. A holder of serial zero is the one every
-% graphics state is built with and shares until its first clip: nothing
-% may be kept there, so that one is worked out afresh each time.
+%  /clipbox carries the region's device bounds when the region is a
+%  rectangle -- what a page, a column or a text frame leaves -- since
+%  then the bounds are the whole answer and no scan conversion is
+%  needed. Otherwise /clipbox is null and /clipspans carries the region
+%  resolved to pixel-band rectangles, the form .regionmeet reduces a
+%  region to and every painter meets one in.
+%
+%  The resolving is done a tile of the page at a time, and /clipspans is
+%  the array of tiles rather than one array of bands. A band costs five
+%  array elements and an array's length is a bounded field, so a region
+%  of enough bands outruns a single array: a page deep in rows outruns
+%  one, and so does a page divided finely across them. The tiles start
+%  as slices of rows, and a tile whose bands outrun its array is cut in
+%  two and its halves resolved in its place, so how finely the region is
+%  divided settles how small the tiles become and not whether the region
+%  survives. Its bounds stand in for it only when the tiles themselves
+%  cannot be held -- which reaches every pixel it covers, and some it
+%  does not.
+%
+%  The answer belongs to the region and no other, so a graphics state
+%  that shares the holder shares it, and a clip that installs a fresh
+%  holder starts again. A holder of serial zero is the one every
+%  graphics state is built with and shares until its first clip: nothing
+%  may be kept there, so that one is worked out afresh each time.
+%
 .xpostsys /.showclip {
     20 dict begin
     /h graphicsdict /currgstate get /clipcache get def
@@ -710,36 +746,38 @@ true setglobal
     end
 } put
 
-% subject hook stroked  .showoutline  -
-% Paint the text by its glyph outlines. The raster route plots a
-% glyph's coverage straight through the device's pixel methods, filled
-% in one colour, so text the page cannot take that way comes here
-% instead: a pattern is not one colour but a procedure tiled over the
-% page, and an outline font's glyphs are stroked rather than filled.
-% The outlines go through the ordinary fill and stroke, where the
-% pattern paint and the line machinery are, so the pixels the text
-% marks are the pixels the same path painted the same way marks.
 %
-% The subject is the string to paint, or a single glyph the caller
-% selects by name as glyphshow does or by index as a CMap walk does.
-% The hook runs after each character with its code on the stack and
-% carries whatever the operator moves the pen by between characters; a
-% null hook means the operator moves it by nothing, and then the whole
-% string is one charpath.
+%  subject hook stroked  .showoutline  -
+%  Paint the text by its glyph outlines. The raster route plots a
+%  glyph's coverage straight through the device's pixel methods, filled
+%  in one colour, so text the page cannot take that way comes here
+%  instead: a pattern is not one colour but a procedure tiled over the
+%  page, and an outline font's glyphs are stroked rather than filled.
+%  The outlines go through the ordinary fill and stroke, where the
+%  pattern paint and the line machinery are, so the pixels the text
+%  marks are the pixels the same path painted the same way marks.
 %
-% Stroked says the font's glyphs are its outlines stroked with
-% StrokeWidth, a character space distance carried to user space through
-% FontMatrix, rather than filled; the route that sent the text here has
-% already asked the font.
+%  The subject is the string to paint, or a single glyph the caller
+%  selects by name as glyphshow does or by index as a CMap walk does.
+%  The hook runs after each character with its code on the stack and
+%  carries whatever the operator moves the pen by between characters; a
+%  null hook means the operator moves it by nothing, and then the whole
+%  string is one charpath.
 %
-% The pen ends where the walk left it: the outlines are built inside a
-% gsave, since charpath takes over the current path, and the point the
-% last of them ended at is carried back out.
+%  Stroked says the font's glyphs are its outlines stroked with
+%  StrokeWidth, a character space distance carried to user space through
+%  FontMatrix, rather than filled; the route that sent the text here has
+%  already asked the font.
 %
-% The outlines are asked for in the form a stroke takes, which is the
-% glyph path itself, so charpath is asked with its false. Its true
-% hands back the stroke's own outline instead, ready to be filled, and
-% stroking that would draw the outline of the line.
+%  The pen ends where the walk left it: the outlines are built inside a
+%  gsave, since charpath takes over the current path, and the point the
+%  last of them ended at is carried back out.
+%
+%  The outlines are asked for in the form a stroke takes, which is the
+%  glyph path itself, so charpath is asked with its false. Its true
+%  hands back the stroke's own outline instead, ready to be filled, and
+%  stroking that would draw the outline of the line.
+%
 .xpostsys /.showoutline {
     4 dict begin
     /pstroke exch def
@@ -775,37 +813,39 @@ true setglobal
     end
 } put
 
-% subject hook plain  .showroute  -
-% Which route text takes to the page. Text the glyph raster cannot
-% carry goes by the outlines: a pattern colour, which is a procedure
-% tiled over the page rather than a colour a pixel can be set to, and
-% an outline font, whose glyphs are strokes rather than filled
-% coverage. Everything else goes by the raster route, which the plain
-% procedure drives through the operator's own binding with the
-% operands that binding wants. The subject is left for the plain
-% procedure, which consumes it -- an operator whose binding takes more
-% than the text carries the rest itself.
 %
-% Every text operator of a simple font comes through here, and so does
-% the composite walk that selects a glyph through a CMap, so the choice
-% is made once and every route to the page shares whatever is decided
-% here. Making it in each of them instead is what left four operators
-% painting a pattern in whatever single colour the raster route read
-% out of the graphics state, all but one of them painting an outline
-% font's glyphs solid, and the CMap walk doing both.
+%  subject hook plain  .showroute  -
+%  Which route text takes to the page. Text the glyph raster cannot
+%  carry goes by the outlines: a pattern colour, which is a procedure
+%  tiled over the page rather than a colour a pixel can be set to, and
+%  an outline font, whose glyphs are strokes rather than filled
+%  coverage. Everything else goes by the raster route, which the plain
+%  procedure drives through the operator's own binding with the
+%  operands that binding wants. The subject is left for the plain
+%  procedure, which consumes it -- an operator whose binding takes more
+%  than the text carries the rest itself.
 %
-% The font's PaintType is asked first, because the answer to it is what
-% the outline route needs anyway, and the colour only when the font has
-% not already settled the route. What makes a colour one the raster
-% cannot carry is .colorroute's to say, and Type 3 text -- which has no
-% outlines to leave for, and leaves the mask capture instead -- asks the
-% same question of the same place.
+%  Every text operator of a simple font comes through here, and so does
+%  the composite walk that selects a glyph through a CMap, so the choice
+%  is made once and every route to the page shares whatever is decided
+%  here. Making it in each of them instead is what left four operators
+%  painting a pattern in whatever single colour the raster route read
+%  out of the graphics state, all but one of them painting an outline
+%  font's glyphs solid, and the CMap walk doing both.
 %
-% Any colour but the plain device one leaves for the outline route, which
-% is where the colour's own route is taken: a pattern is tiled over the
-% glyph and a colour that can never produce visible output marks nothing.
-% Asking for "not the direct route" rather than for the pattern route is
-% what keeps text from having to learn each such colour separately.
+%  The font's PaintType is asked first, because the answer to it is what
+%  the outline route needs anyway, and the colour only when the font has
+%  not already settled the route. What makes a colour one the raster
+%  cannot carry is .colorroute's to say, and Type 3 text -- which has no
+%  outlines to leave for, and leaves the mask capture instead -- asks the
+%  same question of the same place.
+%
+%  Any colour but the plain device one leaves for the outline route, which
+%  is where the colour's own route is taken: a pattern is tiled over the
+%  glyph and a colour that can never produce visible output marks nothing.
+%  Asking for "not the direct route" rather than for the pattern route is
+%  what keeps text from having to learn each such colour separately.
+%
 .xpostsys /.showroute {
     graphicsdict /currgstate get /currfont get
     /PaintType 2 copy known { get 2 eq }{ pop pop false } ifelse
@@ -840,7 +880,7 @@ true setglobal
             %hook
         } forall
         pop
-        0 0 transform  % use device-space coordinates to save location past grestore
+        0 0 transform  % Use device-space coordinates to save location past grestore
     grestore
     itransform moveto
 
@@ -1015,9 +1055,11 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-% kshow's compiled program paints through the implementation's own
-% show, captured here while the name still holds this file's
-% procedure -- an array, which a compiled program pushes as data
+%
+%  kshow's compiled program paints through the implementation's own
+%  show, captured here while the name still holds this file's
+%  procedure -- an array, which a compiled program pushes as data
+%
 .xpostsys /.kshowshow /show load put
 
 /kshow [ /proctype /stringtype ] {
@@ -1071,13 +1113,15 @@ true setglobal
     { exec exit } loop
 } //.xpostsys /.defop get exec
 
-%   name  glyphshow  -
-% Paint the glyph the name selects, independent of the character
-% encoding, and advance the current point by the glyph's width. A
-% Type 3 font renders through its BuildGlyph procedure; one defining
-% only BuildChar is served through the first code its Encoding
-% assigns the name. Other font types resolve the name against the
-% font program.
+%
+%    name  glyphshow  -
+%  Paint the glyph the name selects, independent of the character
+%  encoding, and advance the current point by the glyph's width. A
+%  Type 3 font renders through its BuildGlyph procedure; one defining
+%  only BuildChar is served through the first code its Encoding
+%  assigns the name. Other font types resolve the name against the
+%  font program.
+%
 /glyphshow [ /nametype ] {
     /glyphshow //.xpostsys /.needfont get exec
     /glyphshow //.xpostsys /.needpoint get exec
@@ -1125,27 +1169,29 @@ true setglobal
             grestore
             graphicsdict /currgstate get /currfont get
             dup /xadvance get exch /yadvance get translate
-            0 0 transform  % device-space coordinates survive grestore
+            0 0 transform  % Device-space coordinates survive grestore
         grestore
         itransform moveto
         end
     } ifelse
 } //.xpostsys /.defop get exec
 
-%   str numarray  xshow  -
-% Show each character, replacing the glyph's advance with the
-% corresponding displacement: after painting glyph i the current
-% point moves to the previous point offset by the array's user-space
-% x displacement (xshow), y displacement (yshow), or (x,y) pair
-% (xyshow). The displacements arrive as an array or an encoded
-% number string (decoded up front); too few displacements is a
-% rangecheck at the glyph that wants one.
-% the show variants position per glyph: through a composite font one
-% glyph spans however many bytes its CMap says, and the number array
-% advances by glyphs, not bytes
-% str  .glyphbytes  w -- the byte width of the glyph at the position,
-% hidden in the private namespace and reached by a frozen reference
-.xpostsys /.glyphbytes { % str p -> w
+%
+%    str numarray  xshow  -
+%  Show each character, replacing the glyph's advance with the
+%  corresponding displacement: after painting glyph i the current
+%  point moves to the previous point offset by the array's user-space
+%  x displacement (xshow), y displacement (yshow), or (x,y) pair
+%  (xyshow). The displacements arrive as an array or an encoded
+%  number string (decoded up front); too few displacements is a
+%  rangecheck at the glyph that wants one.
+%  the show variants position per glyph: through a composite font one
+%  glyph spans however many bytes its CMap says, and the number array
+%  advances by glyphs, not bytes
+%  str  .glyphbytes  w -- the byte width of the glyph at the position,
+%  hidden in the private namespace and reached by a frozen reference
+%
+.xpostsys /.glyphbytes {  % str p -> w
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
         dup /FMapType get 9 eq {
@@ -1231,18 +1277,20 @@ true setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-% outline  .outlinepath  -
-% Append an outline to the current path. The segments arrive from
-% .stringoutline or .glyphoutline in the face's y-up glyph space
-% relative to the pen (device-magnitude pixels, oriented by the face
-% transform), so each point is flipped to a device offset and mapped to
-% user space about the current point. The pen is left wherever the last
-% segment ended; what it should advance by is the caller's to say.
+%
+%  outline  .outlinepath  -
+%  Append an outline to the current path. The segments arrive from
+%  .stringoutline or .glyphoutline in the face's y-up glyph space
+%  relative to the pen (device-magnitude pixels, oriented by the face
+%  transform), so each point is flipped to a device offset and mapped to
+%  user space about the current point. The pen is left wherever the last
+%  segment ended; what it should advance by is the caller's to say.
+%
 .xpostsys /.outlinepath {
     12 dict begin
     currentpoint /cy exch def /cx exch def
     % a glyph-space point on the stack becomes a user-space point
-    /cpt { % x y . X Y
+    /cpt {  % x y . X Y
         neg idtransform exch cx add exch cy add
     } def
     {
@@ -1262,12 +1310,14 @@ true setglobal
     end
 } put
 
-% name|index  .glyphcharpath  -
-% Append one glyph's outline to the current path and advance the pen by
-% the glyph, as charpath does for a string. A glyph the caller names, as
-% glyphshow selects one, or numbers, as a CMap walk resolves one, has no
-% stringwidth, so its advance comes back from the outline operator in
-% the glyph space the outline's points are in.
+%
+%  name|index  .glyphcharpath  -
+%  Append one glyph's outline to the current path and advance the pen by
+%  the glyph, as charpath does for a string. A glyph the caller names, as
+%  glyphshow selects one, or numbers, as a CMap walk resolves one, has no
+%  stringwidth, so its advance comes back from the outline operator in
+%  the glyph space the outline's points are in.
+%
 .xpostsys /.glyphcharpath {
     2 dict begin
     dup type /nametype eq { .glyphoutline }{ .glyphoutlineidx } ifelse
@@ -1277,16 +1327,18 @@ true setglobal
     end
 } put
 
-% font str  .charpathoutline  -
-% Append the text's glyph outlines to the current path and leave the pen
-% past the text.
 %
-% A composite font selects each glyph through its CMap rather than by
-% code, so the outlines come from the same walk its text goes through,
-% told to append a glyph where it would paint one. That reaches a
-% CID-keyed descendant, whose glyphs a string names no other way. A
-% composite mapped by bytes carries no such selector and only the pen
-% moves.
+%  font str  .charpathoutline  -
+%  Append the text's glyph outlines to the current path and leave the pen
+%  past the text.
+%
+%  A composite font selects each glyph through its CMap rather than by
+%  code, so the outlines come from the same walk its text goes through,
+%  told to append a glyph where it would paint one. That reaches a
+%  CID-keyed descendant, whose glyphs a string names no other way. A
+%  composite mapped by bytes carries no such selector and only the pen
+%  moves.
+%
 .xpostsys /.charpathoutline {
     2 dict begin
     /cpstr exch def
@@ -1306,17 +1358,19 @@ true setglobal
     end
 } put
 
-% font str  .charpathstroked  -
-% The same for an outline font, appending the stroke's own outline of
-% the glyph outlines rather than the outlines themselves.
 %
-% strokepath takes over the whole current path, so the glyphs are built
-% in a path of their own: the caller's is set aside first and put back
-% before the result is appended onto it, element by element in the
-% device coordinates a path is held in. A close element is written as
-% the line back to its subpath's start and retagged, which is the form
-% the path holds it in. The pen ends past the text, where the outlines
-% left it.
+%  font str  .charpathstroked  -
+%  The same for an outline font, appending the stroke's own outline of
+%  the glyph outlines rather than the outlines themselves.
+%
+%  strokepath takes over the whole current path, so the glyphs are built
+%  in a path of their own: the caller's is set aside first and put back
+%  before the result is appended onto it, element by element in the
+%  device coordinates a path is held in. A close element is written as
+%  the line back to its subpath's start and retagged, which is the form
+%  the path holds it in. The pen ends past the text, where the outlines
+%  left it.
+%
 .xpostsys /.charpathstroked {
     12 dict begin
     /cpstr exch def
@@ -1358,21 +1412,23 @@ true setglobal
     end
 } put
 
-%   str bool  charpath  -
-% Append the text's glyph outlines to the current path and advance the
-% pen by the text's width.
 %
-% A Type 3 font describes its glyphs as procedures rather than as
-% outlines, so there is nothing to append and only the pen moves; PLRM
-% 8.2 has charpath produce no result for a glyph described as an image
-% or a mask, which is what such a procedure paints.
+%    str bool  charpath  -
+%  Append the text's glyph outlines to the current path and advance the
+%  pen by the text's width.
 %
-% The boolean settles what an outline font -- one whose glyphs are the
-% character outlines stroked with StrokeWidth -- hands back. False is
-% the glyph path itself, which is the form a stroke of it takes; true
-% is the stroke's own outline, which is the form a fill or a clip
-% takes. For every other font the two are one path and the boolean
-% decides nothing.
+%  A Type 3 font describes its glyphs as procedures rather than as
+%  outlines, so there is nothing to append and only the pen moves; PLRM
+%  8.2 has charpath produce no result for a glyph described as an image
+%  or a mask, which is what such a procedure paints.
+%
+%  The boolean settles what an outline font -- one whose glyphs are the
+%  character outlines stroked with StrokeWidth -- hands back. False is
+%  the glyph path itself, which is the form a stroke of it takes; true
+%  is the stroke's own outline, which is the form a fill or a clip
+%  takes. For every other font the two are one path and the boolean
+%  decides nothing.
+%
 /charpath [ /stringtype /booleantype ] {
     /charpath //.xpostsys /.needfont get exec
     3 dict begin
@@ -1392,7 +1448,9 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
-% the standard text encoding, as the PLRM's Appendix E defines it
+%
+%  the standard text encoding, as the PLRM's Appendix E defines it
+%
 /StandardEncoding [
      /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
      /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
@@ -1457,7 +1515,9 @@ true setglobal
     /udieresis /yacute /thorn /ydieresis
 ] readonly def
 
-% key  undefinefont  -
+%
+%  key  undefinefont  -
+%
 /undefinefont [ /anytype ] {
     % remove it from whichever directory holds it
     dup GlobalFontDirectory exch known
@@ -1465,15 +1525,19 @@ true setglobal
         { FontDirectory exch undef } ifelse
 } //.xpostsys /.defop get exec
 
-% GlobalFontDirectory and SharedFontDirectory, aliases for FontDirectory, are
-% named in systemdict by copyudtosd (in C), alongside FontDirectory itself,
-% rather than defined here in userdict.
+%
+%  GlobalFontDirectory and SharedFontDirectory, aliases for FontDirectory, are
+%  named in systemdict by copyudtosd (in C), alongside FontDirectory itself,
+%  rather than defined here in userdict.
+%
 
-% file  eexec  -
-% run the encrypted portion of a Type 1 font program: the decrypted
-% stream executes with systemdict as the current dictionary, and the
-% dictionary is popped when the stream is exhausted -- the program
-% inside closes its own file with currentfile closefile
+%
+%  file  eexec  -
+%  run the encrypted portion of a Type 1 font program: the decrypted
+%  stream executes with systemdict as the current dictionary, and the
+%  dictionary is popped when the stream is exhausted -- the program
+%  inside closes its own file with currentfile closefile
+%
 /eexec [ /filetype ] {
     .eexecdecode cvx
     systemdict begin
@@ -1481,12 +1545,16 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
-% key  findencoding  encoding
+%
+%  key  findencoding  encoding
+%
 /findencoding [ /nametype ] { /Encoding findresource } //.xpostsys /.defop get exec
 
-% the show machinery rebinds the current font while it works through
-% a composite; rootfont answers with the font the program set. The
-% original setfont is kept in the private namespace and reached frozen.
+%
+%  the show machinery rebinds the current font while it works through
+%  a composite; rootfont answers with the font the program set. The
+%  original setfont is kept in the private namespace and reached frozen.
+%
 .xpostsys /.rootsetfont /setfont load put
 /setfont [ /dicttype ] {
     % a font dictionary, not any dictionary: one without a FontMatrix
@@ -1501,24 +1569,30 @@ true setglobal
         { get }{ pop pop currentfont } ifelse
 } //.xpostsys /.defop get exec
 
-% the wider glyph metrics reduce to the horizontal ones
+%
+%  the wider glyph metrics reduce to the horizontal ones
+%
 /setcachedevice2 [ /numbertype /numbertype /numbertype /numbertype /numbertype
                    /numbertype /numbertype /numbertype /numbertype /numbertype ] {
     pop pop pop pop setcachedevice
 } //.xpostsys /.defop get exec
 
-% the glyph cache: rendered rasters replay across shows, and the
-% operators read and set the store itself
+%
+%  the glyph cache: rendered rasters replay across shows, and the
+%  operators read and set the store itself
+%
 /cachestatus [ ] { .cachestatus } //.xpostsys /.defop get exec
 /setcachelimit [ /integertype ] {
     .setcachelimit
 } //.xpostsys /.defop get exec
-% mark [size [lower]] upper  setcacheparams  -
-% the interpreter takes the operands it knows from the top and
-% ignores any deeper ones
-% the operands are delimited by a mark rather than counted, so there is
-% nothing to state: a statement about the top would answer typecheck
-% where the absent mark must answer unmatchedmark
+%
+%  mark [size [lower]] upper  setcacheparams  -
+%  the interpreter takes the operands it knows from the top and
+%  ignores any deeper ones
+%  the operands are delimited by a mark rather than counted, so there is
+%  nothing to state: a statement about the top would answer typecheck
+%  where the absent mark must answer unmatchedmark
+%
 /setcacheparams [ ] {
     counttomark 3 ge {
         3 dict begin
@@ -1547,8 +1621,10 @@ true setglobal
 /setucacheparams [ ] { cleartomark } //.xpostsys /.defop get exec
 /ucachestatus [ ] { mark 0 32768 0 4096 32768 } //.xpostsys /.defop get exec
 
-% the required instances of the Encoding resource category, copied
-% into global VM where the instance tables live
+%
+%  the required instances of the Encoding resource category, copied
+%  into global VM where the instance tables live
+%
 /StandardEncoding StandardEncoding dup length array copy /Encoding defineresource pop
 /ISOLatin1Encoding ISOLatin1Encoding dup length array copy /Encoding defineresource pop
 

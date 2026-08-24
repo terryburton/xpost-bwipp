@@ -1,4 +1,5 @@
 %!PS
+%
 % tiffimage.ps
 %
 % The TIFF raster device, the sibling of the 24-bit rgb device.
@@ -8,75 +9,84 @@
 
 //.internaldict /QUIET known { }{ (loading tiffimage.ps...)print } ifelse
 
-% .xpost_TIFFIMAGE: the TIFF sibling of the 24-bit rgb device. The page
-% renders through the machinery it inherits and emission frames the
-% same raster bytes as a baseline TIFF: a little-endian header, one
-% image file directory, and the pixels as a single uncompressed
-% strip of rgb triplets at 72 dots per inch.
-
-.privatedict /newTIFFIMAGEdevice { % width height  .  IMAGE-device-dict
+%
+%  .xpost_TIFFIMAGE: the TIFF sibling of the 24-bit rgb device. The page
+%  renders through the machinery it inherits and emission frames the
+%  same raster bytes as a baseline TIFF: a little-endian header, one
+%  image file directory, and the pixels as a single uncompressed
+%  strip of rgb triplets at 72 dots per inch.
+%
+.privatedict /newTIFFIMAGEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_TIFFIMAGE get dup /Create get exec
 } put
 
 /.xpost_TIFFIMAGE .xpost_PPMIMAGE dup length 2 add dict copy def
 
-% This class is a copy of one whose page may arrive a band at a time,
-% and it keeps that answer, having earned it rather than inherited it.
-% What stood in the way is that the header promises where the strip
-% begins and how long it runs before a single row of it has been
-% written, and both promises are keepable ahead of the rows.
 %
-% The page stays one strip whatever it arrives in. A strip per band
-% would put one more entry in the directory for each of them and change
-% the file, and the whole claim here is that a page put out a band at a
-% time is the page put out whole, byte for byte; a band is a run of rows
-% within the one strip and nothing in the file says where the runs fell.
+%  This class is a copy of one whose page may arrive a band at a time,
+%  and it keeps that answer, having earned it rather than inherited it.
+%  What stood in the way is that the header promises where the strip
+%  begins and how long it runs before a single row of it has been
+%  written, and both promises are keepable ahead of the rows.
 %
-% The strip begins immediately after the header, so where it begins is
-% known before anything is written. How long it runs is settled two
-% ways, and which applies is settled by the file rather than by the
-% rows: a seekable file takes the strip compressed and the directory
-% after it, so the length is not promised in advance at all -- the
-% header's pointer to the directory is patched once the strip has
-% ended -- while the standard output, which cannot be seeked back over,
-% takes the strip uncompressed, and an uncompressed strip's length
-% follows from the page's own extent (doc/INTERNALS).
+%  The page stays one strip whatever it arrives in. A strip per band
+%  would put one more entry in the directory for each of them and change
+%  the file, and the whole claim here is that a page put out a band at a
+%  time is the page put out whole, byte for byte; a band is a run of rows
+%  within the one strip and nothing in the file says where the runs fell.
 %
-% The colour space this device's marking methods take components in.
-% Said again rather than inherited, because a copy carries what it was
-% copied from and this device's own emission is written for three
-% components: the directory it writes states three samples per pixel and
-% names them as red, green and blue, and the strip beneath it is the
-% three planes in that order. A device answering with a space nobody
-% stated is one whose colour pipeline was settled on another device's
-% behalf -- the component count, the compiled fills and the glyph colour
-% conversion all follow this key, and the header would go on naming
-% three of whatever the rows then held.
+%  The strip begins immediately after the header, so where it begins is
+%  known before anything is written. How long it runs is settled two
+%  ways, and which applies is settled by the file rather than by the
+%  rows: a seekable file takes the strip compressed and the directory
+%  after it, so the length is not promised in advance at all -- the
+%  header's pointer to the directory is patched once the strip has
+%  ended -- while the standard output, which cannot be seeked back over,
+%  takes the strip uncompressed, and an uncompressed strip's length
+%  follows from the page's own extent (doc/INTERNALS).
+%
+%  The colour space this device's marking methods take components in.
+%  Said again rather than inherited, because a copy carries what it was
+%  copied from and this device's own emission is written for three
+%  components: the directory it writes states three samples per pixel and
+%  names them as red, green and blue, and the strip beneath it is the
+%  three planes in that order. A device answering with a space nobody
+%  stated is one whose colour pipeline was settled on another device's
+%  behalf -- the component count, the compiled fills and the glyph colour
+%  conversion all follow this key, and the header would go on naming
+%  three of whatever the rows then held.
+%
 .xpost_TIFFIMAGE /nativecolorspace /DeviceRGB put
 
-% The portable-map header is not this format's, so what builds one goes.
+%
+%  The portable-map header is not this format's, so what builds one goes.
+%
 .xpost_TIFFIMAGE /.pnmmagic undef
 .xpost_TIFFIMAGE /.pnmmaxval undef
 
-% what one row of this class's raster costs, as the elements and the
-% string bytes it takes. The rows are the rgb class's rows -- a page
-% renders through the machinery this class inherits and only the
-% emission is this format's -- so a row is the three elements naming its
-% planes and one byte per pixel in each of them. Said rather than
-% inherited, because a copy carries what it was copied from and a budget
-% divided by a number nobody restated buys a band of some other height
-% than the one it paid for.
-.xpost_TIFFIMAGE /.rowcost { % -  .  elements bytes
+%
+%  what one row of this class's raster costs, as the elements and the
+%  string bytes it takes. The rows are the rgb class's rows -- a page
+%  renders through the machinery this class inherits and only the
+%  emission is this format's -- so a row is the three elements naming its
+%  planes and one byte per pixel in each of them. Said rather than
+%  inherited, because a copy carries what it was copied from and a budget
+%  divided by a number nobody restated buys a band of some other height
+%  than the one it paid for.
+%
+.xpost_TIFFIMAGE /.rowcost {  % -  .  elements bytes
     3 width 3 mul
 } bind put
 
-% file  .writehead  -
-% what precedes the strip: the byte order, the format's own number, and
-% where the directory begins. A seekable file writes a placeholder there
-% and .writetail patches in the answer; the standard output states the
-% answer up front, an uncompressed strip of the page's extent being the
-% only thing that can lie between.
-.xpost_TIFFIMAGE /.writehead { % file  .  -
+%
+%  file  .writehead  -
+%  what precedes the strip: the byte order, the format's own number, and
+%  where the directory begins. A seekable file writes a placeholder there
+%  and .writetail patches in the answer; the standard output states the
+%  answer up front, an uncompressed strip of the page's extent being the
+%  only thing that can lie between.
+%
+.xpost_TIFFIMAGE /.writehead {  % file  .  -
     8 dict {
     /f exch def
     /hdr 8 string def
@@ -92,22 +102,26 @@
     } //.xpostsys /.indict get exec
 } put
 
-% file  .bandsink  sink
-% where the rows of the strip go: through the compressor on a seekable
-% file, whose strip is written before its length is stated, and into the
-% file itself on the standard output, whose strip is stated before it is
-% written and so cannot be compressed.
-.xpost_TIFFIMAGE /.bandsink { % file  .  sink
+%
+%  file  .bandsink  sink
+%  where the rows of the strip go: through the compressor on a seekable
+%  file, whose strip is written before its length is stated, and into the
+%  file itself on the standard output, whose strip is stated before it is
+%  written and so cannot be compressed.
+%
+.xpost_TIFFIMAGE /.bandsink {  % file  .  sink
     dup (%stdout)(w) file ne { /LZWEncode filter } if
 } put
 
-% sink file  .writetail  -
-% what follows the strip: the image file directory, and on a seekable
-% file the pointer to it patched into the header the rows were written
-% over. The strip has ended by now, so its length is known however it
-% was written, and the entries take the page's own extent rather than
-% the rows of any one run.
-.xpost_TIFFIMAGE /.writetail { % sink file  .  -
+%
+%  sink file  .writetail  -
+%  what follows the strip: the image file directory, and on a seekable
+%  file the pointer to it patched into the header the rows were written
+%  over. The strip has ended by now, so its length is known however it
+%  was written, and the entries take the page's own extent rather than
+%  the rows of any one run.
+%
+.xpost_TIFFIMAGE /.writetail {  % sink file  .  -
     16 dict {
     {/f /snk}{exch def}forall
     /hdr 200 string def
@@ -115,13 +129,13 @@
     /b1 { hdr hp 3 -1 roll put /hp hp 1 add def } def
     /b2 { dup 256 mod b1 256 idiv b1 } def
     /b4 { dup 65536 mod b2 65536 idiv b2 } def
-    /tg { % tag type count value
+    /tg {  % tag type count value
         4 -1 roll b2 3 -1 roll b2 exch b4 b4
     } def
     % the directory: 12 entries (2 + 144 + 4 bytes), then the
     % bits-per-sample triple and the two resolution rationals,
     % 172 bytes in all at the given offset; the strip sits at 8
-    /ifdbuild { % ifd-offset compression strip-length
+    /ifdbuild {  % ifd-offset compression strip-length
         /sl exch def /cmp exch def /ifd exch def
         /hp 0 def
         12 b2
@@ -137,7 +151,7 @@
         282 5 1 ifd 156 add tg      % XResolution, offset
         283 5 1 ifd 164 add tg      % YResolution, offset
         296 3 1 2 tg                % ResolutionUnit: inches
-        0 b4                        % no further directory
+        0 b4                        % No further directory
         8 b2 8 b2 8 b2              % 8 bits per sample
         72 b4 1 b4                  % 72/1 dpi
         72 b4 1 b4

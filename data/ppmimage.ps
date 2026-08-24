@@ -1,4 +1,5 @@
 %!PS
+%
 % ppmimage.ps
 %
 % The PPM colour raster device.
@@ -8,36 +9,37 @@
 
 //.internaldict /QUIET known { }{ (loading ppmimage.ps...)print } ifelse
 
-.privatedict /newPPMIMAGEdevice { % width height  .  IMAGE-device-dict
+.privatedict /newPPMIMAGEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_PPMIMAGE get dup /Create get exec
 } put
 
-% .xpost_PPMIMAGE, the 24-bit rgb raster class: the shared raster method
-% suite (.makerasterclass, image.ps) over three colour components per
-% pixel, a scanline of three component planes -- one string of one byte
-% per pixel for red, for green and for blue -- and emission as a raw
-% (P6) portable pixmap. It uses the full range 0-255 of values and does
-% not calculate the actual maximum value in the data before
-% transmitting; MaxVal is always 255.
 %
-% A plane holds one byte per pixel, so the widest page the class builds
-% is the widest string the build holds, which is the widest row the
-% grayscale class builds as well. Three components interleaved in one
-% string of the row would come to a third of that width.
+%  .xpost_PPMIMAGE, the 24-bit rgb raster class: the shared raster method
+%  suite (.makerasterclass, image.ps) over three colour components per
+%  pixel, a scanline of three component planes -- one string of one byte
+%  per pixel for red, for green and for blue -- and emission as a raw
+%  (P6) portable pixmap. It uses the full range 0-255 of values and does
+%  not calculate the actual maximum value in the data before
+%  transmitting; MaxVal is always 255.
 %
-% procedures (.xpost_PPMIMAGE is the Class dictionary, IMAGE an
-% instance returned by Create):
-%           width height .xpost_PPMIMAGE  Create  ->  IMAGE
-%                 r g b x y IMAGE  PutPix  ->  -
-%                       x y IMAGE  GetPix  ->  r g b
-%         r g b x1 y1 x2 y2 IMAGE  DrawLine  ->  -
-%    r g b x y width height IMAGE  DrawRect  ->  -
-%    r g b x y width height IMAGE  FillRect  ->  -
-%             r g b polygon IMAGE  FillPoly  ->  -
-%                           IMAGE  Emit  ->  -
-%                           IMAGE  Destroy  ->  -
-%                           dict1  .copydict  dict2
-
+%  A plane holds one byte per pixel, so the widest page the class builds
+%  is the widest string the build holds, which is the widest row the
+%  grayscale class builds as well. Three components interleaved in one
+%  string of the row would come to a third of that width.
+%
+%  procedures (.xpost_PPMIMAGE is the Class dictionary, IMAGE an
+%  instance returned by Create):
+%            width height .xpost_PPMIMAGE  Create  ->  IMAGE
+%                  r g b x y IMAGE  PutPix  ->  -
+%                        x y IMAGE  GetPix  ->  r g b
+%          r g b x1 y1 x2 y2 IMAGE  DrawLine  ->  -
+%     r g b x y width height IMAGE  DrawRect  ->  -
+%     r g b x y width height IMAGE  FillRect  ->  -
+%              r g b polygon IMAGE  FillPoly  ->  -
+%                            IMAGE  Emit  ->  -
+%                            IMAGE  Destroy  ->  -
+%                            dict1  .copydict  dict2
+%
 /.xpost_PPMIMAGE <<
     /nativecolorspace /DeviceRGB
     /.ncomp 3
@@ -63,7 +65,7 @@
     % kind names three planes, so what tells them apart is the plane: a
     % held row's is as long as the page is wide and an empty row's holds
     % no pixel.
-    /.rowheld { % row  .  bool
+    /.rowheld {  % row  .  bool
         0 get length 0 ne
     } bind
 
@@ -72,25 +74,25 @@
     % elements naming its planes and one byte per pixel in each of them.
     % Create prices the whole raster from this before it builds any of
     % it.
-    /.rowcost { % -  .  elements bytes
+    /.rowcost {  % -  .  elements bytes
         3 width 3 mul
     } bind
 
     % scale each component in [0,1] to its plane's byte, and read the
     % three back
-    /.rowput { % row x c1 c2 c3  .  -
+    /.rowput {  % row x c1 c2 c3  .  -
         .chan 4 index 2 get 4 index 3 -1 roll put
         .chan 3 index 1 get 3 index 3 -1 roll put
         .chan 3 -1 roll 0 get 3 1 roll put
     } bind
-    /.rowget { % row x  .  c1 c2 c3
+    /.rowget {  % row x  .  c1 c2 c3
         2 copy exch 0 get exch get 3 1 roll
         2 copy exch 1 get exch get 3 1 roll
         exch 2 get exch get
     } bind
 
     % the planes interleave through the compiled row writer
-    /.writeband { % rows file  .  -
+    /.writeband {  % rows file  .  -
         //.internaldict /.writergbrows get exec
     } bind
 >> //.xpostsys /.makerasterclass get exec def

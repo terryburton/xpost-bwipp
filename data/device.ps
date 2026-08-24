@@ -1,4 +1,5 @@
 %!PS
+%
 % device.ps
 %
 % Device-level operators independent of the device implementation, and showpage semantics.
@@ -6,23 +7,28 @@
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
-% This file implements "device-level" operators
-% which are independent of the actual device implementation.
-% It also implements the Showpage Semantics behavior
-% specified in the call to xpost_create().
-
+%
+%  This file implements "device-level" operators
+%  which are independent of the actual device implementation.
+%  It also implements the Showpage Semantics behavior
+%  specified in the call to xpost_create().
+%
 //.internaldict /QUIET known { }{ (loading device.ps...\n)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% num  .num2str  str
-% the one number formatter for the vector writers (the PDF, SVG and DSC
-% devices format every coordinate and dimension through it): an integral
-% value prints as an integer; anything else prints with exactly two
-% decimals, never exponential -- round(n*100) sidesteps binary-float
-% print noise.
-.xpostsys /.num2str { % num  .  str
+%
+%  num  .num2str  str
+%  the one number formatter for the vector writers (the PDF, SVG and DSC
+%  devices format every coordinate and dimension through it): an integral
+%  value prints as an integer; anything else prints with exactly two
+%  decimals, never exponential -- round(n*100) sidesteps binary-float
+%  print noise.
+%
+.xpostsys /.num2str {  % num  .  str
     dup truncate 1 index eq {
         cvi 20 string cvs
     }{
@@ -37,56 +43,60 @@ true setglobal
     } ifelse
 } bind put
 
-% devdict  .devres-to-points  sx sy
-% the device-resolution scale carried in the defaultmatrix fixup applied
-% after construction; a raw 1:1 device answers 1 1. Dividing a device
-% dimension by its scale yields the page size in points, which is how
-% the vector writers and the bounding-box device report their pages
-% independently of HWResolution.
-.xpostsys /.devres-to-points { % devdict  .  sx sy
+%
+%  devdict  .devres-to-points  sx sy
+%  the device-resolution scale carried in the defaultmatrix fixup applied
+%  after construction; a raw 1:1 device answers 1 1. Dividing a device
+%  dimension by its scale yields the page size in points, which is how
+%  the vector writers and the bounding-box device report their pages
+%  independently of HWResolution.
+%
+.xpostsys /.devres-to-points {  % devdict  .  sx sy
     /defaultmatrix 2 copy known {
         get dup 0 get exch 3 get neg
     }{ pop pop 1 1 } ifelse
 } bind put
 
-% dict1  .classcopydict  dict2
-% The one class-to-instance copy, stored under /.copydict by every
-% device class and called by Create (and by the C drivers, which fetch
-% it from the class dictionary before specialising the copy).
 %
-% An instance is a copy of its class with the state the instance
-% accumulates: the dimensions it adopted, the output file name in
-% force when it was made, and the device features of the page-device
-% request it is being made for. The file name matters to any class
-% whose Emit writes a file, and a class carrying a copy without it
-% produced a device that wrote wherever Emit defaulted to whatever the
-% program had asked for -- which is why this is one procedure rather
-% than a shape each class repeats.
+%  dict1  .classcopydict  dict2
+%  The one class-to-instance copy, stored under /.copydict by every
+%  device class and called by Create (and by the C drivers, which fetch
+%  it from the class dictionary before specialising the copy).
 %
-% The features arrive through /.devrequest in graphicsdict, stated
-% there by whichever route is making a device -- the page-device
-% request around the maker it runs (data/init.ps), the recording class
-% around the painter it builds (data/recorddev.ps) -- and TAKEN here,
-% not merely read, so the next device made does not inherit a request
-% that was not asked of it. They are written after the class's own
-% entries, so a request's key overrides the default the class carries;
-% a driver may therefore read a feature as its instance is created and
-% see what the request said. Two kinds of name are skipped: /Private,
-% the handle a device's own state is reached through, issued to the
-% instance holding that state; and any name the class holds a method
-% under -- the machinery reads the instance's methods as its block of
-% state is issued (xpost_handle_cons, src/lib/xpost_handle.c), and the
-% release recorded there is the class's to name, never the request's.
-% What the request asked under a method's name still reaches the
-% finished device, written there after it is built exactly as every
-% feature always was.
+%  An instance is a copy of its class with the state the instance
+%  accumulates: the dimensions it adopted, the output file name in
+%  force when it was made, and the device features of the page-device
+%  request it is being made for. The file name matters to any class
+%  whose Emit writes a file, and a class carrying a copy without it
+%  produced a device that wrote wherever Emit defaulted to whatever the
+%  program had asked for -- which is why this is one procedure rather
+%  than a shape each class repeats.
 %
-% The dimensions are written with the copy current, and it is opened
-% through the bracket that takes it off again however the body ends,
-% error included (.indict, graphics.ps): a copy left current is a
-% dictionary the caller's error handler, and everything after it, would
-% go on defining into.
-.xpostsys /.classcopydict { % dict1  .  dict2
+%  The features arrive through /.devrequest in graphicsdict, stated
+%  there by whichever route is making a device -- the page-device
+%  request around the maker it runs (data/init.ps), the recording class
+%  around the painter it builds (data/recorddev.ps) -- and TAKEN here,
+%  not merely read, so the next device made does not inherit a request
+%  that was not asked of it. They are written after the class's own
+%  entries, so a request's key overrides the default the class carries;
+%  a driver may therefore read a feature as its instance is created and
+%  see what the request said. Two kinds of name are skipped: /Private,
+%  the handle a device's own state is reached through, issued to the
+%  instance holding that state; and any name the class holds a method
+%  under -- the machinery reads the instance's methods as its block of
+%  state is issued (xpost_handle_cons, src/lib/xpost_handle.c), and the
+%  release recorded there is the class's to name, never the request's.
+%  What the request asked under a method's name still reaches the
+%  finished device, written there after it is built exactly as every
+%  feature always was.
+%
+%  The dimensions are written with the copy current, and it is opened
+%  through the bracket that takes it off again however the body ends,
+%  error included (.indict, graphics.ps): a copy left current is a
+%  dictionary the caller's error handler, and everything after it, would
+%  go on defining into.
+%
+.xpostsys /.classcopydict {  % dict1  .  dict2
     dup length dict copy
     dup /width known {
         dup { /dimensions [width height] def } //.xpostsys /.indict get exec
@@ -101,10 +111,10 @@ true setglobal
     % /.devrequest -- the recording class reads them back there for the
     % painter it builds -- and written over the class's entries
     graphicsdict /.devrequest 2 copy known {
-        get                                 % copy req
+        get                                 % Copy req
         graphicsdict /.devrequest undef
         dup 2 index exch /.devrequest exch put
-        { % copy key value
+        {  % copy key value
             1 index /Private eq
             % a name the class holds something executable under is a
             % method, and a method is not the request's to write here
@@ -114,31 +124,33 @@ true setglobal
                 { pop pop }
                 { 2 index 3 1 roll put }
             ifelse
-        } forall                            % copy
+        } forall                            % Copy
     }{ pop pop } ifelse
 } bind put
 
-% dict  .bandfits  -
-% Refuse a device whose band budget will not buy one row of its page.
 %
-% How deep a band is is the budget divided by what one row of the raster
-% costs, and that division answers one row for everything at or below a
-% row: a budget of a single byte and a budget of a whole row cut the same
-% bands. So a budget under a row is a budget the run did not get, and a
-% run told nothing would have every reason to think it had -- which is a
-% control that appears to select something and does not.
+%  dict  .bandfits  -
+%  Refuse a device whose band budget will not buy one row of its page.
 %
-% Asked of every device as it is finished, which is the one point every
-% device made passes through, and answered only for a device carrying a
-% budget: a device holding its page whole has no band for a budget to
-% cut, and puts out the same page at any budget at all.
+%  How deep a band is is the budget divided by what one row of the raster
+%  costs, and that division answers one row for everything at or below a
+%  row: a budget of a single byte and a budget of a whole row cut the same
+%  bands. So a budget under a row is a budget the run did not get, and a
+%  run told nothing would have every reason to think it had -- which is a
+%  control that appears to select something and does not.
 %
-% The budget and the least it may be are both named, on the standard
-% error, because an error names an operator and a condition and carries
-% no numbers of its own. The page goes to the standard output whenever
-% the run was given no file to write it to, which is why the complaint
-% does not go there.
-.xpostsys /.bandfits { % dict  .  -
+%  Asked of every device as it is finished, which is the one point every
+%  device made passes through, and answered only for a device carrying a
+%  budget: a device holding its page whole has no band for a budget to
+%  cut, and puts out the same page at any budget at all.
+%
+%  The budget and the least it may be are both named, on the standard
+%  error, because an error names an operator and a condition and carries
+%  no numbers of its own. The page goes to the standard output whenever
+%  the run was given no file to write it to, which is why the complaint
+%  does not go there.
+%
+.xpostsys /.bandfits {  % dict  .  -
 4 dict {
     /bf.dev exch def
     /bf.budget bf.dev /.bandbytes 2 copy known
@@ -167,21 +179,23 @@ true setglobal
     } if
 } //.xpostsys /.indict get exec } bind put
 
-% devdict sx sy  .completedevice  -
-% Finish a freshly created device, on every path that creates one: the
-% device the interpreter starts with and the device setpagedevice makes
-% take the same finishing, so the same device behaves the same however
-% it was selected. sx and sy are the device resolution's scale from
-% points; a raw 1:1 device passes 1 1.
 %
-% Written once because it was written twice, and the two were not the
-% same: only one adopted the requested process colour model, so the
-% next key added to one would be missed by the other.
+%  devdict sx sy  .completedevice  -
+%  Finish a freshly created device, on every path that creates one: the
+%  device the interpreter starts with and the device setpagedevice makes
+%  take the same finishing, so the same device behaves the same however
+%  it was selected. sx and sy are the device resolution's scale from
+%  points; a raw 1:1 device passes 1 1.
 %
-% Local, in privatedict: it freezes a reference to .internaldict to
-% reach the compiled rasterisers, and a global object may not hold a
-% local one.
-.privatedict /.completedevice { % devdict sx sy  .  -
+%  Written once because it was written twice, and the two were not the
+%  same: only one adopted the requested process colour model, so the
+%  next key added to one would be missed by the other.
+%
+%  Local, in privatedict: it freezes a reference to .internaldict to
+%  reach the compiled rasterisers, and a global object may not hold a
+%  local one.
+%
+.privatedict /.completedevice {  % devdict sx sy  .  -
     % Whether the budget this device's bands were cut to bought any of
     % them, asked before anything is written on the device and before
     % the scratch dictionary below is opened, so that a refusal leaves
@@ -276,29 +290,31 @@ true setglobal
     setglobal
 } bind put
 
-% bbox h off sy ph  .imagingrows  [top rows]
-%                                 null
-% The run of a page's rows an imaging bounding box reaches.
 %
-% PLRM 6.2 gives ImagingBBox as four numbers in the default user
-% coordinate system -- left, bottom, right and top -- and calls it the
-% program's assertion that it paints no marks outside them. Only the
-% vertical pair is read here: a device holding its page as rows can drop
-% whole rows and cannot hold half of one, so what the box buys is the
-% rows above its top edge and below its bottom edge and nothing else.
+%  bbox h off sy ph  .imagingrows  [top rows]
+%                                  null
+%  The run of a page's rows an imaging bounding box reaches.
 %
-% h is the page's height and off the vertical page offset, both in the
-% default user space the box is stated in; sy is the rows a unit of it
-% covers, and ph the rows of the whole page. Default user space runs up
-% from the foot of the page and the rows run down from its head, so the
-% top edge gives the first row and the bottom edge the last.
+%  PLRM 6.2 gives ImagingBBox as four numbers in the default user
+%  coordinate system -- left, bottom, right and top -- and calls it the
+%  program's assertion that it paints no marks outside them. Only the
+%  vertical pair is read here: a device holding its page as rows can drop
+%  whole rows and cannot hold half of one, so what the box buys is the
+%  rows above its top edge and below its bottom edge and nothing else.
 %
-% The answer is null wherever the box says nothing that saves a row --
-% not four numbers, or covering the page already -- and a caller given
-% null holds the whole page. A box that reaches no row of the page at
-% all still leaves a page to paint on, so one row is held rather than
-% none.
-.xpostsys /.imagingrows { % bbox h off sy ph  .  [top rows] | null
+%  h is the page's height and off the vertical page offset, both in the
+%  default user space the box is stated in; sy is the rows a unit of it
+%  covers, and ph the rows of the whole page. Default user space runs up
+%  from the foot of the page and the rows run down from its head, so the
+%  top edge gives the first row and the bottom edge the last.
+%
+%  The answer is null wherever the box says nothing that saves a row --
+%  not four numbers, or covering the page already -- and a caller given
+%  null holds the whole page. A box that reaches no row of the page at
+%  all still leaves a page to paint on, so one row is held rather than
+%  none.
+%
+.xpostsys /.imagingrows {  % bbox h off sy ph  .  [top rows] | null
     12 dict begin
     {/ph /sy /off /h /bbox}{exch def}forall
     bbox type dup /arraytype eq exch /packedarraytype eq or
@@ -322,14 +338,16 @@ true setglobal
     end
 } bind put
 
-% name  .pagefilename  name'
-% substitute the page number for a %d marker in an output file name,
-% counting the pages transmitted; without the marker every page writes
-% the same file, last page standing
-% the page counter lives in a global dict so it survives the save/restore
-% a program wraps around each page (the separation-plate idiom); a counter
-% kept in the local device dictionary is rewound by restore, and every page
-% then reuses the same %d number
+%
+%  name  .pagefilename  name'
+%  substitute the page number for a %d marker in an output file name,
+%  counting the pages transmitted; without the marker every page writes
+%  the same file, last page standing
+%  the page counter lives in a global dict so it survives the save/restore
+%  a program wraps around each page (the separation-plate idiom); a counter
+%  kept in the local device dictionary is rewound by restore, and every page
+%  then reuses the same %d number
+%
 .xpostsys /.pagestate 1 dict put
 .xpostsys /.pagefilename {
     dup (%d) search {
@@ -344,24 +362,26 @@ true setglobal
     } ifelse
 } bind put
 
-% dict  .transmitpage  -
-% Transmit one page through a device: settle the name this page's output
-% goes to, then run the device's Emit.
 %
-% The name is settled here, once, for every device there is. The template
-% is /OutputFileName -- the device's own, put there when it was made from
-% the run's binding or the request's /OutputFile -- and a %d in it is
-% replaced with the page number, from the one counter .pagefilename keeps,
-% so every device numbers its pages alike. A device with no name at all
-% writes to the standard output, which is where a page goes when nobody
-% said where. What comes out is stored on the device as /.outputfile,
-% and that -- not the template -- is what an Emit opens.
+%  dict  .transmitpage  -
+%  Transmit one page through a device: settle the name this page's output
+%  goes to, then run the device's Emit.
 %
-% Settling the name belongs to the page and not to the device: a device
-% that settled it when it was made wrote every page of a job to the name
-% page one had, and a device written afterwards would have had to
-% remember not to. Every path that transmits a page comes through here,
-% so there is no way to write a page without one.
+%  The name is settled here, once, for every device there is. The template
+%  is /OutputFileName -- the device's own, put there when it was made from
+%  the run's binding or the request's /OutputFile -- and a %d in it is
+%  replaced with the page number, from the one counter .pagefilename keeps,
+%  so every device numbers its pages alike. A device with no name at all
+%  writes to the standard output, which is where a page goes when nobody
+%  said where. What comes out is stored on the device as /.outputfile,
+%  and that -- not the template -- is what an Emit opens.
+%
+%  Settling the name belongs to the page and not to the device: a device
+%  that settled it when it was made wrote every page of a job to the name
+%  page one had, and a device written afterwards would have had to
+%  remember not to. Every path that transmits a page comes through here,
+%  so there is no way to write a page without one.
+%
 .xpostsys /.transmitpage {
     dup /OutputFileName 2 copy known
         { get }
@@ -376,71 +396,76 @@ true setglobal
     dup /Emit get exec
 } bind put
 
-(/image.ps) //.xpostsys /.loadmodule get exec  % image.ps implements device base classes
-(/nulldev.ps) //.xpostsys /.loadmodule get exec  % nulldevice
-(/bboxdev.ps) //.xpostsys /.loadmodule get exec  % bounding-box device
-(/recorddev.ps) //.xpostsys /.loadmodule get exec  % recording device
-(/pdfwrite.ps) //.xpostsys /.loadmodule get exec  % pdf device
-(/svgwrite.ps) //.xpostsys /.loadmodule get exec  % svg device
-(/dscwrite.ps) //.xpostsys /.loadmodule get exec  % distilled-ps device
+(/image.ps) //.xpostsys /.loadmodule get exec  % Image.ps implements device base classes
+(/nulldev.ps) //.xpostsys /.loadmodule get exec  % Nulldevice
+(/bboxdev.ps) //.xpostsys /.loadmodule get exec  % Bounding-box device
+(/recorddev.ps) //.xpostsys /.loadmodule get exec  % Recording device
+(/pdfwrite.ps) //.xpostsys /.loadmodule get exec  % Pdf device
+(/svgwrite.ps) //.xpostsys /.loadmodule get exec  % Svg device
+(/dscwrite.ps) //.xpostsys /.loadmodule get exec  % Distilled-ps device
 
-% Mirror the device class dictionaries into privatedict, where the makers and
-% the C drivers reach them. They stay where they were defined too, for the
-% load-time methods still to come, until .finalize replaces them with local
-% copies in privatedict and drops those anchors. The device files define into
-% the dictionary current here, which is the one the language is being read
-% into.
-% Which dictionaries those are is read off the one they were defined in
-% rather than named here. A class states itself by the name it is
-% defined under; a list beside it is a second statement, and a class
-% added later reaches the first without reaching the second -- it is
-% then never mirrored, and the maker that reaches for it answers
-% undefined at the first page of the only run that selects it.
+%
+%  Mirror the device class dictionaries into privatedict, where the makers and
+%  the C drivers reach them. They stay where they were defined too, for the
+%  load-time methods still to come, until .finalize replaces them with local
+%  copies in privatedict and drops those anchors. The device files define into
+%  the dictionary current here, which is the one the language is being read
+%  into.
+%  Which dictionaries those are is read off the one they were defined in
+%  rather than named here. A class states itself by the name it is
+%  defined under; a list beside it is a second statement, and a class
+%  added later reaches the first without reaching the second -- it is
+%  then never mirrored, and the maker that reaches for it answers
+%  undefined at the first page of the only run that selects it.
+%
 [ currentdict { pop } forall ]
 { dup //.xpostsys /.isclassname get exec
     { dup currentdict exch get .privatedict 3 1 roll put }
     { pop } ifelse
 } forall
 
-% -  .settlebandbudget  -
-% Bring the budget this run works to and the class that works to it into
-% line, and leave the number where both sides of the interpreter read it.
 %
-% How deep a band is is that budget divided by what one row of the raster
-% costs, and the same number is what a page is weighed against to decide
-% whether it is held as its marks at all: a page the budget covers
-% arrives in one band, which is the page. So the budget is the one
-% control over both, and lowering it is what holds a smaller page in
-% bands.
+%  -  .settlebandbudget  -
 %
-% The class carries the budget a run that names none works to, and states
-% what that number rests on (data/recorddev.ps). Where the invocation
-% named one it goes on the class, in place of that; where it named none
-% the class's own goes into the settings. Either way one number stands in
-% both places afterwards, which matters because the two halves of the
-% interpreter reach it by different routes: the band arithmetic takes it
-% off the class or off a device copied from it, and the driver holding a
-% record takes it out of the settings, where what a run decided lives.
+%  Bring the budget this run works to and the class that works to it into
+%  line, and leave the number where both sides of the interpreter read it.
 %
-% The driver takes it from there and not off the device it is holding,
-% because the two are not the same question. What a device carries is the
-% grid its own page is cut into, and something making a device may cut it
-% as fine as it likes; what bounds the marks is what this run said it
-% would spend on a page, which no page may raise or lower for itself. A
-% record weighed against the grid of a one-row band would put a page's
-% marks in a file at the first of them.
+%  How deep a band is is that budget divided by what one row of the raster
+%  costs, and the same number is what a page is weighed against to decide
+%  whether it is held as its marks at all: a page the budget covers
+%  arrives in one band, which is the page. So the budget is the one
+%  control over both, and lowering it is what holds a smaller page in
+%  bands.
 %
-% Done as the run's device is made, and not as this file is read. The
-% language a run is given may have been read whole out of an image of the
-% virtual memory another run built it in, and that other run's
-% invocation is not this one's: a budget written where the class is
-% defined would be written once, into the image, and every run after
-% would band to whatever the run that wrote the file was given. What is
-% settled afresh on every launch lives in the settings this reads from
-% (data/init.ps), and this is the point at which the two are brought into
-% line -- before the first device, which is before the first page is
-% weighed.
-.xpostsys /.settlebandbudget { % -  .  -
+%  The class carries the budget a run that names none works to, and states
+%  what that number rests on (data/recorddev.ps). Where the invocation
+%  named one it goes on the class, in place of that; where it named none
+%  the class's own goes into the settings. Either way one number stands in
+%  both places afterwards, which matters because the two halves of the
+%  interpreter reach it by different routes: the band arithmetic takes it
+%  off the class or off a device copied from it, and the driver holding a
+%  record takes it out of the settings, where what a run decided lives.
+%
+%  The driver takes it from there and not off the device it is holding,
+%  because the two are not the same question. What a device carries is the
+%  grid its own page is cut into, and something making a device may cut it
+%  as fine as it likes; what bounds the marks is what this run said it
+%  would spend on a page, which no page may raise or lower for itself. A
+%  record weighed against the grid of a one-row band would put a page's
+%  marks in a file at the first of them.
+%
+%  Done as the run's device is made, and not as this file is read. The
+%  language a run is given may have been read whole out of an image of the
+%  virtual memory another run built it in, and that other run's
+%  invocation is not this one's: a budget written where the class is
+%  defined would be written once, into the image, and every run after
+%  would band to whatever the run that wrote the file was given. What is
+%  settled afresh on every launch lives in the settings this reads from
+%  (data/init.ps), and this is the point at which the two are brought into
+%  line -- before the first device, which is before the first page is
+%  weighed.
+%
+.xpostsys /.settlebandbudget {  % -  .  -
     .privatedict /.xpost_RECORD known {
         currentglobal true setglobal
         /MaxBandBytes //.xpostsys /.hostvalue get exec
@@ -453,38 +478,42 @@ true setglobal
     } if
 } bind put
 
-% -  .bandbudget  bytes
-% What one band of a page may cost this run, in bytes of the raster a
-% device holds at once. This is the value currentsystemparams reports as
-% MaxBandBytes.
 %
-% Read off the recording class, which is where the budget is settled
-% above and where every reading of it is taken, so a program is told the
-% number the band loop divided rather than a second copy of it.
+%  -  .bandbudget  bytes
+%  What one band of a page may cost this run, in bytes of the raster a
+%  device holds at once. This is the value currentsystemparams reports as
+%  MaxBandBytes.
 %
-% A run whose graphics never loaded carries no such class and holds no
-% page in bands, and answers nought -- the same nothing .curbandheight
-% answers for the band it would have reported.
-.xpostsys /.bandbudget { % -  .  bytes
+%  Read off the recording class, which is where the budget is settled
+%  above and where every reading of it is taken, so a program is told the
+%  number the band loop divided rather than a second copy of it.
+%
+%  A run whose graphics never loaded carries no such class and holds no
+%  page in bands, and answers nought -- the same nothing .curbandheight
+%  answers for the band it would have reported.
+%
+.xpostsys /.bandbudget {  % -  .  bytes
     .privatedict /.xpost_RECORD 2 copy known
         { get /.bandbytes 2 copy known { get }{ pop pop 0 } ifelse }
         { pop pop 0 } ifelse
 } bind put
 
-% -  .curbandheight  rows
-% The rows the device now being painted into holds of its page at once,
-% and zero where it holds the page whole. This is the value
-% currentsystemparams reports as CurBandHeight.
 %
-% The rows come from .bandheight (data/recorddev.ps), which is where the
-% band loop takes them. Zero is this reading and not that one: a page
-% held whole is one band covering it, which is a band height only in the
-% sense that there are no bands, and a program asking how its marks were
-% held is asking exactly that.
+%  -  .curbandheight  rows
+%  The rows the device now being painted into holds of its page at once,
+%  and zero where it holds the page whole. This is the value
+%  currentsystemparams reports as CurBandHeight.
 %
-% A run whose graphics never loaded has no device to ask and no band
-% loop to report on, and answers zero.
-.xpostsys /.curbandheight { % -  .  rows
+%  The rows come from .bandheight (data/recorddev.ps), which is where the
+%  band loop takes them. Zero is this reading and not that one: a page
+%  held whole is one band covering it, which is a band height only in the
+%  sense that there are no bands, and a program asking how its marks were
+%  held is asking exactly that.
+%
+%  A run whose graphics never loaded has no device to ask and no band
+%  loop to report on, and answers zero.
+%
+.xpostsys /.curbandheight {  % -  .  rows
 3 dict begin
     /rows 0 def
     /graphicsdict where {
@@ -500,28 +529,30 @@ true setglobal
     rows
 end } bind put
 
-% -  .currecordspill  /asked /held
-% Where this run wants a retained page's marks held, and where the marks
-% of the page now being painted actually are. These are the values
-% currentsystemparams reports as RecordSpill and CurRecordSpill.
 %
-% Two readings rather than one, because they can differ and the
-% difference is what a reader most needs: a run that asked for its marks
-% to be weighed, on a machine that will take no scratch file, holds them
-% in memory and is told so at start-up, and a program given only the
-% state asked for could not tell that from a page that never needed to
-% spill.
+%  -  .currecordspill  /asked /held
+%  Where this run wants a retained page's marks held, and where the marks
+%  of the page now being painted actually are. These are the values
+%  currentsystemparams reports as RecordSpill and CurRecordSpill.
 %
-% /never, /auto or /always for the first. /memory, /file or /refused for
-% the second: in memory, in a file, or in memory having been refused a
-% file it wanted.
+%  Two readings rather than one, because they can differ and the
+%  difference is what a reader most needs: a run that asked for its marks
+%  to be weighed, on a machine that will take no scratch file, holds them
+%  in memory and is told so at start-up, and a program given only the
+%  state asked for could not tell that from a page that never needed to
+%  spill.
 %
-% The device now being painted into answers, since it is the one holding
-% the marks. A device that holds no record -- a page under the band
-% budget, painted directly -- holds its marks nowhere and answers
-% /memory, which is where the pixels of such a page are. A run whose
-% graphics never loaded has no device to ask and answers the same.
-.xpostsys /.currecordspill { % -  .  /asked /held
+%  /never, /auto or /always for the first. /memory, /file or /refused for
+%  the second: in memory, in a file, or in memory having been refused a
+%  file it wanted.
+%
+%  The device now being painted into answers, since it is the one holding
+%  the marks. A device that holds no record -- a page under the band
+%  budget, painted directly -- holds its marks nowhere and answers
+%  /memory, which is where the pixels of such a page are. A run whose
+%  graphics never loaded has no device to ask and answers the same.
+%
+.xpostsys /.currecordspill {  % -  .  /asked /held
 2 dict begin
     % What the run asked for, read from the run: it is the run's answer
     % whatever device happens to be in hand, and a page painted directly
@@ -547,23 +578,25 @@ end } bind put
     asked held
 end } bind put
 
-% dict  .reportpage  -
-% Name what is about to become of one page: the device the page was
-% asked of, the device that paints it, whether it is held whole or a
-% band at a time, how deep a band is, and how large the page is. The
-% last two are the comparison the choice is made by, so a reader is told
-% what was decided and what decided it rather than only the verdict.
 %
-% One line per page, on the standard error. The page itself goes to the
-% standard output whenever the run was given no file to write it to, so
-% a report sharing that stream would arrive inside the page and be read
-% as part of it.
+%  dict  .reportpage  -
+%  Name what is about to become of one page: the device the page was
+%  asked of, the device that paints it, whether it is held whole or a
+%  band at a time, how deep a band is, and how large the page is. The
+%  last two are the comparison the choice is made by, so a reader is told
+%  what was decided and what decided it rather than only the verdict.
 %
-% The device asked of is the one the page description last named, and
-% the one the run was started with where it named none; the device that
-% paints is the target a record plays into, and otherwise the device
-% asked of, which paints its own page.
-.xpostsys /.reportpage { % dict  .  -
+%  One line per page, on the standard error. The page itself goes to the
+%  standard output whenever the run was given no file to write it to, so
+%  a report sharing that stream would arrive inside the page and be read
+%  as part of it.
+%
+%  The device asked of is the one the page description last named, and
+%  the one the run was started with where it named none; the device that
+%  paints is the target a record plays into, and otherwise the device
+%  asked of, which paints its own page.
+%
+.xpostsys /.reportpage {  % dict  .  -
 8 dict begin
     /dev exch def
     /out (%stderr) (w) file def
@@ -599,34 +632,37 @@ end } bind put
     out flushfile
 end } bind put
 
-% -  .startdevice  -
-% Make the device this run was started with and install it in the
-% graphics state.
 %
-% Apart from the loading above, and after it, because the two are not
-% the same kind of thing. The modules read above are the language, which
-% is the same for every run of this build. A device is not: it is the
-% one this run asked for, at the page this run asked for, and the next
-% run would want a different one. So the loading leaves the graphics
-% state carrying no device and this is what puts one there, which is
-% also what leaves a point between them at which the language stands
-% complete and nothing of the run has been decided yet.
+%  -  .startdevice  -
 %
-% Which device and which page are read from the settings a run has, the
-% one place a value the invocation decided is kept.
+%  Make the device this run was started with and install it in the
+%  graphics state.
 %
-% Once in the life of a context. The graphics state is the record of
-% that: a device already installed -- by this step or by a page-device
-% request afterwards -- is the one serving the run, and building a
-% second would leave the first holding state that is not virtual memory,
-% past the reach of both the collector and a restore.
+%  Apart from the loading above, and after it, because the two are not
+%  the same kind of thing. The modules read above are the language, which
+%  is the same for every run of this build. A device is not: it is the
+%  one this run asked for, at the page this run asked for, and the next
+%  run would want a different one. So the loading leaves the graphics
+%  state carrying no device and this is what puts one there, which is
+%  also what leaves a point between them at which the language stands
+%  complete and nothing of the run has been decided yet.
 %
-% A refusal here is carried out to the start-up report in data/init.ps,
-% which names the device and the page this run asked for.
+%  Which device and which page are read from the settings a run has, the
+%  one place a value the invocation decided is kept.
 %
-% Global, with the namespace it goes into: the body holds no local
-% object, reaching the local ones through the operators that answer with
-% them.
+%  Once in the life of a context. The graphics state is the record of
+%  that: a device already installed -- by this step or by a page-device
+%  request afterwards -- is the one serving the run, and building a
+%  second would leave the first holding state that is not virtual memory,
+%  past the reach of both the collector and a restore.
+%
+%  A refusal here is carried out to the start-up report in data/init.ps,
+%  which names the device and the page this run asked for.
+%
+%  Global, with the namespace it goes into: the body holds no local
+%  object, reaching the local ones through the operators that answer with
+%  them.
+%
 .xpostsys /.startdevice {
     % The budget this run's pages are cut into bands by, brought into
     % line with what this run was started with before anything is weighed
@@ -694,21 +730,23 @@ end } bind put
     } if
 } bind def
 
-% (banner)  .pagepause  -
-% The wait the announcing semantics take at a page boundary: name the
-% page on the standard output and read a line from the line editor.
 %
-% Both halves are for a person, so both are done where the run has one
-% and neither where it has not. That is the question the run already
-% answers to decide whether to offer an interactive session at all --
-% a terminal on the standard input, and no output file naming something
-% that waits for one -- and it is read here rather than asked again.
+%  (banner)  .pagepause  -
+%  The wait the announcing semantics take at a page boundary: name the
+%  page on the standard output and read a line from the line editor.
 %
-% Each half does harm without a person to receive it. The name is
-% addressed to a reader, and a run nobody is reading lands it in the
-% middle of what the program is writing on that same channel. The read
-% is somebody pressing return, and where there is nobody the standard
-% input is carrying something else and the read takes a line of it.
+%  Both halves are for a person, so both are done where the run has one
+%  and neither where it has not. That is the question the run already
+%  answers to decide whether to offer an interactive session at all --
+%  a terminal on the standard input, and no output file naming something
+%  that waits for one -- and it is read here rather than asked again.
+%
+%  Each half does harm without a person to receive it. The name is
+%  addressed to a reader, and a run nobody is reading lands it in the
+%  middle of what the program is writing on that same channel. The read
+%  is somebody pressing return, and where there is nobody the standard
+%  input is carrying something else and the read takes a line of it.
+%
 .xpostsys /.pagepause {
     /.interactive //.xpostsys /.hostvalue get exec
     {
@@ -745,89 +783,113 @@ end } bind put
     }
 >> put
 
-% copypage transmits the page without erasing it (PLRM 8.2), so it ends
-% a page for the embedder's purposes but not for the program's: it takes
-% the same three behaviours, less the page number and the erasure
+%
+%  copypage transmits the page without erasing it (PLRM 8.2), so it ends
+%  a page for the embedder's purposes but not for the program's: it takes
+%  the same three behaviours, less the page number and the erasure
+%
 .xpostsys /CopypageSemanticsDict <<
     0 { (----copypage----) //.xpostsys /.pagepause get exec }
     1 { }
     2 { returntocaller }
 >> put
 
-% The page device's own handlers (PLRM 6.2.6). A page device may carry a
-% BeginPage procedure to run at the start of each page and an EndPage
-% procedure to run at the end. Each is handed the number of pages the device
-% has transmitted, EndPage is told why the page is ending, and the boolean it
-% returns says whether the page is transmitted at all.
 %
-% The count lives beside the %d page number in the global record, so the
-% save and restore a job wraps around a page does not rewind it, and it
-% starts again at zero for each device activated.
+%  The page device's own handlers (PLRM 6.2.6). A page device may carry a
+%  BeginPage procedure to run at the start of each page and an EndPage
+%  procedure to run at the end. Each is handed the number of pages the device
+%  has transmitted, EndPage is told why the page is ending, and the boolean it
+%  returns says whether the page is transmitted at all.
+%
+%  The count lives beside the %d page number in the global record, so the
+%  save and restore a job wraps around a page does not rewind it, and it
+%  starts again at zero for each device activated.
+%
 
-% -  .pageno  int
+%
+%  -  .pageno  int
+%
 .xpostsys /.pageno {
     //.xpostsys /.pagestate get /.plrmpage 2 copy known { get }{ pop pop 0 } ifelse
 } bind put
 
-% int  .setpageno  -
+%
+%  int  .setpageno  -
+%
 .xpostsys /.setpageno {
     //.xpostsys /.pagestate get exch /.plrmpage exch put
 } bind put
 
-% Two facts about the page, kept beside the count and for the same reason:
-% a job wraps a save and restore around its pages, and what has become of
-% them is not part of what a restore rewinds.
 %
-% Whether anything has been painted since the page began, and whether any
-% page has been transmitted at all. Together they say whether a job that
-% ends without asking for its page has one to give: a program that painted
-% and never transmitted has a page nobody has seen, and the alternative to
-% ending it here is throwing it away. A program that did transmit has said
-% where its pages end, and what it painted afterwards is a page it did not
-% finish -- that one is dropped, as it is by the interpreters this follows.
+%  Two facts about the page, kept beside the count and for the same reason:
+%  a job wraps a save and restore around its pages, and what has become of
+%  them is not part of what a restore rewinds.
+%
+%  Whether anything has been painted since the page began, and whether any
+%  page has been transmitted at all. Together they say whether a job that
+%  ends without asking for its page has one to give: a program that painted
+%  and never transmitted has a page nobody has seen, and the alternative to
+%  ending it here is throwing it away. A program that did transmit has said
+%  where its pages end, and what it painted afterwards is a page it did not
+%  finish -- that one is dropped, as it is by the interpreters this follows.
+%
 
-% -  .pagemarked  bool
+%
+%  -  .pagemarked  bool
+%
 .xpostsys /.pagemarked {
     //.xpostsys /.pagestate get /.marked 2 copy known { get }{ pop pop false } ifelse
 } bind put
 
-% bool  .setpagemarked  -
+%
+%  bool  .setpagemarked  -
+%
 .xpostsys /.setpagemarked {
     //.xpostsys /.pagestate get exch /.marked exch put
 } bind put
 
-% The same record, reached from where the interpreter's own side reads
-% the local machinery. A rendered glyph's pixels are written to the
-% device by the text machinery rather than by a painting operator, so
-% that machinery records what it left under /.marked itself, and it
-% needs the dictionary the two accessors above read and write. The
-% dictionary is the one object shared, not a copy: what one side writes
-% is what the other reads.
+%
+%  The same record, reached from where the interpreter's own side reads
+%  the local machinery. A rendered glyph's pixels are written to the
+%  device by the text machinery rather than by a painting operator, so
+%  that machinery records what it left under /.marked itself, and it
+%  needs the dictionary the two accessors above read and write. The
+%  dictionary is the one object shared, not a copy: what one side writes
+%  is what the other reads.
+%
 .privatedict /.pagestate //.xpostsys /.pagestate get put
 
-% -  .pagesent  bool
+%
+%  -  .pagesent  bool
+%
 .xpostsys /.pagesent {
     //.xpostsys /.pagestate get /.sent 2 copy known { get }{ pop pop false } ifelse
 } bind put
 
-% bool  .setpagesent  -
+%
+%  bool  .setpagesent  -
+%
 .xpostsys /.setpagesent {
     //.xpostsys /.pagestate get exch /.sent exch put
 } bind put
 
-% name  .pagehandler  proc|null
-% The handler the current page device carries under that name, or null where
-% it carries none.
+%
+%  name  .pagehandler  proc|null
+%  The handler the current page device carries under that name, or null where
+%  it carries none.
+%
 .xpostsys /.pagehandler {
     graphicsdict /.pagedevice 2 copy known {
         get exch 2 copy known { get }{ pop pop null } ifelse
     }{ pop pop pop null } ifelse
 } bind put
 
-% dict  .checkpagehandlers  dict
-% A handler that cannot be executed cannot be run at a page boundary, and
-% finding that out then would leave the page half made; the dictionary is
-% refused as it is offered instead.
+%
+%  dict  .checkpagehandlers  dict
+%  A handler that cannot be executed cannot be run at a page boundary, and
+%  finding that out then would leave the page half made; the dictionary is
+%  refused as it is offered instead.
+%
 .xpostsys /.checkpagehandlers {
     [ /BeginPage /EndPage ] {
         2 copy known {
@@ -840,27 +902,29 @@ end } bind put
     } forall
 } bind put
 
-% dict  .checkpagefeatures  dict
-% A device feature the machinery reads as a number is refused as it is
-% offered where the value is not one. PLRM 6.2.7 has setpagedevice raise
-% typecheck as well as refusing a request it cannot satisfy, and this is
-% what that is for: a request is the one place the value has a caller to
-% answer to. Read at the point of use instead, a value that is not a
-% number would be a number the machinery could not find, and finding no
-% number is what it does for a device asking for nothing -- so a request
-% naming its feature and misspelling the value would come out as a
-% request that named nothing, silently and a page later.
 %
-% TextAlphaBits, the bits of a glyph's edge coverage a device is sent
-% (data/image.ps, src/lib/xpost_op_font.c), is one such feature. It
-% is refused for its type and not for its size: a number below one asks
-% for no coverage at all and a number above eight for more than a
-% rasterised glyph carries, and each of those is a number the machinery
-% meets with what there is. The codec knobs the compiled writers read
-% as numbers off their device dictionary -- png_compression_level and
-% png_interlaced (src/lib/xpost_dev_png.c), jpeg_quality
-% (src/lib/xpost_dev_jpeg.c) -- are the others; png_filter is a word,
-% and a wrong one is refused by the driver with the roster.
+%  dict  .checkpagefeatures  dict
+%  A device feature the machinery reads as a number is refused as it is
+%  offered where the value is not one. PLRM 6.2.7 has setpagedevice raise
+%  typecheck as well as refusing a request it cannot satisfy, and this is
+%  what that is for: a request is the one place the value has a caller to
+%  answer to. Read at the point of use instead, a value that is not a
+%  number would be a number the machinery could not find, and finding no
+%  number is what it does for a device asking for nothing -- so a request
+%  naming its feature and misspelling the value would come out as a
+%  request that named nothing, silently and a page later.
+%
+%  TextAlphaBits, the bits of a glyph's edge coverage a device is sent
+%  (data/image.ps, src/lib/xpost_op_font.c), is one such feature. It
+%  is refused for its type and not for its size: a number below one asks
+%  for no coverage at all and a number above eight for more than a
+%  rasterised glyph carries, and each of those is a number the machinery
+%  meets with what there is. The codec knobs the compiled writers read
+%  as numbers off their device dictionary -- png_compression_level and
+%  png_interlaced (src/lib/xpost_dev_png.c), jpeg_quality
+%  (src/lib/xpost_dev_jpeg.c) -- are the others; png_filter is a word,
+%  and a wrong one is refused by the driver with the roster.
+%
 .xpostsys /.checkpagefeatures {
     [ /TextAlphaBits /png_compression_level /png_interlaced /jpeg_quality ] {
         2 copy known {
@@ -871,7 +935,9 @@ end } bind put
     } forall
 } bind put
 
-% -  .beginpage  -
+%
+%  -  .beginpage  -
+%
 .xpostsys /.beginpage {
     % a page that has just begun carries nothing yet
     false //.xpostsys /.setpagemarked get exec
@@ -881,12 +947,14 @@ end } bind put
     } ifelse
 } bind put
 
-% reason  .endpage  bool
-% Runs the EndPage handler over the page count and the reason, and answers
-% with what it returned. A device carrying no handler transmits a page ended
-% by showpage or copypage and does not transmit one ended by the device going
-% away, which is the standard behaviour. A handler that answers with anything
-% but one boolean has not answered at all.
+%
+%  reason  .endpage  bool
+%  Runs the EndPage handler over the page count and the reason, and answers
+%  with what it returned. A device carrying no handler transmits a page ended
+%  by showpage or copypage and does not transmit one ended by the device going
+%  away, which is the standard behaviour. A handler that answers with anything
+%  but one boolean has not answered at all.
+%
 .xpostsys /.endpage {
     3 dict begin
     /reason exch def
@@ -935,22 +1003,25 @@ end } bind put
     //.xpostsys /.beginpage get exec
 } //.xpostsys /.defop get exec
 
-% -  .endjobpage  -
-% The page a job leaves behind when it ends without asking for one.
 %
-% A program that painted and never transmitted has a page nobody has seen,
-% and the job is over: the alternative to ending the page here is discarding
-% what it drew. Files written to be included in another document carry no
-% showpage at all -- the including document supplies it -- so this is the
-% ordinary way such a file arrives, not a corner.
+%  -  .endjobpage  -
 %
-% It is ended as a page ends normally rather than as a device going away, so
-% a page device's EndPage handler is asked about it on the same terms as any
-% other page and may still refuse it.
+%  The page a job leaves behind when it ends without asking for one.
 %
-% A program that did transmit a page has said for itself where its pages end.
-% What it painted after the last one is a page it chose not to finish, and
-% that is left unfinished.
+%  A program that painted and never transmitted has a page nobody has seen,
+%  and the job is over: the alternative to ending the page here is discarding
+%  what it drew. Files written to be included in another document carry no
+%  showpage at all -- the including document supplies it -- so this is the
+%  ordinary way such a file arrives, not a corner.
+%
+%  It is ended as a page ends normally rather than as a device going away, so
+%  a page device's EndPage handler is asked about it on the same terms as any
+%  other page and may still refuse it.
+%
+%  A program that did transmit a page has said for itself where its pages end.
+%  What it painted after the last one is a page it chose not to finish, and
+%  that is left unfinished.
+%
 .xpostsys /.endjobpage {
     //.xpostsys /.pagesent get exec not
     //.xpostsys /.pagemarked get exec and {

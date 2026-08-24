@@ -1,4 +1,5 @@
 %!PS
+%
 % recorddev.ps
 %
 % The record device: write down what a page asks to paint and replay it at Emit.
@@ -8,109 +9,116 @@
 
 //.internaldict /QUIET known { }{ (loading recorddev.ps...)print } ifelse
 
-% .xpost_RECORD writes down what it was asked to paint instead of
-% painting it, and paints the page at Emit by playing what it wrote into
-% a device that does paint. What it costs follows the number of marks
-% rather than the size of the page (doc/INTERNALS).
 %
-% The marking methods, Create, GetPix and Destroy are compiled operators
-% the driver installs over this dictionary (src/lib/xpost_dev_record.c);
-% what is written here is what a record cannot be given from C: the
-% keys the class declares, and the page the record makes at Emit.
+%  .xpost_RECORD writes down what it was asked to paint instead of
+%  painting it, and paints the page at Emit by playing what it wrote into
+%  a device that does paint. What it costs follows the number of marks
+%  rather than the size of the page (doc/INTERNALS).
 %
-% Each of those bodies runs with a dictionary current -- the device's own,
-% or a scratch one where the body wants somewhere of its own to work --
-% and opens it through the bracket that takes it off again however the
-% body ends, error included (.indict, graphics.ps).
+%  The marking methods, Create, GetPix and Destroy are compiled operators
+%  the driver installs over this dictionary (src/lib/xpost_dev_record.c);
+%  what is written here is what a record cannot be given from C: the
+%  keys the class declares, and the page the record makes at Emit.
 %
-% The class declares exactly the five marking methods it records --
-% PutPix, BlendPix, DrawLine, FillRect and FillPoly -- and no other
-% optional marking method. FillPath would bring it a whole path and the
-% clip shape beside it, DrawRect an outlined rectangle, Erase an
-% instruction to reset its page: each is a call the record has no entry
-% for, and declining all three has every one of them resolved, above the
-% device, into the five it does hold. tests/check-device-skeleton.sh
-% holds this dictionary to that.
+%  Each of those bodies runs with a dictionary current -- the device's own,
+%  or a scratch one where the body wants somewhere of its own to work --
+%  and opens it through the bracket that takes it off again however the
+%  body ends, error included (.indict, graphics.ps).
 %
-% Flush is the one method here that takes no mark. It asks a device to
-% put out what it is holding, and what holds this record's pixels is the
-% device below it, so the call belongs there: a record answering it for
-% itself would answer for a device it is standing in front of. Declaring
-% it takes no call away from the record, which is what the rule above is
-% about.
+%  The class declares exactly the five marking methods it records --
+%  PutPix, BlendPix, DrawLine, FillRect and FillPoly -- and no other
+%  optional marking method. FillPath would bring it a whole path and the
+%  clip shape beside it, DrawRect an outlined rectangle, Erase an
+%  instruction to reset its page: each is a call the record has no entry
+%  for, and declining all three has every one of them resolved, above the
+%  device, into the five it does hold. tests/check-device-skeleton.sh
+%  holds this dictionary to that.
 %
-% A sampled image is the one thing the five are the wrong shape for, and
-% it does not arrive as a device method either. The image painter
-% (data/paint.ps) writes an image into the rows of a device that keeps
-% them and paints one a rectangle per sample into a device that does
-% not; a record of the second would cost tens of bytes a sample against
-% the one to three bytes a pixel of the page it exists to avoid holding.
-% So the painter looks for /.recordimage on the device instead, and
-% hands the whole image -- its rows, the transform placing them and the
-% colour tables it baked -- to whatever it finds. The driver puts this
-% class's there. It is not dispatched as a marking call and takes none
-% of them away from the record.
+%  Flush is the one method here that takes no mark. It asks a device to
+%  put out what it is holding, and what holds this record's pixels is the
+%  device below it, so the call belongs there: a record answering it for
+%  itself would answer for a device it is standing in front of. Declaring
+%  it takes no call away from the record, which is what the rule above is
+%  about.
 %
-% A glyph is the second such thing and is here for the same reason. Text
-% reaches a device one pixel at a time -- a fully covered pixel through
-% PutPix and a partly covered edge pixel through BlendPix carrying how
-% much of it is covered -- which costs a raster nothing and would cost a
-% record tens of bytes for every inked pixel of every character on the
-% page. So the glyph painter (src/lib/xpost_op_font.c) looks for
-% /.recordglyph, and finding it hands over one coverage mask and one
-% placement of it. The mask is shared by every placement it is the same
-% mask for, so a page of text costs its distinct glyphs and a placement
-% apiece. Like the image entry it is not dispatched as a marking call.
+%  A sampled image is the one thing the five are the wrong shape for, and
+%  it does not arrive as a device method either. The image painter
+%  (data/paint.ps) writes an image into the rows of a device that keeps
+%  them and paints one a rectangle per sample into a device that does
+%  not; a record of the second would cost tens of bytes a sample against
+%  the one to three bytes a pixel of the page it exists to avoid holding.
+%  So the painter looks for /.recordimage on the device instead, and
+%  hands the whole image -- its rows, the transform placing them and the
+%  colour tables it baked -- to whatever it finds. The driver puts this
+%  class's there. It is not dispatched as a marking call and takes none
+%  of them away from the record.
 %
-% /NoOutput keeps the methods the class brought: the device completion
-% (data/device.ps) replaces a device's polygon fill with the compiled
-% scan conversion, which would paint spans into a device that has no
-% pixels to paint into and would leave the polygon unrecorded.
+%  A glyph is the second such thing and is here for the same reason. Text
+%  reaches a device one pixel at a time -- a fully covered pixel through
+%  PutPix and a partly covered edge pixel through BlendPix carrying how
+%  much of it is covered -- which costs a raster nothing and would cost a
+%  record tens of bytes for every inked pixel of every character on the
+%  page. So the glyph painter (src/lib/xpost_op_font.c) looks for
+%  /.recordglyph, and finding it hands over one coverage mask and one
+%  placement of it. The mask is shared by every placement it is the same
+%  mask for, so a page of text costs its distinct glyphs and a placement
+%  apiece. Like the image entry it is not dispatched as a marking call.
+%
+%  /NoOutput keeps the methods the class brought: the device completion
+%  (data/device.ps) replaces a device's polygon fill with the compiled
+%  scan conversion, which would paint spans into a device that has no
+%  pixels to paint into and would leave the polygon unrecorded.
+%
 
-% dict  .bandheight  rows
-% How many rows of its page a device holds at once: the page's own
-% height where it holds the whole of it, and fewer where it holds a
-% band of it.
 %
-% This is the one place the reading is taken. The band loop below asks
-% it to size the raster it plays into, and a program asking what
-% happened to its page (CurBandHeight, data/init.ps) asks it too, so
-% what is reported is the reading the loop went by rather than a second
-% copy of the arithmetic that agrees with it until one of them is
-% changed.
+%  dict  .bandheight  rows
+%  How many rows of its page a device holds at once: the page's own
+%  height where it holds the whole of it, and fewer where it holds a
+%  band of it.
 %
-% Whether the page is banded is the comparison of this against the
-% page's own height, which every caller makes for itself: a budget that
-% buys the whole page buys no bands, and a device that is asked for one
-% band covering the page is a device holding the page whole.
+%  This is the one place the reading is taken. The band loop below asks
+%  it to size the raster it plays into, and a program asking what
+%  happened to its page (CurBandHeight, data/init.ps) asks it too, so
+%  what is reported is the reading the loop went by rather than a second
+%  copy of the arithmetic that agrees with it until one of them is
+%  changed.
 %
-% A device with no record behind it is handed its page and holds it, so
-% the rows it holds at once are the page.
+%  Whether the page is banded is the comparison of this against the
+%  page's own height, which every caller makes for itself: a budget that
+%  buys the whole page buys no bands, and a device that is asked for one
+%  band covering the page is a device holding the page whole.
 %
-% A record painting less of its page than the page -- the run an imaging
-% bounding box reaches, and nothing outside it (/.playrun below) -- has
-% that run and no more to hold, so the run bounds the reading here. The
-% page's own height does not, by the paragraph above: the callers hold
-% the reading to that themselves, and a budget past the page is how they
-% are told there are no bands.
+%  A device with no record behind it is handed its page and holds it, so
+%  the rows it holds at once are the page.
+%
+%  A record painting less of its page than the page -- the run an imaging
+%  bounding box reaches, and nothing outside it (/.playrun below) -- has
+%  that run and no more to hold, so the run bounds the reading here. The
+%  page's own height does not, by the paragraph above: the callers hold
+%  the reading to that themselves, and a budget past the page is how they
+%  are told there are no bands.
+%
 currentglobal true setglobal
 
-% dict  .rowbytes  cost
-% What one row of the raster a device's page is painted in costs, asked
-% of the class that makes it: the class prices a row for Create and it is
-% the same row here. The elements a row takes are left out of the answer
-% -- a planar row is three of them against a byte per pixel per plane --
-% so a row is priced by the pixels, which is what the page is priced by.
 %
-% The price is what the class says and is not examined here. A class that
-% prices no row in bytes is a class no band arithmetic can be done for,
-% and each caller doing that arithmetic says so for itself.
+%  dict  .rowbytes  cost
+%  What one row of the raster a device's page is painted in costs, asked
+%  of the class that makes it: the class prices a row for Create and it is
+%  the same row here. The elements a row takes are left out of the answer
+%  -- a planar row is three of them against a byte per pixel per plane --
 %
-% One statement, because two callers want it: the band grid divides the
-% budget by it, and the saving a band grid buys multiplies the rows not
-% held by it. A second copy of the question would agree with this one
-% until one of them was changed.
-.xpostsys /.rowbytes { % dict  .  cost
+%  so a row is priced by the pixels, which is what the page is priced by.
+%
+%  The price is what the class says and is not examined here. A class that
+%  prices no row in bytes is a class no band arithmetic can be done for,
+%  and each caller doing that arithmetic says so for itself.
+%
+%  One statement, because two callers want it: the band grid divides the
+%  budget by it, and the saving a band grid buys multiplies the rows not
+%  held by it. A second copy of the question would agree with this one
+%  until one of them was changed.
+%
+.xpostsys /.rowbytes {  % dict  .  cost
 2 dict begin
     /dev exch def
     2 dict begin
@@ -119,7 +127,7 @@ currentglobal true setglobal
     end exch pop
 end } bind put
 
-.xpostsys /.bandheight { % dict  .  rows
+.xpostsys /.bandheight {  % dict  .  rows
 5 dict begin
     /dev exch def
     /ph dev /height known { dev /height get }{ 0 } ifelse def
@@ -142,20 +150,22 @@ end } bind put
     }{ held } ifelse
 end } bind put
 
-% dict  .bandsaving  bytes
-% What holding this device's page a band at a time saves over holding it
-% whole: the raster of the run it paints, less the raster of one band of
-% that run. Zero for a page held whole, which saves nothing.
 %
-% It is the whole of what a device buys by holding its page's marks
-% instead of its pixels, and so the quantity a caller weighing the two
-% against each other wants.
+%  dict  .bandsaving  bytes
+%  What holding this device's page a band at a time saves over holding it
+%  whole: the raster of the run it paints, less the raster of one band of
+%  that run. Zero for a page held whole, which saves nothing.
 %
-% Both terms are read where the band loop reads them, above: how deep a
-% band is from .bandheight, what a row costs from .rowbytes. So the rows
-% this says are not held are the rows the loop does not hold, rather than
-% a second calculation that agrees with it until one of them is changed.
-.xpostsys /.bandsaving { % dict  .  bytes
+%  It is the whole of what a device buys by holding its page's marks
+%  instead of its pixels, and so the quantity a caller weighing the two
+%  against each other wants.
+%
+%  Both terms are read where the band loop reads them, above: how deep a
+%  band is from .bandheight, what a row costs from .rowbytes. So the rows
+%  this says are not held are the rows the loop does not hold, rather than
+%  a second calculation that agrees with it until one of them is changed.
+%
+.xpostsys /.bandsaving {  % dict  .  bytes
 4 dict begin
     /dev exch def
     /ph dev /height known { dev /height get }{ 0 } ifelse def
@@ -166,28 +176,30 @@ end } bind put
         { 0 } ifelse
 end } bind put
 
-% /target w rows  .bandsatpage  bool
-% Whether a run of this many rows, at this width, painted by the named
-% device, is one the recording class would hold in more than one band.
 %
-% The rows are the ones the device would hold, which is the page's own
-% height for a page held whole and the run an imaging bounding box
-% reaches for a page that declares one -- the caller says which
-% (.devicefor below).
+%  /target w rows  .bandsatpage  bool
+%  Whether a run of this many rows, at this width, painted by the named
+%  device, is one the recording class would hold in more than one band.
 %
-% Asked of the arithmetic above, over a dictionary standing for the
-% device that would be made rather than one that was: the width prices a
-% row of the target's raster, the budget says how many of those rows a
-% band holds, and a run with more rows than that is a run that bands.
-% Asking the one reading rather than restating the comparison is what
-% keeps the route and the loop from disagreeing about where the boundary
-% falls.
+%  The rows are the ones the device would hold, which is the page's own
+%  height for a page held whole and the run an imaging bounding box
+%  reaches for a page that declares one -- the caller says which
+%  (.devicefor below).
 %
-% A target this build cannot make, or one whose class prices no row, is
-% answered as banding: the answer decides only which of two ways a page
-% is reached, and both of them reach a device that is about to refuse
-% the target for the same reason.
-.xpostsys /.bandsatpage { % /target w rows  .  bool
+%  Asked of the arithmetic above, over a dictionary standing for the
+%  device that would be made rather than one that was: the width prices a
+%  row of the target's raster, the budget says how many of those rows a
+%  band holds, and a run with more rows than that is a run that bands.
+%  Asking the one reading rather than restating the comparison is what
+%  keeps the route and the loop from disagreeing about where the boundary
+%  falls.
+%
+%  A target this build cannot make, or one whose class prices no row, is
+%  answered as banding: the answer decides only which of two ways a page
+%  is reached, and both of them reach a device that is about to refuse
+%  the target for the same reason.
+%
+.xpostsys /.bandsatpage {  % /target w rows  .  bool
 6 dict begin
     /ph exch def
     /pw exch def
@@ -216,81 +228,83 @@ end } bind put
     }{ true } ifelse
 end } bind put
 
-% /name w h  .devicefor  /name'
-% Which device a selection is made through at a page of this extent.
 %
-% A run selecting a device whose page may arrive a band at a time has
-% that selection made through this class (src/lib/xpost_interpreter.c),
-% and this is where that is taken back. A record holds a page in less
-% memory than the page by never holding the page; a page the budget
-% already covers is played into a raster of the whole of it, so its
-% marks are written down, walked once and dropped again for a raster
-% that was going to be whole regardless. Under the budget the device the
-% run asked for is made directly, and the marks of such a page are
-% written down nowhere.
+%  /name w h  .devicefor  /name'
+%  Which device a selection is made through at a page of this extent.
 %
-% What is weighed is the rows the device would hold against the budget,
-% and nothing about what is on the page. Those rows are the page's own
-% height, and, where the page device has left the run an imaging
-% bounding box reaches for the device it is about to make (/.rasterband,
-% data/init.ps), that run instead: a device given a box builds a raster
-% of the rows the box reaches and no more (PLRM 6.2, data/image.ps), and
-% it is that raster the budget is a budget for. So a box that brings the
-% raster under the budget is a box that hands the page to the device
-% directly -- the argument above, with the run in place of the page,
-% since a record would write the marks down and drop them again for a
-% raster that was going to be that size regardless. Read here and taken
-% by the device that is made, which is the only thing that may take it.
+%  A run selecting a device whose page may arrive a band at a time has
+%  that selection made through this class (src/lib/xpost_interpreter.c),
+%  and this is where that is taken back. A record holds a page in less
+%  memory than the page by never holding the page; a page the budget
+%  already covers is played into a raster of the whole of it, so its
+%  marks are written down, walked once and dropped again for a raster
+%  that was going to be whole regardless. Under the budget the device the
+%  run asked for is made directly, and the marks of such a page are
+%  written down nowhere.
 %
-% The raster not held is the whole of what a page's own numbers can say,
-% and it is the term this rule accounts for. The other
-% side of the trade it does not account for at all: the marks the record
-% holds, which follow the drawing, and the objects a replay builds
-% afresh each time it plays a mark into a band, which follow the drawing
-% and the number of bands together. Neither is knowable from a page
-% extent, and the second is the larger of the two on a page of paths and
-% is paid once per band, so it is largest exactly where the budget buys
-% the most bands. So this rule is right about the memory a page gives
-% back and silent about what holding that page's marks instead costs.
+%  What is weighed is the rows the device would hold against the budget,
+%  and nothing about what is on the page. Those rows are the page's own
+%  height, and, where the page device has left the run an imaging
+%  bounding box reaches for the device it is about to make (/.rasterband,
+%  data/init.ps), that run instead: a device given a box builds a raster
+%  of the rows the box reaches and no more (PLRM 6.2, data/image.ps), and
+%  it is that raster the budget is a budget for. So a box that brings the
+%  raster under the budget is a box that hands the page to the device
+%  directly -- the argument above, with the run in place of the page,
+%  since a record would write the marks down and drop them again for a
+%  raster that was going to be that size regardless. Read here and taken
+%  by the device that is made, which is the only thing that may take it.
 %
-% Asked wherever a device is made: where this run's device is made from
-% its selection (.startdevice, data/device.ps), and again for every
-% page-device request that makes another (data/init.ps). Both are asked
-% at the page the device being made is to hold, so a job that opens at
-% one page and declares another is weighed at the page it declared --
-% which is how a program states a page at all, and the case the whole
-% mechanism is for.
+%  The raster not held is the whole of what a page's own numbers can say,
+%  and it is the term this rule accounts for. The other
+%  side of the trade it does not account for at all: the marks the record
+%  holds, which follow the drawing, and the objects a replay builds
+%  afresh each time it plays a mark into a band, which follow the drawing
+%  and the number of bands together. Neither is knowable from a page
+%  extent, and the second is the larger of the two on a page of paths and
+%  is paid once per band, so it is largest exactly where the budget buys
+%  the most bands. So this rule is right about the memory a page gives
+%  back and silent about what holding that page's marks instead costs.
 %
-% Asked at those two points and nowhere between them. Making a device is
-% where a page description has already given up whatever it knew of the
-% one before: a page-device request erases the page and replaces the
-% device (PLRM 6.2), so nothing has been painted that a change of route
-% could lose and nothing has been asked of the device being replaced that
-% could go on being true. Between two of them a device is being drawn on
-% and answering for itself, and a program that has looked at the one it
-% had cannot survive being handed another of a different class -- so the
-% route is never re-weighed there.
+%  Asked wherever a device is made: where this run's device is made from
+%  its selection (.startdevice, data/device.ps), and again for every
+%  page-device request that makes another (data/init.ps). Both are asked
+%  at the page the device being made is to hold, so a job that opens at
+%  one page and declares another is weighed at the page it declared --
+%  which is how a program states a page at all, and the case the whole
+%  mechanism is for.
 %
-% What that leaves a program unable to do is choose how its marks are
-% held, which PLRM Appendix G bars it from: a request is weighed on the
-% page it asks for, and the same page is weighed the same way whatever
-% the request was trying to arrange.
+%  Asked at those two points and nowhere between them. Making a device is
+%  where a page description has already given up whatever it knew of the
+%  one before: a page-device request erases the page and replaces the
+%  device (PLRM 6.2), so nothing has been painted that a change of route
+%  could lose and nothing has been asked of the device being replaced that
+%  could go on being true. Between two of them a device is being drawn on
+%  and answering for itself, and a program that has looked at the one it
+%  had cannot survive being handed another of a different class -- so the
+%  route is never re-weighed there.
 %
-% Only for the selection this run made, and only where the run did not
-% name this class itself: a request naming some other device than the
-% run's selection is made on that device directly. A record plays into
-% the device this run's selection was given banding for, so it is that
-% selection, and no other name a request may carry, that this weighs.
+%  What that leaves a program unable to do is choose how its marks are
+%  held, which PLRM Appendix G bars it from: a request is weighed on the
+%  page it asks for, and the same page is weighed the same way whatever
+%  the request was trying to arrange.
 %
-% And only where that selection named no mode. A mode is a run saying
-% which of the two routes it wants and is not the weighing's to
-% overrule: -d pgm:band is given to this class and records at any page,
-% and -d pgm:whole never reaches this class at all, being left on the
-% device it names where the selection is read
-% (src/lib/xpost_interpreter.c). So the one mode that arrives here is the
-% one that says to band, and a selection carrying it is answered without
-% being weighed.
-.xpostsys /.devicefor { % /name w h  .  /name'
+%  Only for the selection this run made, and only where the run did not
+%  name this class itself: a request naming some other device than the
+%  run's selection is made on that device directly. A record plays into
+%  the device this run's selection was given banding for, so it is that
+%  selection, and no other name a request may carry, that this weighs.
+%
+%  And only where that selection named no mode. A mode is a run saying
+%  which of the two routes it wants and is not the weighing's to
+%  overrule: -d pgm:band is given to this class and records at any page,
+%  and -d pgm:whole never reaches this class at all, being left on the
+%  device it names where the selection is read
+%  (src/lib/xpost_interpreter.c). So the one mode that arrives here is the
+%  one that says to band, and a selection carrying it is answered without
+%  being weighed.
+%
+.xpostsys /.devicefor {  % /name w h  .  /name'
 6 dict begin
     /ph exch def
     /pw exch def
@@ -312,19 +326,21 @@ end } bind put
     }{ nm } ifelse
 end } bind put
 
-% dict  .playdrop  -
-% Give up the device a record paints through.
 %
-% The record makes that device and is the only thing that names it, so a
-% record that stops naming one has left a device nothing will ever
-% retire: what such a device holds is a raster, which is not virtual
-% memory (PLRM 3.7.3) and which the collector therefore neither reaches
-% nor gives back.
+%  dict  .playdrop  -
+%  Give up the device a record paints through.
 %
-% It is unnamed before it is retired, so a second attempt finds nothing
-% rather than a device that has begun to give up its memory. A record
-% that has painted through nothing yet has nothing to give up.
-.xpostsys /.playdrop { % dict  .  -
+%  The record makes that device and is the only thing that names it, so a
+%  record that stops naming one has left a device nothing will ever
+%  retire: what such a device holds is a raster, which is not virtual
+%  memory (PLRM 3.7.3) and which the collector therefore neither reaches
+%  nor gives back.
+%
+%  It is unnamed before it is retired, so a second attempt finds nothing
+%  rather than a device that has begun to give up its memory. A record
+%  that has painted through nothing yet has nothing to give up.
+%
+.xpostsys /.playdrop {  % dict  .  -
 1 dict {
     /pd.rec exch def
     pd.rec /.playdev known {
@@ -335,35 +351,37 @@ end } bind put
     } if
 } //.xpostsys /.indict get exec } bind put
 
-% rec page  .playparams  -
-% The page-device parameters a program asked of a record, put onto the
-% device that paints for it.
 %
-% A page-device request settles what a device is to do, and its keys are
-% stored on the device the request made (data/init.ps). Where that device
-% is a record, the device that paints is one the record makes for itself
-% out of a class, so a key the program asked for reached the record and
-% stopped there and the painter knew only what its class said.
+%  rec page  .playparams  -
+%  The page-device parameters a program asked of a record, put onto the
+%  device that paints for it.
 %
-% Which names are the request's is read from the request rather than
-% listed: what currentpagedevice holds is what was asked for, and what is
-% carried across is what the record actually has under those names. So a
-% key the page-device machinery keeps to itself is not carried, and
-% neither is anything of the record's own that no request named.
+%  A page-device request settles what a device is to do, and its keys are
+%  stored on the device the request made (data/init.ps). Where that device
+%  is a record, the device that paints is one the record makes for itself
+%  out of a class, so a key the program asked for reached the record and
+%  stopped there and the painter knew only what its class said.
 %
-% They are carried before the completion runs, so that a key the
-% completion reads -- the process colour model is one -- is there when it
-% looks. A key a device reads as it is created arrives separately, at
-% the copy the instance is made by: every route that makes a device
-% leaves the request's keys for that copy to take (.classcopydict,
-% data/device.ps), .playmake above among them. What this carries is for
-% the instance that is past its copy -- a raster being kept, and the
-% completion about to read the device it kept.
+%  Which names are the request's is read from the request rather than
+%  listed: what currentpagedevice holds is what was asked for, and what is
+%  carried across is what the record actually has under those names. So a
+%  key the page-device machinery keeps to itself is not carried, and
+%  neither is anything of the record's own that no request named.
 %
-% /Private is the one name skipped. It is the handle a device's own state
-% is reached through, issued to the instance holding that state, and a
-% request naming it would otherwise hand the painter the record's.
-.xpostsys /.playparams { % rec page  .  -
+%  They are carried before the completion runs, so that a key the
+%  completion reads -- the process colour model is one -- is there when it
+%  looks. A key a device reads as it is created arrives separately, at
+%  the copy the instance is made by: every route that makes a device
+%  leaves the request's keys for that copy to take (.classcopydict,
+%  data/device.ps), .playmake above among them. What this carries is for
+%  the instance that is past its copy -- a raster being kept, and the
+%  completion about to read the device it kept.
+%
+%  /Private is the one name skipped. It is the handle a device's own state
+%  is reached through, issued to the instance holding that state, and a
+%  request naming it would otherwise hand the painter the record's.
+%
+.xpostsys /.playparams {  % rec page  .  -
 2 dict {
     /pp.page exch def
     /pp.rec exch def
@@ -384,7 +402,7 @@ setglobal
 
 /.xpost_RECORD <<
     /dimensions [0 0]
-    /NoOutput true  % write the marks down; never rasterize
+    /NoOutput true  % Write the marks down; never rasterize
 
     % Which device paints this record's page, by the name a run selects
     % it with: -d pgm and -d pgm:band ask for a page played into the
@@ -469,7 +487,7 @@ setglobal
     % save because raster memory is not part of virtual memory (PLRM
     % 3.7.3), and the ground the page was cleared to has to keep to the
     % page it describes.
-    /Ground { % c1..cN IMAGE  .  -
+    /Ground {  % c1..cN IMAGE  .  -
     {
         currentdict /.ground known not {
             currentglobal true setglobal
@@ -558,7 +576,7 @@ setglobal
     % painted in, and the call belongs there. A record that has painted
     % through nothing yet, and one whose painter takes no such call, has
     % nothing to do.
-    /Flush { % IMAGE  .  -
+    /Flush {  % IMAGE  .  -
     {
         currentdict /.playdev known {
             .playdev dup /Flush 2 copy known
@@ -610,7 +628,7 @@ setglobal
     % record itself is priced by the marks and takes any page there is;
     % what refuses a page past what a raster holds is the raster built
     % here.
-    /.playmake { % IMAGE  .  -
+    /.playmake {  % IMAGE  .  -
     16 dict {
         /rec exch def
         /pw rec /width get def
@@ -825,7 +843,7 @@ setglobal
     % ground over them -- which is the page a device holding the same box
     % directly puts out, so declaring a box costs the same rows and the
     % same marks whichever route the page took.
-    /.playpage { % IMAGE  .  -
+    /.playpage {  % IMAGE  .  -
     16 dict {
         /rec exch def
 

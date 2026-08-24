@@ -1,4 +1,5 @@
 %!PS
+%
 % nulldev.ps
 %
 % The null device (PLRM 8.2), which draws nothing and holds no raster.
@@ -8,84 +9,88 @@
 
 //.internaldict /QUIET known { }{ (loading nulldev.ps...)print } ifelse
 
-% -  nulldevice  -
-% Install the null device (PLRM 8.2). Its default transformation matrix
-% is the identity: the device corresponds to no physical page, so there
-% is no resolution to scale by and no page height to measure a flip
-% from. The matrix is given here rather than by the shared device
-% completion, which derives one from a real page's size.
+%
+%  -  nulldevice  -
+%
+%  Install the null device (PLRM 8.2). Its default transformation matrix
+%  is the identity: the device corresponds to no physical page, so there
+%  is no resolution to scale by and no page height to measure a flip
+%  from. The matrix is given here rather than by the shared device
+%  completion, which derives one from a real page's size.
+%
 /nulldevice [ ] {
     graphicsdict /currgstate get /device
     612 792 .privatedict /newnulldevice get exec
     dup /defaultmatrix [ 1.0 0.0 0.0 1.0 0.0 0.0 ] put
     put
 } //.xpostsys /.defop get exec
-.privatedict /newnulldevice { % width height
+.privatedict /newnulldevice {  % width height
     .privatedict /.xpost_NULLDEV get dup /Create get exec
 } put
 
-% .xpost_NULLDEV device implements the "nulldevice", which
-% does no drawing, but otherwise performs all graphics operations
-% and will return appropriately-transformed graphics state parameters.
 %
-% In the list of procedures below, .xpost_PGMIMAGE is the Class dictionary,
-% IMAGE is an instance returned by Create.
-% The nulldevice implementations of these methods
-% merely have to consume these arguments from the stack
-% using `pop`.
+%  .xpost_NULLDEV device implements the "nulldevice", which
+%  does no drawing, but otherwise performs all graphics operations
+%  and will return appropriately-transformed graphics state parameters.
 %
-% procedures:
-%           width height .xpost_PGMIMAGE  Create  ->  IMAGE
-%                   val x y IMAGE  PutPix  ->  -
-%                       x y IMAGE  GetPix  ->  val
-%           val x1 y1 x2 y2 IMAGE  DrawLine  ->  -
-%      val x y width height IMAGE  DrawRect  ->  -
-%      val x y width height IMAGE  FillRect  ->  -
-%               val polygon IMAGE  FillPoly  ->  -
-%                           IMAGE  Emit  ->  -
-%                           IMAGE  Destroy  ->  -
-%                           dict1  .copydict  dict2
+%  In the list of procedures below, .xpost_PGMIMAGE is the Class dictionary,
+%  IMAGE is an instance returned by Create.
+%  The nulldevice implementations of these methods
+%  merely have to consume these arguments from the stack
+%  using `pop`.
 %
-
+%  procedures:
+%            width height .xpost_PGMIMAGE  Create  ->  IMAGE
+%                    val x y IMAGE  PutPix  ->  -
+%                        x y IMAGE  GetPix  ->  val
+%            val x1 y1 x2 y2 IMAGE  DrawLine  ->  -
+%       val x y width height IMAGE  DrawRect  ->  -
+%       val x y width height IMAGE  FillRect  ->  -
+%                val polygon IMAGE  FillPoly  ->  -
+%                            IMAGE  Emit  ->  -
+%                            IMAGE  Destroy  ->  -
+%                            dict1  .copydict  dict2
+%
+%
 /.xpost_NULLDEV <<
     /nativecolorspace /DeviceGray
     /dimensions [0 0]
-    /NoOutput true % this device draws nothing: keep its no-op methods
+    /NoOutput true  % This device draws nothing: keep its no-op methods
 
     /.copydict //.xpostsys /.classcopydict get
-    /Create { % width height IMAGE  .  IMAGE'
+    /Create {  % width height IMAGE  .  IMAGE'
         begin {/height /width}{exch def}forall
         currentdict end
         dup /.copydict get exec
     }
 
-    /Destroy { % IMAGE  .  -
+    /Destroy {  % IMAGE  .  -
         pop
-    } 
+    }
 
-    /PutPix { % val x y IMAGE  .  -
+    /PutPix {  % val x y IMAGE  .  -
         pop pop pop pop
     }
 
-    /GetPix { % x y IMAGE  .  val
+    /GetPix {  % x y IMAGE  .  val
         pop pop pop  0
     }
 
-    /DrawLine { % val x1 y1 x2 y2 IMAGE  .  -
+    /DrawLine {  % val x1 y1 x2 y2 IMAGE  .  -
         pop pop pop pop pop pop
     }
 
-    /DrawRect { % val x y w h IMAGE  .  -
+    /DrawRect {  % val x y w h IMAGE  .  -
         pop pop pop pop pop pop
     }
 
-    /FillRect { % val x y w h IMAGE  .  -
+    /FillRect {  % val x y w h IMAGE  .  -
         pop pop pop pop pop pop
     }
 
-    /FillPoly { % val polygon IMAGE  .  -
+    /FillPoly {  % val polygon IMAGE  .  -
         pop pop pop
-    } 
+    }
 
     /Emit {
         pop

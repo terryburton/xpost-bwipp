@@ -1,4 +1,5 @@
 %!PS
+%
 % clip.ps
 %
 % The clipping region: setting it, resolving it, and meeting a paint against it.
@@ -8,37 +9,41 @@
 
 //.internaldict /QUIET known { }{ (loading clip.ps...)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% region source  .setclipregion  -
 %
-% The one writer of the clip.
+%  region source  .setclipregion  -
 %
-% The clip is a single value wearing three faces. /clipregion is the
-% resolved region every painter meets what it was about to paint
-% against. /clipsource is the shape to hand a device that clips for
-% itself, or null when there is none to hand over. /clipcache holds what
-% has been worked out about the region so far, and belongs to that region
-% and no other. Set one and not the rest and the others go on describing
-% a clip that is no longer in force -- which is not a fault that shows
-% up where it is made: the painters keep enforcing the region while a
-% vector device writes the old shape into its page, and no rasterised
-% render of the same job disagrees with anything.
+%  The one writer of the clip.
 %
-% So no site sets one face. Every site that replaces the clip says what
-% all of it becomes, here, in one call. tests/check-clip-writer.sh holds
-% the tree to that: a put of any of the three names anywhere else fails
-% the build.
+%  The clip is a single value wearing three faces. /clipregion is the
+%  resolved region every painter meets what it was about to paint
+%  against. /clipsource is the shape to hand a device that clips for
+%  itself, or null when there is none to hand over. /clipcache holds what
+%  has been worked out about the region so far, and belongs to that region
+%  and no other. Set one and not the rest and the others go on describing
+%  a clip that is no longer in force -- which is not a fault that shows
+%  up where it is made: the painters keep enforcing the region while a
+%  vector device writes the old shape into its page, and no rasterised
+%  render of the same job disagrees with anything.
 %
-% The cache holder is a fresh dictionary each time, not a cleared one,
-% because a graphics state copy shares dictionary values by reference:
-% a gsave takes the holder with it, a clip inside the gsave installs its
-% own, and the grestore brings the outer holder back with whatever it had
-% worked out still in it. The serial names the region for the resolved
-% form the intersection keeps in C, and comes from a counter that never
-% repeats a number.
-.xpostsys /.setclipregion { % region source  .  -
+%  So no site sets one face. Every site that replaces the clip says what
+%  all of it becomes, here, in one call. tests/check-clip-writer.sh holds
+%  the tree to that: a put of any of the three names anywhere else fails
+%  the build.
+%
+%  The cache holder is a fresh dictionary each time, not a cleared one,
+%  because a graphics state copy shares dictionary values by reference:
+%  a gsave takes the holder with it, a clip inside the gsave installs its
+%  own, and the grestore brings the outer holder back with whatever it had
+%  worked out still in it. The serial names the region for the resolved
+%  form the intersection keeps in C, and comes from a counter that never
+%  repeats a number.
+%
+.xpostsys /.setclipregion {  % region source  .  -
     graphicsdict /currgstate get
     dup 3 -1 roll /clipsource exch put
     dup 3 -1 roll /clipregion exch put
@@ -46,22 +51,24 @@ true setglobal
     /clipcache exch put
 } bind put
 
-% -  .clipregionpoly  poly
-% The clip region in the device FillPoly argument format, for a consumer
-% that wants the region's vertices in an array. .fillpolyargs reads the
-% current path, so the region stands in for it briefly.
 %
-% An array's length is a bounded field, so a region of enough vertices
-% has no such form and this refuses. The region intersection does not
-% come this way -- it reads the region's path itself, where no such
-% bound applies -- so what refuses here is a consumer's own question and
-% not a painter's.
+%  -  .clipregionpoly  poly
+%  The clip region in the device FillPoly argument format, for a consumer
+%  that wants the region's vertices in an array. .fillpolyargs reads the
+%  current path, so the region stands in for it briefly.
 %
-% Kept in the clip's own holder once worked out, since building it is
-% the same work every time and the region does not change under it.
+%  An array's length is a bounded field, so a region of enough vertices
+%  has no such form and this refuses. The region intersection does not
+%  come this way -- it reads the region's path itself, where no such
+%  bound applies -- so what refuses here is a consumer's own question and
+%  not a painter's.
 %
-% A holder of serial zero is the one every graphics state is built with
-% and shares until its first clip, so nothing is kept there.
+%  Kept in the clip's own holder once worked out, since building it is
+%  the same work every time and the region does not change under it.
+%
+%  A holder of serial zero is the one every graphics state is built with
+%  and shares until its first clip, so nothing is kept there.
+%
 .xpostsys /.clipregionpoly {
     graphicsdict /currgstate get /clipcache get
     dup /poly known {
@@ -77,19 +84,21 @@ true setglobal
     } ifelse
 } bind put
 
-% subjectpoly  .clipmeet  spanpoly
-% What the clip in force leaves of a region about to be painted. The one
-% way a painter asks that question; the rule it is answered by is stated
-% at .regionmeet.
 %
-% The region goes over as the path the graphics state holds it in, and
-% not as a polygon read out of an array. A region cut from another is
-% one pixel-band rectangle per band it covers, and a page divided finely
-% across the rows has more of those than any single array describes;
-% a path carries its extent in a header field of its own and has no
-% such bound. What the answer costs is another matter, and the answer
-% is an array: an intersection too finely divided for one refuses here,
-% and .clipmeetparts below is what asks again in parts.
+%  subjectpoly  .clipmeet  spanpoly
+%  What the clip in force leaves of a region about to be painted. The one
+%  way a painter asks that question; the rule it is answered by is stated
+%  at .regionmeet.
+%
+%  The region goes over as the path the graphics state holds it in, and
+%  not as a polygon read out of an array. A region cut from another is
+%  one pixel-band rectangle per band it covers, and a page divided finely
+%  across the rows has more of those than any single array describes;
+%  a path carries its extent in a header field of its own and has no
+%  such bound. What the answer costs is another matter, and the answer
+%  is an array: an intersection too finely divided for one refuses here,
+%  and .clipmeetparts below is what asks again in parts.
+%
 .xpostsys /.clipmeet {
     graphicsdict /currgstate get
     dup /clipregion get
@@ -98,28 +107,32 @@ true setglobal
     .regionmeet
 } bind put
 
-% How deep a tile of the page reaches before anything is asked of it.
-% A tile is halved until what it holds fits one array, so this settles
-% where the halving starts and not where it ends.
+%
+%  How deep a tile of the page reaches before anything is asked of it.
+%  A tile is halved until what it holds fits one array, so this settles
+%  where the halving starts and not where it ends.
+%
 .xpostsys /.cliptilerows 2048 put
 
-% subject x0 y0 x1 y1  .cliptile  spans ...
-% What the clip in force leaves of the subject region inside the tile,
-% in the pixel-band rectangles .clipmeet answers in: one array, or
-% several over shallower tiles when what is left holds more bands than
-% one array's length field describes. A null subject asks for the whole
-% of the tile.
 %
-% The cut is across the rows, halving the tile until each piece carries
-% its own bands, so a region divided finely across the rows is resolved
-% as readily as one reaching far down them. A tile one row deep cannot
-% be cut again, so a row holding more runs than an array carries hands
-% its refusal up.
+%  subject x0 y0 x1 y1  .cliptile  spans ...
+%  What the clip in force leaves of the subject region inside the tile,
+%  in the pixel-band rectangles .clipmeet answers in: one array, or
+%  several over shallower tiles when what is left holds more bands than
+%  one array's length field describes. A null subject asks for the whole
+%  of the tile.
 %
-% The tiles meet along row boundaries and no two of them describe the
-% same row, which is what lets their spans be painted one after
-% another: a pixel two tiles both described would be painted twice, and
-% blended twice as dark.
+%  The cut is across the rows, halving the tile until each piece carries
+%  its own bands, so a region divided finely across the rows is resolved
+%  as readily as one reaching far down them. A tile one row deep cannot
+%  be cut again, so a row holding more runs than an array carries hands
+%  its refusal up.
+%
+%  The tiles meet along row boundaries and no two of them describe the
+%  same row, which is what lets their spans be painted one after
+%  another: a pixel two tiles both described would be painted twice, and
+%  blended twice as dark.
+%
 .xpostsys /.cliptile {
     5 dict begin
     /ty1 exch def /tx1 exch def /ty0 exch def /tx0 exch def
@@ -143,23 +156,25 @@ true setglobal
     end
 } put
 
-% subjectpoly  .clipmeetparts  [ spans ... ]
-% What the clip in force leaves of the subject region, in the parts a
-% painter marks one after another. Normally the one array .clipmeet
-% answers with; several, over disjoint bands of rows, when the answer
-% holds more bands than one array's length field describes.
 %
-% A band costs five array elements and an array's length is a bounded
-% field, so a fill of a page under a comb or a stipple has an answer
-% too finely divided for any single array to describe. That is a bound
-% on the description and not on the painting: the parts describe the
-% same pixels between them, so what is painted is what PLRM 7.5.1 asks
-% for -- the pixels the operation covers met with the pixels of the
-% region -- whether the answer took one array or twenty.
+%  subjectpoly  .clipmeetparts  [ spans ... ]
+%  What the clip in force leaves of the subject region, in the parts a
+%  painter marks one after another. Normally the one array .clipmeet
+%  answers with; several, over disjoint bands of rows, when the answer
+%  holds more bands than one array's length field describes.
 %
-% The tiles are cut out of the rows and columns the subject reaches,
-% which is where the answer can lie: a tile stretched past the subject
-% would be halved over rows that could hold nothing.
+%  A band costs five array elements and an array's length is a bounded
+%  field, so a fill of a page under a comb or a stipple has an answer
+%  too finely divided for any single array to describe. That is a bound
+%  on the description and not on the painting: the parts describe the
+%  same pixels between them, so what is painted is what PLRM 7.5.1 asks
+%  for -- the pixels the operation covers met with the pixels of the
+%  region -- whether the answer took one array or twenty.
+%
+%  The tiles are cut out of the rows and columns the subject reaches,
+%  which is where the answer can lie: a tile stretched past the subject
+%  would be halved over rows that could hold nothing.
+%
 .xpostsys /.clipmeetparts {
     16 dict begin
     /subj exch def
@@ -196,35 +211,42 @@ true setglobal
     end
 } put
 
-% [ spans ... ]  .clippartsmeet  [ spans ... ]
-% What the clip in force leaves of a subject already stated in parts.
-% Each part is met on its own and the answers stand together: the parts
-% describe disjoint bands of rows, so the answers do too, and a painter
-% marking them one after another marks no pixel twice.
+%
+%  [ spans ... ]  .clippartsmeet  [ spans ... ]
+%  What the clip in force leaves of a subject already stated in parts.
+%  Each part is met on its own and the answers stand together: the parts
+%  describe disjoint bands of rows, so the answers do too, and a painter
+%  marking them one after another marks no pixel twice.
+%
 .xpostsys /.clippartsmeet {
     [ exch { //.xpostsys /.clipmeetparts get exec aload pop } forall ]
 } bind put
 
-% [ spans ... ]  .clipstoreparts  -
-% Make the parts the clip region: they become one path, which is what a
-% graphics state holds a region in and what the region intersection
-% reads. A region of more bands than one array describes is still one
-% path, since a path carries its extent in a header field of its own.
 %
-% The caller is left with the region as its current path, which is where
-% the clip writers each want it.
+%  [ spans ... ]  .clipstoreparts  -
+%  Make the parts the clip region: they become one path, which is what a
+%  graphics state holds a region in and what the region intersection
+%  reads. A region of more bands than one array describes is still one
+%  path, since a path carries its extent in a header field of its own.
+%
+%  The caller is left with the region as its current path, which is where
+%  the clip writers each want it.
+%
 .xpostsys /.clipstoreparts {
     newpath
     { //.xpostsys /.polytopath get exec } forall
 } bind put
 
-% -  initclip  -
-% Replace the clip region with the whole page (PLRM 8.2). The device
-% reports its dimensions in device pixels, so the rectangle is built with
-% the identity in force and the matrix put back afterwards; the program's
-% own current path is stashed over the construction and restored, since
-% initclip changes the clip and nothing else. The corners are walked
-% counter-clockwise so the region has the winding the painters expect.
+%
+%  -  initclip  -
+%
+%  Replace the clip region with the whole page (PLRM 8.2). The device
+%  reports its dimensions in device pixels, so the rectangle is built with
+%  the identity in force and the matrix put back afterwards; the program's
+%  own current path is stashed over the construction and restored, since
+%  initclip changes the clip and nothing else. The corners are walked
+%  counter-clockwise so the region has the winding the painters expect.
+%
 /initclip [ ] {
     graphicsdict /currgstate get /currpath get
     matrix currentmatrix
@@ -302,16 +324,16 @@ true setglobal
     } ifelse } ifelse
     % each branch above left the new region as the current path: put the
     % caller's path back and install the clip, both faces at once
-    graphicsdict /currgstate get /currpath get      % source saved region
+    graphicsdict /currgstate get /currpath get      % Source saved region
     graphicsdict /currgstate get /currpath 3 index put
-    exch pop                                        % source region
+    exch pop                                        % Source region
     exch //.xpostsys /.setclipregion get exec
 } //.xpostsys /.defop get exec
 
-.xpostsys /p2abc { % x0 y0 x1 y1
+.xpostsys /p2abc {  % x0 y0 x1 y1
     exch 3 index sub
-    exch 2 index sub % x0 y0 dx dy
-    exch         % x0 y0 A B
+    exch 2 index sub  % X0 y0 dx dy
+    exch         % X0 y0 A B
     neg
     2 copy 6 2 roll  % A B x0 y0 A B
     3 -1 roll mul    % A B x0 A By0
@@ -319,26 +341,29 @@ true setglobal
     add neg          % A B C
 } bind put
 
-% evaluate and hodgman-sutherland
-% from Bill Casselman's Mathematical Illustrations, ch. 5.
-
-.xpostsys /evaluate { %    x y [A B C]
-    aload pop    % x y A B C
+%
+%  evaluate and hodgman-sutherland
+%  from Bill Casselman's Mathematical Illustrations, ch. 5.
+%
+.xpostsys /evaluate {  %    x y [A B C]
+    aload pop    % X y A B C
     5 1 roll     % C x y A B
-    3 2 roll mul % C x A By
-    3 1 roll mul % C By Ax
+    3 2 roll mul  % C x A By
+    3 1 roll mul  % C By Ax
     add add
 } bind put
 
-% hodgman-sutherland keeps the half-plane to the left of each directed
-% clip edge, so a clip polygon's interior must lie to the left of its
-% edges: a positive signed area, the winding initclip produces. A user
-% clip path can arrive in the opposite device-space winding (e.g. after
-% the y-flip), which would keep the exterior and clip everything away.
-% Reverse such a polygon so its winding always matches.
-% doubled signed area of a closed polygon (first point repeated at the
-% end); positive when wound counter-clockwise in device space
-.xpostsys /polyarea2 { % poly  .  a2
+%
+%  hodgman-sutherland keeps the half-plane to the left of each directed
+%  clip edge, so a clip polygon's interior must lie to the left of its
+%  edges: a positive signed area, the winding initclip produces. A user
+%  clip path can arrive in the opposite device-space winding (e.g. after
+%  the y-flip), which would keep the exterior and clip everything away.
+%  Reverse such a polygon so its winding always matches.
+%  doubled signed area of a closed polygon (first point repeated at the
+%  end); positive when wound counter-clockwise in device space
+%
+.xpostsys /polyarea2 {  % poly  .  a2
     8 dict begin
     /poly exch def
     /a2 0.0 def
@@ -352,7 +377,7 @@ true setglobal
     end
 } bind put
 
-.xpostsys /normclipwind { % poly  .  poly'
+.xpostsys /normclipwind {  % poly  .  poly'
     dup //.xpostsys /polyarea2 get exec 0 lt {
         4 dict begin
         /poly exch def
@@ -361,18 +386,20 @@ true setglobal
     } if
 } bind put
 
-% polygon [A B C]  .  new-polygon
-% Canonical Sutherland-Hodgman: clip the closed polygon (points array,
-% first point repeated at the end) against the half-plane where the clip
-% line evaluates <= 0. For each edge P->Q emit Q when it lies inside, and
-% emit the edge's crossing point wherever the edge enters or leaves the
-% half-plane. Correct for any convex clip window and any edge orientation.
+%
+%  polygon [A B C]  .  new-polygon
+%  Canonical Sutherland-Hodgman: clip the closed polygon (points array,
+%  first point repeated at the end) against the half-plane where the clip
+%  line evaluates <= 0. For each edge P->Q emit Q when it lies inside, and
+%  emit the edge's crossing point wherever the edge enters or leaves the
+%  half-plane. Correct for any convex clip window and any edge orientation.
+%
 .xpostsys /hodgman-sutherland {
 	16 dict
 	begin
     /f exch def
     /p exch def
-    /n p length 1 sub def   % edge count (p carries a duplicated closing point)
+    /n p length 1 sub def   % Edge count (p carries a duplicated closing point)
     /DEBUGCLIP where { pop (n=)print n = } if
     n 0 gt {
         /out [
@@ -414,14 +441,16 @@ end }
 bind
 put
 
-% A subpath split off at a closepath enters through the bridge the
-% path walked from the closing point: its leading edge doubles its
-% trailing edge. Peel such pairs until the polygon walks only its own
-% boundary; what remains classifies as a window or hole by winding.
-.xpostsys /despike { % poly  .  poly'
+%
+%  A subpath split off at a closepath enters through the bridge the
+%  path walked from the closing point: its leading edge doubles its
+%  trailing edge. Peel such pairs until the polygon walks only its own
+%  boundary; what remains classifies as a window or hole by winding.
+%
+.xpostsys /despike {  % poly  .  poly'
     2 dict begin
     /p exch def
-    { % loop
+    {  % loop
         p length 4 lt { exit } if
         p 1 get aload pop p p length 2 sub get aload pop
         exch 4 -1 roll eq 3 1 roll eq and not { exit } if
@@ -431,35 +460,37 @@ put
     end
 } bind put
 
-% -  doclip  -
 %
-% Cut the current path to the shape of the clip region, in reals, by the
-% half-plane clipper above: the path becomes a path describing the part
-% of itself inside the region.
+%  -  doclip  -
 %
-% This answers a question about SHAPE, not about pixels. It is not the
-% region intersection and is no substitute for one: .regionmeet resolves
-% both operands to the pixels they cover before meeting them, as PLRM
-% 7.5.1 requires of clipping, and this cuts the geometry first and leaves
-% the resolving until afterwards -- so a boundary that runs inside a
-% pixel row survives one and not the other. Where a fill takes this route
-% the difference is a boundary row, and the case that settles which is
-% right is self-consistency: a region painted in pieces must cover the
-% pixels one solid fill of the same path covers.
+%  Cut the current path to the shape of the clip region, in reals, by the
+%  half-plane clipper above: the path becomes a path describing the part
+%  of itself inside the region.
 %
-% What it is for is keeping a shape a shape. A device that clips for
-% itself wants a path, and a fill under a rectangular region stays whole
-% rectangles through here where the pixel route would leave it one
-% subpath per scanline -- which for a vector device is the whole page
-% written out a row at a time.
+%  This answers a question about SHAPE, not about pixels. It is not the
+%  region intersection and is no substitute for one: .regionmeet resolves
+%  both operands to the pixels they cover before meeting them, as PLRM
+%  7.5.1 requires of clipping, and this cuts the geometry first and leaves
+%  the resolving until afterwards -- so a boundary that runs inside a
+%  pixel row survives one and not the other. Where a fill takes this route
+%  the difference is a boundary row, and the case that settles which is
+%  right is self-consistency: a region painted in pieces must cover the
+%  pixels one solid fill of the same path covers.
 %
-% convert the path to an array of polygons (arrays of points)
-% convert clipregion to array of polygons
-% traverse the clipregion
-%    convert line to [A B C] form
-%    feed polygon and line to hodgman-sutherland,
-%       receiving new polygon.
-% convert polygon array back to path structure
+%  What it is for is keeping a shape a shape. A device that clips for
+%  itself wants a path, and a fill under a rectangular region stays whole
+%  rectangles through here where the pixel route would leave it one
+%  subpath per scanline -- which for a vector device is the whole page
+%  written out a row at a time.
+%
+%  convert the path to an array of polygons (arrays of points)
+%  convert clipregion to array of polygons
+%  traverse the clipregion
+%     convert line to [A B C] form
+%     feed polygon and line to hodgman-sutherland,
+%        receiving new polygon.
+%  convert polygon array back to path structure
+%
 .xpostsys /doclip {
     % when the clip region is an axis-aligned rectangle that already
     % contains the whole path, clipping passes every point through
@@ -469,19 +500,19 @@ put
 	20 dict
 	begin
 
-    %/isclosed 
-    %    cpath dup length 1 sub get 
-    %    dup length 1 sub get /cmd /close eq 
+    %/isclosed
+    %    cpath dup length 1 sub get
+    %    dup length 1 sub get /cmd /close eq
     %def
     %closepath
 
     flattenpath
     /PA [                           % PAth    polygon array
-        [  % mark
+        [  % Mark
         {
             2 array astore  % ... mark ... [x0 y0]
             counttomark 1 ne {
-                counttomark 1 add 1 roll % ... [x0 y0] mark ...
+                counttomark 1 add 1 roll  % ... [x0 y0] mark ...
                 ] exch  % ... [ ... ] [x0 y0]
                 [ exch  % ... [ ... ] [ [x0 y0]
             } if  % ... mark [x0 y0]
@@ -489,9 +520,9 @@ put
         }
         { 2 array astore }  % ... mark [x0 y0] ... [xN yN]
         {}
-        { counttomark 1 sub index } % ... mark [x0 y0] ... [x0 y0]
+        { counttomark 1 sub index }  % ... mark [x0 y0] ... [x0 y0]
         //.xpostsys /.devpathforall get exec
-        ]  % /PA mark [...] [...] [...] 
+        ]  % /PA mark [...] [...] [...]
     ] def
 
     % A closepath ends a clip subpath, but need not be followed by a
@@ -547,7 +578,7 @@ put
     /shn 0 def
     /shnmax 4000000 def
     /holemax 200 def
-    CR { % one clipping polygon
+    CR {  % one clipping polygon
 	//.xpostsys /despike get exec
 	% fewer than three points bound no area (e.g. the bare pen
 	% moveto charpath leaves after its outlines)
@@ -569,13 +600,13 @@ put
 		    % a degenerate edge (a contour closing on its own start,
 		    % exactly or within float noise) has no usable half-plane
 		}{
-		    [ U aload pop V aload pop //.xpostsys /p2abc get exec ]  % clip-line
+		    [ U aload pop V aload pop //.xpostsys /p2abc get exec ]  % Clip-line
 		    /CL exch def
 		    /DEBUGCLIP where { pop
 			CL ==
 		    } if
 
-		    /PA [ PA { % one subject polygon
+		    /PA [ PA {  % one subject polygon
 			CL //.xpostsys /hodgman-sutherland get exec
 			/shn shn 1 add def
 			shn shnmax gt { /clip cvx /limitcheck signalerror } if
@@ -637,9 +668,9 @@ put
                 aload pop .devlineto
             } forall
 
-            dup dup length 1 sub get aload pop % P xN yN
-            2 index 0 get aload pop % P xN yN x0 y0
-            exch 4 1 roll % P x0 xN yN y0
+            dup dup length 1 sub get aload pop  % P xN yN
+            2 index 0 get aload pop  % P xN yN x0 y0
+            exch 4 1 roll  % P x0 xN yN y0
             eq 3 1 roll eq and {
                 .retagclose
             } if
@@ -651,13 +682,17 @@ put
 
 end
     } if }
-%dup 0 10 dict put
+%
+% dup 0 10 dict put
+%
 bind
 put
 
-% poly  .polytopath  -
-% append a null-separated polygon array (device-space point pairs) to
-% the current path
+%
+%  poly  .polytopath  -
+%  append a null-separated polygon array (device-space point pairs) to
+%  the current path
+%
 .xpostsys /.polytopath {
     1 dict begin
     /first true def
@@ -674,13 +709,16 @@ put
     end
 } bind put
 
-% -  eoclip  -
-% intersect the clip region with the even-odd interior of the current
-% path. The interior resolves to pixel-band rectangles through the
-% fill pipeline's scan-conversion; the rectangles, being
-% winding-uniform, intersect the existing region exactly through the
-% span machinery and serve every later paint the same way. The
-% caller's path survives untouched, as with clip.
+%
+%  -  eoclip  -
+%
+%  intersect the clip region with the even-odd interior of the current
+%  path. The interior resolves to pixel-band rectangles through the
+%  fill pipeline's scan-conversion; the rectangles, being
+%  winding-uniform, intersect the existing region exactly through the
+%  span machinery and serve every later paint the same way. The
+%  caller's path survives untouched, as with clip.
+%
 /eoclip [ ] {
     graphicsdict /currgstate get /currpath get .copypath
     flattenpath
@@ -697,15 +735,17 @@ put
     graphicsdict /currgstate get /currpath 3 -1 roll put
 } //.xpostsys /.defop get exec
 
-% clipsave/cliprestore (LL3): push and pop the clip region alone,
-% independent of the graphics state stack. Neither takes an operand nor
-% returns a result, so the stack the pushing arithmetic is done on is
-% cleared down again before returning.
 %
-% What is pushed is the whole clip and not just the resolved region: the
-% shape a device that clips for itself is handed belongs to the same clip
-% and has to come back with it, or the restored clip would be enforced as
-% one shape and written out as another.
+%  clipsave/cliprestore (LL3): push and pop the clip region alone,
+%  independent of the graphics state stack. Neither takes an operand nor
+%  returns a result, so the stack the pushing arithmetic is done on is
+%  cleared down again before returning.
+%
+%  What is pushed is the whole clip and not just the resolved region: the
+%  shape a device that clips for itself is handed belongs to the same clip
+%  and has to come back with it, or the restored clip would be enforced as
+%  one shape and written out as another.
+%
 /clipsave [ ] {
     graphicsdict /clipstack 2 copy known { get }{
         2 copy 32 array put get
@@ -731,7 +771,7 @@ put
     graphicsdict /clipptr get 0 gt {
         graphicsdict /clipptr 2 copy get 1 sub put
         graphicsdict /clipstack get graphicsdict /clipptr get get
-        aload pop                                   % region source
+        aload pop                                   % Region source
         //.xpostsys /.setclipregion get exec
     } if
 } //.xpostsys /.defop get exec

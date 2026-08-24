@@ -1,4 +1,5 @@
 %!PS
+%
 % pbmimage.ps
 %
 % The PBM bilevel raster device, the sibling of the grayscale device.
@@ -8,85 +9,100 @@
 
 //.internaldict /QUIET known { }{ (loading pbmimage.ps...)print } ifelse
 
-% .xpost_PBMIMAGE: the bilevel sibling of the grayscale device. The page
-% renders through the grayscale machinery it inherits and emission
-% thresholds each row at half coverage, black where dark, packed
-% most significant bit first as the portable bitmap format wants.
-
-.privatedict /newPBMIMAGEdevice { % width height  .  IMAGE-device-dict
+%
+%  .xpost_PBMIMAGE: the bilevel sibling of the grayscale device. The page
+%  renders through the grayscale machinery it inherits and emission
+%  thresholds each row at half coverage, black where dark, packed
+%  most significant bit first as the portable bitmap format wants.
+%
+.privatedict /newPBMIMAGEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_PBMIMAGE get dup /Create get exec
 } put
 
 /.xpost_PBMIMAGE .xpost_PGMIMAGE dup length 2 add dict copy def
 
-% a bilevel page keeps its glyphs bilevel
+%
+%  a bilevel page keeps its glyphs bilevel
+%
 .xpost_PBMIMAGE /TextAlphaBits 1 put
 
-% This class is a copy of one whose page may arrive a band at a time,
-% and it keeps that answer, having earned it rather than inherited it:
-% the bilevel header states the page's own extent and goes out ahead of
-% any row, the packed rows below are written a run at a time, and the
-% screen a grey passes through is a function of the pixel's position on
-% the page, so a row carries the same bits whichever run of rows it
-% arrives in (doc/INTERNALS).
 %
-% The header is the bilevel one: the magic names the format and a
-% sample is one bit, so there is no top of a value range to state.
+%  This class is a copy of one whose page may arrive a band at a time,
+%  and it keeps that answer, having earned it rather than inherited it:
+%  the bilevel header states the page's own extent and goes out ahead of
+%  any row, the packed rows below are written a run at a time, and the
+%  screen a grey passes through is a function of the pixel's position on
+%  the page, so a row carries the same bits whichever run of rows it
+%  arrives in (doc/INTERNALS).
+%
+%  The header is the bilevel one: the magic names the format and a
+%  sample is one bit, so there is no top of a value range to state.
+%
 .xpost_PBMIMAGE /.pnmmagic (P4\n) put
 .xpost_PBMIMAGE /.pnmmaxval () put
 
-% what one row of this class's raster costs, as the elements and the
-% string bytes it takes. The rows are the grayscale class's rows -- a
-% page renders through the machinery this class inherits and the packing
-% into bits happens at emission, over a run of finished rows -- so a row
-% is one byte per pixel and no elements. Said rather than inherited,
-% because a copy carries what it was copied from and a budget divided by
-% a number nobody restated buys a band of some other height than the one
-% it paid for.
-.xpost_PBMIMAGE /.rowcost { % -  .  elements bytes
+%
+%  what one row of this class's raster costs, as the elements and the
+%  string bytes it takes. The rows are the grayscale class's rows -- a
+%  page renders through the machinery this class inherits and the packing
+%  into bits happens at emission, over a run of finished rows -- so a row
+%  is one byte per pixel and no elements. Said rather than inherited,
+%  because a copy carries what it was copied from and a budget divided by
+%  a number nobody restated buys a band of some other height than the one
+%  it paid for.
+%
+.xpost_PBMIMAGE /.rowcost {  % -  .  elements bytes
     0 width
 } bind put
 
-% The colour space this device's marking methods take components in.
-% Said again rather than inherited, because a copy carries what it was
-% copied from and the class this one copies takes one grey component
-% because that is what its byte per pixel stores. What this device
-% stores is one bit per pixel, and what makes that a grey space is the
-% screen: a paint arrives as one component, the cell ranks the pixel it
-% covers, and a bit is what the ranking leaves. A device answering with
-% a space nobody stated is one whose colour pipeline was settled on
-% another device's behalf -- the component count, the compiled fills and
-% the glyph colour conversion all follow this key.
+%
+%  The colour space this device's marking methods take components in.
+%  Said again rather than inherited, because a copy carries what it was
+%  copied from and the class this one copies takes one grey component
+%  because that is what its byte per pixel stores. What this device
+%  stores is one bit per pixel, and what makes that a grey space is the
+%  screen: a paint arrives as one component, the cell ranks the pixel it
+%  covers, and a bit is what the ranking leaves. A device answering with
+%  a space nobody stated is one whose colour pipeline was settled on
+%  another device's behalf -- the component count, the compiled fills and
+%  the glyph colour conversion all follow this key.
+%
 .xpost_PBMIMAGE /nativecolorspace /DeviceGray put
 
-% every grey painted screens through the halftone in force
+%
+%  every grey painted screens through the halftone in force
+%
 .xpost_PBMIMAGE /ScreenPaint true put
 
-% What this device stores for a grey at a pixel. The screen in force
-% ranks the pixels of a cell, the cell tiles the device plane, and a grey
-% whitens the pixel it covers where it reaches the threshold under that
-% pixel: the position picks the threshold, so what is stored varies from
-% one pixel to the next as well as with the grey. The tiling is counted
-% the same way on both sides of the origin, so it runs off the page as it
-% runs across it.
 %
-% The base class takes a paint through here on its way to the row and
-% takes a read of a pixel this device holds no storage for through here
-% as well, so the page is read on the terms it was written on.
-.xpost_PBMIMAGE /.screenpix { % c1 x y  .  c1' x y
+%  What this device stores for a grey at a pixel. The screen in force
+%  ranks the pixels of a cell, the cell tiles the device plane, and a grey
+%  whitens the pixel it covers where it reaches the threshold under that
+%  pixel: the position picks the threshold, so what is stored varies from
+%  one pixel to the next as well as with the grey. The tiling is counted
+%  the same way on both sides of the origin, so it runs off the page as it
+%  runs across it.
+%
+%  The base class takes a paint through here on its way to the row and
+%  takes a read of a pixel this device holds no storage for through here
+%  as well, so the page is read on the terms it was written on.
+%
+.xpost_PBMIMAGE /.screenpix {  % c1 x y  .  c1' x y
     currentdict /.htcell known {
         currentdict //.internaldict /.screenink get exec
     } if
 } put
 
-% What the page shows at a row it holds no pixel of. The ground is one
-% colour and the screen turns it into a pattern that repeats down the
-% page with the cell, so the row standing for a row of the page is not
-% the row standing for the next one and one row cannot stand for both:
-% the row is filled for the row it was asked about, through the same
-% fold a paint takes, and stands until the next call fills it again.
+%
+%  What the page shows at a row it holds no pixel of. The ground is one
+%  colour and the screen turns it into a pattern that repeats down the
+%  page with the cell, so the row standing for a row of the page is not
+%  the row standing for the next one and one row cannot stand for both:
+%  the row is filled for the row it was asked about, through the same
+%  fold a paint takes, and stands until the next call fills it again.
+%
 .xpost_PBMIMAGE /.groundvaries true put
-.xpost_PBMIMAGE /.groundrowat { % y  .  row
+.xpost_PBMIMAGE /.groundrowat {  % y  .  row
     currentdict /.ground known {
         /.gndy exch def
         0 1 width 1 sub {
@@ -99,10 +115,12 @@
     .groundrow
 } put
 
-% emission thresholds and packs through the compiled row writer, a run
-% of the page's rows at a time; the header ahead of them and the Emit
-% dispatch that calls both are inherited
-.xpost_PBMIMAGE /.writeband { % rows file  .  -
+%
+%  emission thresholds and packs through the compiled row writer, a run
+%  of the page's rows at a time; the header ahead of them and the Emit
+%  dispatch that calls both are inherited
+%
+.xpost_PBMIMAGE /.writeband {  % rows file  .  -
     //.internaldict /.writebitrows get exec
 } put
 

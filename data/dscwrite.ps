@@ -1,4 +1,5 @@
 %!PS
+%
 % dscwrite.ps
 %
 % The dscwrite device: emit a DSC-conformant PostScript document from the recorded page.
@@ -8,85 +9,102 @@
 
 //.internaldict /QUIET known { }{ (loading dscwrite.ps...)print } ifelse
 
-.privatedict /newDSCWRITEdevice { % width height  .  IMAGE-device-dict
+.privatedict /newDSCWRITEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_DSCWRITE get dup /Create get exec
 } put
 
-% .xpost_DSCWRITE writes a DSC-conforming PostScript program of the marks the
-% pages received, in the manner of a distiller: a multi-page job collects every
-% page into one document by default -- each showpage appends a %%Page section
-% (.emitpage) and Destroy writes the %%Trailer -- and a %d in the output name
-% selects a file per page instead. Flat
-% path construction and painting under a prolog of short operator
-% names. It is the .xpost_PDFWRITE device wearing another wrapper -- the
-% marking methods and the content accumulator are inherited whole,
-% and the prolog defines the accumulated operators as procedures, so
-% the same content serves both syntaxes. Separation colour spaces
-% are not carried across; their paints arrive in the process colours
-% the tint transform yields, which render the same.
 %
-% Emit reports the page size in points (unscaling the device
-% resolution carried in the defaultmatrix fixup, as the bbox device
-% does) and the content runs under a matrix taking the accumulator's
-% y-down device coordinates back to that page.
+%  .xpost_DSCWRITE writes a DSC-conforming PostScript program of the marks the
+%  pages received, in the manner of a distiller: a multi-page job collects every
+%  page into one document by default -- each showpage appends a %%Page section
+%  (.emitpage) and Destroy writes the %%Trailer -- and a %d in the output name
+%  selects a file per page instead. Flat
+%  path construction and painting under a prolog of short operator
+%  names. It is the .xpost_PDFWRITE device wearing another wrapper -- the
+%  marking methods and the content accumulator are inherited whole,
+%  and the prolog defines the accumulated operators as procedures, so
+%  the same content serves both syntaxes. Separation colour spaces
+%  are not carried across; their paints arrive in the process colours
+%  the tint transform yields, which render the same.
 %
-% A method runs its body with the device dictionary current, and opens it
-% through the bracket that takes it off again however the body ends, error
-% included (.indict, graphics.ps).
-
+%  Emit reports the page size in points (unscaling the device
+%  resolution carried in the defaultmatrix fixup, as the bbox device
+%  does) and the content runs under a matrix taking the accumulator's
+%  y-down device coordinates back to that page.
+%
+%  A method runs its body with the device dictionary current, and opens it
+%  through the bracket that takes it off again however the body ends, error
+%  included (.indict, graphics.ps).
+%
 /.xpost_DSCWRITE .xpost_PDFWRITE dup length 2 add dict copy def
-% The output plumbing is inherited from that base: .vw (pdfwrite.ps)
-% appends a string to the shared vector output and carries the byte count.
-% This class overrides only what a DSC document states differently from a
-% PDF one -- the header, the operator prolog, and the per-page structure.
+%
+%  The output plumbing is inherited from that base: .vw (pdfwrite.ps)
+%  appends a string to the shared vector output and carries the byte count.
+%  This class overrides only what a DSC document states differently from a
+%  PDF one -- the header, the operator prolog, and the per-page structure.
+%
 
-% The process colour models a setpagedevice request may move this device
-% to. Said again rather than inherited, because a copy carries what it
-% was copied from and the class this one copies offers its three on the
-% strength of the PDF content operators; what this device offers them on
-% is its own prolog, which defines g, rg and k over setgray,
-% setrgbcolor and setcmykcolor, so a paint made in any of the three is
-% written in the space it was made in and read back in that space. A
-% prolog that stopped defining one of them would leave this claim
-% standing over an operator no reader is given.
+%
+%  The process colour models a setpagedevice request may move this device
+%  to. Said again rather than inherited, because a copy carries what it
+%  was copied from and the class this one copies offers its three on the
+%  strength of the PDF content operators; what this device offers them on
+%  is its own prolog, which defines g, rg and k over setgray,
+%  setrgbcolor and setcmykcolor, so a paint made in any of the three is
+%  written in the space it was made in and read back in that space. A
+%  prolog that stopped defining one of them would leave this claim
+%  standing over an operator no reader is given.
+%
 .xpost_DSCWRITE /.colormodels << /Process true /DeviceRGB true /DeviceCMYK true >> put
 
-% The colour space this device's marking methods take components in,
-% which for a device offering process colour models is the model in
-% force rather than a fixed space. Said again rather than inherited for
-% the reason above: what it means here is that a paint is written in the
-% space it was made in, through this device's own prolog, and the class
-% this one copies means it of the PDF content operators. The two are the
-% same word for two mechanisms, and a device answering with a space
-% nobody stated is one whose colour pipeline was settled on another
-% device's behalf.
+%
+%  The colour space this device's marking methods take components in,
+%  which for a device offering process colour models is the model in
+%  force rather than a fixed space. Said again rather than inherited for
+%  the reason above: what it means here is that a paint is written in the
+%  space it was made in, through this device's own prolog, and the class
+%  this one copies means it of the PDF content operators. The two are the
+%  same word for two mechanisms, and a device answering with a space
+%  nobody stated is one whose colour pipeline was settled on another
+%  device's behalf.
+%
 .xpost_DSCWRITE /nativecolorspace /Process put
 
-% no separation registry: paints fall back to process colours
+%
+%  no separation registry: paints fall back to process colours
+%
 .xpost_DSCWRITE /.registersep undef
-% no image consumer either: sampled images paint through the
-% ordinary methods rather than reference objects Emit never writes
+%
+%  no image consumer either: sampled images paint through the
+%  ordinary methods rather than reference objects Emit never writes
+%
 .xpost_DSCWRITE /PaintImage undef
 
-% A showpage emits the page, and one writer writes it either way: without a
-% %d in the output name the pages accumulate into the one DSC program opened
-% at Create and Destroy closes it, and with a %d every page is a program of
-% its own, on a file opened for it and closed before the next page begins.
-% Create, the Emit dispatcher, the beginning of a document, Destroy and the
-% shared record are inherited from the PDF device; only the writer that puts
-% a page into an open program, and the one that closes a program off, are
-% this format's own.
+%
+%  A showpage emits the page, and one writer writes it either way: without a
+%  %d in the output name the pages accumulate into the one DSC program opened
+%  at Create and Destroy closes it, and with a %d every page is a program of
+%  its own, on a file opened for it and closed before the next page begins.
+%  Create, the Emit dispatcher, the beginning of a document, Destroy and the
+%  shared record are inherited from the PDF device; only the writer that puts
+%  a page into an open program, and the one that closes a program off, are
+%  this format's own.
+%
 
-% write a number to the accumulating file in two decimals at most
-.xpost_DSCWRITE /.vwnum { % num  .  -
+%
+%  write a number to the accumulating file in two decimals at most
+%
+.xpost_DSCWRITE /.vwnum {  % num  .  -
     //.xpostsys /.num2str get exec .vw
 } put
 
-% Append one page to the accumulating DSC program: the prolog of short
-% operator names once, then this page's %%Page section and its marks under the
-% matrix taking the accumulator's y-down device units back to the page. The
-% content is read here, as the page is emitted, before any restore the job runs.
-.xpost_DSCWRITE /.emitpage { % IMAGE  .  -
+%
+%  Append one page to the accumulating DSC program: the prolog of short
+%  operator names once, then this page's %%Page section and its marks under the
+%  matrix taking the accumulator's y-down device units back to the page. The
+%  content is read here, as the page is emitted, before any restore the job runs.
+%
+.xpost_DSCWRITE /.emitpage {  % IMAGE  .  -
 {
     % page size in points from the resolution fixup
     currentdict //.xpostsys /.devres-to-points get exec
@@ -152,9 +170,11 @@
     currentdict //.internaldict /.pdfreset get exec
 } //.xpostsys /.indict get exec } put
 
-% Close the accumulating DSC program: the trailer carries the real page count
-% the header deferred with (atend).
-.xpost_DSCWRITE /.endfile { % IMAGE  .  -
+%
+%  Close the accumulating DSC program: the trailer carries the real page count
+%  the header deferred with (atend).
+%
+.xpost_DSCWRITE /.endfile {  % IMAGE  .  -
 {
     //.xpostsys /.vecout get /headered get not {
         (%!PS-Adobe-3.0\n%%Creator: Xpost\n%%Pages: \(atend\)\n%%EndComments\n) .vw

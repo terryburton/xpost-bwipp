@@ -1,4 +1,5 @@
 %!PS
+%
 % color.ps
 %
 % Colour spaces and colour selection, including the CIE-based spaces.
@@ -8,25 +9,34 @@
 
 //.internaldict /QUIET known { }{ (loading color.ps...)print } ifelse
 
-% Everything here defines into global VM.
+%
+%  Everything here defines into global VM.
+%
 true setglobal
 
-% --- CIE-based colour spaces ---------------------------------------
-% The four CIE-based families reduce a colour to X Y Z the way the
-% language describes: per-component clamps to the declared ranges,
-% the decode procedures, and the matrix stages. The X Y Z then
-% renders to device RGB through fixed daylight primaries with the
-% white point adapted by channel scaling; rendering dictionaries
-% beyond the recorded stub take no part.
+%
+%  --- CIE-based colour spaces ---------------------------------------
+%
+%  The four CIE-based families reduce a colour to X Y Z the way the
+%  language describes: per-component clamps to the declared ranges,
+%  the decode procedures, and the matrix stages. The X Y Z then
+%  renders to device RGB through fixed daylight primaries with the
+%  white point adapted by channel scaling; rendering dictionaries
+%  beyond the recorded stub take no part.
+%
 
-% v lo hi  .cieclamp  v'
+%
+%  v lo hi  .cieclamp  v'
+%
 .xpostsys begin
-% v {proc}  .decode  v'
-% run one of a colour space's decode procedures. Each family reduces a
-% colour under a dictionary of its own, and the decode procedures are
-% the program's, so they go through the bracket: the names this
-% reduction works under are not theirs to inherit, and what they define
-% belongs where the program's other definitions go.
+%
+%  v {proc}  .decode  v'
+%  run one of a colour space's decode procedures. Each family reduces a
+%  colour under a dictionary of its own, and the decode procedures are
+%  the program's, so they go through the bracket: the names this
+%  reduction works under are not theirs to inherit, and what they define
+%  belongs where the program's other definitions go.
+%
 /.decode {
     null 1 //.xpostsys /.pcallout get exec
 } bind def
@@ -38,7 +48,9 @@ true setglobal
     end
 } bind def
 
-% X Y Z whitepoint  .ciexyzrgb  r g b
+%
+%  X Y Z whitepoint  .ciexyzrgb  r g b
+%
 /.ciexyzrgb {
     5 dict begin
     /wp exch def /Z exch def /Y exch def /X exch def
@@ -57,7 +69,9 @@ true setglobal
     end
 } bind def
 
-% L M N ciedict  .cielmnxyzrgb  r g b
+%
+%  L M N ciedict  .cielmnxyzrgb  r g b
+%
 /.cielmnxyzrgb {
     8 dict begin
     /cd exch def /NN exch def /MM exch def /LL exch def
@@ -81,7 +95,9 @@ true setglobal
     end
 } bind def
 
-% A B C ciedict  .cieabcrgb  r g b
+%
+%  A B C ciedict  .cieabcrgb  r g b
+%
 /.cieabcrgb {
     8 dict begin
     /cd exch def /CC exch def /BB exch def /AA exch def
@@ -104,7 +120,9 @@ true setglobal
     end
 } bind def
 
-% A ciedict  .ciearpgb  r g b
+%
+%  A ciedict  .ciearpgb  r g b
+%
 /.ciearpgb {
     6 dict begin
     /cd exch def /AA exch def
@@ -120,9 +138,11 @@ true setglobal
     end
 } bind def
 
-% v lo hi n  .cietblpos  i0 i1 f
-% a value within its range, over a table of n steps: the bracketing
-% indices and the fraction between them
+%
+%  v lo hi n  .cietblpos  i0 i1 f
+%  a value within its range, over a table of n steps: the bracketing
+%  indices and the fraction between them
+%
 /.cietblpos {
     5 dict begin
     /n exch def /hi exch def /lo exch def
@@ -138,12 +158,16 @@ true setglobal
     end
 } bind def
 
-% byte-fraction lo hi  .cietblval  v
+%
+%  byte-fraction lo hi  .cietblval  v
+%
 /.cietblval {
     1 index sub mul add
 } bind def
 
-% D E F ciedict  .ciedefrgb  r g b
+%
+%  D E F ciedict  .ciedefrgb  r g b
+%
 /.ciedefrgb {
     24 dict begin
     /cd exch def /FF exch def /EE exch def /DD exch def
@@ -188,7 +212,9 @@ true setglobal
     end
 } bind def
 
-% D E F G ciedict  .ciedefgrgb  r g b
+%
+%  D E F G ciedict  .ciedefgrgb  r g b
+%
 /.ciedefgrgb {
     28 dict begin
     /cd exch def /GG exch def /FF exch def /EE exch def /DD exch def
@@ -237,7 +263,9 @@ true setglobal
     end
 } bind def
 
-% the family dispatch: comps [ /Family dict ]  .ciergb  r g b
+%
+%  the family dispatch: comps [ /Family dict ]  .ciergb  r g b
+%
 /.ciefams <<
     /CIEBasedA //.ciearpgb
     /CIEBasedABC //.cieabcrgb
@@ -249,10 +277,12 @@ true setglobal
     //.ciefams exch get exec
 } bind def
 
-% space  .cierange  range
-% The range a CIE-based space declares its components over. Each family
-% names the entry that carries it and has its own default for a
-% dictionary that leaves the entry out (PLRM 4.8.3).
+%
+%  space  .cierange  range
+%  The range a CIE-based space declares its components over. Each family
+%  names the entry that carries it and has its own default for a
+%  dictionary that leaves the entry out (PLRM 4.8.3).
+%
 /.cierangekeys <<
     /CIEBasedA    [ /RangeA    [0 1] ]
     /CIEBasedABC  [ /RangeABC  [0 1 0 1 0 1] ]
@@ -267,10 +297,12 @@ true setglobal
         { get exch pop }{ pop pop } ifelse
 } bind def
 
-% space comps  .cieclampcomps  comps
-% Each component of a CIE-based colour brought inside the range its space
-% declares: a value outside it is the nearest one inside, and no error
-% (PLRM 4.8.3).
+%
+%  space comps  .cieclampcomps  comps
+%  Each component of a CIE-based colour brought inside the range its space
+%  declares: a value outside it is the nearest one inside, and no error
+%  (PLRM 4.8.3).
+%
 /.cieclampcomps {
     3 dict begin
     /cc exch def
@@ -287,23 +319,28 @@ true setglobal
 } bind def
 end
 
-% --- setting a colour that has to be converted first ----------------
-% An Indexed, Separation, DeviceN or CIE-based colour cannot be recorded
-% as it stands: it converts, through a procedure the program wrote, into
-% a colour of a space the device paints in, and it is that colour the
-% graphics state ends up holding. But currentcolorspace must still
-% report the space that was set, and currentcolor the components as they
-% were given, so both have to survive the conversion -- and they cannot
-% ride the operand stack, which the conversion procedure works on.
 %
-% So they go in a pair of graphicsdict slots and the conversion runs
-% inside the bracket, which puts back whatever the caller had parked
-% there. The conversion may set a colour of its own, in a space of the
-% same kind, which comes through here against the same pair.
+%  --- setting a colour that has to be converted first ----------------
+%
+%  An Indexed, Separation, DeviceN or CIE-based colour cannot be recorded
+%  as it stands: it converts, through a procedure the program wrote, into
+%  a colour of a space the device paints in, and it is that colour the
+%  graphics state ends up holding. But currentcolorspace must still
+%  report the space that was set, and currentcolor the components as they
+%  were given, so both have to survive the conversion -- and they cannot
+%  ride the operand stack, which the conversion procedure works on.
+%
+%  So they go in a pair of graphicsdict slots and the conversion runs
+%  inside the bracket, which puts back whatever the caller had parked
+%  there. The conversion may set a colour of its own, in a space of the
+%  same kind, which comes through here against the same pair.
+%
 .xpostsys /.cskeys [ /.csspace /.csstash /.convdepth ] put
 
-% space comps {conv}  .withspace  -
-% comps is the components as the program gave them.
+%
+%  space comps {conv}  .withspace  -
+%  comps is the components as the program gave them.
+%
 .xpostsys /.withspace {
     //.xpostsys /.withspacebody get
     //.xpostsys /.cskeys get 0
@@ -332,18 +369,23 @@ end
     graphicsdict /currgstate get /tintcomps graphicsdict /.csstash get put
 } bind put
 
-% -  .csalt  -
-% Enter the space the conversion's result belongs in, if the procedure
-% left another one in force. The procedure is the program's and may set
-% a colour of its own; the components it returned are in the space
-% stated, and that is the space the setcolor consuming them has to run
-% in.
+%
+%  -  .csalt  -
+%
+%  Enter the space the conversion's result belongs in, if the procedure
+%  left another one in force. The procedure is the program's and may set
+%  a colour of its own; the components it returned are in the space
+%  stated, and that is the space the setcolor consuming them has to run
+%  in.
+%
 .xpostsys /.csalt {
     dup graphicsdict /currgstate get /setspace get eq
         { pop }{ setcolorspace } ifelse
 } bind put
 
-% the palette entry an Indexed index names, in the base space
+%
+%  the palette entry an Indexed index names, in the base space
+%
 .xpostsys /.idxconv {
     3 dict begin
     /cs graphicsdict /.csspace get def
@@ -363,11 +405,13 @@ end
     setcolor
 } bind put
 
-% comps  .tintsclamp  comps
-% Each tint of a Separation or DeviceN colour brought inside 0.0 to 1.0,
-% the range PLRM 4.8.4 states a tint lies in. The transform is called
-% with what comes out: its domain is that range, and the tint the
-% graphics state ends up holding is the one it was called with.
+%
+%  comps  .tintsclamp  comps
+%  Each tint of a Separation or DeviceN colour brought inside 0.0 to 1.0,
+%  the range PLRM 4.8.4 states a tint lies in. The transform is called
+%  with what comes out: its domain is that range, and the tint the
+%  graphics state ends up holding is the one it was called with.
+%
 .xpostsys /.tintsclamp {
     1 dict begin
     /tc exch def
@@ -379,15 +423,17 @@ end
     end
 } bind put
 
-% the alternative-space colour a Separation or DeviceN tint transforms to
 %
-% The tint transform is the program's, so it runs beneath the boundary:
-% what fails in there is the program's own object failing, the operand
-% stack goes back to what the transform found (PLRM 3.11.1), and the
-% operator that carried the colour in keeps the components it consumed.
-% Everything around it here is the machinery's, and a refusal in that --
-% on the components the space was handed, or on what the transform
-% returned -- is that operator's own refusal.
+%  the alternative-space colour a Separation or DeviceN tint transforms to
+%
+%  The tint transform is the program's, so it runs beneath the boundary:
+%  what fails in there is the program's own object failing, the operand
+%  stack goes back to what the transform found (PLRM 3.11.1), and the
+%  operator that carried the colour in keeps the components it consumed.
+%  Everything around it here is the machinery's, and a refusal in that --
+%  on the components the space was handed, or on what the transform
+%  returned -- is that operator's own refusal.
+%
 .xpostsys /.sepconv {
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
@@ -401,8 +447,8 @@ end
         3 get //.xpostsys /.pexec get exec
         graphicsdict /.csspace get 2 get //.xpostsys /.csalt get exec
         setcolor
-        1 index exch                       % tint tint space
-        DEVICE dup /.registersep get exec  % tint index true | tint false
+        1 index exch                       % Tint tint space
+        DEVICE dup /.registersep get exec  % Tint index true | tint false
         {
             graphicsdict /currgstate get exch /sepindex exch put
             graphicsdict /currgstate get exch /septint exch put
@@ -417,7 +463,9 @@ end
     } ifelse
 } bind put
 
-% the device RGB a CIE-based colour renders to
+%
+%  the device RGB a CIE-based colour renders to
+%
 .xpostsys /.cieconv {
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
@@ -504,13 +552,15 @@ end
     }
 >> put
 
-%   pattern  setpattern  -
-%   comp1..compn pattern  setpattern  -
-% shorthand for entering the pattern colour space and setting the
-% pattern as the colour; an uncoloured pattern takes the current
-% colour space as its underlying space, with the components beneath
-% The components beneath vary with the underlying space, so the
-% pattern itself is the operand stated.
+%
+%    pattern  setpattern  -
+%    comp1..compn pattern  setpattern  -
+%  shorthand for entering the pattern colour space and setting the
+%  pattern as the colour; an uncoloured pattern takes the current
+%  colour space as its underlying space, with the components beneath
+%  The components beneath vary with the underlying space, so the
+%  pattern itself is the operand stated.
+%
 /setpattern [ /dicttype ] {
     % a pattern dictionary, which is one that has been through
     % makepattern. The same question makepattern asked, asked the same
@@ -533,35 +583,37 @@ end
     setcolor
 } //.xpostsys /.defop get exec
 
-% -  .ncomponents  n
-% the number of colour components the current colour space takes: an
-% Indexed colour is one index, a Separation one tint, a DeviceN one
-% tint per named colorant.
 %
-% The body is left unbound at its definition and frozen by the lockdown's
-% sweep instead. currentcolorspace is written in PostScript and is still a
-% procedure while this file loads, so a bind here would substitute nothing
-% for it and would make the array read-only, which is what stops a later
-% sweep from finishing the job -- and the name would stay dynamic for the
-% rest of the run, inside every operator reaching this helper.
-% The colour space families, and what kind of thing each one is.
+%  -  .ncomponents  n
+%  the number of colour components the current colour space takes: an
+%  Indexed colour is one index, a Separation one tint, a DeviceN one
+%  tint per named colorant.
 %
-% Every other statement about a space follows from its kind: a device
-% space states its own component count, a CIE family states one and
-% reduces to device RGB, an indexed space carries one index and reduces
-% through its base, a tint space carries its tints and reduces through
-% its alternative, and a pattern space carries a pattern. The kind is
-% what the machinery is really asking whenever it tests a family name,
-% and the tables below answer the rest.
+%  The body is left unbound at its definition and frozen by the lockdown's
+%  sweep instead. currentcolorspace is written in PostScript and is still a
+%  procedure while this file loads, so a bind here would substitute nothing
+%  for it and would make the array read-only, which is what stops a later
+%  sweep from finishing the job -- and the name would stay dynamic for the
+%  rest of the run, inside every operator reaching this helper.
+%  The colour space families, and what kind of thing each one is.
 %
-% Written down as a table because a family that is only ever a name in
-% an equality test cannot be enumerated. Four of these -- the indexed,
-% the two tints and the pattern -- existed nowhere but in such tests,
-% which is why nothing could ask whether they had all been considered,
-% and why an uncoloured pattern over three of them was found broken one
-% at a time. tests/check-colour-spaces.sh holds this table and the two
-% below to each other, so a family cannot be in one and missing from
-% another.
+%  Every other statement about a space follows from its kind: a device
+%  space states its own component count, a CIE family states one and
+%  reduces to device RGB, an indexed space carries one index and reduces
+%  through its base, a tint space carries its tints and reduces through
+%  its alternative, and a pattern space carries a pattern. The kind is
+%  what the machinery is really asking whenever it tests a family name,
+%  and the tables below answer the rest.
+%
+%  Written down as a table because a family that is only ever a name in
+%  an equality test cannot be enumerated. Four of these -- the indexed,
+%  the two tints and the pattern -- existed nowhere but in such tests,
+%  which is why nothing could ask whether they had all been considered,
+%  and why an uncoloured pattern over three of them was found broken one
+%  at a time. tests/check-colour-spaces.sh holds this table and the two
+%  below to each other, so a family cannot be in one and missing from
+%  another.
+%
 .xpostsys /.spacekinds <<
     /DeviceGray   /device
     /DeviceRGB    /device
@@ -576,10 +628,12 @@ end
     /Pattern      /pattern
 >> put
 
-% space  .spacekind  /device|/cie|/indexed|/tint|/pattern|null
-% The kind of a colour space, given as a bare family name or as an array
-% carrying the family and its parameters. A space naming no known family
-% answers null, which is what the validator refuses on.
+%
+%  space  .spacekind  /device|/cie|/indexed|/tint|/pattern|null
+%  The kind of a colour space, given as a bare family name or as an array
+%  carrying the family and its parameters. A space naming no known family
+%  answers null, which is what the validator refuses on.
+%
 .xpostsys /.spacekind {
     dup type /arraytype eq { 0 get } if
     dup type /nametype eq {
@@ -604,17 +658,19 @@ end
     currentcolorspace //.xpostsys /.spacecomponents get exec
 } put
 
-% space  .spacecomponents  n
-% How many components a colour in this space carries. An Indexed colour
-% is one index and a Separation one tint whatever they reduce to; a
-% DeviceN carries one per name; a CIE-based family and a device space
-% each state their own count. The space may be a bare family name or an
-% array carrying parameters, since both reach here.
 %
-% One count rather than one per caller. What a space costs in components
-% decides how many numbers are read off the stack, how many are stored,
-% and how many are handed to a device, so two callers counting
-% differently is a colour read at one width and written at another.
+%  space  .spacecomponents  n
+%  How many components a colour in this space carries. An Indexed colour
+%  is one index and a Separation one tint whatever they reduce to; a
+%  DeviceN carries one per name; a CIE-based family and a device space
+%  each state their own count. The space may be a bare family name or an
+%  array carrying parameters, since both reach here.
+%
+%  One count rather than one per caller. What a space costs in components
+%  decides how many numbers are read off the stack, how many are stored,
+%  and how many are handed to a device, so two callers counting
+%  differently is a colour read at one width and written at another.
+%
 .xpostsys /.spacecomponents {
     dup type /arraytype eq {
         dup 0 get /Indexed eq { pop 1 }{
@@ -629,30 +685,34 @@ end
     } ifelse
 } put
 
-% space  .spaceispattern  bool
-% Whether a colour space is a pattern space, asked of the space as the
-% program gave it: a family name on its own, or an array carrying the
-% family and its parameters. Both forms reach setcolorspace, so both
-% have to be understood wherever the question is asked, and asking it
-% two ways is how one site comes to understand a form another does not.
+%
+%  space  .spaceispattern  bool
+%  Whether a colour space is a pattern space, asked of the space as the
+%  program gave it: a family name on its own, or an array carrying the
+%  family and its parameters. Both forms reach setcolorspace, so both
+%  have to be understood wherever the question is asked, and asking it
+%  two ways is how one site comes to understand a form another does not.
+%
 .xpostsys /.spaceispattern {
     dup type /arraytype eq { 0 get } if
     /Pattern eq
 } put
 
-% space  .spacenomarks  bool
-% Whether a colour set in this space can produce visible output at all.
 %
-% PLRM 4.8.5 gives the colorant name None exactly this meaning: painting
-% in a Separation space named None "has no effect on the current page",
-% and the space ignores its alternative space and tint transform. So the
-% answer follows from the space and nothing else -- not from the tint, and
-% not from what the transform would have returned, which is the reason
-% this can be settled once when the space is set. The name arrives as a
-% name or as a string, because PLRM 4.8.5 admits either.
+%  space  .spacenomarks  bool
+%  Whether a colour set in this space can produce visible output at all.
 %
-% The sibling special name All is NOT this: it paints in every available
-% colorant, which is the opposite of painting in none.
+%  PLRM 4.8.5 gives the colorant name None exactly this meaning: painting
+%  in a Separation space named None "has no effect on the current page",
+%  and the space ignores its alternative space and tint transform. So the
+%  answer follows from the space and nothing else -- not from the tint, and
+%  not from what the transform would have returned, which is the reason
+%  this can be settled once when the space is set. The name arrives as a
+%  name or as a string, because PLRM 4.8.5 admits either.
+%
+%  The sibling special name All is NOT this: it paints in every available
+%  colorant, which is the opposite of painting in none.
+%
 .xpostsys /.spacenomarks {
     dup type /arraytype eq {
         dup length 2 ge {
@@ -665,18 +725,20 @@ end
     }{ pop false } ifelse
 } put
 
-% space  .spacereduce  space
-% Walk a colour space down to the one a colour in it is finally recorded
-% in: an Indexed space through its base, a Separation or DeviceN through
-% its alternative, a CIE-based family to device RGB. A space that reduces
-% to nothing is handed back as it stands, and so is anything that is not
-% an array.
 %
-% One walk rather than one per caller. setcolorspace reduces to decide
-% what the graphics state records a colour in, and the validator reduces
-% to decide what it is validating; the two asking differently would be a
-% space accepted as one thing and recorded as another, which no program
-% could see until it used that space.
+%  space  .spacereduce  space
+%  Walk a colour space down to the one a colour in it is finally recorded
+%  in: an Indexed space through its base, a Separation or DeviceN through
+%  its alternative, a CIE-based family to device RGB. A space that reduces
+%  to nothing is handed back as it stands, and so is anything that is not
+%  an array.
+%
+%  One walk rather than one per caller. setcolorspace reduces to decide
+%  what the graphics state records a colour in, and the validator reduces
+%  to decide what it is validating; the two asking differently would be a
+%  space accepted as one thing and recorded as another, which no program
+%  could see until it used that space.
+%
 .xpostsys /.spacereduce {
     % A colour space reaches its device space in as many steps as it
     % nests, which is a handful; a space that reaches itself would reduce
@@ -703,12 +765,14 @@ end
     } loop
 } put
 
-% space  .csvalidate  -
-% walk a colour space down to the device space a colour in it is finally
-% recorded in, without touching the graphics state: an Indexed space
-% reduces through its base, a Separation or DeviceN through its
-% alternative, and a CIE-based family to device RGB. A family none of
-% those knows is undefined
+%
+%  space  .csvalidate  -
+%  walk a colour space down to the device space a colour in it is finally
+%  recorded in, without touching the graphics state: an Indexed space
+%  reduces through its base, a Separation or DeviceN through its
+%  alternative, and a CIE-based family to device RGB. A family none of
+%  those knows is undefined
+%
 .xpostsys /.csvalidate {
     1 dict begin
     /sp exch def
@@ -750,10 +814,12 @@ end
     } ifelse
     end
 } put
-% The component count follows the current colour space, so the operand
-% stated is the topmost one: a component, or the pattern of a pattern
-% space, or the null object a pattern space holds before a pattern is
-% set.
+%
+%  The component count follows the current colour space, so the operand
+%  stated is the topmost one: a component, or the pattern of a pattern
+%  space, or the null object a pattern space holds before a pattern is
+%  set.
+%
 /setcolor [ [ /numbertype ] [ /dicttype ] [ /nulltype ] ] {
     currentcolorspace
     % PLRM 4.9.1: the colour value in a Pattern space is a null object,
@@ -808,26 +874,29 @@ end
     } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-% -  .csinitcolor  -
-% Set the colour the current colour space is entered holding. Every
-% space has one and setcolorspace installs it (PLRM 8.2): black in a
-% device space, which in DeviceCMYK is three zeros and a one; a tint of
-% 1.0 in a Separation and in every component of a DeviceN (PLRM 4.8.4);
-% index zero in an Indexed space; and zero in each component of a
-% CIE-based space, moved to the nearest value the space's own Range
-% declares valid where zero is not one (PLRM 4.8.3). A Pattern space is
-% entered holding a null object, which paints nothing (PLRM 4.9).
 %
-% The colour is resolved here rather than left for the first setcolor.
-% What a space carries a colour through -- a tint transform, a palette
-% lookup, a CIE pipeline -- decides both what the page is painted in and
-% what currentcolor answers, and a space entered and painted in without
-% a setcolor has to paint the colour it was entered holding.
-% The space and its family ride the operand stack rather than a
-% dictionary of this procedure's own: the colour goes through the
-% program's tint transform, palette procedure or decoding procedure on
-% its way in, and a procedure of the program's runs against the
-% program's dictionaries and defines into them.
+%  -  .csinitcolor  -
+%
+%  Set the colour the current colour space is entered holding. Every
+%  space has one and setcolorspace installs it (PLRM 8.2): black in a
+%  device space, which in DeviceCMYK is three zeros and a one; a tint of
+%  1.0 in a Separation and in every component of a DeviceN (PLRM 4.8.4);
+%  index zero in an Indexed space; and zero in each component of a
+%  CIE-based space, moved to the nearest value the space's own Range
+%  declares valid where zero is not one (PLRM 4.8.3). A Pattern space is
+%  entered holding a null object, which paints nothing (PLRM 4.9).
+%
+%  The colour is resolved here rather than left for the first setcolor.
+%  What a space carries a colour through -- a tint transform, a palette
+%  lookup, a CIE pipeline -- decides both what the page is painted in and
+%  what currentcolor answers, and a space entered and painted in without
+%  a setcolor has to paint the colour it was entered holding.
+%  The space and its family ride the operand stack rather than a
+%  dictionary of this procedure's own: the colour goes through the
+%  program's tint transform, palette procedure or decoding procedure on
+%  its way in, and a procedure of the program's runs against the
+%  program's dictionaries and defines into them.
+%
 .xpostsys /.csinitcolor {
     currentcolorspace
     dup //.xpostsys /.spacekind get exec
@@ -890,19 +959,21 @@ end
     } ifelse
 } //.xpostsys /.defop get exec
 
-.xpostsys /.min { % x y  . x (if x < y)
+.xpostsys /.min {  % x y  . x (if x < y)
         %        y (otherwise)
     2 copy gt{exch}if pop
 } bind put
-% component  .c01  real in [0,1]
-% a colour component is clamped to the unit range (PLRM: values outside
-% 0 to 1 are adjusted to the nearest valid value). A pure global helper, so it
-% lives in .xpostsys beside .min and the colour conversions that freeze it in.
+%
+%  component  .c01  real in [0,1]
+%  a colour component is clamped to the unit range (PLRM: values outside
+%  0 to 1 are adjusted to the nearest valid value). A pure global helper, so it
+%  lives in .xpostsys beside .min and the colour conversions that freeze it in.
+%
 .xpostsys /.c01 {
     cvr dup 0.0 lt { pop 0.0 } if dup 1.0 gt { pop 1.0 } if
 } bind put
 
-.xpostsys /ColorConversion << % <</dest <</source {source-to-dest conversion}>> >>
+.xpostsys /ColorConversion <<  % <</dest <</source {source-to-dest conversion}>> >>
     /DeviceGray <<
         /DeviceGray {
             graphicsdict /currgstate get /colorcomp1 get
@@ -940,13 +1011,13 @@ end
             graphicsdict /currgstate get /colorcomp3 get
         } bind
         /DeviceCMYK {
-            graphicsdict /currgstate get /colorcomp4 get % k
-            1 graphicsdict /currgstate get /colorcomp1 get % k 1 c
-            2 index add 1 //.xpostsys /.min get exec sub % k 1-min(1,c+k)
-            1 graphicsdict /currgstate get /colorcomp2 get % k R 1 m
-            3 index add 1 //.xpostsys /.min get exec sub % k R 1-min(1,m+k)
-            1 graphicsdict /currgstate get /colorcomp3 get % k R G 1 y
-            5 4 roll add 1 //.xpostsys /.min get exec sub % R G 1-min(1,y+k)
+            graphicsdict /currgstate get /colorcomp4 get  % K
+            1 graphicsdict /currgstate get /colorcomp1 get  % K 1 c
+            2 index add 1 //.xpostsys /.min get exec sub  % K 1-min(1,c+k)
+            1 graphicsdict /currgstate get /colorcomp2 get  % K R 1 m
+            3 index add 1 //.xpostsys /.min get exec sub  % K R 1-min(1,m+k)
+            1 graphicsdict /currgstate get /colorcomp3 get  % K R G 1 y
+            5 4 roll add 1 //.xpostsys /.min get exec sub  % R G 1-min(1,y+k)
         } bind
     >>
     /DeviceCMYK <<
@@ -962,14 +1033,14 @@ end
             % separates as pure K rather than four inks
             1 graphicsdict /currgstate get /colorcomp1 get sub
             1 graphicsdict /currgstate get /colorcomp2 get sub //.xpostsys /.min get exec
-            1 graphicsdict /currgstate get /colorcomp3 get sub //.xpostsys /.min get exec  % k
-            dup dup dup                                              % k k k k
-            1 graphicsdict /currgstate get /colorcomp1 get sub exch sub % k k k c'
-            4 1 roll                                                 % c' k k k
-            1 graphicsdict /currgstate get /colorcomp2 get sub exch sub % c' k k m'
-            3 1 roll                                                 % c' m' k k
-            1 graphicsdict /currgstate get /colorcomp3 get sub exch sub % c' m' k y'
-            exch                                                     % c' m' y' k
+            1 graphicsdict /currgstate get /colorcomp3 get sub //.xpostsys /.min get exec  % K
+            dup dup dup                                              % K k k k
+            1 graphicsdict /currgstate get /colorcomp1 get sub exch sub  % K k k c'
+            4 1 roll                                                 % C' k k k
+            1 graphicsdict /currgstate get /colorcomp2 get sub exch sub  % C' k k m'
+            3 1 roll                                                 % C' m' k k
+            1 graphicsdict /currgstate get /colorcomp3 get sub exch sub  % C' m' k y'
+            exch                                                     % C' m' y' k
         } bind
         /DeviceCMYK {
             graphicsdict /currgstate get /colorcomp1 get
@@ -1008,17 +1079,19 @@ end
         get exec
 } //.xpostsys /.defop get exec
 
-% hue saturation brightness  sethsbcolor  -
-% the components are recorded in RGB, converted with the usual
-% hexcone model (hue scaled to a sector 0-5; the sector's fractional
-% part blends between the derived p, q and t values). Each component is
-% clamped to [0,1] first, as the reference interpreters clamp hue rather
-% than wrap it.
+%
+%  hue saturation brightness  sethsbcolor  -
+%  the components are recorded in RGB, converted with the usual
+%  hexcone model (hue scaled to a sector 0-5; the sector's fractional
+%  part blends between the derived p, q and t values). Each component is
+%  clamped to [0,1] first, as the reference interpreters clamp hue rather
+%  than wrap it.
+%
 /sethsbcolor [ /numbertype /numbertype /numbertype ] {
     3 { //.xpostsys /.c01 get exec 3 1 roll } repeat
     7 dict begin
     {/b /s /h}{exch def}forall
-    /h h h truncate sub 6 mul def       % scale hue to sector 0-5 (1 maps to 0)
+    /h h h truncate sub 6 mul def       % Scale hue to sector 0-5 (1 maps to 0)
     /i h truncate cvi def
     /f h i sub def
     /p b 1 s sub mul def
@@ -1046,9 +1119,9 @@ end
         v r eq { g b sub d div 6 add
         }{ v g eq { b r sub d div 2 add
         }{ r g sub d div 4 add } ifelse } ifelse
-        6 div dup truncate sub          % hue
-        d v div                         % saturation
-        v                               % brightness
+        6 div dup truncate sub          % Hue
+        d v div                         % Saturation
+        v                               % Brightness
     } ifelse
     end
 } //.xpostsys /.defop get exec
@@ -1069,24 +1142,28 @@ end
         get exec
 } //.xpostsys /.defop get exec
 
-% Custom-colour convenience operators. A custom colour is a named spot ink
-% with a device fallback: findcmykcustomcolor and findrgbcustomcolor package
-% the fallback components with the name, and setcustomcolor enters the
-% Separation colour space (PLRM 4.8.4) whose alternate is that fallback and
-% whose tint transform scales the fallback by the tint. Because it is
-% shorthand over the Separation space, a separation-preserving device
-% receives the named colorant and a composite device reduces through the
-% alternate. The packaged object is [c m y k name] for CMYK and [r g b name]
-% for RGB, told apart by length. The tint transform bakes the components in,
-% mapping a tint t to [ct mt yt kt] (or [rt gt bt]), so the space carries its
-% own reduction.
+%
+%  Custom-colour convenience operators. A custom colour is a named spot ink
+%  with a device fallback: findcmykcustomcolor and findrgbcustomcolor package
+%  the fallback components with the name, and setcustomcolor enters the
+%  Separation colour space (PLRM 4.8.4) whose alternate is that fallback and
+%  whose tint transform scales the fallback by the tint. Because it is
+%  shorthand over the Separation space, a separation-preserving device
+%  receives the named colorant and a composite device reduces through the
+%  alternate. The packaged object is [c m y k name] for CMYK and [r g b name]
+%  for RGB, told apart by length. The tint transform bakes the components in,
+%  mapping a tint t to [ct mt yt kt] (or [rt gt bt]), so the space carries its
+%  own reduction.
+%
 
-% obj  .customcolorspace  [/Separation name alt {transform}] : the Separation
-% space a custom-colour object is shorthand for. setcustomcolor and
-% customcolorimage share it so the object is unpacked one way only.
+%
+%  obj  .customcolorspace  [/Separation name alt {transform}] : the Separation
+%  space a custom-colour object is shorthand for. setcustomcolor and
+%  customcolorimage share it so the object is unpacked one way only.
+%
 .xpostsys /.customcolorspace {
     dup length 5 eq {
-        aload pop                               % c m y k name
+        aload pop                               % C m y k name
         6 dict begin
         /nm exch def /kk exch def /yy exch def /mm exch def /cc exch def
         [ /Separation /nm load /DeviceCMYK
@@ -1097,7 +1174,7 @@ end
         end
     }{
         dup length 4 eq {
-            aload pop                           % r g b name
+            aload pop                           % R g b name
             5 dict begin
             /nm exch def /bb exch def /gg exch def /rr exch def
             [ /Separation /nm load /DeviceRGB
@@ -1119,16 +1196,18 @@ end
 } //.xpostsys /.defop get exec
 
 /setcustomcolor [ /arraytype /numbertype ] {
-    exch                                        % tint obj
+    exch                                        % Tint obj
     //.xpostsys /.customcolorspace get exec setcolorspace
-    setcolor                                    % tint setcolor
+    setcolor                                    % Tint setcolor
 } //.xpostsys /.defop get exec
 
-% A custom-colour image paints a one-channel picture in the custom colour:
-% its samples are read as coverage, a dark sample laying down the full
-% colorant and a light one leaving the page, so the decode runs 1 to 0. The
-% object comes last, over the same operands image takes; the space it
-% installs is undone afterwards.
+%
+%  A custom-colour image paints a one-channel picture in the custom colour:
+%  its samples are read as coverage, a dark sample laying down the full
+%  colorant and a light one leaving the page, so the decode runs 1 to 0. The
+%  object comes last, over the same operands image takes; the space it
+%  installs is undone afterwards.
+%
 /customcolorimage [ ] {
     % w h bits matrix datasrc obj -- resolve the object's space first, before
     % any begin or gsave, so a malformed object leaves nothing to unwind.
@@ -1144,10 +1223,12 @@ end
     end
 } //.xpostsys /.defop get exec
 
-% A separation image paints a one-channel picture in the current colour
-% space, its samples read straight as the single tint (decode 0 to 1). Unlike
-% the one-operand image form it honours a Separation or DeviceN space rather
-% than reading the samples as grey.
+%
+%  A separation image paints a one-channel picture in the current colour
+%  space, its samples read straight as the single tint (decode 0 to 1). Unlike
+%  the one-operand image form it honours a Separation or DeviceN space rather
+%  than reading the samples as grey.
+%
 /separationimage [ ] {
     5 dict begin
     /.src exch def /.mtx exch def
@@ -1157,17 +1238,19 @@ end
     end
 } //.xpostsys /.defop get exec
 
-% setcolordict and currentcolordict dispatch a device colour through the
-% operator named for its space. A program may redefine setgray/setrgbcolor/
-% setcmykcolor (and the current* readers) -- a common trick for remapping the
-% colours a document paints -- and where such a redefinition re-enters the colour
-% machinery (as casselman ch8's setrgbcolor does, mapping RGB back into a DeviceN
-% space) the internal reduction of an Indexed, Separation or DeviceN colour loops
-% until the exec stack overflows. `bind` freezes the operator names in a procedure
-% body, but not names held as data in a dispatch dictionary; so capture the real
-% operators here by value, before any redefinition, the way font.ps does for show
-% and setfont. The internal reduction then always reaches the real operators,
-% while a program's own set*/current* calls still see its redefinition.
+%
+%  setcolordict and currentcolordict dispatch a device colour through the
+%  operator named for its space. A program may redefine setgray/setrgbcolor/
+%  setcmykcolor (and the current* readers) -- a common trick for remapping the
+%  colours a document paints -- and where such a redefinition re-enters the colour
+%  machinery (as casselman ch8's setrgbcolor does, mapping RGB back into a DeviceN
+%  space) the internal reduction of an Indexed, Separation or DeviceN colour loops
+%  until the exec stack overflows. `bind` freezes the operator names in a procedure
+%  body, but not names held as data in a dispatch dictionary; so capture the real
+%  operators here by value, before any redefinition, the way font.ps does for show
+%  and setfont. The internal reduction then always reaches the real operators,
+%  while a program's own set*/current* calls still see its redefinition.
+%
 .xpostsys /setcolordict get
     dup /DeviceGray  /setgray      load put
     dup /DeviceRGB   /setrgbcolor   load put

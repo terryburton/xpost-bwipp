@@ -1,4 +1,5 @@
 %!PS
+%
 % path.ps
 %
 % The current path, a packed byte string, and the path-construction operators over it.
@@ -8,62 +9,71 @@
 
 //.internaldict /QUIET known { }{ (loading path.ps...)print } ifelse
 
-% Everything here defines into global VM, except the local routines
-% wrapped below.
+%
+%  Everything here defines into global VM, except the local routines
+%  wrapped below.
+%
 true setglobal
 
-% The current path is maintained by the operators
-% in xpost_op_path.c (see the layout comment there). PostScript code
-% observes it with .pathempty and the .pathnext enumerator, and appends
-% device-space elements with .devmoveto, .devlineto and .devcurveto.
 %
-% newpath, currentpoint, moveto, lineto, curveto, closepath and
-% flattenpath manipulate the packed string directly and exist only in
-% C.
+%  The current path is maintained by the operators
+%  in xpost_op_path.c (see the layout comment there). PostScript code
+%  observes it with .pathempty and the .pathnext enumerator, and appends
+%  device-space elements with .devmoveto, .devlineto and .devcurveto.
+%
+%  newpath, currentpoint, moveto, lineto, curveto, closepath and
+%  flattenpath manipulate the packed string directly and exist only in
+%  C.
+%
 
-% Path Construction Operators
-
+%
+%  Path Construction Operators
+%
 .xpostsys /cpath { graphicsdict /currgstate get /currpath get } bind put
 
-% move line curve close  .devpathforall  -
-% enumerate current path in device coordinates: each element's points
-% are pushed for the matching procedure (nothing for close)
 %
-% The walk runs in a dictionary of its own, opened through the bracket
-% that takes it off again however the walk ends, error included
-% (.indict, graphics.ps): a device method that walks a path is left the
-% dictionary stack it was handed whether the walk finished or stopped.
+%  move line curve close  .devpathforall  -
+%  enumerate current path in device coordinates: each element's points
+%  are pushed for the matching procedure (nothing for close)
+%
+%  The walk runs in a dictionary of its own, opened through the bracket
+%  that takes it off again however the walk ends, error included
+%  (.indict, graphics.ps): a device method that walks a path is left the
+%  dictionary stack it was handed whether the walk finished or stopped.
+%
 .xpostsys /.devpathforall {
 10 dict
 {
     4 array astore /procs exch def
     /str //.xpostsys /cpath get exec def
-    /off 0 def % .pathnext starts at the first element
-    { % loop
-        str off .pathnext not { exit } if % coords... cmd nextoff
-        /off exch def                     % coords... cmd
+    /off 0 def  % .pathnext starts at the first element
+    {  % loop
+        str off .pathnext not { exit } if  % Coords... cmd nextoff
+        /off exch def                     % Coords... cmd
         procs exch get exec
     } loop
 } //.xpostsys /.indict get exec
 }
 bind put
 
-% move line curve close  pathforall  -
-% enumerate current path in user coordinates. The caller's
-% procedures run outside the enumerator's dictionary scope -- the
-% scope pops around each call and resumes after -- so a procedure
-% that accumulates a running total by def reaches the caller's
-% dictionary, and one that leaves results on the stack keeps them.
-% They are the program's procedures, so each runs beneath the
-% boundary: a failure inside one is that procedure's own object
-% failing, and the operand stack goes back to what the procedure
-% found rather than to pathforall's four operands.
-% pathforall is a looping context, so one of those procedures may end it
-% with exit, and exit leaves the dictionary stack exactly as the
-% procedure left it (PLRM 8.2). The enumerator therefore begins and ends
-% its own scope within each turn of the loop, never across the call and
-% never around the loop: at every point an exit can reach, its
-% dictionary is already off.
+%
+%  move line curve close  pathforall  -
+%  enumerate current path in user coordinates. The caller's
+%  procedures run outside the enumerator's dictionary scope -- the
+%  scope pops around each call and resumes after -- so a procedure
+%  that accumulates a running total by def reaches the caller's
+%  dictionary, and one that leaves results on the stack keeps them.
+%  They are the program's procedures, so each runs beneath the
+%  boundary: a failure inside one is that procedure's own object
+%  failing, and the operand stack goes back to what the procedure
+%  found rather than to pathforall's four operands.
+%  pathforall is a looping context, so one of those procedures may end it
+%  with exit, and exit leaves the dictionary stack exactly as the
+%  procedure left it (PLRM 8.2). The enumerator therefore begins and ends
+%  its own scope within each turn of the loop, never across the call and
+%  never around the loop: at every point an exit can reach, its
+%  dictionary is already off.
+%
 currentglobal false setglobal
 .gscratch /.pfdict 10 dict put
 setglobal
@@ -74,10 +84,10 @@ begin
     /str //.xpostsys /cpath get exec def
     /off 0 def
 end
-{ % loop
+{  % loop
     .gscratch /.pfdict get begin
-        str off .pathnext not { end exit } if % coords... cmd nextoff
-        /off exch def                     % coords... cmd
+        str off .pathnext not { end exit } if  % Coords... cmd nextoff
+        /off exch def                     % Coords... cmd
         dup 2 lt {                        % x y cmd
             3 1 roll itransform 3 -1 roll
         }{
@@ -92,17 +102,19 @@ end
 } loop
 } //.xpostsys /.defop get exec
 
-% emit the held-back element, drawn to the endpoint on the stack;
-% reversal delays each element by one so that its command pairs with
-% the following element's point
-.xpostsys /dopending { % ex ey
+%
+%  emit the held-back element, drawn to the endpoint on the stack;
+%  reversal delays each element by one so that its command pairs with
+%  the following element's point
+%
+.xpostsys /dopending {  % ex ey
     pending /move eq { .devmoveto }{
     pending /line eq { .devlineto }{
     pending /curve eq {
         % pendingcurve = [x1 y1 x2 y2 x3 y3 2]: controls swap roles
         pendingcurve 2 get pendingcurve 3 get
         pendingcurve 0 get pendingcurve 1 get
-        6 4 roll % x2 y2 x1 y1 ex ey
+        6 4 roll  % X2 y2 x1 y1 ex ey
         .devcurveto
     }{
         pop pop
@@ -117,8 +129,8 @@ begin
         % collect elements: [ [x y 0] [x y 1] [x1 y1 x2 y2 x3 y3 2] [3] ... ]
         /elems [
             /off 0 def
-            { % loop
-                str off .pathnext not { exit } if % coords... cmd nextoff
+            {  % loop
+                str off .pathnext not { exit } if  % Coords... cmd nextoff
                 /off exch def
                 dup 2 eq { 7 array astore }{
                 dup 3 eq { 1 array astore }{
@@ -128,35 +140,35 @@ begin
         ] def
         newpath
         /i 0 def
-        { % loop over subpaths
+        {  % loop over subpaths
             i elems length ge { exit } if
             /j i 1 add def
-            { % loop: find the start of the next subpath
+            {  % loop: find the start of the next subpath
                 j elems length ge { exit } if
                 elems j get dup length 1 sub get 0 eq { exit } if
                 /j j 1 add def
             } loop
-            /spstart elems i get def % the subpath's move element
+            /spstart elems i get def  % The subpath's move element
             /pending /move def
             /isclosed false def
-            j 1 sub -1 i { % for, reversed over this subpath
+            j 1 sub -1 i {  % for, reversed over this subpath
                 elems exch get /el exch def
-                el dup length 1 sub get % cmd
-                dup 3 eq { % close
+                el dup length 1 sub get  % Cmd
+                dup 3 eq {  % close
                     pop
                     spstart 0 get spstart 1 get //.xpostsys /dopending get exec
                     /pending /line def
                     /isclosed true def
                 }{
-                dup 2 eq { % curve
+                dup 2 eq {  % curve
                     pop
                     el 4 get el 5 get //.xpostsys /dopending get exec
                     /pending /curve def
                     /pendingcurve el def
                 }{
-                0 eq { % move
+                0 eq {  % move
                     isclosed { closepath }{ el 0 get el 1 get //.xpostsys /dopending get exec } ifelse
-                }{ % line
+                }{  % line
                     el 0 get el 1 get //.xpostsys /dopending get exec
                     /pending /line def
                 } ifelse } ifelse } ifelse
@@ -167,29 +179,35 @@ begin
 end
 } //.xpostsys /.defop get exec
 
-% PLRM 3ed, 667:
-% The offset operand can be thought of as the "phase" of the dash pattern relative to
-% the start of the path. It is interpreted as the distance into the dash pattern
-% (measured in user space units) at which to start the pattern. Before beginning to
-% stroke a path, the stroke operator cycles through the elements of array, adding up
-% distances and alternating dashes and gaps as usual, but without generating any 
-% output. When the accumulated distance reaches the value specified by offset, it 
-% begins stroking from the starting point of the path, using the dash pattern from
-% the point that has been reached. Each subpath of a path is treated independently;
-% the dash pattern is restarted and the offset reapplied at the beginning of each
-% subpath.
+%
+%  PLRM 3ed, 667:
+%  The offset operand can be thought of as the "phase" of the dash pattern relative to
+%  the start of the path. It is interpreted as the distance into the dash pattern
+%  (measured in user space units) at which to start the pattern. Before beginning to
+%  stroke a path, the stroke operator cycles through the elements of array, adding up
+%  distances and alternating dashes and gaps as usual, but without generating any 
+%  output. When the accumulated distance reaches the value specified by offset, it 
+%  begins stroking from the starting point of the path, using the dash pattern from
+%  the point that has been reached. Each subpath of a path is treated independently;
+%  the dash pattern is restarted and the offset reapplied at the beginning of each
+%  subpath.
+%
 
-% The dashing routine maintains several variables relating to position in
-% the dash sequence. It attempts to maintain the following 
-% pos: relative user-space distance from start of current dash sequence element
-% ipos: index to dash array designating current dash sequence element
-% parity: drawing/not-drawing status
+%
+%  The dashing routine maintains several variables relating to position in
+%  the dash sequence. It attempts to maintain the following 
+%  pos: relative user-space distance from start of current dash sequence element
+%  ipos: index to dash array designating current dash sequence element
+%  parity: drawing/not-drawing status
+%
 
-% initial_pos divides the user-space offset into the dash sequence
-% and discovers whether we're initially drawing or not (parity)
-% on start: pos is an "absolute" user-space distance
-% on exit: pos is relative to current sequence element,
-% and ipos and parity are set appropriately
+%
+%  initial_pos divides the user-space offset into the dash sequence
+%  and discovers whether we're initially drawing or not (parity)
+%  on start: pos is an "absolute" user-space distance
+%  on exit: pos is relative to current sequence element,
+%  and ipos and parity are set appropriately
+%
 .xpostsys /initial_ipos {
     {
         pos dasharray ipos get lt { exit } if
@@ -199,20 +217,22 @@ end
     } loop
 } put
 
-% when crossing a dash sequence boundary
-% if we're drawing, we need to draw a line to
-% pos units along the trajectory defined by the (source) subpath line
-% and update pos=0 ++ipos parity=!parity
-% if we're not drawing, we need to update variables
-% and move to `current-sequence-element-length pos sub` units along the trajectory
-.xpostsys /crossdashbound { % data rad ang
+%
+%  when crossing a dash sequence boundary
+%  if we're drawing, we need to draw a line to
+%  pos units along the trajectory defined by the (source) subpath line
+%  and update pos=0 ++ipos parity=!parity
+%  if we're not drawing, we need to update variables
+%  and move to `current-sequence-element-length pos sub` units along the trajectory
+%
+.xpostsys /crossdashbound {  % data rad ang
     {/ang/rad/data}{exch def}forall
     /partial dasharray ipos get pos sub def
-    { % loop
+    {  % loop
         cp aload pop
-        partial ang //.xpostsys /ravec get exec % x y dx dy
-        3 2 roll add % x dx Y
-        3 1 roll add exch % X Y
+        partial ang //.xpostsys /ravec get exec  % X y dx dy
+        3 2 roll add  % X dx Y
+        3 1 roll add exch  % X Y
         2 copy 2 array astore /cp exch def
         parity 0 eq { lineto }{ moveto } ifelse
         /rad rad partial sub def
@@ -225,55 +245,59 @@ end
     } loop
     /pos rad def
     cp aload pop
-    rad ang //.xpostsys /ravec get exec % x y dx dy
-    3 2 roll add % x dx Y
-    3 1 roll add exch % X Y
+    rad ang //.xpostsys /ravec get exec  % X y dx dy
+    3 2 roll add  % X dx Y
+    3 1 roll add exch  % X Y
     2 copy 2 array astore /cp exch def
     parity 0 eq { lineto }{ moveto } ifelse
     data rad ang
 } put
 
-% "switch" actions (indexed by .pathnext command code) for iterating
-% the source subpath; handlers receive device coordinates
+%
+%  "switch" actions (indexed by .pathnext command code) for iterating
+%  the source subpath; handlers receive device coordinates
+%
 .xpostsys /dashdict <<
-    0 { % move: x y
-        2 copy 2 array astore /firstpt exch def % device, for close
+    0 {  % move: x y
+        2 copy 2 array astore /firstpt exch def  % Device, for close
         itransform 2 array astore /cp exch def
-        parity 0 eq { % initially drawing, create initial move
+        parity 0 eq {  % initially drawing, create initial move
             cp aload pop moveto
         } if
     }
-    1 { % line: x y
-        2 array astore % D  (device endpoint)
+    1 {  % line: x y
+        2 array astore  % D  (device endpoint)
         cp aload pop
         2 index aload pop itransform
-        //.xpostsys /ptdiff get exec % D dx dy
-        //.xpostsys /magang get exec % D rad ang
-        1 index pos add dasharray ipos get le { % same dash position
+        //.xpostsys /ptdiff get exec  % D dx dy
+        //.xpostsys /magang get exec  % D rad ang
+        1 index pos add dasharray ipos get le {  % same dash position
             1 index pos add /pos exch def
-            parity 0 eq { % if drawing, continue line
+            parity 0 eq {  % if drawing, continue line
                 % the cp update leaves its copy of the endpoint on
                 % top: emit the line to it directly
                 2 index /cp 1 index aload pop itransform 2 array astore def
                 aload pop .devlineto
             } if
-        }{ % cross a dash pattern boundary
+        }{  % cross a dash pattern boundary
             //.xpostsys /crossdashbound get exec
         } ifelse
         pop pop pop
     }
-    3 { % close
+    3 {  % close
         firstpt aload pop //.xpostsys /dashdict get 1 get exec
         closepath
     }
-    2 { } % curve: eliminated by flattenpath
+    2 { }  % Curve: eliminated by flattenpath
 >> put
 
-% apply dash parameters to current path
-% modifies current path
+%
+%  apply dash parameters to current path
+%  modifies current path
+%
 .xpostsys /dashpath {
     10 dict begin
-    currentdash % [] offset
+    currentdash  % [] offset
     /dashoffset exch def
     /dasharray exch def
     /pos dashoffset def
@@ -316,9 +340,9 @@ end
             /str //.xpostsys /cpath get exec def
             newpath
             /off 0 def
-            { % loop
-                str off .pathnext not { exit } if % coords... cmd nextoff
-                /off exch def                     % coords... cmd
+            {  % loop
+                str off .pathnext not { exit } if  % Coords... cmd nextoff
+                /off exch def                     % Coords... cmd
                 dup 0 eq {
                     /pos i_pos def
                     /ipos i_ipos def
@@ -331,41 +355,49 @@ end
     end
 } put
 
-% produce a vector from two points
-.xpostsys /ptdiff { % P0 P1
+%
+%  produce a vector from two points
+%
+.xpostsys /ptdiff {  % P0 P1
     3 -1 roll sub
-    3 1 roll exch sub exch % dx dy
+    3 1 roll exch sub exch  % Dx dy
 } bind put
 
-% convert cartesian vector to polar
-.xpostsys /magang { % dx dy  .  rad ang
-    2 copy 
+%
+%  convert cartesian vector to polar
+%
+.xpostsys /magang {  % dx dy  .  rad ang
+    2 copy
     dup mul exch dup mul add sqrt
     3 1 roll exch atan
 } bind put
 
-% convert polar vector to cartesian
-.xpostsys /ravec { % rad ang  .  dx dy
-    dup cos 2 index mul  % rad ang rad*cos(ang)
-    3 1 roll sin mul     % rad*cos(ang) rad*sin(ang)
+%
+%  convert polar vector to cartesian
+%
+.xpostsys /ravec {  % rad ang  .  dx dy
+    dup cos 2 index mul  % Rad ang rad*cos(ang)
+    3 1 roll sin mul     % Rad*cos(ang) rad*sin(ang)
 } bind put
 
-% The stroke outline is constructed in user coordinates and mapped to
-% the device by the live CTM, so a circular pen becomes the correct
-% ellipse under an anisotropic matrix. The pen diameter is the magnitude
-% of the user line width -- PLRM puts half the absolute value of the
-% number on each side of the path, so a width and its negation describe
-% the same pen, while currentlinewidth goes on reporting the number that
-% was set. Only a width of zero is the thinnest renderable line, taken
-% as one device pixel carried back to user space.
+%
+%  The stroke outline is constructed in user coordinates and mapped to
+%  the device by the live CTM, so a circular pen becomes the correct
+%  ellipse under an anisotropic matrix. The pen diameter is the magnitude
+%  of the user line width -- PLRM puts half the absolute value of the
+%  number on each side of the path, so a width and its negation describe
+%  the same pen, while currentlinewidth goes on reporting the number that
+%  was set. Only a width of zero is the thinnest renderable line, taken
+%  as one device pixel carried back to user space.
+%
 .xpostsys /minlinewidth {
     currentlinewidth abs
     dup 0 eq { pop 1 0 idtransform dup mul exch dup mul add sqrt } if
 } bind put
 
-.xpostsys /dolinejoin { % RR|LL R|L C
+.xpostsys /dolinejoin {  % RR|LL R|L C
     {
-        { % miter join: extend the outer edges to their intersection.
+        {  % miter join: extend the outer edges to their intersection.
           % The corner offsets v_old and v_new both have the half-width
           % magnitude and meet at the turn angle, so the apex sits at
           % C + (v_old + v_new)/(1 + cos delta), and the PLRM ratio
@@ -390,25 +422,27 @@ end
             } ifelse
             end
         }
-        { % XX X C
+        {  % XX X C
             6 4 roll pop pop
-            2 copy moveto % X C
-            2 copy 6 2 roll % C X C
-            //.xpostsys /ptdiff get exec dup mul exch dup mul add sqrt % C r
+            2 copy moveto  % X C
+            2 copy 6 2 roll  % C X C
+            //.xpostsys /ptdiff get exec dup mul exch dup mul add sqrt  % C r
             0 360 arc
             closepath
-        } % round join
-        { moveto lineto lineto closepath } % bevel join
+        }  % Round join
+        { moveto lineto lineto closepath }  % Bevel join
     } currentlinejoin get exec
 } put
 
-% x y ang  .docap  -
-% append the line-cap shape at one end of an open subpath: the
-% endpoint in device space and the outward direction along the
-% segment. A butt cap adds nothing; a round cap is the half-disc
-% beyond the end; a projecting square extends half a width past it.
-% Each shape meets the stroke body only along the end's chord, so its
-% winding cannot cancel the body's under the nonzero rule.
+%
+%  x y ang  .docap  -
+%  append the line-cap shape at one end of an open subpath: the
+%  endpoint in device space and the outward direction along the
+%  segment. A butt cap adds nothing; a round cap is the half-disc
+%  beyond the end; a projecting square extends half a width past it.
+%  Each shape meets the stroke body only along the end's chord, so its
+%  winding cannot cancel the body's under the nonzero rule.
+%
 .xpostsys /.docap {
     currentlinecap 0 eq {
         pop pop pop
@@ -433,27 +467,29 @@ end
 } put
 
 %
-% replace lineto segments . with 
-%                         |              L LL
-%                         |              /C--
-%       1 rmoveto --.-- closepath 5     /
-%       2 rlineto |   |                      /
-%                 |   | rlineto 4       ---C/
-%                 |----                   R RR
-%         3 rlineto ^---moveto 6
-%                 R C L
-%           point 2   point 3
-%                 ----
-%                 |  | join
-%                 ----
-%                 1  4
-%           point RR  point LL
-% "switch" actions (indexed by .pathnext command code); handlers
-% receive user coordinates and append the outline with the user-space
-% construction operators, so the live CTM maps the circular pen to the
-% device as the correct (possibly elliptical) shape
-% strokedict holds the stroke switch tables and their per-render running
-% state, so it stays in local VM.
+%
+%  replace lineto segments . with 
+%                          |              L LL
+%                          |              /C--
+%        1 rmoveto --.-- closepath 5     /
+%        2 rlineto |   |                      /
+%                  |   | rlineto 4       ---C/
+%                  |----                   R RR
+%          3 rlineto ^---moveto 6
+%                  R C L
+%            point 2   point 3
+%                  ----
+%                  |  | join
+%                  ----
+%                  1  4
+%            point RR  point LL
+%  "switch" actions (indexed by .pathnext command code); handlers
+%  receive user coordinates and append the outline with the user-space
+%  construction operators, so the live CTM maps the circular pen to the
+%  device as the correct (possibly elliptical) shape
+%  strokedict holds the stroke switch tables and their per-render running
+%  state, so it stays in local VM.
+%
 currentglobal false setglobal
 .gscratch /strokedict <<
     /ang 0
@@ -480,50 +516,50 @@ currentglobal false setglobal
         } if
         .gscratch /strokedict get /needcap false put
     }
-    0 { % move: x y
+    0 {  % move: x y
         .gscratch /strokedict get /docaps get exec
         2 copy .gscratch /strokedict get /firstpt get astore pop
         2 copy .gscratch /strokedict get /cp get astore pop
         moveto
         .gscratch /strokedict get /justmoved true put
     }
-    1 { % line: x1 y1
+    1 {  % line: x1 y1
 
-        .gscratch /strokedict get /cp get aload pop       % x1 y1 x0 y0
-        .gscratch /strokedict get /cp get .gscratch /strokedict get /oldcp get copy pop % oldcp
-        3 index 3 index .gscratch /strokedict get /cp get astore pop % cp=(x1 y1)
-        4 2 roll                           % x0 y0 x1 y1
+        .gscratch /strokedict get /cp get aload pop       % X1 y1 x0 y0
+        .gscratch /strokedict get /cp get .gscratch /strokedict get /oldcp get copy pop  % Oldcp
+        3 index 3 index .gscratch /strokedict get /cp get astore pop  % Cp=(x1 y1)
+        4 2 roll                           % X0 y0 x1 y1
 
-        //.xpostsys /ptdiff get exec                             % dx dy
-        //.xpostsys /magang get exec                             % rad ang
+        //.xpostsys /ptdiff get exec                             % Dx dy
+        //.xpostsys /magang get exec                             % Rad ang
         .gscratch /strokedict get /oldang .gscratch /strokedict get /ang get put
-        .gscratch /strokedict get /ang 2 index put                        % ang=atan(dy/dx)
+        .gscratch /strokedict get /ang 2 index put                        % Ang=atan(dy/dx)
         .gscratch /strokedict get /justmoved get {
             .gscratch /strokedict get /firstang 2 index put
         } if
         /DEBUGSTROKE where { pop (A)= pstack()= } if
 
         //.xpostsys /minlinewidth get exec
-        .5 mul 1 index 90 sub % rad ang .5lw ang_perp
+        .5 mul 1 index 90 sub  % Rad ang .5lw ang_perp
         //.xpostsys /ravec get exec
-        rmoveto              % rad ang      %rmoveto 1
-        currentpoint .gscratch /strokedict get /pointRR get astore pop % ptRR
+        rmoveto              % Rad ang      %rmoveto 1
+        currentpoint .gscratch /strokedict get /pointRR get astore pop  % PtRR
 
         2 copy //.xpostsys /ravec get exec
-        rlineto              % rad ang      %rlineto 2
-        .gscratch /strokedict get /pointR get .gscratch /strokedict get /oldpointR get copy pop % oldptR
-        currentpoint .gscratch /strokedict get /pointR get astore pop % ptR
+        rlineto              % Rad ang      %rlineto 2
+        .gscratch /strokedict get /pointR get .gscratch /strokedict get /oldpointR get copy pop  % OldptR
+        currentpoint .gscratch /strokedict get /pointR get astore pop  % PtR
 
         //.xpostsys /minlinewidth get exec
-        1 index 90 add       % rad ang lw -ang_perp
+        1 index 90 add       % Rad ang lw -ang_perp
         //.xpostsys /ravec get exec
-        rlineto              % rad ang      %rlineto 3
-        .gscratch /strokedict get /pointL get .gscratch /strokedict get /oldpointL get copy pop % oldptL
-        currentpoint .gscratch /strokedict get /pointL get astore pop % ptL
+        rlineto              % Rad ang      %rlineto 3
+        .gscratch /strokedict get /pointL get .gscratch /strokedict get /oldpointL get copy pop  % OldptL
+        currentpoint .gscratch /strokedict get /pointL get astore pop  % PtL
 
         180 add //.xpostsys /ravec get exec
-        rlineto              % rad ang      %rlineto 4
-        currentpoint .gscratch /strokedict get /pointLL get astore pop % ptLL
+        rlineto              % Rad ang      %rlineto 4
+        currentpoint .gscratch /strokedict get /pointLL get astore pop  % PtLL
 
         closepath            %              %closepath 5
         /DEBUGSTROKE where { pop (B)= pstack()= } if
@@ -533,14 +569,14 @@ currentglobal false setglobal
             .gscratch /strokedict get /firstLL .gscratch /strokedict get /pointLL get 2 array copy put
         } if
 
-        .gscratch /strokedict get /justmoved get not { % draw join
+        .gscratch /strokedict get /justmoved get not {  % draw join
             .gscratch /strokedict get /ang get .gscratch /strokedict get /oldang get sub
             % the side reads from the turn within one revolution: the
             % atan angles wrap at 360, so a difference below -180 is
             % the same turn seen across the seam
             dup 0 lt { 360 add } if
             /DEBUGSTROKE where { pop (C)= pstack()= } if
-            dup 0 le exch 180 ge or { % right turn
+            dup 0 le exch 180 ge or {  % right turn
 
                 .gscratch /strokedict get /pointLL get aload pop
                 .gscratch /strokedict get /oldpointL get aload pop
@@ -549,7 +585,7 @@ currentglobal false setglobal
 
                 /DEBUGSTROKE where { pop (D)= pstack()= } if
                 closepath
-            }{ % left turn
+            }{  % left turn
 
                 .gscratch /strokedict get /pointRR get aload pop
                 .gscratch /strokedict get /oldpointR get aload pop
@@ -561,59 +597,59 @@ currentglobal false setglobal
             } ifelse
         } if
 
-        .gscratch /strokedict get /cp get aload pop moveto % moveto 6
+        .gscratch /strokedict get /cp get aload pop moveto  % Moveto 6
 
         .gscratch /strokedict get /justmoved false put
         .gscratch /strokedict get /needcap true put
     }
-    3 { % close: the closing segment runs back to the subpath start
+    3 {  % close: the closing segment runs back to the subpath start
 
-        .gscratch /strokedict get /firstpt get aload pop  % x1 y1
+        .gscratch /strokedict get /firstpt get aload pop  % X1 y1
 
-        .gscratch /strokedict get /cp get aload pop       % x1 y1 x0 y0
-        .gscratch /strokedict get /cp get .gscratch /strokedict get /oldcp get copy pop % oldcp
-        3 index 3 index .gscratch /strokedict get /cp get astore pop % cp=(x1 y1)
-        4 2 roll                           % x0 y0 x1 y1
+        .gscratch /strokedict get /cp get aload pop       % X1 y1 x0 y0
+        .gscratch /strokedict get /cp get .gscratch /strokedict get /oldcp get copy pop  % Oldcp
+        3 index 3 index .gscratch /strokedict get /cp get astore pop  % Cp=(x1 y1)
+        4 2 roll                           % X0 y0 x1 y1
 
-        //.xpostsys /ptdiff get exec                             % dx dy
-        //.xpostsys /magang get exec                             % rad ang
+        //.xpostsys /ptdiff get exec                             % Dx dy
+        //.xpostsys /magang get exec                             % Rad ang
         .gscratch /strokedict get /oldang .gscratch /strokedict get /ang get put
-        .gscratch /strokedict get /ang 2 index put                        % ang=atan(dy/dx)
+        .gscratch /strokedict get /ang 2 index put                        % Ang=atan(dy/dx)
         /DEBUGSTROKE where { pop (A)= pstack()= } if
 
         //.xpostsys /minlinewidth get exec
-        .5 mul 1 index 90 sub % rad ang .5lw ang_perp
+        .5 mul 1 index 90 sub  % Rad ang .5lw ang_perp
         //.xpostsys /ravec get exec
-        rmoveto              % rad ang      %rmoveto 1
-        currentpoint .gscratch /strokedict get /pointRR get astore pop % ptRR
+        rmoveto              % Rad ang      %rmoveto 1
+        currentpoint .gscratch /strokedict get /pointRR get astore pop  % PtRR
 
         2 copy //.xpostsys /ravec get exec
-        rlineto              % rad ang      %rlineto 2
-        .gscratch /strokedict get /pointR get .gscratch /strokedict get /oldpointR get copy pop % oldptR
-        currentpoint .gscratch /strokedict get /pointR get astore pop % ptR
+        rlineto              % Rad ang      %rlineto 2
+        .gscratch /strokedict get /pointR get .gscratch /strokedict get /oldpointR get copy pop  % OldptR
+        currentpoint .gscratch /strokedict get /pointR get astore pop  % PtR
 
         //.xpostsys /minlinewidth get exec
-        1 index 90 add       % rad ang lw -ang_perp
+        1 index 90 add       % Rad ang lw -ang_perp
         //.xpostsys /ravec get exec
-        rlineto              % rad ang      %rlineto 3
-        .gscratch /strokedict get /pointL get .gscratch /strokedict get /oldpointL get copy pop % oldptL
-        currentpoint .gscratch /strokedict get /pointL get astore pop % ptL
+        rlineto              % Rad ang      %rlineto 3
+        .gscratch /strokedict get /pointL get .gscratch /strokedict get /oldpointL get copy pop  % OldptL
+        currentpoint .gscratch /strokedict get /pointL get astore pop  % PtL
 
         180 add //.xpostsys /ravec get exec
-        rlineto              % rad ang      %rlineto 4
-        currentpoint .gscratch /strokedict get /pointLL get astore pop % ptLL
+        rlineto              % Rad ang      %rlineto 4
+        currentpoint .gscratch /strokedict get /pointLL get astore pop  % PtLL
 
         closepath            %              %closepath 5
         /DEBUGSTROKE where { pop (B)= pstack()= } if
 
-        .gscratch /strokedict get /justmoved get not { % draw join
+        .gscratch /strokedict get /justmoved get not {  % draw join
             .gscratch /strokedict get /ang get .gscratch /strokedict get /oldang get sub
             % the side reads from the turn within one revolution: the
             % atan angles wrap at 360, so a difference below -180 is
             % the same turn seen across the seam
             dup 0 lt { 360 add } if
             /DEBUGSTROKE where { pop (C)= pstack()= } if
-            dup 0 le exch 180 ge or { % right turn
+            dup 0 le exch 180 ge or {  % right turn
 
                 .gscratch /strokedict get /pointLL get aload pop
                 .gscratch /strokedict get /oldpointL get aload pop
@@ -622,7 +658,7 @@ currentglobal false setglobal
 
                 /DEBUGSTROKE where { pop (D)= pstack()= } if
                 closepath
-            }{ % left turn
+            }{  % left turn
 
                 .gscratch /strokedict get /pointRR get aload pop
                 .gscratch /strokedict get /oldpointR get aload pop
@@ -639,7 +675,7 @@ currentglobal false setglobal
             % atan angles wrap at 360, so a difference below -180 is
             % the same turn seen across the seam
             dup 0 lt { 360 add } if
-            dup 0 le exch 180 ge or { % right turn
+            dup 0 le exch 180 ge or {  % right turn
 
                 .gscratch /strokedict get /firstLL get aload pop
                 .gscratch /strokedict get /pointL get aload pop
@@ -647,7 +683,7 @@ currentglobal false setglobal
                 //.xpostsys /dolinejoin get exec
 
                 closepath
-            }{ % left turn
+            }{  % left turn
 
                 .gscratch /strokedict get /firstRR get aload pop
                 .gscratch /strokedict get /pointR get aload pop
@@ -659,28 +695,28 @@ currentglobal false setglobal
 
         } if
 
-        .gscratch /strokedict get /cp get aload pop moveto % moveto 6
+        .gscratch /strokedict get /cp get aload pop moveto  % Moveto 6
 
         .gscratch /strokedict get /justmoved false put
         % a closed subpath meets itself through its joins: no cap owed
         .gscratch /strokedict get /needcap false put
     }
-    2 { } %curve: s.b. eliminated by flattenpath
+    2 { }  %Curve: s.b. eliminated by flattenpath
 >> put
 setglobal
 
 /strokepath [ ] {
-    flattenpath          % convert all curve segments to line approximations
-    //.xpostsys /dashpath get exec             % apply dashing effect
+    flattenpath          % Convert all curve segments to line approximations
+    //.xpostsys /dashpath get exec             % Apply dashing effect
     .gscratch /strokedict get /needcap false put
     .pathempty not {
         10 dict begin
         /str //.xpostsys /cpath get exec def
         newpath
         /off 0 def
-        { % loop
-            str off .pathnext not { exit } if % coords... cmd nextoff
-            /off exch def                     % coords... cmd
+        {  % loop
+            str off .pathnext not { exit } if  % Coords... cmd nextoff
+            /off exch def                     % Coords... cmd
             % the path holds device coordinates; the outline is built
             % in user space, so a move or line's point is carried back
             % through the CTM before the handler sees it
@@ -693,37 +729,43 @@ setglobal
     } if
 } //.xpostsys /.defop get exec
 
-% -  .clipregionpath  -
-% Replace the current path with the clip region as the machinery holds
-% it, which for a region covering no pixels is a path with no elements.
-% This is what the region walkers -- the half-plane clipper, the tiling
-% walk, the shading radius, the span resolver -- ask for: each is deciding
-% what to do about the pixels the region covers, and a region covering
-% none of them is an answer they have their own.
 %
-% The region is handed over as a copy: a segment appended to a path is
-% written into the storage the path already holds while there is room,
-% and only a path that has run out of room moves to fresh storage.
-% Handing over the region itself would therefore let a path built on from
-% here reach into the clip in force, or not, according to how much spare
-% room the region's storage happened to have.
+%  -  .clipregionpath  -
+%
+%  Replace the current path with the clip region as the machinery holds
+%  it, which for a region covering no pixels is a path with no elements.
+%  This is what the region walkers -- the half-plane clipper, the tiling
+%  walk, the shading radius, the span resolver -- ask for: each is deciding
+%  what to do about the pixels the region covers, and a region covering
+%  none of them is an answer they have their own.
+%
+%  The region is handed over as a copy: a segment appended to a path is
+%  written into the storage the path already holds while there is room,
+%  and only a path that has run out of room moves to fresh storage.
+%  Handing over the region itself would therefore let a path built on from
+%  here reach into the clip in force, or not, according to how much spare
+%  room the region's storage happened to have.
+%
 .xpostsys /.clipregionpath {
     graphicsdict /currgstate get
         dup /clipregion get .copypath
         /currpath exch put
 } bind put
 
-% -  clippath  -
-% Replace the current path with the clip region's boundary (PLRM 8.2).
 %
-% A region covering no pixels has no boundary, and what a program is
-% given for one is a single point at the centre of the page: a moveto and
-% a closepath, bounding no area. PLRM 8.2 gives clippath no errors, so a
-% region that bounds nothing is as much a question clippath has to answer
-% as one that bounds something, and clippath pathbbox -- the way a
-% program asks how much room it has to paint in -- then sizes nothing
-% rather than failing. The point carries no area into any arithmetic done
-% on that box, and the region the painters enforce is not changed by it.
+%  -  clippath  -
+%
+%  Replace the current path with the clip region's boundary (PLRM 8.2).
+%
+%  A region covering no pixels has no boundary, and what a program is
+%  given for one is a single point at the centre of the page: a moveto and
+%  a closepath, bounding no area. PLRM 8.2 gives clippath no errors, so a
+%  region that bounds nothing is as much a question clippath has to answer
+%  as one that bounds something, and clippath pathbbox -- the way a
+%  program asks how much room it has to paint in -- then sizes nothing
+%  rather than failing. The point carries no area into any arithmetic done
+%  on that box, and the region the painters enforce is not changed by it.
+%
 /clippath [ ] {
     //.xpostsys /.clipregionpath get exec
     .pathempty {
@@ -734,6 +776,7 @@ setglobal
     } if
 } //.xpostsys /.defop get exec
 
-% pathbbox is implemented in xpost_op_path.c
-
+%
+%  pathbbox is implemented in xpost_op_path.c
+%
 //.internaldict /QUIET known { }{ (eof path.ps\n)print } ifelse

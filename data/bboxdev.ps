@@ -1,4 +1,5 @@
 %!PS
+%
 % bboxdev.ps
 %
 % The bounding-box device: measure the marks a page makes without rendering them.
@@ -8,41 +9,42 @@
 
 //.internaldict /QUIET known { }{ (loading bboxdev.ps...)print } ifelse
 
-.privatedict /newbboxdevice { % width height  .  IMAGE-device-dict
+.privatedict /newbboxdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_BBOX get dup /Create get exec
 } put
 
-% .xpost_BBOX computes the bounding box of all marks and prints it on Emit --
-% without rasterizing (NoOutput). Coordinates arrive in device space; Emit
-% reports them in default user space (y-up).
 %
-% Methods are as for the other devices (see nulldev.ps), except the marking
-% methods accumulate a box rather than discarding their arguments. The page
-% clear must not contribute to the box, so the device carries an Erase no-op
-% and erasepage never reaches the marking methods.
+%  .xpost_BBOX computes the bounding box of all marks and prints it on Emit --
+%  without rasterizing (NoOutput). Coordinates arrive in device space; Emit
+%  reports them in default user space (y-up).
 %
-% A method runs its body with the device dictionary current, and opens it
-% through the bracket that takes it off again however the body ends, error
-% included (.indict, graphics.ps).
+%  Methods are as for the other devices (see nulldev.ps), except the marking
+%  methods accumulate a box rather than discarding their arguments. The page
+%  clear must not contribute to the box, so the device carries an Erase no-op
+%  and erasepage never reaches the marking methods.
 %
-% Glyphs need no rasterization here -- whose cost grows with the square of
-% the resolution -- so the device declares /GlyphExtents: each glyph
-% contributes its ink box through FillRect instead.
-
+%  A method runs its body with the device dictionary current, and opens it
+%  through the bracket that takes it off again however the body ends, error
+%  included (.indict, graphics.ps).
+%
+%  Glyphs need no rasterization here -- whose cost grows with the square of
+%  the resolution -- so the device declares /GlyphExtents: each glyph
+%  contributes its ink box through FillRect instead.
+%
 /.xpost_BBOX <<
     /nativecolorspace /DeviceGray
     /dimensions [0 0]
-    /NoOutput true  % accumulate coordinates only; never rasterize
-    /GlyphExtents true  % text marks contribute outline ink boxes, not bitmaps
+    /NoOutput true  % Accumulate coordinates only; never rasterize
+    /GlyphExtents true  % Text marks contribute outline ink boxes, not bitmaps
 
     /.copydict //.xpostsys /.classcopydict get
 
-    /Create { % width height IMAGE  .  IMAGE'
+    /Create {  % width height IMAGE  .  IMAGE'
         { {/height /width}{exch def}forall
         currentdict } //.xpostsys /.indict get exec
         dup /.copydict get exec
         {
-            /minx 1e30 def   % empty box: min > max
+            /minx 1e30 def   % Empty box: min > max
             /miny 1e30 def
             /maxx -1e30 def
             /maxy -1e30 def
@@ -50,7 +52,7 @@
         } //.xpostsys /.indict get exec
     }
 
-    /Destroy { % IMAGE  .  -
+    /Destroy {  % IMAGE  .  -
         pop
     }
 
@@ -58,14 +60,14 @@
     % device carries /WhiteIsOpaque true; the default is false (white
     % ignored), so crop-style boxes exclude painted white. Anything else
     % always marks.
-    /.opaque { % val  .  bool
+    /.opaque {  % val  .  bool
         1 lt
         currentdict /WhiteIsOpaque 2 copy known { get }{ pop pop false } ifelse
         or
     }
 
     % expand the box to include a device-space point
-    /.maxmin { % x y  .  -
+    /.maxmin {  % x y  .  -
         2 copy
         dup maxy gt { /maxy exch def }{ pop } ifelse
         dup maxx gt { /maxx exch def }{ pop } ifelse
@@ -73,17 +75,17 @@
         dup minx lt { /minx exch def }{ pop } ifelse
     }
 
-    /PutPix { % val x y IMAGE  .  -
+    /PutPix {  % val x y IMAGE  .  -
         {
             3 -1 roll .opaque { .maxmin }{ pop pop } ifelse
         } //.xpostsys /.indict get exec
     }
 
-    /GetPix { % x y IMAGE  .  val
+    /GetPix {  % x y IMAGE  .  val
         pop pop pop  0
     }
 
-    /DrawLine { % val x1 y1 x2 y2 IMAGE  .  -
+    /DrawLine {  % val x1 y1 x2 y2 IMAGE  .  -
         { {y2 x2 y1 x1 val}{exch def}forall
             val .opaque {
                 x1 y1 .maxmin
@@ -92,7 +94,7 @@
         } //.xpostsys /.indict get exec
     }
 
-    /DrawRect { % val x y w h IMAGE  .  -
+    /DrawRect {  % val x y w h IMAGE  .  -
         { {h w y x val}{exch def}forall
             val .opaque {
                 x y .maxmin
@@ -102,7 +104,7 @@
     }
 
     % the page clear (erasepage) is not a mark
-    /Erase { % IMAGE  .  -
+    /Erase {  % IMAGE  .  -
         pop
     }
 
@@ -119,7 +121,7 @@
     % still travels the polygon route, whose span intersection is exact
     % for the pixels painted. The colour gates the mark as everywhere on
     % this device: an unmarking white leaves the box alone.
-    /FillPath { % mark c1..cn IMAGE  .  mark
+    /FillPath {  % mark c1..cn IMAGE  .  mark
         {
             counttomark 1 sub { pop } repeat
             .opaque {
@@ -142,7 +144,7 @@
         } //.xpostsys /.indict get exec
     }
 
-    /FillRect { % val x y w h IMAGE  .  -
+    /FillRect {  % val x y w h IMAGE  .  -
         { {h w y x val}{exch def}forall
             val .opaque {
                 x y .maxmin
@@ -151,13 +153,13 @@
         } //.xpostsys /.indict get exec
     }
 
-    /FillPoly { % val polygon IMAGE  .  -
+    /FillPoly {  % val polygon IMAGE  .  -
         {
             exch .opaque {
                 {
                     dup type /arraytype eq {
                         dup length 2 eq { aload pop .maxmin }{ pop } ifelse
-                    }{ pop } ifelse  % null subpath separators fall here
+                    }{ pop } ifelse  % Null subpath separators fall here
                 } forall
             }{
                 pop
@@ -165,7 +167,7 @@
         } //.xpostsys /.indict get exec
     }
 
-    /Emit { % IMAGE  .  -
+    /Emit {  % IMAGE  .  -
         {
             minx maxx gt {  % nothing was marked
                 (%%BoundingBox: 0 0 0 0\n) print
