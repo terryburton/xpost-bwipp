@@ -207,9 +207,8 @@ typedef enum {
 
 /**
  * @typedef Xpost_Set_Size
- * @brief FIXME: to fill...
- *
- * Currently, only "ignore size" is implemented.
+ * @brief Whether a caller-supplied start page size is used, or ignored in
+ *        favour of the default of US Letter (612x792 points).
  */
 typedef enum {
     XPOST_IGNORE_SIZE,
