@@ -863,7 +863,7 @@ int xpost_op_file_readstring (Xpost_Context *ctx,
                               Xpost_Object F,
                               Xpost_Object S)
 {
-    int n;
+    integer n;
     Xpost_File *f;
     char *s;
     if (!xpost_object_is_readable(ctx,F))
@@ -1771,7 +1771,7 @@ int xpost_op_any_writeobject(Xpost_Context *ctx,
 
         if (d < 0)
             ret = ioerror;
-        else if (!d && xpost_file_write((char *)buf, 1, (int)len, f) != (int)len)
+        else if (!d && xpost_file_write((char *)buf, 1, (integer)len, f) != (integer)len)
             ret = ioerror;
     }
     free(buf);

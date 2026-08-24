@@ -75,7 +75,7 @@ typedef struct Xpost_File_Methods
        through writech instead; only a stream whose backing can take a
        run wholesale carries one, since the point of it is to write the
        run without a call per byte. */
-    int (*writeblock)(Xpost_File*, const unsigned char *buf, int n);
+    integer (*writeblock)(Xpost_File*, const unsigned char *buf, integer n);
 } Xpost_File_Methods;
 
 /* A filter holds the stream it decodes from (or encodes to) as a plain
@@ -499,8 +499,8 @@ unsigned int xpost_file_underlying_entity(Xpost_Memory_File *mem, unsigned int e
  */
 void xpost_file_release_entity(Xpost_Memory_File *mem, unsigned int ent);
 
-int xpost_file_read(char *buf, int size, int count, Xpost_File *fp);
-int xpost_file_write(const char *buf, int size, int count, Xpost_File *fp);
+integer xpost_file_read(char *buf, integer size, integer count, Xpost_File *fp);
+integer xpost_file_write(const char *buf, integer size, integer count, Xpost_File *fp);
 FILE *xpost_file_stdio_stream_get(Xpost_File *fp);
 
 /**

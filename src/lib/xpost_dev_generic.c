@@ -1948,7 +1948,7 @@ int _emit_write(Xpost_Context *ctx, Xpost_File *f,
         return ctx->stdout_fn(ctx->stdout_user, (const char *)buf, len) == len ? 0 : -1;
     if (stream == stderr && ctx->stderr_fn)
         return ctx->stderr_fn(ctx->stderr_user, (const char *)buf, len) == len ? 0 : -1;
-    return xpost_file_write((const char *)buf, 1, (int)len, f) == (int)len ? 0 : -1;
+    return xpost_file_write((const char *)buf, 1, (integer)len, f) == (integer)len ? 0 : -1;
 }
 
 /* Emit the packed bytes of a run of grayscale array-of-strings rows as

@@ -955,8 +955,8 @@ disk_writech(Xpost_File *file, int c)
     return ret;
 }
 
-static int
-disk_writeblock(Xpost_File *file, const unsigned char *buf, int n)
+static integer
+disk_writeblock(Xpost_File *file, const unsigned char *buf, integer n)
 {
     Xpost_DiskFile *df = (Xpost_DiskFile*) file;
     size_t wrote;
@@ -966,7 +966,7 @@ disk_writeblock(Xpost_File *file, const unsigned char *buf, int n)
     wrote = fwrite(buf, 1, (size_t)n, df->file);
     if (ferror(df->file))
         return EOF;
-    return (int)wrote;
+    return (integer)wrote;
 }
 
 static int
@@ -6257,9 +6257,15 @@ int xpost_file_object_close_at_eod(Xpost_Memory_File *mem,
 
 // returned value is count of complete size-sized chunks read.
 // function may have read up to size-1 additional bytes.
-int xpost_file_read(char *buf, int size, int count, Xpost_File *fp)
+/* size and count are counted in the object width, not int: on the wide
+   build a string is as long as 2^32-1, and a length past INT_MAX narrowed
+   to int went negative -- a read that then transferred nothing and a write
+   whose size*count overflowed to a vast size_t and ran off the buffer. The
+   index k is counted the same way, since the buffer it walks is as long. */
+integer xpost_file_read(char *buf, integer size, integer count, Xpost_File *fp)
 {
-    int c, i, j, k = 0;
+    int c;
+    integer i, j, k = 0;
 
     for (i = 0; i < count; ++i)
     {
@@ -6274,16 +6280,16 @@ int xpost_file_read(char *buf, int size, int count, Xpost_File *fp)
     return i;
 }
 
-int xpost_file_write(const char *buf, int size, int count, Xpost_File *fp)
+integer xpost_file_write(const char *buf, integer size, integer count, Xpost_File *fp)
 {
-    int i, j, k = 0;
+    integer i, j, k = 0;
 
     /* a stream that takes a run wholesale is handed the whole run;
        every other stream takes it a byte at a time */
     if (fp->methods->writeblock)
     {
-        int wrote = fp->methods->writeblock(fp, (const unsigned char *)buf,
-                                            size * count);
+        integer wrote = fp->methods->writeblock(fp, (const unsigned char *)buf,
+                                                size * count);
         if (wrote == EOF)
             return 0;
         return wrote / size;
