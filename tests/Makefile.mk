@@ -84,6 +84,7 @@ tests/check-glyph-render-route.sh \
 tests/check-name-interning.sh \
 tests/name_interning.register \
 tests/check-guard-paths.sh \
+tests/check-guard-priority.sh \
 tests/check-host-settings.sh \
 tests/check-must-check.sh \
 tests/check-name-registers.sh \

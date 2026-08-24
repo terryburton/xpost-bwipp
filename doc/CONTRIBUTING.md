@@ -174,6 +174,12 @@ Register it in `meson.build` with a cost tag: `fast`, `slow` or
 `veryslow`. `check-test-cost` fails a registration that declares none, so
 a slow test added later cannot quietly settle into the quick profile.
 
+A guard, or the `golden-render` byte-identity gate, carries
+`priority: guard_priority` so meson schedules it in the first seconds of a
+run rather than behind the slow tests that start early for the clock -- a
+break in a quick, easily-broken check is then seen and fixed at once, not
+after a suite. `check-guard-priority` holds every guard to it.
+
 Name it in `tests/gate-map` under the area it answers for.
 `check-gate-map` fails a test named by no area, and fails a rule that
 names no test or wins no file -- a stale rule being one that quietly

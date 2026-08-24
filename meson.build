@@ -863,6 +863,15 @@ asan_answers_null = 'halt_on_error=1:abort_on_error=1:print_summary=1:allocator_
 
 cost_fast = ['xpost', 'fast']
 cost_slow = ['xpost', 'slow']
+
+# The guards and the byte-identity render gate are quick and are the checks
+# most easily got wrong, so they are scheduled ahead of everything -- above
+# even the slow tests that start early for the clock -- and stream their
+# verdict in the first seconds of any run, where a break is seen and fixed
+# at once rather than after a suite. check-guard-priority holds every guard
+# to carrying this, so a new one cannot be added at the default and sink to
+# the back. (meson runs higher priority first.)
+guard_priority = 300
 cost_veryslow = ['xpost', 'veryslow']
 
 run_profile = find_program('tests/run-profile.sh')
@@ -1932,6 +1941,7 @@ test('semantics',
 # with -- so the rule is held structurally rather than by a render.
 test('check-clip-writer',
   find_program('tests/check-clip-writer.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -2237,6 +2247,7 @@ test('pdf-append-fail',
 # ExtGState the page references, and a page that never sets it carries none.
 test('pdf-overprint',
   find_program('tests/check-pdf-overprint.sh'),
+  priority: guard_priority,
   args: [ xpost_exe ],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   suite: cost_fast,
@@ -3188,6 +3199,7 @@ test('colorspace-cycle',
 # spelling. Both failures are silent until a program re-enters or raises.
 test('callout-bracket',
   find_program('tests/check-callout-bracket.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -3336,6 +3348,7 @@ test('op-operand-shapes',
 # is declared and checked.
 test('check-shadowed-operators',
   find_program('tests/check-shadowed-operators.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() / 'src/lib',
           meson.current_source_dir() / 'data',
           files('tests/shadowed_operators.golden') ],
@@ -3347,6 +3360,7 @@ test('check-shadowed-operators',
 # is what an already-bound body put out of bind's reach, and only shrinks.
 test('check-wrapped-bind',
   find_program('tests/check-wrapped-bind.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe, meson.current_source_dir(), files('tests/wrapped_bind.golden') ])
 
@@ -3397,6 +3411,7 @@ test('error-dict',
 # name C never returns reads as coverage it is not.
 test('check-error-names',
   find_program('tests/check-error-names.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe, meson.current_source_dir() ])
 
@@ -3413,6 +3428,7 @@ test('check-error-names',
 # compiled in only for a build that asks for it.
 test('check-env-traps',
   find_program('tests/check-env-traps.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe, meson.current_source_dir() ],
   timeout: 120)
@@ -3425,6 +3441,7 @@ test('check-env-traps',
 # was written for.
 test('check-awk-portability',
   find_program('tests/check-awk-portability.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ],
   timeout: 60)
@@ -3439,18 +3456,28 @@ test('check-awk-portability',
 # "did not grow".
 test('check-memory-declarations',
   find_program('tests/check-memory-declarations.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ],
   timeout: 60)
 
 test('check-file-headers',
   find_program('tests/check-file-headers.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ],
   timeout: 60)
 
 test('check-ps-spacing',
   find_program('tests/check-ps-spacing.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ],
+  timeout: 60)
+
+test('check-guard-priority',
+  find_program('tests/check-guard-priority.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ],
   timeout: 60)
@@ -3687,6 +3714,7 @@ test('statementedit',
 # it is made.
 test('check-global-local-anchors',
   find_program('tests/check-global-local-anchors.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir(), xpost_exe ],
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
@@ -4041,6 +4069,7 @@ test('reloc-fused',
 # external linkage; the compiler reports only a useless-storage-class note.
 test('check-exported-symbols',
   find_program('tests/check-exported-symbols.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ libxpost_lib.full_path(), files('tests/exported_symbols.golden') ])
 
@@ -4050,6 +4079,7 @@ test('check-exported-symbols',
 # machinery, and the fixed-slot fetch is the one way C reaches it.
 test('check-userdict-reach',
   find_program('tests/check-userdict-reach.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -4086,6 +4116,7 @@ endif
 # (it then compares nothing).
 test('check-test-quality',
   find_program('tests/check-test-quality.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() / 'tests' ],
   suite: cost_fast,
   timeout: 120)
@@ -4095,6 +4126,7 @@ test('check-test-quality',
 # slowly fills with minute-long checks is a profile nobody runs.
 test('check-test-cost',
   find_program('tests/check-test-cost.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast)
 
@@ -4119,6 +4151,7 @@ run_target('cost-drift',
 # what several tests cost.
 test('check-test-timeouts',
   find_program('tests/check-test-timeouts.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast)
 
@@ -4130,6 +4163,7 @@ test('check-test-timeouts',
 # anything.
 test('check-gate-map',
   find_program('tests/check-gate-map.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir(), meson.current_build_dir() ],
   suite: cost_fast)
 
@@ -4138,6 +4172,7 @@ test('check-gate-map',
 # that does not compile, which no in-tree build would ever reveal.
 test('check-dist-lists',
   find_program('tests/check-dist-lists.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -4178,6 +4213,7 @@ test('fused-equivalence',
 # shrinks.
 test('check-op-references',
   find_program('tests/check-op-references.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -4188,6 +4224,7 @@ test('check-op-references',
 # has no refusal to ignore.
 test('check-vm-address',
   find_program('tests/check-vm-address.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -4199,6 +4236,7 @@ test('check-vm-address',
 # moved to the interpreter's safe point.
 test('check-compaction-safe-point',
   find_program('tests/check-compaction-safe-point.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -4210,6 +4248,7 @@ test('check-compaction-safe-point',
 # arena would have to rewrite every one of them.
 test('check-vm-address-fields',
   find_program('tests/check-vm-address-fields.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -4222,6 +4261,7 @@ test('check-vm-address-fields',
 # is that stands in the way.
 test('check-raw-allocations',
   find_program('tests/check-raw-allocations.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -4235,6 +4275,7 @@ test('check-raw-allocations',
 # block a handle stands for -- and what a reader must do with each.
 test('check-vm-host-state',
   find_program('tests/check-vm-host-state.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -4243,6 +4284,7 @@ test('check-vm-host-state',
 # to the fast path without equivalence coverage fails here.
 test('check-fused-ops',
   find_program('tests/check-fused-ops.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() / 'src' / 'lib',
           files('tests/fused_equivalence_test.ps') ],
   suite: cost_fast)
@@ -4617,6 +4659,7 @@ test('band-replay-cost',
 # (tests/run-golden-render.sh ... --regen).
 test('golden-render',
   find_program('tests/run-golden-render.sh'),
+  priority: guard_priority,
   args: [ xpost_exe, files('tests/golden_page.ps'), files('tests/golden_pages.ps'),
           meson.current_source_dir() / 'tests' / 'golden' ],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
@@ -4758,6 +4801,7 @@ test('job-page',
 # each holder, what names it.
 test('c-held-objects',
   find_program('tests/check-c-held-objects.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast)
 
@@ -5277,6 +5321,7 @@ test('error-format',
 # enforcement point.
 test('fopen-funnel',
   find_program('tests/check-fopen-funnel.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ],
   timeout: 120)
@@ -5286,6 +5331,7 @@ test('fopen-funnel',
 # xpost_dev_driver.h -- the contract stays written in one place.
 test('check-device-skeleton',
   find_program('tests/check-device-skeleton.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5297,6 +5343,7 @@ test('check-device-skeleton',
 # a comparison comes from a platform lane rather than from here.
 test('check-width-comparisons',
   find_program('tests/check-width-comparisons.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), meson.current_build_dir() ])
 
@@ -5308,6 +5355,7 @@ test('check-width-comparisons',
 # of a job to the name page one had.
 test('check-page-output',
   find_program('tests/check-page-output.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5318,6 +5366,7 @@ test('check-page-output',
 # rather than listed, so a device added later joins it that day.
 test('check-device-destroy',
   find_program('tests/check-device-destroy.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5328,6 +5377,7 @@ test('check-device-destroy',
 # derived from the source rather than listed.
 test('check-library-lifetime',
   find_program('tests/check-library-lifetime.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5340,6 +5390,7 @@ test('check-library-lifetime',
 # starts again.
 test('check-counter-register',
   find_program('tests/check-counter-register.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5364,6 +5415,7 @@ test('check-counter-register',
 # population making the assertion can only grow.
 test('check-vm-growth',
   find_program('tests/check-vm-growth.sh'),
+  priority: guard_priority,
   suite: cost_slow,
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 1800)
@@ -5376,6 +5428,7 @@ test('check-vm-growth',
 # skips where /proc/self/statm is absent.
 test('check-page-return',
   find_program('tests/check-page-return.sh'),
+  priority: guard_priority,
   suite: cost_slow,
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 300)
@@ -5391,6 +5444,7 @@ test('check-page-return',
 # says and what its class ends up holding are two questions.
 test('check-device-roster',
   find_program('tests/check-device-roster.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5415,6 +5469,7 @@ test('check-device-roster',
 # machine puts on any test here.
 test('check-device-facts',
   find_program('tests/check-device-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 240)
@@ -5425,6 +5480,7 @@ test('check-device-facts',
 # library, and nothing said which were which.
 test('check-filter-facts',
   find_program('tests/check-filter-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5434,6 +5490,7 @@ test('check-filter-facts',
 # nowhere until the register.
 test('check-halftone-facts',
   find_program('tests/check-halftone-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5450,6 +5507,7 @@ test('check-halftone-facts',
 # cheap and does not on Windows, where starting one is not.
 test('check-shading-facts',
   find_program('tests/check-shading-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 240)
@@ -5462,6 +5520,7 @@ test('check-shading-facts',
 # offers.
 test('check-form-facts',
   find_program('tests/check-form-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5471,6 +5530,7 @@ test('check-form-facts',
 # widths each allows are the specification's rather than the reader's.
 test('check-function-facts',
   find_program('tests/check-function-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5482,6 +5542,7 @@ test('check-function-facts',
 # satisfies any check that only asks whether an error was raised.
 test('check-colourspace-facts',
   find_program('tests/check-colourspace-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   # a guard's probes run about three times slower on the Windows host,
   # so a limit sized on Linux is not a limit there
@@ -5496,6 +5557,7 @@ test('check-colourspace-facts',
 # helper answers it now, and this holds every type to whether it PAINTS.
 test('check-pattern-facts',
   find_program('tests/check-pattern-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5508,6 +5570,7 @@ test('check-pattern-facts',
 # its own samples describe.
 test('check-image-facts',
   find_program('tests/check-image-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5530,6 +5593,7 @@ test('check-image-devclip',
 # where PLRM 8.2 says the same of both.
 test('check-font-facts',
   find_program('tests/check-font-facts.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5541,6 +5605,7 @@ test('check-font-facts',
 # are held rather than the result.
 test('check-glyph-render-route',
   find_program('tests/check-glyph-render-route.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5557,6 +5622,7 @@ test('check-glyph-render-route',
 # held to the derivation in both directions.
 test('check-name-interning',
   find_program('tests/check-name-interning.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5571,6 +5637,7 @@ test('check-name-interning',
 # which agreed with each other on every case.
 test('check-halftone-transfer',
   find_program('tests/check-halftone-transfer.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5583,6 +5650,7 @@ test('check-halftone-transfer',
 # requires the same page out.
 test('check-screen-paths',
   find_program('tests/check-screen-paths.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
@@ -5602,6 +5670,7 @@ test('check-screen-paths',
 # out to exactly what the work costs there.
 test('check-type42-charstrings',
   find_program('tests/check-type42-charstrings.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe,
           meson.current_source_dir() / 'tests' / 'type42_charstrings_test.ps',
@@ -5616,6 +5685,7 @@ test('check-type42-charstrings',
 # purpose. Neither shows on a lane, which has no display at all.
 test('check-test-devices',
   find_program('tests/check-test-devices.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5626,6 +5696,7 @@ test('check-test-devices',
 # cannot arise.
 test('must-check',
   find_program('tests/check-must-check.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5634,6 +5705,7 @@ test('must-check',
 # per the register in tests/dict_homes.golden.
 test('dict-homes',
   find_program('tests/check-dict-homes.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5649,6 +5721,7 @@ test('dict-homes',
 # still in it.
 test('shared-helpers',
   find_program('tests/check-shared-helpers.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5663,6 +5736,7 @@ test('shared-helpers',
 # the population from the directory so that a newly written one is in it.
 test('raster-reading',
   find_program('tests/check-raster-reading.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5680,12 +5754,14 @@ test('raster-reading',
 # carries a source file and line.
 test('check-error-quiet',
   find_program('tests/check-error-quiet.sh'),
+  priority: guard_priority,
   args: [ xpost_exe ],
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
 test('check-testlib',
   find_program('tests/check-testlib.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5711,6 +5787,7 @@ test('testlib-contract',
 # other two to it in both directions.
 test('check-colour-spaces',
   find_program('tests/check-colour-spaces.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
@@ -5727,6 +5804,7 @@ test('check-colour-spaces',
 # above the second for the stretch a loaded machine adds.
 test('guard-paths',
   find_program('tests/check-guard-paths.sh'),
+  priority: guard_priority,
   args: [ meson.current_source_dir(), xpost_exe, libxpost_lib.full_path() ],
   suite: cost_slow,
   timeout: 2400)
@@ -5736,6 +5814,7 @@ test('guard-paths',
 # could not reach it and had their statements written by hand instead.
 test('opsigs-writer',
   find_program('tests/check-opsigs-writer.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5748,6 +5827,7 @@ test('opsigs-writer',
 # files, and to what a live startup settled from a known invocation.
 test('host-settings',
   find_program('tests/check-host-settings.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe, meson.current_source_dir() ])
 
@@ -5757,6 +5837,7 @@ test('host-settings',
 # checked against a live startup rather than a second set of patterns.
 test('private-refs',
   find_program('tests/check-private-refs.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe, meson.current_source_dir() ])
 
@@ -5767,6 +5848,7 @@ test('private-refs',
 # to a live startup here.
 test('name-registers',
   find_program('tests/check-name-registers.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ xpost_exe, meson.current_source_dir() ])
 
@@ -5775,6 +5857,7 @@ test('name-registers',
 # and every shared method is defined exactly once, in the prototype.
 test('raster-classes-derivation',
   find_program('tests/check-raster-classes.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5784,6 +5867,7 @@ test('raster-classes-derivation',
 # dict-copy derivation of the PDF device.
 test('vecbase',
   find_program('tests/check-vecbase.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5793,6 +5877,7 @@ test('vecbase',
 # looked up in a hand-maintained list of the method tables.
 test('filter-base',
   find_program('tests/check-filter-base.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5802,6 +5887,7 @@ test('filter-base',
 # own, and none reads the answer as a success flag.
 test('one-bytebuf',
   find_program('tests/check-one-bytebuf.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5811,6 +5897,7 @@ test('one-bytebuf',
 # spanning one is still there to say so.
 test('object-brace-init',
   find_program('tests/check-object-brace-init.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5820,6 +5907,7 @@ test('object-brace-init',
 # field itself; against a derived one it wraps and the loop does not end.
 test('narrow-cursors',
   find_program('tests/check-narrow-cursors.sh'),
+  priority: guard_priority,
   suite: cost_slow,
   args: [ meson.current_source_dir() ],
   timeout: 120)
@@ -5829,6 +5917,7 @@ test('narrow-cursors',
 # running past the width the shifts and subscripts around it read it as.
 test('encoder-units',
   find_program('tests/check-encoder-units.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5839,6 +5928,7 @@ test('encoder-units',
 # paints wherever the glyphs fall and nothing says so.
 test('show-clip-routes',
   find_program('tests/check-show-clip.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
@@ -5940,6 +6030,7 @@ test('resource-load',
 # ResourceFileName. The tree is built in the test, needing nothing external.
 test('resource-file',
   find_program('tests/check-resource-file.sh'),
+  priority: guard_priority,
   args: [ xpost_exe ],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   suite: cost_fast,
@@ -6111,6 +6202,7 @@ test('output-buffer-release',
 # back.
 test('check-buffer-family',
   find_program('tests/check-buffer-family.sh'),
+  priority: guard_priority,
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 #if get_option('nls') == true
