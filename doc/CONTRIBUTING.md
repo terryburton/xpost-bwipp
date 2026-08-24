@@ -189,6 +189,96 @@ Renders are held to `tests/golden/manifest.sha256` and
 `manifest-large.sha256`, one per object width. A refactor that is meant
 to change no pixel is gated on those bytes.
 
+## File headers
+
+Every source file opens with a header that names the file, says in a
+line or two what it holds, and states the licence by identifier. The
+full licence text lives once in `COPYING`; a file points at it rather
+than reproducing it, so the file's own description is the first thing
+read and not the thirtieth. A PostScript file:
+
+```
+%!PS
+% dscwrite.ps
+%
+% Emit a DSC-conformant PostScript document from the recorded page.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+```
+
+The `%!PS` magic line comes first, on its own line, and the header
+comment follows it. A C file is the same idea in a block comment, naming
+the product on its first line:
+
+```
+/*
+ * Xpost - a PostScript Level-3 interpreter
+ * xpost_dev_generic.c -- the shared PostScript base device class.
+ *
+ * Copyright (c) 2013-2016 Michael Joshua Ryan
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+```
+
+The magic line is `%!PS`, never a bare `%!`. These data files are read
+by the interpreter rather than spooled, so the line is a convention and
+not load-bearing, but it is written in full. `check-file-headers` holds
+every file to a conforming header.
+
+## Writing PostScript
+
+The data files are the interpreter's own PostScript, read into a sealed
+`.xpostsys` and its neighbours at startup. A reader landing in one must
+be able to tell, from the procedure in front of them and not from a
+search back through the file, three things that are otherwise invisible:
+which dictionary is current when it runs, which VM bank its own
+definitions land in, and whether it is executed once as the file loads
+or defined and left for a later caller. So every top-level procedure
+carries a header that says them.
+
+The header opens with the stack effect -- operands in, name, results out
+-- and continues in prose, in the same voice as a C comment: what the
+procedure does now, never what it replaced. Within that prose it makes
+the invisible things plain, and names a caller where the caller is not
+obvious, and states any constraint a change would trip -- a
+re-entrancy, an ordering, a setup a caller must have done:
+
+```
+% region source  .setclipregion  -
+%
+% The one writer of the clip, run in .xpostsys under the graphics
+% dictionary and called by clip, eoclip and the clip-stack operators.
+% The clip is a single value wearing three faces ...
+```
+
+Two blank lines never separate procedures and no blank line runs them
+together: one blank line stands between them. A run of closing brackets
+that belongs to one expression is written on one line rather than
+stacked -- `} ifelse } ifelse } ifelse`, not four lines each holding
+one. An inline comment on a line of code is set off by two spaces:
+`x maxx gt { /maxx x def } if  % widen the box`.
+
+Three idioms were measured on the release build and ruled on; apply them
+where a path is hot, not as a blanket rewrite:
+
+- `cond { }{ action } ifelse` (empty true branch) reads and runs faster
+  as `cond not { action } if` -- about 9% off the dispatch. Worth it in
+  a per-pixel, per-span or per-vertex loop; a wash on a cold path.
+- Reducing a `mark a b c ...` to its first element is `counttomark
+  1 sub index` / `counttomark 1 add 1 roll` / `cleartomark`, not
+  `counttomark 1 sub { pop } repeat` -- the single operators beat the
+  interpreted loop three-to-one and the gap grows with the count.
+- The fused min/max `.maxmin` (test the far bound first, the near bound
+  only when the far one did not move) is worth inlining in the hottest
+  bounding-box loop and nowhere else; wrapped in a procedure call it
+  gives the saving straight back.
+
+Names resolved at run time cost a dictionary walk every time; where it
+does not obscure the source, an internal name a procedure calls is bound
+once at definition with `//` immediate evaluation rather than looked up
+on every call.
+
 ## Changing the C
 
 The one rule that will bite immediately, from `doc/INTERNALS`:
