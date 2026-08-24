@@ -13,6 +13,7 @@
 #endif
 
 #include <math.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h> /* memcpy: the merge settles into a scratch array */
 
@@ -116,13 +117,20 @@ int _span_push(struct band_span **spans, int *cap, int *n,
     if (*n == *cap)
     {
         struct band_span *tmp;
-        int newcap = *cap ? *cap * 2 : 64;
+        /* Doubled in a width that holds the product: the count is an int,
+           so a cap past INT_MAX/2 doubled in int wraps negative and the
+           byte size sign-extends to a vast size_t -- a huge or refused
+           allocation from what looks like a small one. Refuse the growth
+           instead, as a VMerror, before either overflow. */
+        size_t newcap = *cap ? (size_t)*cap * 2 : 64;
 
+        if (newcap > (size_t)INT_MAX || newcap > (size_t)-1 / sizeof *tmp)
+            return VMerror;
         tmp = realloc(*spans, newcap * sizeof *tmp);
         if (!tmp)
             return VMerror;
         *spans = tmp;
-        *cap = newcap;
+        *cap = (int)newcap;
     }
     (*spans)[*n].band = band;
     (*spans)[*n].dirn = dirn;
