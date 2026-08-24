@@ -1142,7 +1142,22 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
                             EVALARRAY_SYNC_SLOT();
                             return invalidaccess;
                         }
-                        over = _stack_ceilings(ctx);
+                        /* The ceiling check recounts the operand, exec and
+                           dict stacks, which means walking them, and a
+                           program that calls procedures with a deep stack
+                           standing under them would pay that walk on every
+                           call -- the walk's length being the depth, the
+                           cost of a run rises with the product. A call
+                           deepens a stack by one, so a check taken one time
+                           in a window still catches an overflow within a
+                           window's worth of calls, long before a stack the
+                           limit already bounds could run anything out. Take
+                           it on that cadence rather than on every call. */
+                        {
+                            static unsigned int ceilevery = 0;
+                            over = (ceilevery++ & 1023) ? 0
+                                                        : _stack_ceilings(ctx);
+                        }
                         if (over)
                         {
                             ctx->currentobject = b;

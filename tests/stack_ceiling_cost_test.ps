@@ -1,0 +1,47 @@
+% What calling a procedure by name costs when a deep operand stack stands
+% under it, run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A procedure call checks the operand, exec and dict stacks against their
+% ceilings, and checking a stack counts it, which for a deep one is a walk
+% of it segment by segment. Paid on every call with a deep stack under it,
+% that walk is the call's cost times the depth, so a program that pins the
+% operand stack near its ceiling and then calls in a loop pays the square.
+% The check is taken on a cadence instead, so the walking a run of calls
+% does amortises away -- it stays well below the number of calls whatever
+% the depth -- rather than rising with the depth on every one.
+%
+% The assertion is a count of stack walks, not a time: the interpreter
+% carries the count, and a bound stated in walks holds on a loaded machine
+% where a bound stated in seconds does not.
+
+/failcount 0 def
+/assert { exch { pop }{ (FAIL: ) print print (\n) print
+    /failcount failcount 1 add store } ifelse } def
+
+/.sw { 1183615869 internaldict /.vmstackwalk get exec pop } def
+/N 20000 def
+/p {} def
+
+% pin the operand stack several segments deep (a segment holds 1000)
+5000 { 0 } repeat
+% warm: the first calls may walk for reasons a run does not repeat
+100 { p } repeat
+
+/before .sw def
+N { p } repeat
+/walks .sw before sub def
+
+% drop the pinned stack before reporting
+count { pop } repeat
+
+% Without the cadence each of the N calls walks the five-segment pinned
+% stack, so the walks would run to about N times five. The bound holds
+% them to a small fraction of N -- a run of calls walks a deep stack a
+% handful of times, not once each.
+walks N 4 idiv lt
+    (a run of calls does not walk a deep stack once per call) assert
+% the counter must move at all, or the bound above says nothing
+walks 0 gt
+    (the interpreter reports the stack walks it made) assert
+
+failcount 0 eq { (SUCCESS\n) print }{ (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse

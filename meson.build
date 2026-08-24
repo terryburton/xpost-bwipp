@@ -1346,6 +1346,17 @@ test('name-lookup-cost',
   suite: cost_fast,
   timeout: 300)
 
+# What calling a procedure by name costs when a deep operand stack stands
+# under it: the ceiling check the call makes counts the stacks, and
+# counting a deep one walks it, so the check is taken on a cadence lest a
+# run of calls walk the stack once each and cost the square of the depth.
+test('stack-ceiling-cost',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/stack_ceiling_cost_test.ps') ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 300)
+
 # What restore costs when it has to look for a file on the stacks. A
 # file opened above the level being rewound to is closed unless a stack
 # still names it, so the sweep reads every stack; a read that asks for
