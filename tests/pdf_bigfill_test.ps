@@ -16,6 +16,16 @@ newpath
   } for
 } for
 fill
+% A stroke of a path with more line segments than a device-path array could
+% hold: the path is streamed to the content stream as it is walked, where
+% once it was gathered into an array first and overran it -- the composite
+% limit or the operand stack -- aborting the whole job. Thirty thousand
+% segments is well past that limit; the run reaching showpage is the proof.
+newpath 20 250 moveto
+1 1 30000 {
+  dup 0.015 mul 20 add exch 0.008 mul dup sin 100 mul 250 add exch pop lineto
+} for
+0.4 setlinewidth stroke
 showpage
 %%Trailer
 %%EOF

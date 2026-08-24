@@ -565,6 +565,8 @@ disposition settled
 method .bandsink bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .bandwrite bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .begindoc dscwrite pdfwrite
+method .emitdevpath dscwrite pdfwrite svgwrite
+method .pathelems dscwrite pdfwrite svgwrite
 method BlendPix bgr jpeg pbm pgm png pngalpha ppm raster tiff record
 method .claimdoc dscwrite pdfwrite
 method ClipPath dscwrite pdfwrite svgwrite
@@ -618,7 +620,6 @@ method .pdfoverprint dscwrite pdfwrite
 method .playmake record
 method .pushcolor bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .put dscwrite pdfwrite svgwrite
-method .putelems dscwrite pdfwrite svgwrite
 method PutPix every
 method .recordglyph record
 method .recordimage record

@@ -137,23 +137,57 @@
 
     % append collected path elements (coordinates then a /m /l /c /h
     % name each, from the .devpathforall walker) as SVG path commands
-    /.putelems { % elems  .  -
+    % Walk the device path and append its path-data commands as they are
+    % reached -- Mx y, Lx y, C and the six control points, Z -- returning
+    % how many elements it wrote. The path was built whole as an array
+    % first and handed to a collector, so a path of more elements than an
+    % array holds overran it and aborted the job on every vector device,
+    % where the fill of the same path did not; the same bytes are written
+    % here, only without the array between the walk and the output.
+    /.emitdevpath { % -  .  n
+        /.dpstr //.xpostsys /cpath get exec def
+        /.dpoff 0 def
+        /.dpn 0 def
         {
-            dup type /nametype eq {
-                dup /h eq { pop (Z) .put }{
-                /spcmd exch def
-                spcmd /c eq {
-                    {spy3 spx3 spy2 spx2 spy1 spx1}{exch def}forall
-                    (C) .put
-                    spx1 .svgnum ( ) .put spy1 .svgnum ( ) .put
-                    spx2 .svgnum ( ) .put spy2 .svgnum ( ) .put
-                    spx3 .svgnum ( ) .put spy3 .svgnum
+            .dpstr .dpoff .pathnext not { exit } if
+            /.dpoff exch def
+            dup 2 eq {
+                pop
+                {spy3 spx3 spy2 spx2 spy1 spx1}{exch def}forall
+                (C) .put
+                spx1 .svgnum ( ) .put spy1 .svgnum ( ) .put
+                spx2 .svgnum ( ) .put spy2 .svgnum ( ) .put
+                spx3 .svgnum ( ) .put spy3 .svgnum
+            }{
+                dup 3 eq {
+                    pop (Z) .put
                 }{
-                    spcmd /m eq { (M) }{ (L) } ifelse .put
+                    /spcmd exch def
+                    spcmd 0 eq { (M) }{ (L) } ifelse .put
                     exch .svgnum ( ) .put .svgnum
-                } ifelse } ifelse
-            } if
-        } forall
+                } ifelse
+            } ifelse
+            /.dpn .dpn 1 add def
+        } loop
+        .dpn
+    } bind
+
+    % Count the device path's elements without emitting or collecting them,
+    % so the stroke emitter can tell an empty path from one to draw before
+    % it walks the path to draw it.
+    /.pathelems { % -  .  n
+        /.pcstr //.xpostsys /cpath get exec def
+        /.pcoff 0 def
+        /.pcn 0 def
+        {
+            .pcstr .pcoff .pathnext not { exit } if
+            /.pcoff exch def
+            dup 2 eq { pop 6 { pop } repeat }
+            { dup 3 eq { pop }{ pop pop pop } ifelse }
+            ifelse
+            /.pcn .pcn 1 add def
+        } loop
+        .pcn
     } bind
 
     % w h ncomp mat rows decode interp IMAGE . -  ; take a whole sampled
@@ -282,7 +316,7 @@
         exch
         graphicsdict /currgstate get exch /currpath exch put
         (<clipPath id="xc) .put .svgcid 20 string cvs .put ("><path d=") .put
-        [ { /m } { /l } { /c } { /h } //.xpostsys /.devpathforall get exec ] .putelems
+        .emitdevpath pop
         ("/></clipPath>\n) .put
         (<g clip-path="url\(#xc) .put .svgcid 20 string cvs .put (\)">\n) .put
         graphicsdict /currgstate get exch /currpath exch put
@@ -297,8 +331,7 @@
     % device's methods) and emitted afterwards.
     /StrokePath { % r g b IMAGE  .  -
     { {spb spg spr}{exch def}forall
-        /spelems [ { /m } { /l } { /c } { /h } //.xpostsys /.devpathforall get exec ] def
-        spelems length 0 gt {
+        .pathelems 0 gt {
             (<path fill="none" stroke=) .put spr spg spb .svgrgb
             ( stroke-width=") .put
             currentlinewidth 0 dtransform dup mul exch dup mul add sqrt
@@ -310,7 +343,7 @@
             (" stroke-miterlimit=") .put
             currentmiterlimit .svgnum
             (" d=") .put
-            spelems .putelems
+            .emitdevpath pop
             ("/>\n) .put
         } if
     } //.xpostsys /.indict get exec }
