@@ -61,6 +61,7 @@ tests/font-facts \
 tests/check-c-held-objects.sh \
 tests/c_held_objects.register \
 tests/check-awk-portability.sh \
+tests/check-file-headers.sh \
 tests/check-memory-declarations.sh \
 tests/check-device-skeleton.sh \
 tests/check-width-comparisons.sh \

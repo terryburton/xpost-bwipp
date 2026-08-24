@@ -3394,6 +3394,12 @@ test('check-memory-declarations',
   args: [ meson.current_source_dir() ],
   timeout: 60)
 
+test('check-file-headers',
+  find_program('tests/check-file-headers.sh'),
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ],
+  timeout: 60)
+
 # The binary form of the error report, which has to be checked on the
 # bytes rather than from inside the interpreter.
 test('error-binary',
