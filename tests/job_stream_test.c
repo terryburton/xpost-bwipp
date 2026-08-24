@@ -193,6 +193,44 @@ static void stream_quit(Xpost_Showpage_Semantics semantics, const char *what)
     xpost_destroy(ctx);
 }
 
+/* A user parameter a job sets -- IdiomRecognition, VMThreshold -- is a
+ * context scalar outside the arena the boundary reverts by image restore,
+ * so a boundary that did not reset it would carry a job's setting into the
+ * next: IdiomRecognition changes how a later job's bind rewrites its
+ * procedures, VMThreshold when its collector fires. restore reverts these;
+ * the boundary must too. Job one turns IdiomRecognition off; job two must
+ * read it back on. */
+static void param_reverts(Xpost_Showpage_Semantics semantics, const char *what)
+{
+    Xpost_Context *ctx;
+    static const char prog[] =
+        "<< /IdiomRecognition false >> setuserparams\004"
+        "currentuserparams /IdiomRecognition get { (idiom-on)print }"
+        "{ (idiom-LEAKED)print } ifelse flush";
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
+                       XPOST_OUTPUT_MESSAGE_QUIET, XPOST_USE_SIZE, 100, 100);
+    if (!ctx)
+    {
+        report_failure("%s: xpost_create", what);
+        return;
+    }
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_jobserver_set(ctx, 1);
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+
+    outlen = 0;
+    (void) xpost_run(ctx, XPOST_INPUT_STRING, prog, sizeof prog - 1);
+    outbuf[outlen < sizeof outbuf ? outlen : sizeof outbuf - 1] = '\0';
+
+    if (!strstr(outbuf, "idiom-on"))
+        report_failure("%s: a user parameter a job set survived the boundary",
+                       what);
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     if (!xpost_init())
@@ -209,6 +247,8 @@ int main(void)
     stream_file_leak(XPOST_SHOWPAGE_RETURN, "fileleak-returning");
     stream_quit(XPOST_SHOWPAGE_NOPAUSE, "quit-nopause");
     stream_quit(XPOST_SHOWPAGE_RETURN, "quit-returning");
+    param_reverts(XPOST_SHOWPAGE_NOPAUSE, "param-nopause");
+    param_reverts(XPOST_SHOWPAGE_RETURN, "param-returning");
 
     xpost_quit();
     return verdict();

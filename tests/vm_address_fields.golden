@@ -49,6 +49,7 @@ count    xpost_context.h:_Xpost_Context     job_baseline_ds
 count    xpost_context.h:_Xpost_Context     job_boundary_failed
 count    xpost_context.h:_Xpost_Context     job_encapsulated
 count    xpost_context.h:_Xpost_Context     job_packing
+count    xpost_context.h:_Xpost_Context     job_idiomrecognition
 count    xpost_context.h:_Xpost_Context     job_rand_next
 count    xpost_context.h:_Xpost_Context     job_snapshots
 count    xpost_context.h:_Xpost_Context     job_saved_pagedevice_depth

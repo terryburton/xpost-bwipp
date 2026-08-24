@@ -3940,6 +3940,8 @@ static int _job_capture_baseline(Xpost_Context *ctx)
     ctx->job_packing = ctx->packing;
     ctx->job_baseline_ds = xpost_stack_count(ctx->lo, ctx->ds);
     ctx->job_saved_pagedevice_depth = ctx->pagedevice_depth;
+    ctx->job_idiomrecognition = ctx->idiomrecognition;
+    ctx->job_vmthreshold = ctx->vmthreshold;
     XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_SAVE_ROOT)
     return 1;
 }
@@ -4034,6 +4036,8 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     ctx->rand_next = ctx->job_rand_next;
     ctx->vmmode = ctx->job_vmmode;
     ctx->packing = ctx->job_packing;
+    ctx->idiomrecognition = ctx->job_idiomrecognition;
+    ctx->vmthreshold = ctx->job_vmthreshold;
     ++ctx->namebind_gen;
     ctx->es_over = ctx->os_over = ctx->ds_over = 0;
     ctx->onerr_run = 0;

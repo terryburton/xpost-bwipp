@@ -470,6 +470,8 @@ struct _Xpost_Context {
     dword job_rand_next;
     unsigned int job_vmmode;
     int job_packing;
+    int job_idiomrecognition;   /**< IdiomRecognition at baseline capture */
+    integer job_vmthreshold;    /**< VMThreshold at baseline capture */
     unsigned int job_saved_pagedevice_depth; /**< pagedevice_depth at
                                        baseline capture, to retire a
                                        job-installed device at the boundary */
