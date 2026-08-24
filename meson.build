@@ -2753,6 +2753,16 @@ test('op-path',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A dash pattern of small elements on a long path makes a dash per element
+# crossed; the count is bounded, so a pattern that would make millions is
+# refused rather than walked. Slow because it materialises up to the bound.
+test('dash-bound',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/dash_bound_test.ps') ],
+  suite: cost_slow,
+  timeout: 300,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Rectangle operators (PLRM 8.2): rectfill/rectstroke/rectclip accept the
 # numarray and numstring forms and rectstroke an optional trailing matrix.
 test('op-rect',

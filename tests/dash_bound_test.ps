@@ -1,0 +1,18 @@
+%!testlib
+% A dash pattern's dashes are bounded, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% Applying a dash pattern to a path makes a dash for every element of the
+% pattern the path crosses, so a pattern of small elements laid along a
+% long path makes dashes in proportion to the path's length over the
+% pattern's size -- a program sets both, so a few lines of it turn into
+% arbitrarily many dashes and none of the ink the result needs. The count
+% is bounded far above any real dashed path, so a pattern that would make
+% millions is refused rather than walked without end.
+{ [0.0001 0.0001] 0 setdash
+  newpath 0 0 moveto 10000 0 lineto 1 setlinewidth stroke }
+    /limitcheck (a dash pattern that would make millions of dashes is bounded) raises
+% an ordinary dashed stroke is untouched
+{ [6 3] 0 setdash newpath 20 20 moveto 400 400 lineto 2 setlinewidth stroke }
+    (an ordinary dashed stroke still strokes) works
+verdict

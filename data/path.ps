@@ -219,6 +219,8 @@ end
         /ipos ipos 1 add dasharray length mod def
         /parity parity 1 add 2 mod def
         /partial dasharray ipos get def
+        /dashn dashn 1 add def
+        dashn dashnmax gt { /stroke cvx /limitcheck signalerror } if
         rad partial lt { exit } if
     } loop
     /pos rad def
@@ -277,6 +279,15 @@ end
     /pos dashoffset def
     /ipos 0 def
     /parity 0 def
+    % A dash pattern of small elements laid along a long path makes a dash
+    % for every element the path crosses, which a program sizes with the
+    % length of the path and the smallness of the pattern -- a few lines of
+    % input turning into millions of dashes without a stroke of ink the
+    % result needs. Count the dashes made and stop past a number far above
+    % any real dashed path, so the walk is bounded rather than sized by the
+    % program (crossdashbound below counts each dash it lays here).
+    /dashn 0 def
+    /dashnmax 1000000 def
 
     dasharray length 0 ne {
         % The offset is a phase, not a distance measured forward from
