@@ -532,6 +532,21 @@ put
     % reserved area). Later subpaths with the window's winding are
     % treated as further windows to intersect, as before.
     /wsign 0 def
+    % Subtracting a hole meets the subject against each of the hole's
+    % edges limited by the edges before it, so the passes rise with the
+    % square of the hole's edge count -- and each such pass builds a
+    % polygon, dear where meeting a window's edge is cheap. A hole of a
+    % few hundred edges already costs what a real hole never does, whose
+    % windows are rectangles and glyph outlines and whose holes are the
+    % odd reserved rectangle, so a hole past that many edges is refused
+    % below rather than squared. Meeting a window's edges stays bounded
+    % by the product of the window's edge count and the subject's, cheap
+    % per pass but a product a program still sizes, so a running count of
+    % all the passes stops the rare enormous one past a number far above
+    % any real clip.
+    /shn 0 def
+    /shnmax 4000000 def
+    /holemax 200 def
     CR { % one clipping polygon
 	//.xpostsys /despike get exec
 	% fewer than three points bound no area (e.g. the bare pen
@@ -562,6 +577,8 @@ put
 
 		    /PA [ PA { % one subject polygon
 			CL //.xpostsys /hodgman-sutherland get exec
+			/shn shn 1 add def
+			shn shnmax gt { /clip cvx /limitcheck signalerror } if
 		    } forall ] def
 		} ifelse
 
@@ -585,14 +602,19 @@ put
 		    /U V def
 		} forall
 	    ] def
+	    HL length holemax gt { /clip cvx /limitcheck signalerror } if
 	    /PA [
 		PA {
 		    /SP exch def
 		    0 1 HL length 1 sub {
 			/hi exch def
 			/piece SP [ HL hi get { neg } forall ] //.xpostsys /hodgman-sutherland get exec def
+			/shn shn 1 add def
+			shn shnmax gt { /clip cvx /limitcheck signalerror } if
 			0 1 hi 1 sub {
 			    /piece piece 3 -1 roll HL exch get //.xpostsys /hodgman-sutherland get exec def
+			    /shn shn 1 add def
+			    shn shnmax gt { /clip cvx /limitcheck signalerror } if
 			} for
 			piece length 3 gt { piece } if
 		    } for

@@ -324,3 +324,39 @@ run_xpost "the redefined-fill run" -d null -o /dev/null "$recps"
 rm -f "$recps"
 printf '%s\n' "$out" | grep -q 'eofill-under-redefined-fill OK' || { echo "FAIL: eofill under a redefined fill"; exit 1; }
 echo "eofill under redefined fill OK"
+
+# applying a clip is bounded: subtracting a hole meets the subject against
+# each of the hole's edges limited by the edges before it, so the passes
+# rise with the square of the hole's edge count, and each builds a polygon.
+# A hole of thousands of edges would run to millions of such passes for a
+# shape no consumer reads; the count is bounded far above any real hole (a
+# reserved rectangle, the odd knockout), so such a clip is refused with a
+# limitcheck rather than squared. Wrapped in stopped so the run returns and
+# the marker below says which way it went, and in gsave/grestore so the
+# caught abort leaves the clip state as it found it; an ordinary clip clips
+# afterward.
+clipps=$(mktemp)
+cat > "$clipps" <<EOF
+<< /OutputDevice /pdfwrite /OutputFile ($discard) /PageSize [600 800] >> setpagedevice
+gsave
+{ newpath
+  20 20 moveto 580 20 lineto 580 780 lineto 20 780 lineto closepath
+  250 250 moveto 0 1 4000 { pop 250 250.1 lineto 250.1 250 lineto } for closepath
+  clip 40 40 moveto 60 60 lineto 2 setlinewidth stroke } stopped
+{ \$error /errorname get /limitcheck eq
+    { (huge-hole clip bounded OK\n) print }
+    { (huge-hole clip FAIL: wrong error\n) print } ifelse }
+{ (huge-hole clip FAIL: not bounded\n) print } ifelse
+grestore
+newpath 100 100 moveto 300 100 lineto 300 300 lineto 100 300 lineto closepath clip
+50 200 moveto 350 200 lineto 4 setlinewidth stroke
+(ordinary clip clips OK\n) print
+showpage
+<< /OutputDevice /null >> setpagedevice
+quit
+EOF
+run_xpost "the clip-bound run" -d null -o /dev/null "$clipps"
+rm -f "$clipps"
+printf '%s\n' "$out" | grep -q 'huge-hole clip bounded OK' || { echo "FAIL: a huge-hole clip was not bounded"; printf '%s\n' "$out" | grep 'huge-hole'; exit 1; }
+printf '%s\n' "$out" | grep -q 'ordinary clip clips OK'    || { echo "FAIL: an ordinary clip did not clip after the bound"; exit 1; }
+echo "clip bound OK"
