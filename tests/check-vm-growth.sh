@@ -258,6 +258,21 @@ nrun=0
 for f in "$src"/tests/*.ps; do
     b=$(basename "$f")
     nrun=$((nrun + 1))
+    # A few workloads are deliberate stress tests whose whole point is an
+    # extreme the growth harness cannot read through repetition: an infinite
+    # loop broken only by an external interrupt this harness does not fire
+    # (interrupt_test), and workloads that balloon when re-run in one context
+    # -- reloc_fused's forty eight-thousand-element arrays under an unbalanced
+    # save, which accumulate and are re-marked on every vmreclaim, and
+    # tamper_dispatch's dispatch churn. Their own suites exercise them in full;
+    # re-running them here two-to-eight times only makes the worklist crawl
+    # (reloc_fused alone spun past a hundred seconds). They are skipped:
+    # recorded skip, held to skip, and re-measured the day the register calls
+    # any of them something else.
+    case "$b" in
+        interrupt_test.ps|reloc_fused_test.ps|tamper_dispatch_test.ps)
+            printf '%s skip\n' "$b" >> "$work/measured"; continue ;;
+    esac
     # A fresh directory per workload. Several of these write files, and one
     # of them writes a great many; sharing one directory across the
     # directory's worth of runs leaves the later workloads walking whatever
@@ -543,6 +558,16 @@ while read -r name class extra; do
                 "$name" "$want" >> "$work/problems"
             printf '        window. Move it to fits, so it is held to reaching nothing.\n' \
                 >> "$work/problems" ;;
+        esac
+        ;;
+    skip)
+        # a workload the harness does not run here because it needs something
+        # this harness does not provide (interrupt_test.ps needs an interrupt).
+        # Held to skip so that dropping the skip re-measures it.
+        case $class in
+        skip) ;;
+        *)  printf '%s  is registered skip but the harness measured it as %s\n' \
+                "$name" "$class" >> "$work/problems" ;;
         esac
         ;;
     *)

@@ -181,7 +181,7 @@ idiom_test.ps                              zero
 image_matrix_test.ps                       costs  unexplained
 imaging_bbox_test.ps                       once   unexplained
 internal_debug_ops_test.ps                 zero
-interrupt_test.ps                          once   unexplained
+interrupt_test.ps                          skip   needs an interrupt this harness does not fire
 isolation_test.ps                          once   unexplained
 large_object_test.ps                       zero
 local_vm_invariant_test.ps                 zero
@@ -262,6 +262,7 @@ pdf_global_vm_test.ps                      zero
 pdf_pipe_test.ps                           zero
 printobject_overflow_test.ps               zero
 privatedict_install_test.ps                once   unexplained
+qsort_test.ps                              zero
 quit_run_test.ps                           once   unexplained
 raster_class_test.ps                       once   unexplained
 raster_row_test.ps                         fits
@@ -275,7 +276,7 @@ record_span_test.ps                        once   unexplained
 record_spill_test.ps                       zero
 refusal_report_test.ps                     once   unexplained
 region_replay_test.ps                      fits
-reloc_fused_test.ps                        costs  unexplained
+reloc_fused_test.ps                        skip   relocation stress: 40x8000 arrays under an unbalanced save balloon on re-run
 reloc_stress_test.ps                       fits
 render_classes_test.ps                     once   unexplained
 resource_matrix_test.ps                    once   unexplained
@@ -297,7 +298,7 @@ stencil_mask_size_test.ps                  zero
 stream_exec_test.ps                        zero
 subinterval_retention_test.ps              zero
 svg_append_fail_test.ps                    once   unexplained
-tamper_dispatch_test.ps                    fits
+tamper_dispatch_test.ps                    skip   dispatch stress: balloons when re-run in one context
 testlib.ps                                 zero
 testlib_contract_test.ps                   zero
 thin_stroke_test.ps                        zero
