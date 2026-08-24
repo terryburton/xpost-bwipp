@@ -140,6 +140,35 @@ end
 /CIDShowT0 /CIDShowTestCMap [/CIDShowTest] composefont pop
 /CIDShowT0Outline /CIDShowTestCMap [/CIDShowTestOutline] composefont pop
 
+% A descendant whose glyph directory carries one entry at a huge index.
+% The assembled face holds a glyph per index up to the largest, so its
+% arrays are sized by the index, not by the one glyph present; a glyph is
+% named to a face by a sixteen-bit index, so an index past 65535 names no
+% glyph the face could hold and the font is refused when it is shown --
+% rather than the face sized to a number the program chose, which on the
+% wide build is memory with no upper bound.
+/CIDInit /ProcSet findresource begin
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDShowTestBomb def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [1 0 0 1 0 0] def
+    /FontType 42 def
+    /CIDCount 100000 def
+    /GDBytes 4 def
+    /CIDMap <00000000> def
+    /GlyphDirectory << 100000 <00> >> def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
+end
+/CIDShowBombT0 /CIDShowTestCMap [/CIDShowTestBomb] composefont pop
+{ /CIDShowBombT0 findfont 20 scalefont setfont 10 20 moveto <0000> show }
+    stopped { $error /errorname get /invalidfont eq }{ false } ifelse
+    % the show that raised left its operands behind; keep the answer and
+    % clear them, so the sections after this start from an empty stack
+    /bombrefused exch def clear
+    bombrefused (a glyph directory index past the sixteen-bit glyph index is refused) check
+
 /SW 0.04 def
 /CODES <00010002> def
 

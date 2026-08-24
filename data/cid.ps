@@ -214,6 +214,14 @@ true setglobal
     }{
         /mx 0 def
         gd { pop dup mx gt { /mx exch def }{ pop } ifelse } forall
+        % The assembled face holds a glyph per directory key up to the
+        % largest, so its arrays are sized by that key, not by how many
+        % glyphs the directory carries. A glyph is named to a face by a
+        % sixteen-bit index, so a key past 65535 names no glyph the face
+        % could hold; refuse the font rather than size its arrays to a
+        % number a program chose, which on the wide build is memory with
+        % no upper bound.
+        mx 65535 gt { /show cvx /invalidfont signalerror } if
         /ga mx 1 add array def
         gd { ga 3 1 roll put } forall
         d ga .loadcidfont2
