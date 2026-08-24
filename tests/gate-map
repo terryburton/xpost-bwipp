@@ -413,6 +413,7 @@ language test fused-equivalence
 language test idiom
 language test internal-debug-ops
 language test interpreter
+language test prompt-digest
 language test interrupt
 language test isolation
 language test lockdown

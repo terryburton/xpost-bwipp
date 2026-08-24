@@ -892,6 +892,14 @@ test('interpreter',
   suite: cost_fast,
   timeout: 120)
 
+# The interactive preview prompt digests the operand stack into type letters
+# for the executive, which no batch test enters, so its behaviour is held here.
+test('prompt-digest',
+  find_program('tests/run-prompt-test.sh'),
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast)
+
 # The interpreter's surface as an embedding program finds it: the same
 # homes, spaces and access attributes the CLI-side test states, reached
 # through xpost_create and xpost_run instead of a start procedure.
