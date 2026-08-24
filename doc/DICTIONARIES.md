@@ -101,8 +101,13 @@ Exactly three deep, searched top-down: `systemdict` (0, bottom), `globaldict`
 (they resolve by bare name through that entry) but they are local dictionaries.
 **`userdict` is empty at start-up** — every interpreter name is *defined* in its
 final home (`systemdict` for the language, a private dictionary for the
-machinery), so a program starts with a clean namespace. Nothing is staged in
-`userdict` and moved out afterwards.
+machinery), so a program starts with a clean namespace. `userdict` is the
+bootstrap's own workspace while the load runs -- the private namespaces
+(`.xpostsys`, `.internaldict`) and the local dictionaries it hands over
+(`statusdict`, `serverdict`, `$error`, `errordict`, `FontDirectory`) are built
+there and reached by bare name during loading -- but every one is relocated to
+its final home and undefined from `userdict` before the load ends (the C
+`copyudtosd` and the lockdown), so the state a program meets is clean.
 
 ## The dictionaries
 
@@ -118,7 +123,7 @@ machinery), so a program starts with a clean namespace. Nothing is staged in
 | `FontDirectory` | local | mutable | no | fonts defined while the allocation mode was local; they revert with the save level that defined them; **named in** `systemdict`. `setglobal` rebinds the name to `GlobalFontDirectory` while the mode is global, so a font defined in terms of another finds the directory its own is going into (PLRM) |
 | `GlobalFontDirectory` | global | persistent | no | fonts defined while the allocation mode was global, and only those; survives the restores that empty `FontDirectory` (PLRM 3.7, Table 3.4) |
 | `SharedFontDirectory` | global | persistent | no | the same dictionary as `GlobalFontDirectory` under its older name |
-| `StandardEncoding`, `ISOLatin1Encoding` | global | static | read-only | shared encoding vectors; read-only per PLRM (findfont copies before installing) |
+| `StandardEncoding`, `ISOLatin1Encoding` | global | static | read-only | shared encoding vectors; read-only per PLRM (findfont copies before installing). Defined with the font/graphics modules, so absent under `--no-graphics` |
 
 Local dictionaries named in `systemdict` (`$error`, `statusdict`, …) use the
 sanctioned global-names-local exception, applied in C by `copyudtosd` under a
@@ -139,7 +144,10 @@ surface. Three kinds of name belong:
    `gs`/DPS operators. A non-standard name in `systemdict` must be on this list.
 3. **Six kept dotted operators** — internal operators that *cannot* be relocated
    into `.internaldict` because they are reached by name at a time the frozen
-   references cannot cover. All are dotted, so no program name collides:
+   references cannot cover. All are dotted, so no program name collides. Four of
+   the six are the file-access API, which `.lockdown` then withdraws from
+   `systemdict` as it seals, so **two remain there at runtime** (`.gscratch`,
+   `.privatedict`):
 
    | Kept | Why it cannot move |
    |---|---|
@@ -218,6 +226,10 @@ the machine that took it.
 | `SUBDEVICE` | the mode selector of a `-d device:mode` selection: the raster device reads it for its pixel format, and the recording device for which device paints its page |
 | `OutputFileName` | `-o`. The **host's** binding only: a program's own `/OutputFileName`, on the dictionary stack, still wins, and `setpagedevice` writes the program's into `userdict` from `/OutputFile`. The device machinery looks on the dictionary stack first and here second, which is the precedence the host's copy had when it sat at the bottom of that stack |
 | `OutputBufferIn`, `OutputBufferOut` | the framebuffer an embedding caller lends the raster device and where it wants the finished one written back; the pointers travel in strings a program cannot read |
+| `StartDevice`, `StartDeviceAsked` | the device this run was started with (`-d`), and whether one was asked for at all rather than defaulted; the run's own page device is made from this after the modules load |
+| `StartPageSize` | the page size this run was started at, as `[width height]` |
+| `RecordSpill` | where a retained page's marks are held: the `--spill=auto\|never\|always` selection |
+| `MaxBandBytes` | the `-b` budget for what one band of a page may cost |
 
 The boot files read a setting through the accessor `.xpostsys /.hostvalue`, so a
 caller names the setting and not its home. A name that is not a setting is
@@ -249,9 +261,9 @@ not repeated.
 
 | Moved | Size | Why it cannot be defined in place |
 |---|---|---|
-| private C operators → `.internaldict` | 76 names | the machinery calls them by bare name all through loading — **161 uses across 47 of them** — so they can only move once the bind pass has frozen those references. Installing them into `.internaldict` at registration compiles and then dies in `init.ps` at the first such use. |
-| device classes → `privatedict` | 9 names | a derived class is written by naming its parent (`/.xpost_PBMIMAGE .xpost_PGMIMAGE dup length 2 add dict copy def`) — **51 sites across 11 files**. The step is also not a move: it takes a **local copy with headroom**, which is what makes a job's page setup revert with the save level instead of persisting into the next. |
-| `.error` → `privatedict` | 1 name | `errordict`'s handlers bake `//.error` about a dozen times, so it has to be findable on the dictionary stack while `errordict` is built. |
+| private C operators → `.internaldict` | the relocated C operators | the machinery calls them by bare name all through loading, so they can only move once the bind pass has frozen those references. Installing them into `.internaldict` at registration compiles and then dies in `init.ps` at the first such use. (The count is what the build derives, not a fixed number — around ninety are relocated.) |
+| device classes → `privatedict` | the raster and vector device bases | a derived class is written by naming its parent (`/.xpost_PBMIMAGE .xpost_PGMIMAGE dup length 2 add dict copy def`). The step is also not a move: it takes a **local copy with headroom**, which is what makes a job's page setup revert with the save level instead of persisting into the next. (How many depends on which devices the build compiles in.) |
+| `.error` → `privatedict` | one name | each of `errordict`'s handlers bakes a `//.error` reference, so it has to be findable on the dictionary stack while `errordict` is built. |
 
 Everything else that used to move now does not: the language is read into
 `systemdict`, and the machinery anchors, the wrapped-procedure register and
@@ -267,6 +279,16 @@ it through the `.privatedict` operator (an accessor kept in `systemdict`, like
 enumerate its members; because it is local, it may hold local objects — the
 thing a global private namespace cannot do. It is the home for every piece of
 machinery that is *both* local *and* private.
+
+Both private homes are reached from C through the context and not by name:
+`privatedict` through `ctx->privatedict`, and `.xpostsys`/`.internaldict`
+through `ctx->globalprivatedict`. A second execution context (DPS) makes the
+difference between them visible, and it is the VM difference of axis 1 and no
+new axis. `privatedict` is local, so each context has its own and one context's
+machinery cannot reach another's; the global private homes live in the global
+VM a group of contexts shares, so they are one namespace across all of them.
+Where a private home is per-context or shared is therefore decided by its VM,
+not by a separate rule about contexts.
 
 | Member | Lifecycle | Role |
 |---|---|---|

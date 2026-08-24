@@ -1,6 +1,5 @@
 
 EXTRA_DIST += \
-data/DICTIONARIES.md \
 data/clip.ps \
 data/err.ps \
 data/graphics.ps \

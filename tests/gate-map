@@ -540,7 +540,6 @@ doc path COMPLIANCE
 doc path ChangeLog
 doc path NEWS
 doc path README
-doc path data/DICTIONARIES.md
 doc test check-dist-lists
 doc test check-device-roster
 doc width witness

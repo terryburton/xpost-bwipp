@@ -38,6 +38,7 @@ doc/COMPAT \
 doc/CONTRIBUTING.md \
 doc/COVERAGE.md \
 doc/COVERAGE-large.md \
+doc/DICTIONARIES.md \
 doc/GATING.md \
 doc/INTERNALS \
 doc/ROOTS \

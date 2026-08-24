@@ -158,7 +158,7 @@ answers which question.
 | `doc/COMPAT` | where each user-visible name comes from |
 | `doc/COVERAGE.md`, `doc/COVERAGE-large.md` | how much of the C sources a full run executes, one per object width |
 | `COMPLIANCE` | operator by operator: implemented, partly, or not; then the behavioural deviations and the implementation limits |
-| `data/DICTIONARIES.md` | every dictionary the interpreter carries, and what belongs in it |
+| `doc/DICTIONARIES.md` | every dictionary the interpreter carries, and what belongs in it |
 
 ## Support
 
