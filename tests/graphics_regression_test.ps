@@ -13,6 +13,9 @@
 %   - the even-odd rule in eofill and eoclip
 %   - line caps at the ends of open stroked subpaths
 %   - stroking with the line width transformed to device space
+%   - selectfont given a matrix rather than a size (the operator
+%     declared it took a number, so the form its own body implements
+%     was refused before the body ran)
 %
 % Pixel assertions render into a locally constructed PGM device and
 % probe it through its GetPix method.
@@ -3030,6 +3033,25 @@ newpath 0 0 moveto 30 0 lineto 30 30 lineto 0 30 lineto closepath fill
 grestore
 iso.p (a pattern paint procedure runs on the caller's stacks) assert
 userdict /i undef userdict /pat undef userdict /iso.p undef
+
+% selectfont takes either a size or a matrix (PLRM 8.2). The matrix form
+% reaches makefont where the size form reaches scalefont, and both end at
+% setfont. The scaled entry is compared with room in it: the font's own
+% matrix carries single-precision values, and a build whose reals are
+% wider shows that rounding rather than hiding it -- 0.024 arrives as
+% 0.02400000113993883. The room is far below the difference a wrong
+% branch would make, which is the whole size.
+gsave
+/Courier 12 selectfont
+currentfont /FontMatrix get 0 get 0.012 sub abs 1e-6 lt
+    (selectfont scales by a size) assert
+/Courier [24 0 0 24 0 0] selectfont
+currentfont /FontMatrix get 0 get 0.024 sub abs 1e-6 lt
+    (selectfont makes a font from a matrix) assert
+{ /Courier (24) selectfont } stopped
+    (selectfont refuses a size that is neither number nor matrix) assert
+clear
+grestore
 
 count 0 eq (operand stack is balanced) assert
 faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse

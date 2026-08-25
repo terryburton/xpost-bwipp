@@ -76,6 +76,26 @@ clear
 currentcolorspace dup type /arraytype eq { 0 get } if /DeviceRGB eq
     (a rejected customcolorimage leaves the space intact) assert
 
+% Both image operators declare the operands they take, so a call that is
+% short or mistyped is refused before the body begins to unpick the stack.
+% They were declared as taking nothing at all, which let a short call reach
+% the body and fail somewhere inside it instead.
+{ 2 1 8 [2 0 0 1 0 0] oi customcolorimage } stopped
+    (a short customcolorimage is refused) assert
+$error /errorname get /stackunderflow eq
+    (and refused for the operand it is missing) assert
+clear
+{ (two) 1 8 [2 0 0 1 0 0] {<00FF>} oi customcolorimage } stopped
+    (customcolorimage is refused a width that is not a number) assert
+$error /errorname get /typecheck eq
+    (and refused as a type error) assert
+clear
+{ 2 1 8 [2 0 0 1 0 0] separationimage } stopped
+    (a short separationimage is refused) assert
+$error /errorname get /stackunderflow eq
+    (and refused for the operand it is missing) assert
+clear
+
 % separationimage images a one-channel picture in the current space
 [ /Separation (Spot) /DeviceGray {} ] setcolorspace
 { 2 1 8 [2 0 0 1 0 0] {<00FF>} separationimage } stopped not

@@ -1335,7 +1335,7 @@ end
 %  object comes last, over the same operands image takes; the space it
 %  installs is undone afterwards.
 %
-/customcolorimage [ ] {  % w h bits matrix datasrc obj  .  -
+/customcolorimage [ /integertype /integertype /integertype /arraytype /anytype /arraytype ] {  % w h bits matrix datasrc obj  .  -
     % w h bits matrix datasrc obj -- resolve the object's space first, before
     % any begin or gsave, so a malformed object leaves nothing to unwind.
     /customcolorimage //.customcolorspace exec        % ... space
@@ -1356,7 +1356,7 @@ end
 %  the one-operand image form it honours a Separation or DeviceN space rather
 %  than reading the samples as grey.
 %
-/separationimage [ ] {  % w h bits matrix datasrc  .  -
+/separationimage [ /integertype /integertype /integertype /arraytype /anytype ] {  % w h bits matrix datasrc  .  -
     5 dict begin
     /.src exch def /.mtx exch def
     /.bits exch def /.h exch def /.w exch def

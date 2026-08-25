@@ -80,7 +80,7 @@ own    colour_range_test.ps                   3
 own    colour_space_family_test.ps            2
 own    composite_limit_test.ps                1
 own    counttomark_test.ps                    4
-own    custom_color_test.ps                   3
+own    custom_color_test.ps                   6
 own    dct_truncated_test.ps                  7
 own    dev_gray_row_test.ps                   3
 own    device_completion_test.ps              1
@@ -117,7 +117,7 @@ own    fused_equivalence_test.ps              1
 own    gc_large_dict_test.ps                  1
 own    gc_save_view_test.ps                   1
 own    global_vm_invariant_test.ps            4
-own    graphics_regression_test.ps            33
+own    graphics_regression_test.ps            34
 own    gstate_object_test.ps                  1
 own    halftone_cell_test.ps                  3
 own    halftone_matrix_test.ps                2

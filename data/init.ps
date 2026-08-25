@@ -2324,7 +2324,7 @@ setglobal
 %  which is what makes selectfont worth having over spelling the three
 %  out.
 %
-/selectfont [ /anytype /numbertype ] {
+/selectfont [ [ /anytype /numbertype ] [ /anytype /arraytype ] ] {
     dup type /arraytype eq {
         exch findfont
         exch makefont
