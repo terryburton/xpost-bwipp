@@ -11,6 +11,15 @@
 
 //.internaldict /QUIET known { }{ (loading bboxdev.ps...)print } ifelse
 
+%
+%  Make an instance of the bounding-box device, which marks no pixels
+%  and records the extent of what would have been painted: the class
+%  copied, with the extent it is asked for written onto the copy.
+%
+%  This is the maker the page-device machinery reaches: init.ps files it
+%  in .devicemakers under the name a -d option or a setpagedevice
+%  request selects the device by, and calls it through privatedict.
+%
 .privatedict /newbboxdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_BBOX get dup /Create get exec
 } put

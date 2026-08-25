@@ -11,6 +11,15 @@
 
 //.internaldict /QUIET known { }{ (loading dscwrite.ps...)print } ifelse
 
+%
+%  Make an instance of the DSC writer, which emits the page as
+%  conforming PostScript: the class copied, with the extent it is asked
+%  for written onto the copy.
+%
+%  This is the maker the page-device machinery reaches: init.ps files it
+%  in .devicemakers under the name a -d option or a setpagedevice
+%  request selects the device by, and calls it through privatedict.
+%
 .privatedict /newDSCWRITEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_DSCWRITE get dup /Create get exec
 } put

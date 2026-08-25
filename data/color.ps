@@ -40,6 +40,12 @@ true setglobal
     null 1 //.xpostsys /.pcallout get exec
 } bind def
 
+%
+%  A value brought inside the range a CIE space states for it. Every CIE
+%  conversion below clamps its inputs through here, because a Decode or
+%  a tint transform is the program's own procedure and may return
+%  anything at all.
+%
 /.cieclamp {  % v l h  .  v'
     3 dict begin
     /h exch def /l exch def
@@ -48,6 +54,14 @@ true setglobal
     end
 } bind def
 
+%
+%  CIE XYZ to the device's RGB, against a white point: the matrix every
+%  CIE family below funnels into once it has reduced its own colour to
+%  XYZ, followed by the gamma the sRGB primaries want.
+%
+%  One conversion rather than one per family, so the families differ
+%  only in how they reach XYZ.
+%
 /.ciexyzrgb {  % X Y Z whitepoint  .  r g b
     5 dict begin
     /wp exch def /Z exch def /Y exch def /X exch def
@@ -66,6 +80,11 @@ true setglobal
     end
 } bind def
 
+%
+%  CIEBasedABC's second stage and CIEBasedDEF's third: the LMN
+%  components through their DecodeLMN procedures and MatrixLMN, which is
+%  what leaves XYZ for the conversion above.
+%
 /.cielmnxyzrgb {  % L M N ciedict  .  r g b
     8 dict begin
     /cd exch def /NN exch def /MM exch def /LL exch def
@@ -89,6 +108,10 @@ true setglobal
     end
 } bind def
 
+%
+%  A CIEBasedABC colour to device RGB (PLRM 4.8.3): the ABC components
+%  through DecodeABC and MatrixABC, then the LMN stage above.
+%
 /.cieabcrgb {  % A B C ciedict  .  r g b
     8 dict begin
     /cd exch def /CC exch def /BB exch def /AA exch def
@@ -111,6 +134,10 @@ true setglobal
     end
 } bind def
 
+%
+%  A CIEBasedA colour to device RGB (PLRM 4.8.3). One component through
+%  DecodeA and MatrixA, which produces the LMN the shared stage takes.
+%
 /.ciearpgb {  % A ciedict  .  r g b
     6 dict begin
     /cd exch def /AA exch def
@@ -145,10 +172,21 @@ true setglobal
     end
 } bind def
 
+%
+%  One entry of a CIE table interpolated between its bounds: the
+%  fraction of the way along, scaled into the range the table's axis
+%  covers.
+%
 /.cietblval {  % byte-fraction lo hi  .  v
     1 index sub mul add
 } bind def
 
+%
+%  A CIEBasedDEF colour to device RGB (PLRM 4.8.5): the DEF components
+%  through DecodeDEF, then looked up in the three-dimensional Table with
+%  trilinear interpolation between the eight surrounding entries, which
+%  gives the ABC the stage above takes.
+%
 /.ciedefrgb {  % D E F ciedict  .  r g b
     24 dict begin
     /cd exch def /FF exch def /EE exch def /DD exch def
@@ -194,6 +232,11 @@ true setglobal
     end
 } bind def
 
+%
+%  A CIEBasedDEFG colour to device RGB (PLRM 4.8.5): the same as
+%  CIEBasedDEF with a fourth input, so the table is four-dimensional and
+%  the interpolation is over sixteen surrounding entries.
+%
 /.ciedefgrgb {  % D E F G ciedict  .  r g b
     28 dict begin
     /cd exch def /GG exch def /FF exch def /EE exch def /DD exch def
@@ -251,6 +294,12 @@ true setglobal
     /CIEBasedDEF //.ciedefrgb
     /CIEBasedDEFG //.ciedefgrgb
 >> def
+
+%
+%  The device RGB a CIE-based colour renders to, whichever of the five
+%  families the space belongs to: the family is read off the space's own
+%  name and dispatched through .ciefams below.
+%
 /.ciergb {  % comps... space  .  r g b
     dup 1 get exch 0 get
     //.ciefams exch get exec
@@ -267,6 +316,13 @@ true setglobal
     /CIEBasedDEF  [ /RangeDEF  [0 1 0 1 0 1] ]
     /CIEBasedDEFG [ /RangeDEFG [0 1 0 1 0 1 0 1] ]
 >> def
+
+%
+%  The range a CIE space states for its own inputs, or the default the
+%  specification gives where the dictionary states none. The clamp above
+%  reads it, so a space that omits the entry is clamped to the same
+%  bounds as one that spells it out.
+%
 /.cierange {  % space  .  range
     dup 0 get //.cierangekeys exch get
     aload pop
@@ -323,6 +379,17 @@ end
     //.xpostsys /.callout get exec
 } bind put
 
+%
+%  Run a colour conversion with the space and its components parked
+%  where the conversion can reach them, and the depth counted.
+%
+%  The count is what bounds procedure-driven conversion: a tint
+%  transform, a CIE Decode or an Indexed lookup may set a colour in a
+%  space whose own conversion re-enters here, and without a bound that
+%  grows virtual memory without end and raises no catchable error. The
+%  count is a slot the bracket saves and restores, so each re-entry is
+%  counted and each return gives its level back.
+%
 .xpostsys /.withspacebody {  % space comps {conv}  .  -
     % Bound the depth of procedure-driven colour conversion. A tint
     % transform (or a CIE Decode, an Indexed lookup) may set a colour in a
@@ -447,6 +514,16 @@ end
     setrgbcolor
 } bind put
 
+%
+%  Make a colour space current and set its initial colour (PLRM 8.2),
+%  which for most spaces is black and for Pattern is no pattern at all.
+%
+%  The space is recorded twice: as the program set it, which is what
+%  currentcolorspace reports, and as the space the components are
+%  actually recorded in, which is what the painting machinery reads.
+%  They differ wherever a space reduces -- Indexed through its base,
+%  Separation and DeviceN through their alternative.
+%
 /setcolorspace [ /anytype ] {  % array|name  .  -
     dup //.xpostsys /.csvalidate get exec
 
@@ -486,6 +563,10 @@ end
     %exec pop
 } //.xpostsys /.defop get exec
 
+%
+%  The colour space as the program set it (PLRM 8.2), not the space its
+%  components ended up recorded in.
+%
 /currentcolorspace [ ] {  % -  .  array
     % The space is reported as an array even when it was set as a bare
     % family name and has no parameters (PLRM 8.2), so that indexing the
@@ -633,6 +714,11 @@ end
     /CIEBasedDEFG 4
 >> put
 
+%
+%  How many components the current colour space takes. Read wherever a
+%  run of components has to be counted off the stack rather than
+%  assumed.
+%
 .xpostsys /.ncomponents {  % -  .  int
     currentcolorspace //.xpostsys /.spacecomponents get exec
 } put
@@ -926,6 +1012,12 @@ end
     % grey component, three RGB or four CMYK).
     /Process /currentcolor cvx
 >> put
+
+%
+%  The current colour's components, in the space the program set (PLRM
+%  8.2) -- so a Separation or DeviceN colour answers the tints it was
+%  set with, not the alternative-space colour they were transformed to.
+%
 /currentcolor [ ] {  % -  .  comp1..compN
     % A colour whose space records its components elsewhere than it
     % takes them -- Separation, DeviceN, Indexed, any CIE-based family --
@@ -939,6 +1031,11 @@ end
     } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  The lesser of two numbers. A pure global helper, so it lives in
+%  .xpostsys beside the colour conversions that freeze a reference to
+%  it.
+%
 .xpostsys /.min {  % x y  .  min
         %        y (otherwise)
     2 copy gt{exch}if pop
@@ -1031,6 +1128,11 @@ end
     >>
 >> put
 
+%
+%  Enter DeviceGray and set one component (PLRM 8.2). The Level 1
+%  operators are each a space and a colour set together, which is why
+%  they may be used without a setcolorspace before them.
+%
 /setgray [ /numbertype ] {  % num  .  -
     graphicsdict /currgstate get /setspace /DeviceGray put
     graphicsdict /currgstate get /colorspace /DeviceGray put
@@ -1038,12 +1140,19 @@ end
     graphicsdict /currgstate get /sepindex null put
 } //.xpostsys /.defop get exec
 
+%
+%  The current colour as a grey (PLRM 8.2), converted from whatever
+%  space it is actually in.
+%
 /currentgray [ ] {  % -  .  gray
     //.xpostsys /ColorConversion get /DeviceGray get
         graphicsdict /currgstate get /colorspace get
         get exec
 } //.xpostsys /.defop get exec
 
+%
+%  Enter DeviceRGB and set three components (PLRM 8.2).
+%
 /setrgbcolor [ /numbertype /numbertype /numbertype ] {  % r g b  .  -
     graphicsdict /currgstate get /setspace /DeviceRGB put
     graphicsdict /currgstate get /colorspace /DeviceRGB put
@@ -1053,6 +1162,10 @@ end
     graphicsdict /currgstate get /sepindex null put
 } //.xpostsys /.defop get exec
 
+%
+%  The current colour as RGB (PLRM 8.2), converted from whatever space
+%  it is actually in.
+%
 /currentrgbcolor [ ] {  % -  .  r g b
     //.xpostsys /ColorConversion get /DeviceRGB get
         graphicsdict /currgstate get /colorspace get
@@ -1086,6 +1199,11 @@ end
     setrgbcolor
 } //.xpostsys /.defop get exec
 
+%
+%  The current colour as hue, saturation and brightness (PLRM 8.2). The
+%  components are recorded in RGB and converted here, so a colour set by
+%  sethsbcolor and read back may differ in the last place.
+%
 /currenthsbcolor [ ] {  % -  .  h s b
     currentrgbcolor
     3 dict begin
@@ -1105,6 +1223,9 @@ end
     end
 } //.xpostsys /.defop get exec
 
+%
+%  Enter DeviceCMYK and set four components (PLRM 8.2).
+%
 /setcmykcolor [ /numbertype /numbertype /numbertype /numbertype ] {  % c m y k  .  -
     graphicsdict /currgstate get /setspace /DeviceCMYK put
     graphicsdict /currgstate get /colorspace /DeviceCMYK put
@@ -1115,6 +1236,10 @@ end
     graphicsdict /currgstate get /sepindex null put
 } //.xpostsys /.defop get exec
 
+%
+%  The current colour as CMYK (PLRM 8.2), converted from whatever space
+%  it is actually in.
+%
 /currentcmykcolor [ ] {  % -  .  c m y k
     //.xpostsys /ColorConversion get /DeviceCMYK get
         graphicsdict /currgstate get /colorspace get
@@ -1166,14 +1291,30 @@ end
     } ifelse } ifelse
 } put
 
+%
+%  A custom-colour object: a named spot colour together with the CMYK it
+%  prints as where the device has no such separation. An Adobe extension
+%  the separation workflow uses, not a Level 3 operator.
+%
+%  The object is what setcustomcolor and customcolorimage take; nothing
+%  else reads it.
+%
 /findcmykcustomcolor [ /numbertype /numbertype /numbertype /numbertype /stringtype ] {  % c m y k name  .  object
     5 array astore
 } //.xpostsys /.defop get exec
 
+%
+%  The same, for a spot colour whose alternative is stated in RGB.
+%
 /findrgbcustomcolor [ /numbertype /numbertype /numbertype /stringtype ] {  % r g b name  .  object
     4 array astore
 } //.xpostsys /.defop get exec
 
+%
+%  Set a custom-colour object at a tint (an Adobe extension): shorthand
+%  for entering the Separation space the object describes and setting
+%  that one component.
+%
 /setcustomcolor [ /arraytype /numbertype ] {  % object tint  .  -
     exch                                        % Tint obj
     //.xpostsys /.customcolorspace get exec setcolorspace

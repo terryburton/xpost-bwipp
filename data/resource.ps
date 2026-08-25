@@ -172,6 +172,12 @@ true setglobal
     }{ pop pop null } ifelse
 } bind put
 
+%
+%  The table of instances a category holds, or undefinedresource if no
+%  such category has been defined. Every resource operator below reaches
+%  its category through here, so the refusal for a category that is not
+%  there is written once and reads the same whichever operator asked.
+%
 .xpostsys /.instof {  % category  .  instances
     //.xpostsys /.resources get exch 2 copy known not {
         pop pop /findresource cvx /undefinedresource signalerror
@@ -197,6 +203,16 @@ setglobal
     get
 } bind put
 
+%
+%  File an instance in a category under a key, and answer the instance
+%  (PLRM 3.9).
+%
+%  Defining an instance of /Category is defining a category, so that
+%  case makes the table its instances will live in. An instance is held
+%  to the type its category states, where the category states one; a
+%  category that names no type takes any, which is what PLRM 8.2 means
+%  by the category verifying the instance.
+%
 /defineresource [ /anytype /anytype /nametype ] {  % key instance category  .  instance
     dup /Category eq {
         % Defining an instance of /Category is defining a category, so it
@@ -316,6 +332,16 @@ setglobal
     } ifelse } ifelse
 } bind put
 
+%
+%  The instance a category holds under a key, loading it from the
+%  resource search path on a miss and raising undefinedresource where
+%  there is none to load (PLRM 3.9).
+%
+%  A category is itself an instance -- of /Category -- so a reference to
+%  a category nothing has defined yet loads its implementation first,
+%  and the same undefinedresource answers whether it was the category or
+%  the instance that could not be found.
+%
 /findresource [ /anytype /nametype ] {  % key category  .  instance
   {  % loop, so the local-shadow path can exit early
     2 dict begin
@@ -352,6 +378,15 @@ setglobal
   } loop
 } //.xpostsys /.defop get exec
 
+%
+%  Whether a category holds an instance under a key, and if so its
+%  status and size (PLRM 3.9). An instance already in VM reports status
+%  0 and size 0: it cost nothing to find and occupies no file.
+%
+%  Unlike findresource this does not raise for a missing instance --
+%  answering false is the point of it -- but a category that does not
+%  exist is still undefined, because the question cannot be asked.
+%
 /resourcestatus [ /anytype /nametype ] {  % key category  .  status size true | false
     % Querying a category that does not exist is an undefined error (PLRM);
     % only a present-but-absent instance yields false. Ensure the category is
@@ -390,6 +425,14 @@ setglobal
     } ifelse } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  Take an instance out of a category (PLRM 3.9).
+%
+%  The local table is preferred over the global one where both hold the
+%  key, so a job that shadowed a global instance takes back its own and
+%  leaves the shared one standing. Where only the global table holds it,
+%  that is the one that gives it up.
+%
 /undefineresource [ /anytype /nametype ] {  % key category  .  -
     % Each arm reaches the same shape before it acts: the key and the
     % category, in that order, so that the instance dictionary the

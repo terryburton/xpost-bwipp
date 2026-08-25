@@ -91,6 +91,17 @@ true setglobal
     bps //.mrdbits exec
 } def
 
+%
+%  Evaluate a PostScript function dictionary at t, and answer the
+%  components it gives together with how many there are (PLRM 3.10).
+%  Exponential interpolation (type 2), stitching (type 3) and one-input
+%  sampled (type 0) functions are served; the count comes back because a
+%  function's output arity is the function's own and the caller cannot
+%  know it in advance.
+%
+%  The axial and radial shadings evaluate their colour through here, one
+%  call per band.
+%
 /.fneval {  % t fn  .  c0..cn-1 n
     10 dict begin
     /f exch def
@@ -456,16 +467,39 @@ true setglobal
         /shfill cvx /rangecheck signalerror
     } if
 } def
+
+%
+%  One vertex coordinate pair out of the mesh's data source, advancing
+%  the read position past it. A literal-array source hands the numbers
+%  over as they stand; an encoded one reads BitsPerCoordinate for each
+%  and maps it through Decode.
+%
 /.mrdpt {  % -  .  [x y]
     litds { [ ds dp get ds dp 1 add get ] /dp dp 2 add def }
           { [ 0 bpc //.mrddec exec 1 bpc //.mrddec exec ] } ifelse
 } def
+
+%
+%  One vertex colour out of the mesh's data source, advancing past it:
+%  as many components as the shading's space takes, read the same two
+%  ways .mrdpt reads a coordinate.
+%
 /.mrdcolor {  % -  .  [c0..cn-1]
     litds { [ ds dp ncomp getinterval aload pop ] /dp dp ncomp add def }
            { [ 0 1 ncomp 1 sub { /c exch def
                  c 2 add bpcm //.mrddec exec
              } for ] } ifelse
 } def
+
+%
+%  One whole vertex: its coordinate pair and its colour, in the order a
+%  mesh states them.
+%
+%  A vertex occupies a whole number of bytes, so the read position is
+%  stepped to the next boundary afterwards -- and for a free-form mesh
+%  the flag read just before the vertex belongs to the same vertex, so
+%  it is that flag's byte the padding is measured from.
+%
 /.mrdvertex {  % -  .  [x y c0..cn-1]
     [ //.mrdpt exec aload pop //.mrdcolor exec aload pop ]
 
@@ -573,6 +607,16 @@ true setglobal
 %  mesh's triangles are subdivided by one rule.
 %
 /.tridepthcap 7 def
+
+%
+%  How many times a triangle must be halved before its colour is flat
+%  enough to paint: the depth is taken from how far the corner colours
+%  are apart, and capped, because the cost doubles with each level and
+%  the page stops changing well before the cap.
+%
+%  Both mesh painters ask this, so a patch's grid cells and a mesh's
+%  triangles are subdivided by one rule.
+%
 /.tridepth {  % va vb vc  .  depth
     8 dict begin
     /vc exch def /vb exch def /va exch def
@@ -612,6 +656,16 @@ true setglobal
     }{ null } ifelse
     end
 } def
+
+%
+%  Paint one triangle, subdividing it dpt times: at depth zero the
+%  triangle is filled in the colour of its corners, and above zero it is
+%  cut into four on its edge midpoints and each painted a level down.
+%
+%  A triangle that lies wholly off the page is skipped rather than
+%  subdivided, which is what holds a mesh's cost to the page when a
+%  Decode range or a stray coordinate throws one a long way out.
+%
 /.gtri {  % va vb vc dpt  .  -
     6 dict begin
     /dpt exch def /vc exch def /vb exch def /va exch def
@@ -886,6 +940,18 @@ end
     6 //.patchsh   7 //.patchsh
 >> def
 
+%
+%  Paint a shading over the current clip region (PLRM 8.2). The current
+%  path is not touched: what a program had before the shading is what it
+%  has after.
+%
+%  The dictionary's ShadingType selects one of seven painters, and the
+%  type is settled before the gsave: an error unwinds the operand,
+%  dictionary and execution stacks but not the graphics stack, so
+%  raising after the gsave would leave it unmatched and a program that
+%  caught the rangecheck would go on painting in whatever state that
+%  left.
+%
 systemdict /shfill [ /dicttype ] {  % dict  .  -
     % The type is settled before the gsave, because an error unwinds the
     % operand, dictionary and execution stacks and not the graphics

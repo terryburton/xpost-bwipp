@@ -30,6 +30,16 @@
 %
 currentglobal true setglobal
 1 dict begin
+
+%
+%  The stack digest, one entry per object type. prompt walks the operand
+%  stack and executes the entry the object's type names, and each entry
+%  prints the single character that stands for it -- so a prompt shows
+%  the shape of the stack without unstacking anything or printing a
+%  value.
+%
+%  /default is what an object of a type not named here prints as.
+%
 /ti [
     % Simple
     /nulltype        { pop (#) print }  % null  .  -

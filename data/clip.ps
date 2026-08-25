@@ -262,6 +262,11 @@ true setglobal
     graphicsdict /currgstate get /currpath 3 -1 roll put
 } //.xpostsys /.defop get exec
 
+%
+%  Cut the clip down to the current path under the nonzero rule (PLRM
+%  8.2). The path itself survives: what a program painted before
+%  clipping it is what a program paints after.
+%
 /clip [ ] {  % -  .  -
     % The clip machinery consumes line segments, so the region is cut
     % from a flattened working copy; the caller's path is kept aside
@@ -324,6 +329,13 @@ true setglobal
     exch //.xpostsys /.setclipregion get exec
 } //.xpostsys /.defop get exec
 
+%
+%  The line through two points, as the coefficients A, B and C of Ax +
+%  By + C = 0. The clip walk tests a vertex against an edge by
+%  evaluating that form and reading its sign, so an edge is turned into
+%  coefficients once and evaluated per vertex rather than the other way
+%  about.
+%
 .xpostsys /p2abc {  % x0 y0 x1 y1  .  A B C
     exch 3 index sub
     exch 2 index sub  % X0 y0 dx dy
@@ -371,6 +383,16 @@ true setglobal
     end
 } bind put
 
+%
+%  A clip polygon wound the way the Sutherland-Hodgman walk expects.
+%  That walk keeps the half-plane to the left of each directed edge, so
+%  a polygon whose interior lies to the right of its edges would clip
+%  away everything. Reversed where the signed area says it is wound the
+%  wrong way, and handed back untouched where it is not.
+%
+%  Called by every site that hands a polygon to the clip walk, so a user
+%  clip path that arrived in either winding is normalised once.
+%
 .xpostsys /normclipwind {  % poly  .  poly'
     dup //.xpostsys /polyarea2 get exec 0 lt {
         4 dict begin
@@ -753,6 +775,12 @@ true setglobal
     graphicsdict /clipptr 2 copy get 1 add put
 } //.xpostsys /.defop get exec
 
+%
+%  Put back the clip the matching clipsave took down (PLRM 8.2), and do
+%  nothing where there is none to put back: the stack is the graphics
+%  state's, and a cliprestore without its clipsave is a program's error
+%  to make rather than a state to corrupt.
+%
 /cliprestore [ ] {  % -  .  -
     graphicsdict /clipptr get 0 gt {
         graphicsdict /clipptr 2 copy get 1 sub put

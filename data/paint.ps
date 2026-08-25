@@ -112,11 +112,6 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  Fill the current path with the current colour.
-%  A device with a FillPath method consumes the whole path itself
-%  (vector devices fill with curves preserved). The path must lie
-%  inside a rectangular clip: a non-trivial clip region is cut by the
-%  polygon machinery below, at the cost of flattening.
 %  Whether the device may take the whole path. A trivial clip needs
 %  nothing further; a clip that is still a path can be handed to a device
 %  that clips for itself (ClipPath), which is far better than dissolving
@@ -340,6 +335,15 @@ true setglobal
     } forall
 } bind put
 
+%
+%  Fill the current path with the current colour (PLRM 8.2).
+%
+%  A device with a FillPath method consumes the whole path itself,
+%  and a vector device then fills with its curves preserved rather
+%  than flattened. That route is open only where the path lies
+%  wholly inside a rectangular clip; any other clip region is cut
+%  by the polygon machinery, at the cost of flattening.
+%
 /fill [ ] {  % -  .  -
     //.xpostsys /.colorroute get exec
     dup /pattern eq { pop //.xpostsys /.patternfill get exec }{
@@ -467,6 +471,8 @@ true setglobal
 %  the point's pixel, or any of the aperture's region. Each takes the
 %  probe as a point or as an aperture user path.
 %
+%  infill reads the nonzero rule, ineofill the even-odd one.
+%
 /infill [ [ /numbertype /numbertype ] [ /arraytype ] ]
     {  % x y | upath  .  bool
       { flattenpath .fillpolyargs [ exch ] } //.xpostsys /.intest get exec }
@@ -484,6 +490,10 @@ true setglobal
 %  The user-path forms take their subject on top, so what lies beneath
 %  is either the probe point or the aperture, and both shapes are
 %  stated; inustroke states the optional matrix that may follow.
+%
+%  instroke asks it of a stroke's outline, inufill and inueofill of a
+%  user path filled by each rule, and inustroke of a user path's
+%  stroke.
 %
 /instroke [ [ /numbertype /numbertype ] [ /arraytype ] ]
     {  % x y | upath  .  bool
@@ -705,6 +715,18 @@ true setglobal
 %
 .xpostsys /.imgbits << 1 true 2 true 4 true 8 true 12 true >> put
 
+%
+%  Unpack one raw row of image samples into one byte a sample, whatever
+%  depth the source states. The eight-bit case is a copy; the narrower
+%  depths spread their samples out, and twelve bits is the odd one, two
+%  samples spanning three bytes.
+%
+%  Reads rawrow and writes buf, both of the caller's dictionary, so it
+%  takes and leaves nothing: the image walk calls it once per row and
+%  the row it filled is where the walk already looks. The depths it
+%  serves are the ones .imgbits above names, and a depth outside that
+%  list never reaches here.
+%
 .xpostsys /.rownorm {  % -  .  -
     bits 8 eq {
         buf 0 rawrow putinterval
@@ -1318,6 +1340,14 @@ true setglobal
     end
 } put
 
+%
+%  One row of an ImageType 3 image whose mask arrives row-by-row in the
+%  same stream as the samples (InterleaveType 2): the mask row is taken
+%  first and stored, then the data row is answered for the painter.
+%
+%  The mask is inverted as it is stored where the mask's Decode asks for
+%  it, so that everything downstream reads one polarity.
+%
 .xpostsys /.it2row {  % statedict  .  datarow
     begin
     /rawrow mraw def //.xpostsys /.fill get exec
@@ -1334,6 +1364,16 @@ true setglobal
     end
 } put
 
+%
+%  Paint an image under an explicit mask (PLRM 4.10.3): MaskDict
+%  describes a one-bit stencil over the same image space as DataDict's
+%  samples, and a mask sample decoding to 1 leaves its pixel unpainted.
+%
+%  InterleaveType says where the mask's bits come from -- sample by
+%  sample in the one stream, row by row in the one stream, or out of
+%  MaskDict's own DataSource, where the mask may be on a different grid
+%  from the image and is resampled onto it.
+%
 .xpostsys /.imagetype3 {  % dict  .  -
     20 dict begin
     /d exch def
@@ -1547,6 +1587,19 @@ currentglobal false setglobal
 .gscratch /.stencilcache 64 dict put
 setglobal
 
+%
+%  The rectangles a stencil mask covers, as a run-length reading of its
+%  bits: consecutive rows sharing one extent merge into one taller
+%  rectangle, so the union of what comes back is the region the set bits
+%  describe.
+%
+%  Answers from the cache in .gscratch where the same mask has been read
+%  before. A job that paints one small stencil over and over -- which is
+%  what a pattern of glyph-like marks is -- would otherwise rescan its
+%  bits at every occurrence, and that is where such jobs spend their
+%  time. The key is a content hash, verified against the stored copy, so
+%  a collision costs a rescan rather than the wrong region.
+%
 .xpostsys /.stencilruns {  % buf width height ink  .  rects
     10 dict begin
     /kink exch def /kh exch def /kw exch def /kbuf exch def
@@ -1630,6 +1683,15 @@ setglobal
     end
 } put
 
+%
+%  Paint a stencil: the set bits of a one-bit source take the current
+%  colour and the clear bits leave the page alone, under the image-to-
+%  device matrix (PLRM 8.2 imagemask).
+%
+%  The whole of it runs inside a gsave, because the mask installs a clip
+%  of its own to paint through and the caller's clip has to come back
+%  afterwards however the paint ended.
+%
 .xpostsys /.stencilmask {  % width height polarity mat datasrc interp  .  -
     {
     gsave

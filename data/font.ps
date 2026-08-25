@@ -60,6 +60,19 @@ true setglobal
 %  capture raster rather than to the page.
 %
 .xpostsys /.glyphstate << /advx 0 /advy 0 /capturing false >> put
+
+%
+%  Run a glyph's build procedure -- a Type 3 font's BuildGlyph or
+%  BuildChar -- inside the bracket that keeps the machinery's own state
+%  from the program's.
+%
+%  The build is the program's own object, so a failure in it restores
+%  the operand stack to what the build found and no further: the showing
+%  operator that called it keeps the operands it consumed getting there.
+%  The glyph-nesting count is a graphicsdict slot the bracket saves and
+%  restores, which is what lets a build procedure show text of its own
+%  without the inner build clearing the outer one's flag.
+%
 .xpostsys /.runbuild {  % ... proc  .  ...
     //.xpostsys /.runbuildbody get
     //.xpostsys /.buildkeys get 1
@@ -137,6 +150,15 @@ true setglobal
     exch pop
 } bind put
 
+%
+%  Register a font dictionary under a key and answer it (PLRM 8.2). The
+%  dictionary is made read-only and stamped with a serial, which is what
+%  the glyph cache files its rasters under.
+%
+%  The serial is stamped only where there is none, so a copy of a font
+%  that differs from its original in nothing the glyphs depend on keeps
+%  the original's identity and shares its cached glyphs (PLRM 5.6).
+%
 /definefont [ /anytype /dicttype ] {  % key font  .  font
     dup type /dicttype ne
     2 index type /nulltype eq or {
@@ -304,6 +326,12 @@ true setglobal
     dup matrix scale makefont
 } //.xpostsys /.defop get exec
 
+%
+%  A copy of a font with its FontMatrix concatenated with the matrix
+%  given (PLRM 8.2), which is how a font is scaled, skewed or rotated.
+%
+%  scalefont above is this with a matrix built from one number.
+%
 /makefont [ /dicttype /arraytype ] {  % font mat  .  font'
     exch dup length 2 add dict copy         % Mat font'
     dup /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
@@ -314,6 +342,14 @@ true setglobal
     1 index /FontMatrix 3 -1 roll put       % Font'
 } //.xpostsys /.defop get exec
 
+%
+%  Declare the width of the glyph a build procedure is painting, and
+%  nothing else (PLRM 8.2). Valid only while a build is running.
+%
+%  The glyph is painted in the colour in force, and is not cached: a
+%  build that declares its width this way is saying its marks are not
+%  reducible to a mask. setcachedevice is the other answer.
+%
 /setcharwidth [ /numbertype /numbertype ] {  % wx wy  .  -
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse
     0 eq { /setcharwidth cvx /undefined signalerror } if
@@ -467,6 +503,14 @@ true setglobal
     end
 } put
 
+%
+%  Declare the width of the glyph a build procedure is painting and the
+%  box its marks fall inside (PLRM 8.2), which together let the result
+%  be captured as a mask and replayed from the cache.
+%
+%  The box is a promise: marks outside it are not painted. Valid only
+%  while a build is running.
+%
 /setcachedevice [ /numbertype /numbertype /numbertype /numbertype /numbertype /numbertype ] {  % wx wy llx lly urx ury  .  -
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse
     0 eq { /setcachedevice cvx /undefined signalerror } if
@@ -870,6 +914,16 @@ true setglobal
     { pop exch pop exec } ifelse
 } put
 
+%
+%  Paint the glyphs a string names, each advancing the current point by
+%  its own width (PLRM 8.2). The first of a family: every other showing
+%  operator below is this one with something added between glyphs, and
+%  each states the difference rather than the whole.
+%
+%  The colour decides the route the glyphs take to the page, which is
+%  what .showroute above settles, and the operators do not choose it
+%  themselves.
+%
 /show [ /stringtype ] {  % string  .  -
     /show //.xpostsys /.needfont get exec
     /show //.xpostsys /.needpoint get exec
@@ -905,6 +959,11 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  show, with an extra displacement added after every occurrence of one
+%  nominated character (PLRM 8.2) -- the way a program justifies by
+%  widening its spaces.
+%
 /widthshow [ /numbertype /numbertype /integertype /stringtype ] {  % cx cy char string  .  -
     /widthshow //.xpostsys /.needfont get exec
     /widthshow //.xpostsys /.needpoint get exec
@@ -961,6 +1020,10 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  show, with an extra displacement added after every glyph (PLRM 8.2)
+%  -- the way a program letterspaces.
+%
 /ashow [ /numbertype /numbertype /stringtype ] {  % ax ay string  .  -
     /ashow //.xpostsys /.needfont get exec
     /ashow //.xpostsys /.needpoint get exec
@@ -1014,6 +1077,10 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  show with both displacements at once (PLRM 8.2): ashow's after every
+%  glyph and widthshow's after every occurrence of the nominated one.
+%
 /awidthshow [ /numbertype /numbertype /integertype /numbertype /numbertype /stringtype ] {  % cx cy char ax ay string  .  -
     /awidthshow //.xpostsys /.needfont get exec
     /awidthshow //.xpostsys /.needpoint get exec
@@ -1087,6 +1154,15 @@ true setglobal
 %
 .xpostsys /.kshowshow /show load put
 
+%
+%  show, running the program's procedure between each pair of glyphs
+%  with their two character codes (PLRM 8.2), which is where a program
+%  puts its own kerning.
+%
+%  The procedure is the program's, so it runs through the boundary that
+%  restores the operand stack to what it found: what fails in there is
+%  the program's object failing, not kshow failing.
+%
 /kshow [ /proctype /stringtype ] {  % proc string  .  -
     /kshow //.xpostsys /.needfont get exec
     /kshow //.xpostsys /.needpoint get exec
@@ -1232,6 +1308,12 @@ true setglobal
     } ifelse
 } put
 
+%
+%  show, taking each glyph's horizontal advance from an array rather
+%  than from the glyph (PLRM 8.2). Through a composite font one glyph
+%  may span several bytes, and the array advances by glyphs rather than
+%  by bytes.
+%
 /xshow [ /stringtype /anytype ] {  % string numarray  .  -
     /xshow //.xpostsys /.needfont get exec
     dup type /stringtype eq { .numstring2array } if
@@ -1250,6 +1332,10 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
+%
+%  The same as xshow, with the displacements taken as vertical (PLRM
+%  8.2).
+%
 /yshow [ /stringtype /anytype ] {  % string numarray  .  -
     /yshow //.xpostsys /.needfont get exec
     dup type /stringtype eq { .numstring2array } if
@@ -1268,6 +1354,10 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
+%
+%  The same again, with the array holding a pair per glyph and both
+%  displacements read from it (PLRM 8.2).
+%
 /xyshow [ /stringtype /anytype ] {  % string numarray  .  -
     /xyshow //.xpostsys /.needfont get exec
     dup type /stringtype eq { .numstring2array } if
@@ -1288,6 +1378,15 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
+%
+%  How far show would move the current point for this string, without
+%  painting anything (PLRM 8.2).
+%
+%  It is measured by showing with the marks suppressed rather than by
+%  adding up widths, so a composite font, a Type 3 build and a glyph
+%  whose width its build procedure declares are all measured the way
+%  they are painted.
+%
 /stringwidth [ /stringtype ] {  % string  .  wx wy
     /stringwidth //.xpostsys /.needfont get exec
     graphicsdict /currgstate get /currfont get
@@ -1512,6 +1611,11 @@ true setglobal
      /lslash /oslash /oe /germandbls /.notdef /.notdef /.notdef /.notdef
 ] readonly def
 
+%
+%  The ISO Latin-1 encoding vector (PLRM Appendix E): the character
+%  names a code stands for under that encoding, as an array indexed by
+%  code. A font takes it by naming it in its Encoding entry.
+%
 /ISOLatin1Encoding [
     /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
     /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
@@ -1541,6 +1645,11 @@ true setglobal
     /udieresis /yacute /thorn /ydieresis
 ] readonly def
 
+%
+%  Take a font out of the directory it was defined in (PLRM 8.2). The
+%  font object itself is not destroyed: a program still holding it may
+%  still set it.
+%
 /undefinefont [ /anytype ] {  % key  .  -
     % Remove it from whichever directory holds it
     dup GlobalFontDirectory exch known
@@ -1579,6 +1688,11 @@ true setglobal
 %  original setfont is kept in the private namespace and reached frozen.
 %
 .xpostsys /.rootsetfont /setfont load put
+
+%
+%  Make a font the current one (PLRM 8.2). Every showing operator paints
+%  through whatever this last named.
+%
 /setfont [ /dicttype ] {  % font  .  -
     % a font dictionary, not any dictionary: one without a FontMatrix
     % has nothing to set a size or an orientation from.
@@ -1587,6 +1701,13 @@ true setglobal
     dup graphicsdict /currgstate get /rootfont 3 -1 roll put
     //.xpostsys /.rootsetfont get exec
 } //.xpostsys /.defop get exec
+
+%
+%  The font setfont was given, rather than the descendant a composite
+%  font's mapping has since selected (PLRM 8.2). Inside a composite show
+%  the current font is the descendant; this is how a program asks what
+%  it actually set.
+%
 /rootfont [ ] {  % -  .  font
     graphicsdict /currgstate get /rootfont 2 copy known
         { get }{ pop pop currentfont } ifelse
@@ -1605,6 +1726,12 @@ true setglobal
 %  operators read and set the store itself.
 %
 /cachestatus [ ] { .cachestatus } //.xpostsys /.defop get exec  % -  .  bsize bmax msize mmax csize cmax blimit
+
+%
+%  The largest glyph, in bytes, the cache will keep. A glyph bigger than
+%  this is rendered every time it is shown rather than stored (PLRM
+%  8.2).
+%
 /setcachelimit [ /integertype ] {  % int  .  -
     .setcachelimit
 } //.xpostsys /.defop get exec
@@ -1633,6 +1760,12 @@ true setglobal
     } if } ifelse } ifelse
     cleartomark
 } //.xpostsys /.defop get exec
+
+%
+%  The cache parameters, in the mark-delimited form setcacheparams
+%  takes, so that a program may read them, change one and hand them
+%  back.
+%
 /currentcacheparams [ ] {  % -  .  mark size lower upper
     % Of the seven status figures, report bmax, a nominal lower
     % threshold, and the per-glyph ceiling.
@@ -1642,7 +1775,20 @@ true setglobal
     exch pop 4 bl
     end
 } //.xpostsys /.defop get exec
+
+%
+%  The user-path cache parameters. This interpreter caches no user
+%  paths, so the operands are accepted and dropped: a program written
+%  for an interpreter that does cache them is not turned away for
+%  asking.
+%
 /setucacheparams [ ] { cleartomark } //.xpostsys /.defop get exec  % mark ...  .  -
+
+%
+%  The user-path cache figures, in the shape PLRM 8.2 gives them.
+%  Nothing is cached, so they are the nominal limits of a cache holding
+%  nothing rather than a measurement.
+%
 /ucachestatus [ ] { mark 0 32768 0 4096 32768 } //.xpostsys /.defop get exec  % -  .  mark bsize bmax rsize rmax blimit
 
 %

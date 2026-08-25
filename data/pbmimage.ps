@@ -104,6 +104,16 @@
 %  fold a paint takes, and stands until the next call fills it again.
 %
 .xpost_PBMIMAGE /.groundvaries true put
+
+%
+%  The ground for one row of the page, which for a screened bilevel
+%  device is not one value but a row of them: the screen decides each
+%  pixel, so the row is filled a pixel at a time through the same fold a
+%  paint takes.
+%
+%  One row buffer serves every call, so what it answers stands only
+%  until the next call fills it again.
+%
 .xpost_PBMIMAGE /.groundrowat {  % y  .  row
     currentdict /.ground known {
         /.gndy exch def

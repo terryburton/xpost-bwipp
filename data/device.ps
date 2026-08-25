@@ -350,6 +350,18 @@ true setglobal
 %  then reuses the same %d number.
 %
 .xpostsys /.pagestate 1 dict put
+
+%
+%  The output file name for the page about to be written: the %d marker
+%  in the name given, replaced by the number of pages transmitted so
+%  far. A name without the marker comes back unchanged, and every page
+%  then writes the same file with the last one standing.
+%
+%  The counter lives in a global dictionary so that the save and restore
+%  a program wraps around each page -- the separation-plate idiom --
+%  does not rewind it. Kept in the local device dictionary it would be
+%  rewound, and every page would reuse the same number.
+%
 .xpostsys /.pagefilename {  % name  .  name'
     dup (%d) search {
         exch pop
@@ -810,6 +822,8 @@ end } bind put
 %  save and restore a job wraps around a page does not rewind it, and it
 %  starts again at zero for each device activated.
 %
+%  .pageno reads it and .setpageno writes it.
+%
 
 .xpostsys /.pageno {  % -  .  int
     //.xpostsys /.pagestate get /.plrmpage 2 copy known { get }{ pop pop 0 } ifelse
@@ -831,6 +845,9 @@ end } bind put
 %  ending it here is throwing it away. A program that did transmit has said
 %  where its pages end, and what it painted afterwards is a page it did not
 %  finish -- that one is dropped, as it is by the interpreters this follows.
+%
+%  .pagemarked and .setpagemarked carry the first, .pagesent and
+%  .setpagesent the second.
 %
 
 .xpostsys /.pagemarked {  % -  .  bool
@@ -919,6 +936,14 @@ end } bind put
     } forall
 } bind put
 
+%
+%  Start a page: nothing painted yet, and the BeginPage handler the page
+%  device carries run with the count of pages transmitted so far.
+%
+%  Reached from showpage and copypage once the outgoing page has been
+%  dealt with, and from the device installation, so that the first page
+%  of a run begins the same way as every later one.
+%
 .xpostsys /.beginpage {  % -  .  -
     % A page that has just begun carries nothing yet.
     false //.xpostsys /.setpagemarked get exec
@@ -963,6 +988,13 @@ end } bind put
     { }{ /EndPage cvx /typecheck signalerror } ifelse
 } bind put
 
+%
+%  End the page and transmit it (PLRM 8.2), then begin the next.
+%
+%  The EndPage handler decides whether the page is transmitted at all;
+%  where it says no, the marks are still given up and the count still
+%  advances, because the page has ended either way.
+%
 /showpage [ ] {  % -  .  -
     0 //.xpostsys /.endpage get exec {
         DEVICE //.xpostsys /.transmitpage get exec
@@ -975,6 +1007,13 @@ end } bind put
     //.xpostsys /.beginpage get exec
 } //.xpostsys /.defop get exec
 
+%
+%  Transmit the page and keep it (PLRM 8.2): the marks stay, so what
+%  follows paints over what is already there.
+%
+%  Its EndPage handler is told a different reason from showpage's, which
+%  is the whole of the difference a page device sees between them.
+%
 /copypage [ ] {  % -  .  -
     1 //.xpostsys /.endpage get exec {
         DEVICE //.xpostsys /.transmitpage get exec

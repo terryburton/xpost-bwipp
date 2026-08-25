@@ -79,6 +79,19 @@ bind put
 currentglobal false setglobal
 .gscratch /.pfdict 10 dict put
 setglobal
+
+%
+%  Enumerate the current path in user coordinates, running one of four
+%  procedures per element (PLRM 8.2): a moveto, a lineto, a curveto, or
+%  a closepath, each handed the points of the element it names.
+%
+%  The caller's procedures run outside the enumerator's dictionary
+%  scope, so a procedure that accumulates by def reaches the caller's
+%  dictionaries rather than the walk's. The scratch dictionary is a
+%  single shared one in .gscratch, so a walk is not re-entrant: a
+%  procedure that walks the path again would take the enumerator's place
+%  in it.
+%
 /pathforall [ /proctype /proctype /proctype /proctype ] {  % moveproc lineproc curveproc closeproc  .  -
 .gscratch /.pfdict get
 begin
@@ -123,6 +136,14 @@ end
     } ifelse } ifelse } ifelse
 } bind put
 
+%
+%  Reverse the direction of every subpath of the current path (PLRM
+%  8.2), which reverses the winding the fill rules read.
+%
+%  The path is read out into elements first because a reversal delays
+%  each element by one: the command of one element pairs with the point
+%  of the next when the order is turned around.
+%
 /reversepath [ ] {  % -  .  -
 10 dict
 begin
@@ -722,6 +743,16 @@ currentglobal false setglobal
 >> put
 setglobal
 
+%
+%  Replace the current path with the outline the stroke of it would
+%  paint (PLRM 8.2), so that a caller may fill, clip or measure what a
+%  stroke would have covered.
+%
+%  The curves are flattened and the dash pattern applied first, because
+%  the outline is built from line segments and a dashed stroke outlines
+%  each dash separately. ustroke, ustrokepath and the insideness
+%  operators in paint.ps reach a stroke's shape through here.
+%
 /strokepath [ ] {  % -  .  -
     flattenpath          % Convert all curve segments to line approximations
     //.xpostsys /dashpath get exec             % Apply dashing effect

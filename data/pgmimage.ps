@@ -11,6 +11,14 @@
 
 //.internaldict /QUIET known { }{ (loading pgmimage.ps...)print } ifelse
 
+%
+%  Make an instance of the 8-bit grayscale raster device: the class
+%  copied, with the extent it is asked for written onto the copy.
+%
+%  This is the maker the page-device machinery reaches: init.ps files it
+%  in .devicemakers under the name a -d option or a setpagedevice
+%  request selects the device by, and calls it through privatedict.
+%
 .privatedict /newPGMIMAGEdevice {  % width height  .  IMAGE-device-dict
     .privatedict /.xpost_PGMIMAGE get dup /Create get exec
 } put

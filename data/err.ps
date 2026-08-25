@@ -129,6 +129,17 @@ end
 %
 end
 currentglobal true setglobal
+
+%
+%  Raise an error the way a program does (PLRM 8.2): the object that
+%  failed and the name of the error, and the interpreter takes it from
+%  there.
+%
+%  It is a thin call to the local .error hook, which is where the work
+%  is. The operator has to be global because it belongs to the language
+%  and lives in systemdict; the hook has to be local because it records
+%  into the local $error, so the two cannot be one procedure.
+%
 /signalerror {  % any errorname  .  -
     .privatedict /.error get exec
 } def

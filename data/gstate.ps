@@ -420,6 +420,9 @@ end
 %  converts by the additive-complement formulae), and the colour
 %  rendering dictionary (recorded only).
 %
+%  Each is a pair: the set operator records and the current operator
+%  reads back exactly what was recorded.
+%
 /setblackgeneration [ /proctype ] {  % proc  .  -
     /setblackgeneration exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /blackgen exch put
@@ -586,11 +589,32 @@ end
 %  still be there for the caller's caller if the procedure failed.
 %
 .xpostsys /.tskeys [ /.tsproc /.tsop /.tsd ] put
+
+%
+%  Sample a transfer function across [0,1] into the 256-entry table the
+%  painting machinery reads, and answer the procedure back for the
+%  caller to record.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
 .xpostsys /.sampletransfer {  % /opname {proc}  .  {proc'}
     //.xpostsys /.sampletransferbody get
     //.xpostsys /.tskeys get 0
     //.xpostsys /.callout get exec
 } put
+
+%
+%  The sampling itself: the procedure run at each of 256 inputs, with
+%  the results held to [0,1].
+%
+%  The procedure is the program's, so it runs beneath the boundary that
+%  restores the operand stack to what it found. The checks on what it
+%  returned come after the boundary is gone, because a wrong return is
+%  the operator refusing rather than the procedure failing.
+%
 .xpostsys /.sampletransferbody {  % /opname {proc}  .  {proc'}
     graphicsdict exch /.tsproc exch put
     graphicsdict exch /.tsop exch put
@@ -624,11 +648,26 @@ end
 %  alike being two functions.
 %
 .xpostsys /.ctkeys [ /.ctrec /.ctop ] put
+
+%
+%  The same for setcolortransfer's four functions, sampled one at a time
+%  and answered as an array for the caller to record.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
 .xpostsys /.samplecolortransfer {  % /opname [redproc greenproc blueproc grayproc]  .  [procs']
     //.xpostsys /.samplecolortransferbody get
     //.xpostsys /.ctkeys get 0
     //.xpostsys /.callout get exec
 } put
+
+%
+%  The four transfer functions sampled in turn, each across [0,1] and
+%  each held to the same range, the grey one last.
+%
 .xpostsys /.samplecolortransferbody {  % /opname [redproc greenproc blueproc grayproc]  .  [procs']
     graphicsdict exch /.ctrec exch put
     graphicsdict exch /.ctop exch put
@@ -660,11 +699,32 @@ end
 %  holds and written again when the sampling is done.
 %
 .xpostsys /.ssreckeys [ /.ssrec ] put
+
+%
+%  Install a halftone screen: build its cell and record the frequency,
+%  angle and spot function in the graphics state.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
 .xpostsys /.installscreen {  % freq ang proc  .  -
     //.xpostsys /.installscreenbody get
     //.xpostsys /.ssreckeys get 0
     //.xpostsys /.callout get exec
 } put
+
+%
+%  The installation itself. The three operands are parked in a
+%  graphicsdict slot across the sampling and written to the graphics
+%  state afterwards: a spot function may install a screen of its own,
+%  which records over the same slots, so this call's screen is written
+%  last and is the one that stands.
+%
+%  The screen is then spread to every colour component, since setscreen
+%  sets one screen for all of them.
+%
 .xpostsys /.installscreenbody {  % freq ang proc  .  -
     3 array astore
     dup graphicsdict exch /.ssrec exch put
@@ -691,11 +751,27 @@ end
 %  written again after it so this call's screen is the one that stands.
 %
 .xpostsys /.csreckeys [ /.csrec ] put
+
+%
+%  The same for setcolorscreen's four screens, one per component, each
+%  with a cell of its own.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
 .xpostsys /.installcolorscreen {  % rf ra rp gf ga gp bf ba bp kf ka kp  .  -
     //.xpostsys /.installcolorscreenbody get
     //.xpostsys /.csreckeys get 0
     //.xpostsys /.callout get exec
 } put
+
+%
+%  The four screens installed in turn. A spot function standing in two
+%  channels is sampled once for each, because the cells differ; the grey
+%  channel goes first, being the one currentscreen reports.
+%
 .xpostsys /.installcolorscreenbody {  % rf ra rp gf ga gp bf ba bp kf ka kp  .  -
     12 array astore
     graphicsdict exch /.csrec exch put
@@ -753,11 +829,32 @@ end
 %  spot function may leave entries there for the caller to harvest.
 %
 .xpostsys /.sskeys [ /.ssd0 ] put
+
+%
+%  Sample a spot function across its screen cell, which is what turns a
+%  frequency, an angle and a procedure into the threshold order a
+%  halftone is rendered by.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
 .xpostsys /.samplespot {  % freq ang proc  .  -
     //.xpostsys /.samplespotbody get
     //.xpostsys /.sskeys get 0
     //.xpostsys /.callout get exec
 } put
+
+%
+%  The sampling itself: the lattice for the frequency and angle, the
+%  spot function called at every place in the cell, and the places
+%  ranked by what it returned.
+%
+%  The spot procedure runs against the caller's dictionaries and operand
+%  stack, because programs define counters through it and harvest what
+%  it leaves behind.
+%
 .xpostsys /.samplespotbody {  % freq ang proc  .  -
     18 dict begin
     /proc exch def /ang exch def /freq exch def
@@ -979,6 +1076,16 @@ end
     a b L q quad bestcand
     end
 } put
+
+%
+%  Build the cell a screen tiles the device plane with: the angle
+%  becomes the nearest rational tangent, the lattice vectors map every
+%  device pixel into its cell, and the whole repeating tile is ranked
+%  together so the lowest spot values whiten first.
+%
+%  An axis-aligned screen falls out of the same arithmetic with the off-
+%  axis vector at zero.
+%
 .xpostsys /.installscreencell {  % freq ang proc  .  -
     20 dict begin
     /proc exch def /ang exch def /freq exch def
@@ -1327,6 +1434,13 @@ end
     end
 } put
 
+%
+%  The component of a halftone dictionary that the grey channel is
+%  rendered by. A HalftoneType 5 dictionary holds one halftone per
+%  colorant, so the /Gray entry is taken, or /Default where there is no
+%  /Gray; any other type is already the component and comes back
+%  unchanged.
+%
 .xpostsys /.ht5component {  % ht  .  ht'
     dup type /dicttype eq {
         dup /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse
@@ -1884,17 +1998,39 @@ put
     graphicsdict /currgstate get /screenproc get
 } //.xpostsys /.defop get exec
 
+%
+%  Ask for stroke adjustment (PLRM 8.2), which would move stroke edges
+%  onto pixel boundaries so that thin strokes come out an even width.
+%  Recorded and not acted on here; currentstrokeadjust reads it back.
+%
 /setstrokeadjust [ /booleantype ] {  % flag  .  -   (recorded only)
     graphicsdict /currgstate get exch /strokeadjust exch put
 } //.xpostsys /.defop get exec
+
+%
+%  Whether stroke adjustment is asked for (PLRM 8.2). Recorded only:
+%  this interpreter does not move stroke edges onto pixel boundaries, so
+%  the flag round-trips and changes no page. False where nothing set it.
+%
 /currentstrokeadjust [ ] {  % -  .  bool
     graphicsdict /currgstate get /strokeadjust 2 copy known
         { get }{ pop pop false } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  Ask for a bound on the colour error a shading may be rendered with
+%  (PLRM 8.2). Recorded and not acted on here; the mesh painters
+%  subdivide by their own depth rule instead.
+%
 /setsmoothness [ /numbertype ] {  % num  .  -   (recorded only)
     graphicsdict /currgstate get exch /smoothness exch put
 } //.xpostsys /.defop get exec
+
+%
+%  The smoothness a shading is asked to be rendered to (PLRM 8.2).
+%  Recorded only, and 0.02 where nothing set it -- the value the
+%  specification gives as typical.
+%
 /currentsmoothness [ ] {  % -  .  num
     graphicsdict /currgstate get /smoothness 2 copy known
         { get }{ pop pop 0.02 } ifelse
@@ -1956,6 +2092,9 @@ put
     graphicsdict /currgstate get exch /dasharray exch put
 } //.xpostsys /.defop get exec
 
+%
+%  The dash pattern and its offset as setdash recorded them (PLRM 8.2).
+%
 /currentdash [ ] {  % -  .  array offset
     graphicsdict /currgstate get /dasharray get
     graphicsdict /currgstate get /dashoffset get
@@ -1977,20 +2116,37 @@ put
     graphicsdict /currgstate get /linejoin get
 } //.xpostsys /.defop get exec
 
+%
+%  How far a miter join may extend before it is cut to a bevel, as the
+%  ratio of miter length to line width (PLRM 8.2). The stroke machinery
+%  reads it at every corner it turns.
+%
 /setmiterlimit [ /numbertype ] {  % num  .  -
     dup 1 lt
     { pop /setmiterlimit cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch cvr /miterlimit exch put } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  The miter limit in force (PLRM 8.2).
+%
 /currentmiterlimit [ ] {  % -  .  num
     graphicsdict /currgstate get /miterlimit get
 } //.xpostsys /.defop get exec
 
+%
+%  Whether painting leaves the separations it does not name alone rather
+%  than clearing them (PLRM 8.2). Recorded, and read by the devices that
+%  keep separations; a device that keeps none has nothing to leave
+%  alone.
+%
 /setoverprint [ /booleantype ] {  % bool  .  -
     graphicsdict /currgstate get exch /overprint exch put
 } //.xpostsys /.defop get exec
 
+%
+%  Whether overprint is in force (PLRM 8.2).
+%
 /currentoverprint [ ] {  % -  .  bool
     graphicsdict /currgstate get /overprint get
 } //.xpostsys /.defop get exec
@@ -2004,6 +2160,10 @@ put
     graphicsdict /currgstate get exch /overprintmode exch put
 } //.xpostsys /.defop get exec
 
+%
+%  The overprint mode (an Adobe extension): 0 paints every component, 1
+%  leaves a zero CMYK component alone rather than clearing it.
+%
 /currentoverprintmode [ ] {  % -  .  int
     graphicsdict /currgstate get /overprintmode get
 } //.xpostsys /.defop get exec
@@ -2019,7 +2179,12 @@ put
     graphicsdict /currgstate get exch /rasteropcode exch put
 } //.xpostsys /.defop get exec
 
-/currentrasteropcode [ ] {  % -  .  int  (NeWS) the current raster-operation code
+%
+%  The raster-operation code in force. A NeWS extension, recorded only:
+%  nothing here combines source with destination by a raster operation,
+%  so the code round-trips and changes no page.
+%
+/currentrasteropcode [ ] {  % -  .  int
     graphicsdict /currgstate get /rasteropcode get
 } //.xpostsys /.defop get exec
 
@@ -2041,6 +2206,10 @@ put
     graphicsdict /currgstate get exch cvr /flat exch put
 } //.xpostsys /.defop get exec
 
+%
+%  The flatness tolerance in force (PLRM 8.2): how far a flattened curve
+%  may stray from the true one, in device pixels.
+%
 /currentflat [ ] {  % -  .  num
     graphicsdict /currgstate get /flat get
 } //.xpostsys /.defop get exec

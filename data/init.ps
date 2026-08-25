@@ -278,6 +278,11 @@ currentglobal false setglobal
 %  the .gscratch operator that wraps it is a simple object fit for systemdict.
 %
 .privatedict /.gscratchdict 64 dict put
+%
+%  The procedure the .gscratch operator wraps: it answers the scratch
+%  dictionary as a baked reference rather than by lookup, so nothing a
+%  program defines can be reached instead.
+%
 .privatedict /.gscratchproc [ .privatedict /.gscratchdict get ] cvx put
 /.gscratch dup .privatedict /.gscratchproc get .wrapop def
 setglobal
@@ -385,6 +390,16 @@ setglobal
 %
 currentglobal false setglobal
 userdict /serverdict 2 dict put
+
+%
+%  End the encapsulated job a server started, so that what follows is
+%  outside it and survives the job (PLRM 3.7.7). The password is the one
+%  startjob was given.
+%
+%  The idiom is a prolog's: a job that wants its definitions to outlive
+%  itself exits the server, defines them, and lets the next job find
+%  them.
+%
 serverdict /exitserver {  % password  .  -
     true exch startjob not
     { /exitserver errordict /invalidaccess get exec }
@@ -511,6 +526,13 @@ setglobal
 .xpostsys /.bindone {  % value  .  -
     dup type /arraytype eq 1 index xcheck and { bind } if pop
 } bind put
+
+%
+%  Bind every executable array a dictionary holds, and the ones the
+%  dictionaries it holds hold, down to the depth given. The depth is
+%  what stops the walk: a dictionary graph may be cyclic, and a walk
+%  without a bound would not come back.
+%
 .xpostsys /.bindscoped {  % dict depth  .  -
     exch {
         exch pop
@@ -525,6 +547,13 @@ setglobal
     } forall
     pop
 } bind put
+
+%
+%  Bind a dictionary's procedures to a depth deep enough for the tables
+%  this interpreter nests -- device classes inside registries inside
+%  systemdict -- and no deeper. The lockdown sweep calls it once per
+%  dictionary it seals.
+%
 .xpostsys /.bindscope {  % dict  .  -
     8 //.xpostsys /.bindscoped get exec
 } bind put
@@ -565,7 +594,17 @@ setglobal
 //.internaldict /QUIET known { }{ (DATA_DIR =) print
     /DATA_DIR //.xpostsys /.hostvalue get exec print (\n) print } ifelse
 
+%
+%  Read and execute a file by name (PLRM 8.2). The file is executed
+%  rather than merely read, so what it defines lands in whatever
+%  dictionary is current when run is called.
+%
 /run [ /stringtype ] { (r) file cvx exec } //.xpostsys /.defop get exec  % string  .  -
+
+%
+%  run, announcing the file first. A convenience for a person at the
+%  interactive prompt, not part of the language.
+%
 /Run { (\() print dup =print (\) run\n) print flush run } def  % string  .  -
 
 %
@@ -583,6 +622,11 @@ setglobal
 %
 .internaldict /.=stringproc [ //=string ] cvx put
 /=string dup .internaldict /.=stringproc get .wrapop def
+
+%
+%  Print an object's value the way = does, without the newline: the
+%  printing = and == are both built on this and on the type table below.
+%
 /=print {  % obj  .  -
     dup type /stringtype ne {
         //=string cvs
@@ -756,6 +800,15 @@ systemdict begin
     % operator name to the operator.
     currentdict //.xpostsys /.bindscope get exec
 
+%
+%  Print an object in re-readable form without the newline -- strings
+%  with their escapes, arrays with their brackets, an executable array
+%  as a procedure -- so that what comes out could be read back in.
+%
+%  The depth and node caps are what make it safe on a structure that
+%  refers to itself: a cyclic array printed without them is not slow, it
+%  does not finish.
+%
 /==only {  % obj  .  -
     %traceon
     //==dict begin
@@ -767,7 +820,16 @@ systemdict begin
     { stop } if    % So an error inside == does not strand it on the
                    % dict stack; re-raise once the dict stack is clean
 } end def  % Remove ==dict, installing == in userdict
+
+%
+%  Print an object in re-readable form and a newline (PLRM 8.2).
+%
 /== [ /anytype ] { ==only (\n) print } //.xpostsys /.defop get exec  % obj  .  -
+
+%
+%  Print the whole operand stack in re-readable form, deepest first,
+%  leaving it as it was (PLRM 8.2).
+%
 /pstack [ ] { count dup 1 add copy //== repeat pop } //.xpostsys /.defop get exec  % -  .  -
 end  % Back to systemdict
 
@@ -1044,6 +1106,10 @@ end
 %  This exercises the path in which loadgraphics is genuinely optional,
 %  and lets a program that needs no graphics avoid the cost.
 %
+%  startstdinnographics, startfilenamenographics and startfilenographics
+%  answer the three ways a job arrives, and loadlanguagenographics is
+%  the same for a host that only wants the language built.
+%
 /startstdinnographics {  % -  .  -
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
@@ -1129,6 +1195,15 @@ end
     quit
 } def
 
+%
+%  What the interactive executive prints before reading a line: PS, the
+%  depth of the operand stack where it is not empty, and one closing
+%  bracket per level of nested execution.
+%
+%  prepr.ps replaces it at the foot of this file with a prompt that
+%  digests the stack by type as well. This one stands for the run that
+%  never reaches prepr.ps.
+%
 /prompt [ ] {  % -  .  -
     (PS) print
     count dup 0 eq { pop } { (<) print //=print exec } ifelse
@@ -1145,6 +1220,11 @@ end
 %  parameters belong to the context and revert with a restore, so
 %  currentuserparams and setuserparams are operators over that state and are
 %  not defined here.
+%
+%  setdevparams and currentdevparams are the device pair, and
+%  setsystemparams and currentsystemparams the system one. This
+%  interpreter carries no writable device parameters, so the device pair
+%  accepts what it is given and answers an empty dictionary.
 %
 /setdevparams [ /stringtype /dicttype ] { pop pop } //.xpostsys /.defop get exec  % string dict  .  -
 /currentdevparams [ /stringtype ] { pop 0 dict } //.xpostsys /.defop get exec  % string  .  dict
@@ -1421,6 +1501,15 @@ setglobal
 %
 (/resource.ps) //.xpostsys /.loadmodule get exec
 
+%
+%  The font a name stands for (PLRM 8.2): from the font directory where
+%  it has been defined, and otherwise loaded through the Font resource
+%  category, which is where a font program on the search path is found.
+%
+%  A name nothing can supply is substituted rather than refused, because
+%  PLRM 8.2 has findfont produce a font in every case; the substitution
+%  table is the one init.ps built above.
+%
 /findfont [ /anytype ] {  % key  .  font
     % A resource key is an object of any type except null (PLRM 3.9),
     % so only null is refused here; anything else is looked up and, not
@@ -1477,10 +1566,20 @@ setglobal
     UserObjects exch 3 -1 roll put
 } //.xpostsys /.defop get exec
 
+%
+%  Execute the user object at an index (PLRM 8.2) -- the array a program
+%  filled with defineuserobject, which is how a compiled job names its
+%  own procedures by number rather than by dictionary lookup.
+%
 /execuserobject [ /integertype ] {  % index  .  -
     UserObjects exch get exec
 } //.xpostsys /.defop get exec
 
+%
+%  Give up the user object at an index (PLRM 8.2). The slot stays,
+%  holding null, so the numbering of the objects around it does not
+%  shift.
+%
 /undefineuserobject [ /integertype ] {  % index  .  -
     UserObjects exch null put
 } //.xpostsys /.defop get exec
@@ -1887,6 +1986,12 @@ setglobal
 %
 % The box is advisory here.
 /setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } //.xpostsys /.defop get exec  % llx lly urx ury  .  -
+
+%
+%  Ask that the user path being built be cached (PLRM 8.2). This
+%  interpreter caches no user paths, so the request is accepted and
+%  nothing is done with it.
+%
 /ucache [ ] {} //.xpostsys /.defop get exec  % -  .  -
 
 currentglobal true setglobal
@@ -1962,6 +2067,9 @@ currentglobal true setglobal
 %  A user path is an executable array of numbers and user-path operator
 %  names, or the encoded pair of an argument list and an operator string.
 %
+%  .upathops names the operators a user path may carry and .upathargs
+%  how many numbers each of them takes, in the same order.
+%
 .xpostsys /.upathcheck {  % obj  .  obj
     4 dict begin
     /u.p exch def
@@ -1996,6 +2104,16 @@ currentglobal true setglobal
 } put
 setglobal
 
+%
+%  Append a user path to the current path (PLRM 8.2). A user path is an
+%  executable array of numbers and path-operator names, or the encoded
+%  pair of an argument list and an operator string; both forms are
+%  checked before anything is appended, so a malformed one leaves the
+%  current path alone.
+%
+%  ufill, ueofill, ustroke and their insideness counterparts all reach
+%  the current path through here.
+%
 /uappend [ /arraytype ] {  % userpath  .  -
     //.xpostsys /.upathcheck get exec
     dup xcheck {
@@ -2059,6 +2177,11 @@ setglobal
 %       userpath  .  -
 %  userpath matrix  .  -
 %
+%
+%  Stroke a user path (PLRM 8.2), optionally under a matrix concatenated
+%  to the CTM after the path is built and before it is stroked -- which
+%  is how a program strokes a shape at one scale with a pen at another.
+%
 /ustroke [ /arraytype ] {
     //.xpostsys /.isupmat get exec {
         gsave newpath exch uappend concat stroke grestore
@@ -2070,6 +2193,10 @@ setglobal
 %
 %       userpath  .  -
 %  userpath matrix  .  -
+%
+%
+%  The outline ustroke would paint, left as the current path (PLRM 8.2),
+%  so that a caller may fill or clip with it.
 %
 /ustrokepath [ /arraytype ] {
     //.xpostsys /.isupmat get exec {
@@ -2134,6 +2261,11 @@ setglobal
     /LockDistillerParams false
 >> put
 
+%
+%  Record the distiller parameters a job asks for (an Adobe extension).
+%  The entries are kept and read back; the PDF writer consults the ones
+%  it implements and the rest are carried for the job's own sake.
+%
 /setdistillerparams [ /dicttype ] {  % dict  .  -
     //.xpostsys /.distillerparams get /LockDistillerParams get {
         pop
@@ -2142,6 +2274,9 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
+%
+%  The distiller parameters recorded, as a dictionary the job may read.
+%
 /currentdistillerparams [ ] {  % -  .  dict
     //.xpostsys /.distillerparams get dup length dict copy
 } //.xpostsys /.defop get exec
@@ -2149,6 +2284,14 @@ setglobal
 %
 %  /fontname size  .  -
 %  /fontname matrix  .  -
+%
+%
+%  findfont and scalefont and setfont in one (PLRM 8.2), taking either a
+%  size or a matrix.
+%
+%  A font already scaled the way it is asked for is used as it stands,
+%  which is what makes selectfont worth having over spelling the three
+%  out.
 %
 /selectfont [ /anytype /numbertype ] {
     dup type /arraytype eq {
@@ -2218,6 +2361,9 @@ setglobal
 %  Each takes four numbers, or the same numbers gathered into an array
 %  or encoded in a string; rectstroke takes the matrix on top of any of
 %  those, so its longer shapes are stated first to get first refusal.
+%
+%  rectfill fills them, rectstroke strokes them, and rectclip clips to
+%  them.
 %
 /rectfill [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
@@ -2757,6 +2903,23 @@ currentglobal true setglobal
     } ifelse
 } bind put
 
+%
+%  The lockdown: the last thing done to the language before a program
+%  sees it.
+%
+%  It promotes the procedure-implemented standard operators to real
+%  operators, so that load answers operatortype for them and bind
+%  substitutes them; binds what is left; moves the private C operators
+%  out of systemdict into .internaldict; drops the userdict anchors the
+%  boot used to reach its own dictionaries; and closes the writeable
+%  window on systemdict, spending a one-shot so that nothing can reopen
+%  it.
+%
+%  It runs once in the life of a context and records that it has: a
+%  lockdown that stopped part way is not attempted again, because what
+%  it leaves behind is not all virtual memory and a second attempt would
+%  not start from where the first did.
+%
 .xpostsys /.finalize {  % -  .  -
     //.internaldict /LOCKDOWN_DONE known { }{
         % A lockdown that stopped is not attempted again, and every attempt
@@ -3117,16 +3280,32 @@ currentglobal true setglobal
     (\nbreak>)print flush
     (%lineedit)(r)file
     cvx {exec}stopped pop } put
+
+%
+%  Stop and wait for a keypress, for a person stepping through a program
+%  by hand. The same as doprompt above under the name a debugging
+%  convention reaches for.
+%
 .xpostsys /pause { //.xpostsys /doprompt get exec } put  % -  .  -
 setglobal
 
 currentglobal true setglobal
+
+%
+%  Print the names of the files the run can reach, for a person at the
+%  interactive prompt.
+%
 .xpostsys /.dir {  % -  .  -
     (*) { = } 128 string filenameforall
 } put
 setglobal
 
 currentglobal true setglobal
+
+%
+%  The greeting the interactive executive prints, telling a person at
+%  the prompt how to run a file.
+%
 .xpostsys /xpost {  % -  .  -
     (Xpost is running. Type '(filename)run' to run a program.\n)print
 } put

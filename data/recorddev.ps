@@ -127,6 +127,15 @@ currentglobal true setglobal
     end exch pop
 end } bind put
 
+%
+%  How many rows of its page a device holds at once: the whole height
+%  where it holds the whole page, and the band's height where it holds
+%  one band of it.
+%
+%  Asked by the band arithmetic in image.ps and by the record device's
+%  own replay, which need the same number and would otherwise each work
+%  it out from a different set of the device's entries.
+%
 .xpostsys /.bandheight {  % dict  .  rows
 5 dict begin
     /dev exch def
