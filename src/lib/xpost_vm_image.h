@@ -100,7 +100,8 @@ typedef enum
     XPOST_VM_IMAGE_STAMP_SIGNATURE_SIZE,/**< sizeof(Xpost_Signature) */
     XPOST_VM_IMAGE_STAMP_OPERATOR_SIZE, /**< sizeof(Xpost_Operator) */
     XPOST_VM_IMAGE_STAMP_CONTEXT_SIZE,  /**< sizeof(Xpost_Context) */
-    XPOST_VM_IMAGE_STAMP_BUILD,         /**< this build's version */
+    XPOST_VM_IMAGE_STAMP_BUILD,         /**< this build's version and sources */
+    XPOST_VM_IMAGE_STAMP_CONFIG,        /**< the options that change the language */
     XPOST_VM_IMAGE_STAMP_DATA,          /**< every boot file, hashed */
     XPOST_VM_IMAGE_STAMP_BANKS,         /**< how many banks follow */
     XPOST_VM_IMAGE_STAMP_CONTEXT_FIELDS,/**< how many context values follow */
@@ -217,7 +218,7 @@ typedef enum
  * @def XPOST_VM_IMAGE_VERSION
  * @brief The layout below, which a reader must know in full.
  */
-#define XPOST_VM_IMAGE_VERSION 6u
+#define XPOST_VM_IMAGE_VERSION 7u
 
 /**
  * @def XPOST_VM_IMAGE_DIGEST_SEED
@@ -394,5 +395,14 @@ XPOST_TEST_VISIBLE int xpost_vm_image_in_use(void);
  * @brief Whether this process has said it will build the language.
  */
 XPOST_TEST_VISIBLE int xpost_vm_image_refused(void);
+
+/**
+ * @brief The options that change the language, as this process was told.
+ *
+ * Said before the context exists (xpost_vm_image_config_set), because the
+ * language is decided as the context is made. Read there to settle which
+ * language to build or to accept.
+ */
+XPOST_TEST_VISIBLE unsigned int xpost_vm_image_config(void);
 
 #endif

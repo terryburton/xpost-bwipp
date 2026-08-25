@@ -27,6 +27,7 @@
 #include "xpost_string.h"
 #include "xpost_file.h"
 #include "xpost_vm_image.h"
+#include "xpost_build_id.h"
 
 /* The names, in the order the enumerations give. Held to that order by
    the count check in each accessor: a name list one shorter than the
@@ -43,6 +44,7 @@ static const char *const _stamp_names[] =
     "operator size",
     "context size",
     "build version",
+    "configuration",
     "boot files",
     "banks",
     "context fields",
@@ -92,6 +94,12 @@ static int _in_use = 0;
 
 /* Whether this process has said it will not read one. */
 static int _refused = 0;
+
+/* Which options that change the language are in force. Said before the
+   context exists, because the image is read as the context is made and
+   there is nothing to ask at that point. Zero is the language the boot
+   files build when nothing was asked for. */
+static unsigned int _config = 0;
 
 /* The longest operator name an image carries. Longer than any the
    language has; a build that grew one past this writes no image rather
@@ -147,6 +155,12 @@ xpost_vm_image_in_use(void)
 }
 
 XPAPI void
+xpost_vm_image_config_set(unsigned int mask)
+{
+    _config = mask;
+}
+
+XPAPI void
 xpost_vm_image_refuse(void)
 {
     _refused = 1;
@@ -156,6 +170,12 @@ XPOST_TEST_VISIBLE int
 xpost_vm_image_refused(void)
 {
     return _refused;
+}
+
+XPOST_TEST_VISIBLE unsigned int
+xpost_vm_image_config(void)
+{
+    return _config;
 }
 
 /*
@@ -248,8 +268,13 @@ static unsigned int _data_hash(void)
 static void _stamps(unsigned int *stamp, int host_state)
 {
     unsigned int build = XPOST_VM_IMAGE_DIGEST_SEED;
+    unsigned int id = XPOST_BUILD_ID;
 
     build = _hash_text(build, PACKAGE_VERSION);
+    /* and what this build was made out of, so one build of a version is
+       not read as another: the version moves when a release is cut, the
+       sources move whenever anyone edits one. */
+    build = _hash(build, &id, sizeof id);
 
     stamp[XPOST_VM_IMAGE_STAMP_VERSION] = XPOST_VM_IMAGE_VERSION;
     stamp[XPOST_VM_IMAGE_STAMP_ENDIAN] = XPOST_VM_IMAGE_ENDIAN;
@@ -260,6 +285,7 @@ static void _stamps(unsigned int *stamp, int host_state)
     stamp[XPOST_VM_IMAGE_STAMP_OPERATOR_SIZE] = (unsigned int)sizeof(Xpost_Operator);
     stamp[XPOST_VM_IMAGE_STAMP_CONTEXT_SIZE] = (unsigned int)sizeof(Xpost_Context);
     stamp[XPOST_VM_IMAGE_STAMP_BUILD] = build;
+    stamp[XPOST_VM_IMAGE_STAMP_CONFIG] = _config;
     stamp[XPOST_VM_IMAGE_STAMP_DATA] = _data_hash();
     stamp[XPOST_VM_IMAGE_STAMP_BANKS] = XPOST_VM_IMAGE_BANKS;
     stamp[XPOST_VM_IMAGE_STAMP_CONTEXT_FIELDS] = (unsigned int)_CTX_COUNT;

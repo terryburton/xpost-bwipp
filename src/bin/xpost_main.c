@@ -557,6 +557,7 @@ int main(int argc, char *argv[])
     char **incs = NULL;
     int num_incs = 0;
     int no_graphics = 0;
+    int enable_dps = 0;
     int no_sandbox = 0;
     int jobserver = 0;
     int output_msg = XPOST_OUTPUT_MESSAGE_QUIET;
@@ -750,6 +751,7 @@ int main(int argc, char *argv[])
             else if (!strcmp(argv[i], "--enable-dps"))
             {
                 xpost_dps_set(1);
+                enable_dps = 1;
             }
             /* Quiet is where the messages start, so it is also what the
                run is left at when nothing says otherwise -- and the two
@@ -864,11 +866,21 @@ int main(int argc, char *argv[])
     }
 
     /* An image of virtual memory carries the language it was written
-       with, and it is read as the context is created. A run that means
-       to load no graphics wants another language, so it says before the
-       context exists that it will build one. */
-    if (no_graphics)
-        xpost_vm_image_refuse();
+       with, and it is read as the context is created -- before the
+       context can be asked what it wants. So the options that change the
+       language rather than what a run does with it are said here, and
+       written into the image: a run without graphics reads an image
+       without graphics or writes one, rather than every such run having
+       to build the language because no image could be told from another. */
+    {
+        unsigned int image_config = 0;
+
+        if (no_graphics)
+            image_config |= XPOST_VM_IMAGE_CONFIG_NO_GRAPHICS;
+        if (enable_dps)
+            image_config |= XPOST_VM_IMAGE_CONFIG_DPS;
+        xpost_vm_image_config_set(image_config);
+    }
 
     /* Where a retained page's marks are held, which the context reads as
        it is made. A word that is none of the three is refused naming

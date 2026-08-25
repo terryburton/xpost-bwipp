@@ -204,6 +204,8 @@ tests/entity_limit_test.ps \
 tests/error_dict_test.ps \
 tests/operator_identity_test.ps \
 tests/check-operator-names.sh \
+tests/check-image-config.sh \
+tests/image-config \
 tests/operator-names \
 tests/error_unwind_test.ps \
 tests/execform_cache_test.ps \

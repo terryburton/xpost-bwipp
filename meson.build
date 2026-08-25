@@ -3411,6 +3411,16 @@ test('error-dict',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# An image of virtual memory carries the language it was written with, so an
+# option that changes what the boot files build carries a bit the image is
+# compared on. Every option is classified as changing the language or not,
+# and every bit declared is one the command line sets.
+test('image-config',
+  find_program('tests/check-image-config.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ])
+
 # The other half of the same fact: the helpers that still name an operator
 # outright. Most are correct, because every route to them really is that one
 # operator, so the population is derived from the sources each run and held to

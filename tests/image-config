@@ -1,0 +1,30 @@
+# Which command-line options change the language a context comes up with,
+# rather than what a run does with it.
+#
+# An image of virtual memory carries the language it was written with, and
+# it is read as the context is created. So an option that changes what the
+# boot files build must be written into the image and compared on the way
+# back, or a run wanting one language reads an image of another. Those
+# options carry an XPOST_VM_IMAGE_CONFIG_ bit; the rest do not, because
+# they change what a run does and not what it is.
+#
+# The point of writing it down is the option that arrives later. A new
+# option that changes the language and gains no bit would leave images of
+# two languages telling each other apart by nothing, and nothing else in
+# the tree would say so. So every option is classified here, and one that
+# is not is a failure rather than an omission.
+#
+# option            language  bit
+--define            no        -
+--device-param      no        -
+--enable-dps        yes       XPOST_VM_IMAGE_CONFIG_DPS
+--help              no        -
+--include           no        -
+--jobserver         no        -
+--license           no        -
+--no-graphics       yes       XPOST_VM_IMAGE_CONFIG_NO_GRAPHICS
+--no-sandbox        no        -
+--quiet             no        -
+--trace             no        -
+--verbose           no        -
+--version           no        -

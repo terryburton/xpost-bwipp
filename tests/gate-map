@@ -437,6 +437,7 @@ language test token-sign
 language test wrapped-bind
 language test operator-identity
 language test operator-names
+language test image-config
 language test helper-bind
 language test wrapped-save
 language width witness
@@ -498,6 +499,7 @@ guards test private-refs
 guards test vecbase
 guards test operator-identity
 guards test operator-names
+guards test image-config
 guards test helper-bind
 guards test host-settings
 guards test show-clip-routes

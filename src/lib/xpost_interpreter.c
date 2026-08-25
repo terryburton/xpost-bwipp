@@ -3539,6 +3539,13 @@ XPAPI Xpost_Context *xpost_create(const char *device,
        and the boot files are what happens then. So a missing, stale,
        damaged or foreign image costs a run the time it would have saved
        and nothing else. */
+    /* Which language to build, settled before either route to it. The
+       caller says so before the context exists, because this point is
+       reached while it is being made -- there is nothing to ask yet. A
+       caller that says nothing gets the language the boot files build. */
+    xpost_ctx->skip_graphics =
+        (xpost_vm_image_config() & XPOST_VM_IMAGE_CONFIG_NO_GRAPHICS) ? 1 : 0;
+
     image_path = _image_read_path(quiet);
     built = !(image_path && xpost_vm_image_load(xpost_ctx, image_path));
     if (built)

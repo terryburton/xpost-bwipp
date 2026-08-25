@@ -313,6 +313,30 @@ XPAPI void xpost_skip_graphics_set(Xpost_Context *ctx, int enable);
 XPAPI void xpost_vm_image_refuse(void);
 
 /**
+ * @brief Say which options that change the language are in force.
+ *
+ * Some options change the language a context comes up with rather than
+ * what a run does with it: without graphics the boot files build a
+ * smaller language, and with Display PostScript they build a larger one.
+ * An image carries the language it was written with, so a run wanting
+ * one of those must not read an image of another.
+ *
+ * The image is read as the context is created, before the context can be
+ * asked what it wants, so this is said first -- the way
+ * xpost_vm_image_refuse() is, and for the same reason. What it names is
+ * written into the image and compared on the way back, so each
+ * configuration keeps its own image rather than none of them having one.
+ *
+ * @param[in] mask a bitwise or of XPOST_VM_IMAGE_CONFIG_* values.
+ */
+XPAPI void xpost_vm_image_config_set(unsigned int mask);
+
+/** @brief The boot files build a language without graphics. */
+#define XPOST_VM_IMAGE_CONFIG_NO_GRAPHICS 1u
+/** @brief The Display PostScript context operators are installed. */
+#define XPOST_VM_IMAGE_CONFIG_DPS         2u
+
+/**
  * @brief Choose where a retained page's marks are held.
  *
  * @param state "auto", "never" or "always"

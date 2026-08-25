@@ -96,7 +96,26 @@ else
   libxpost_deps += m_dep
 endif
 
-libxpost_lib = library('xpost', libxpost_src,
+# What this build was made out of, as one number. The build stamp an image
+# carries is the version string alone, which cannot tell one build of a
+# version from another, so an image written before a rebuild is read after
+# it. This hashes every source and header, and the compiler and flags, into
+# a constant the image stamp folds in. build_always_stale so that editing a
+# source is enough; the script rewrites the header only when the number
+# moves, so nothing recompiles when nothing changed.
+xpost_build_id_h = custom_target('xpost_build_id.h',
+  output: 'xpost_build_id.h',
+  command: [ find_program('python3'),
+             meson.project_source_root() / 'tools' / 'build-id.py',
+             '@OUTPUT@',
+             meson.project_source_root(),
+             cc.get_id(), cc.version(),
+             ' '.join(get_option('c_args')),
+             get_option('buildtype') ],
+  build_always_stale: true,
+  build_by_default: true)
+
+libxpost_lib = library('xpost', libxpost_src, xpost_build_id_h,
   c_args: [
     '-DHAVE_CONFIG_H',
     '-DXPOST_BUILD',
