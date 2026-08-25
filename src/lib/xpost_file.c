@@ -838,49 +838,13 @@ xpost_diskfile_fopen_beneath(const char *root, const char *rel, int *err)
     return fp;
 }
 
-#ifdef _WIN32
-/*
- * FIXME: maybe use a WIN32 API for all this. See FIXME in xpost_op_file.c
- * Note:
- * this hack is needed as tmpfile in the Windows CRT opens
- * the temporary file in c:/ which needs administrator
- * privileges.
- */
-static FILE *
-f_tmpfile(void)
-{
-    char buf[XPOST_PATH_MAX];
-    const char *name;
-    const char *tmpdir;
-    size_t l1;
-    size_t l2;
-
-    tmpdir = getenv("TEMP");
-    if (!tmpdir)
-        tmpdir = getenv("TMP");
-    if (!tmpdir)
-        return NULL;
-
-    name = tmpnam(NULL);
-    /* name points to a static buffer, so no need to check it */
-
-    l1 = strlen(tmpdir);
-    l2 = strlen(name);
-    memset(buf, 0, l1 + l2 + 1);
-    memcpy(buf, tmpdir, l1);
-    memcpy(buf + l1, name, l2);
-
-#ifdef DEBUG_FILE
-    printf("fopen\n");
-#endif
-    {
-        int err;
-        return xpost_diskfile_fopen(buf, "w+bD", 1, &err);
-    }
-}
-#else
-# define f_tmpfile tmpfile
-#endif
+/* The temporary file a filter's backing store is taken from. The Windows
+   CRT used to be given its own path here, on the grounds that tmpfile()
+   opened in the root directory and so wanted administrator rights. It does
+   not: asked on the msys2 build where it had put the file, it answers a path
+   under TEMP. MSVC is not a supported toolchain, so nothing is left for the
+   detour to be for. */
+#define f_tmpfile tmpfile
 
 static int
 disk_readch(Xpost_File *file)
@@ -891,11 +855,17 @@ disk_readch(Xpost_File *file)
         return EOF;
 
     /*
-     * FIXME: check if this work on Windows
-     * indeed, on Windows, select() needs a socket, not a fd, and fileno() returns a fd
-     * See http://stackoverflow.com/questions/6418232/how-to-use-select-to-read-input-from-keyboard-in-c/6419955#6419955
-     * and https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499%28v=vs.85%29.aspx
-     * Maybe WaitForSingleObject will also be needed
+     * None of this is built on Windows, and the question of select() there --
+     * that it takes a socket where fileno() gives a descriptor -- does not
+     * arise. HAVE_SYS_SELECT_H is what admits the block, msys2 carries no
+     * sys/select.h, and none of the three Windows configurations defines it.
+     * A read there falls through to _getc_nolock below and waits in the C
+     * library, which is the same waiting this does, by another route.
+     *
+     * What Windows lacks is not the wait but the chance to do something else
+     * during it -- and so does this, for as long as nothing returns ioblock
+     * (see the wait below). Giving Windows its own poll is worth doing only
+     * once that is wired up and the waiting is the scheduler's.
      */
 
 #ifdef HAVE_SYS_SELECT_H
@@ -5996,8 +5966,7 @@ Xpost_Object xpost_file_set_access(Xpost_Context *ctx,
     return f;
 }
 
-//FIXME assumes DiskFile subtype
-/* call fstat. */
+/* call fstat, where the file is one that can answer. */
 int xpost_file_get_bytes_available(Xpost_Memory_File *mem,
                                    Xpost_Object f,
                                    int *retval)

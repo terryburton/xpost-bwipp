@@ -92,7 +92,6 @@ xpost_context_init_ctxlist
 xpost_context_install_event_handler
 xpost_context_select_memory
 xpost_create
-xpost_ctx
 xpost_data_dir_get
 xpost_destroy
 xpost_dev_band_clamp_rows

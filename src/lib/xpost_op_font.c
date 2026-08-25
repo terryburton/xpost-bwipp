@@ -44,11 +44,6 @@
 #include "xpost_dev_record.h" /* where a glyph's coverage goes whole */
 #include "xpost_handle.h" /* the handle a font dictionary names its face by */
 
-/*
- * FIXME: check if we can factorize show, ashow and kshow a bit.
- * These codes seem quite similar
- */
-
 /* What a font dictionary's /Private names: the face its font program
    was opened as. The face is held outside virtual memory, so what the
    dictionary carries under that key is a handle on the block holding it

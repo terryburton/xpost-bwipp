@@ -77,8 +77,6 @@
 #include "xpost_object.h"
 
 
-/* FIXME: use xpost_log instead */
-
 
 size_t xpost_memory_page_size;
 size_t xpost_memory_return_grain;

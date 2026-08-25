@@ -45,7 +45,10 @@
 /* marks a subpath separator in a vertex list */
 #define SUBPATH_BREAK XPOST_PATH_BREAK
 
-/* FIXME: re-entrancy */
+/* Set around one sort and cleared after it, which is what lets a single
+   comparison function reach the context. Declared with the rest of the
+   library's statics in tests/library_statics.golden, which
+   check-library-lifetime holds to naming every one and what resets it. */
 static Xpost_Context *localctx;
 
 static Xpost_Object namewidth;

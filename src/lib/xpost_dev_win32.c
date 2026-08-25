@@ -95,7 +95,6 @@ static Xpost_Object namedotcopydict;
 static void
 _xpost_dev_gl_win32_viewport_set(int width, int height)
 {
-    /* TODO : checking if size change (for later) */
     glViewport(0, 0, width, height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();

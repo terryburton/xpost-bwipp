@@ -378,9 +378,6 @@ int Odumpnames(Xpost_Context *ctx)
     return 0;
 }
 
-/*
-FIXME: interaction with file dump mechanism ?
-*/
 static
 int dumpvm(Xpost_Context *ctx)
 {

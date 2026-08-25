@@ -91,13 +91,6 @@ int mainloop(Xpost_Context *ctx);
 void init(void);
 void xit(void);
 
-/*
-   global shortcut for a single-threaded interpreter
-FIXME: "static context pointer". s.b. changed to a returned
-   value from xpost_create()
-   value now returned. this variable should be removed */
-Xpost_Context *xpost_ctx;
-
 /* getter function for _initializing, for export */
 int xpost_interpreter_get_initializing(void)
 {
@@ -177,7 +170,15 @@ static int xpost_interpreter_cid_init(unsigned int *cid)
  */
 Xpost_Context *xpost_interpreter_cid_get_context(unsigned int cid)
 {
-    /*TODO reject cid 0 */
+    /* A cid names a slot from one, so that zero can mean "no context" in
+       the context list. Zero here would be that emptiness read as a name:
+       unsigned, it takes the subtraction below to the top of the range and
+       answers a slot that exists and is the wrong one. Every caller already
+       knows better -- the allocator hands out ++nextid, the collector walks
+       the list only while cid[i] is non-zero -- so this says so rather than
+       answering NULL, which would put a branch in three callers for a value
+       none of them can produce. */
+    assert(cid != 0);
     return &itpdata->ctab[ (cid - 1) % MAXCONTEXT ];
 }
 
@@ -2022,7 +2023,7 @@ int mainloop(Xpost_Context *ctx)
     unsigned int evalcount = 0;
 
 ctxswitch:
-    xpost_ctx = ctx = _switch_context(ctx);
+    ctx = _switch_context(ctx);
     itpdata->cid = ctx->id;
 
     /* the context's memory pointers are fixed for the life of a run;
@@ -2317,11 +2318,6 @@ int initalldata(const char *device)
         return 0;
     }
 
-    /* set global shortcut to context_0
-       (the only context in a single-threaded interpreter)
-       TODO remove this variable
-     */
-    xpost_ctx = &itpdata->ctab[0];
 
     return 1;
 }
@@ -2339,8 +2335,11 @@ int initalldata(const char *device)
    .devicemakers dictionary a page-device request is made from, and the
    roster the test wrappers run, to naming the same devices.
 
-   FIXME remove duplication of effort here and in bin/xpost_main.c
-         (ie. there should be 1 table, not 2) */
+   The binary keeps its own list of what it can offer, which this one is
+   not: this answers whether a string names a device at all, that answers
+   which are built. tests/check-device-roster.sh holds them to agreeing,
+   along with the .devicemakers dictionary and the roster the test
+   wrappers run. */
 static const char *const device_strings[] =
 {
     "pgm",
@@ -3398,6 +3397,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
                                   int width,
                                   int height)
 {
+    Xpost_Context *ctx;
     Xpost_Object sd, ud;
     char datadir[XPOST_PATH_MAX];
     const char *image_path;
@@ -3488,11 +3488,15 @@ XPAPI Xpost_Context *xpost_create(const char *device,
         return NULL;
     }
 
-    /* extract systemdict and userdict for additional definitions */
-    sd = xpost_stack_bottomup_fetch(xpost_ctx->lo, xpost_ctx->ds, 0);
-    ud = xpost_stack_bottomup_fetch(xpost_ctx->lo, xpost_ctx->ds, 2);
+    /* the context the initialisation just built: one interpreter instance
+       at a time, so it is the first slot of the table */
+    ctx = &itpdata->ctab[0];
 
-    ret = setlocalconfig(xpost_ctx, sd, device);
+    /* extract systemdict and userdict for additional definitions */
+    sd = xpost_stack_bottomup_fetch(ctx->lo, ctx->ds, 0);
+    ud = xpost_stack_bottomup_fetch(ctx->lo, ctx->ds, 2);
+
+    ret = setlocalconfig(ctx, sd, device);
     if (ret)
     {
         XPOST_LOG_ERR("%s recording the interpreter's configuration",
@@ -3501,7 +3505,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
         return NULL;
     }
 
-    xpost_ctx->quiet = quiet;
+    ctx->quiet = quiet;
     if (quiet)
     {
         /* Hand the quiet flag to the boot code through systemdict -- the only
@@ -3509,9 +3513,9 @@ XPAPI Xpost_Context *xpost_create(const char *device,
            private .internaldict as soon as that dictionary is built, so the
            load-time banner guards read it through a frozen reference and a
            program can neither see nor shadow it. */
-        ret = xpost_dict_put(xpost_ctx,
+        ret = xpost_dict_put(ctx,
                              sd /*xpost_stack_bottomup_fetch(ctx->lo, ctx->ds, 0)*/ ,
-                             xpost_name_cons(xpost_ctx, "QUIET"),
+                             xpost_name_cons(ctx, "QUIET"),
                              xpost_bool_cons(1));
         if (ret)
         {
@@ -3521,7 +3525,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
         }
     }
 
-    xpost_stack_clear(xpost_ctx->lo, xpost_ctx->hold);
+    xpost_stack_clear(ctx->lo, ctx->hold);
     xpost_interpreter_set_initializing(0);
 
     xpost_interpreter_data_dir(datadir, sizeof(datadir));
@@ -3543,13 +3547,13 @@ XPAPI Xpost_Context *xpost_create(const char *device,
        caller says so before the context exists, because this point is
        reached while it is being made -- there is nothing to ask yet. A
        caller that says nothing gets the language the boot files build. */
-    xpost_ctx->skip_graphics =
+    ctx->skip_graphics =
         (xpost_vm_image_config() & XPOST_VM_IMAGE_CONFIG_NO_GRAPHICS) ? 1 : 0;
 
     image_path = _image_read_path(quiet);
-    built = !(image_path && xpost_vm_image_load(xpost_ctx, image_path));
+    built = !(image_path && xpost_vm_image_load(ctx, image_path));
     if (built)
-        loadinitps(xpost_ctx, datadir);
+        loadinitps(ctx, datadir);
 
     /* Settle what this run's host decides, in the one dictionary that
        holds such things, now that the language is loaded and there is
@@ -3563,7 +3567,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
        A context whose settings could not be recorded is not one to hand
        back: its readers would answer with nothing, or with what some
        other run left. */
-    ret = _record_host_config(xpost_ctx, datadir, device, outfile,
+    ret = _record_host_config(ctx, datadir, device, outfile,
                               bufferin, bufferout, semantics,
                               set_size, width, height);
     if (ret)
@@ -3574,15 +3578,17 @@ XPAPI Xpost_Context *xpost_create(const char *device,
 
     if (built)
     {
-        ret = copyudtosd(xpost_ctx, ud, sd);
+        ret = copyudtosd(ctx, ud, sd);
         if (ret)
         {
             XPOST_LOG_ERR("%s error in copyudtosd", errorname[ret]);
             return NULL;
         }
 
-        /* make systemdict readonly FIXME: use new access semantics */
-        ret = xpost_dict_put(xpost_ctx, sd, xpost_name_cons(xpost_ctx, "systemdict"), sd);
+        /* systemdict names itself, which is what lets a program reach it
+           without one already being current. Sealing it is a separate step
+           and happens below, through the access attributes. */
+        ret = xpost_dict_put(ctx, sd, xpost_name_cons(ctx, "systemdict"), sd);
         if (ret)
         {
             XPOST_LOG_ERR("%s naming systemdict in itself", errorname[ret]);
@@ -3592,7 +3598,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
            yet, so this seal is not one a level has to back up and
            cannot be refused the room. A context that arrived out of an
            image is already sealed, and does not pass here. */
-        xpost_object_set_access(xpost_ctx, sd, XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
+        xpost_object_set_access(ctx, sd, XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
     }
 
     xpost_interpreter_set_initializing(0);
@@ -3605,16 +3611,16 @@ XPAPI Xpost_Context *xpost_create(const char *device,
        it never pushed, and the context it was handed is one whose
        startup did not finish. Both memory files are read: names intern
        into global VM, so a refusal is recordable on either. */
-    if (xpost_ctx->lo->push_refused || xpost_ctx->gl->push_refused)
+    if (ctx->lo->push_refused || ctx->gl->push_refused)
     {
         XPOST_LOG_ERR("a stack would not take a pushed object while the "
                       "interpreter was starting");
         return NULL;
     }
 
-    _write_image(xpost_ctx);
+    _write_image(ctx);
 
-    return xpost_ctx;
+    return ctx;
 }
 
 /* Scan one PostScript token out of str. The token operator answers a
@@ -4644,5 +4650,4 @@ XPAPI void xpost_destroy(Xpost_Context *ctx)
 
     free(itpdata);
     itpdata = NULL;
-    xpost_ctx = NULL;
 }
