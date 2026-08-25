@@ -864,7 +864,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  of min,max pairs of normalized sample values (a pixel whose every
 %  raw component falls within its pair is left unpainted).
 %
-.xpostsys /.imagepaintm {  % width height bits mat datasrc decode ncomp mbits mranges  .  -
+.xpostsys /.imagepaintm {  % width height bits mat datasrc decode ncomp mbits mranges /operator  .  -
     % The data source is the program's procedure: the whole painting
     % goes through the bracket, so a source that raises cannot leave
     % this graphics state open or this dictionary current.
@@ -873,14 +873,16 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         newpath
         24 dict begin
         //.refreshscreencell exec
-        {mranges mbits ncomp decode datasrc mat bits height width}{exch def}forall
+        {operator mranges mbits ncomp decode datasrc mat bits height width}{exch def}forall
 
         % The width is refused here, where it is first known and before
         % any row is read, because every route into this painter -- the
         % dictionary forms, the five-operand form, colorimage and the two
-        % masked types -- arrives through it.
+        % masked types -- arrives through it. The route hands over its own
+        % name, so the refusal reports the operator the program called
+        % rather than the one this painter is written for (PLRM 3.11.1).
         //.imgbits bits known not {
-            /image cvx /rangecheck signalerror
+            operator cvx /rangecheck signalerror
         } if
 
         % The dictionary image form leaves its Interpolate request in
@@ -1277,7 +1279,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  ranges, which is what an ImageType 1 image is.
 %
 .xpostsys /.imagepaint {  % width height bits mat datasrc decode ncomp  .  -
-    null null //.imagepaintm exec
+    null null /image //.imagepaintm exec
 } put
 
 %
@@ -1314,7 +1316,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     d /Decode get
     itn null itrange
     end
-    //.imagepaintm exec
+    /image //.imagepaintm exec
 } put
 
 %
@@ -1474,7 +1476,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         mbits null
     } ifelse } ifelse
     end
-    //.imagepaintm exec
+    /image //.imagepaintm exec
 } put
 
 %
@@ -1569,7 +1571,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % leaving its first chunk standing in for the whole image.
     currentdict /srcs get //.identdecode nc get nc
     end
-    null null //.imagepaintm exec
+    null null /colorimage //.imagepaintm exec
     grestore
 } .defop
 

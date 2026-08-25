@@ -202,6 +202,9 @@ tests/empty_clip_test.ps \
 tests/encoder_units.golden \
 tests/entity_limit_test.ps \
 tests/error_dict_test.ps \
+tests/operator_identity_test.ps \
+tests/check-operator-names.sh \
+tests/operator-names \
 tests/error_unwind_test.ps \
 tests/execform_cache_test.ps \
 tests/exported_symbols.golden \

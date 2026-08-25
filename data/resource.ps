@@ -178,13 +178,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  The table of instances a category holds, or undefinedresource if no
 %  such category has been defined. Every resource operator below reaches
 %  its category through here, so the refusal for a category that is not
-%  there is written once and reads the same whichever operator asked.
+%  there is written once -- and is raised under the name of the operator
+%  that asked, which the caller hands over, because PLRM 3.11.1 has the
+%  error name the operator the program actually called.
 %
-.xpostsys /.instof {  % category  .  instances
-    //.resources exch 2 copy known not {
-        pop pop /findresource cvx /undefinedresource signalerror
+.xpostsys /.instof {  % category /operator  .  instances
+    exch //.resources exch 2 copy known not {
+        pop pop cvx /undefinedresource signalerror
     } if
-    get
+    get exch pop
 } put
 
 %
@@ -222,7 +224,7 @@ setglobal
         % dictionary is the instance being defined.
         2 index //.catinstances exec
     } if
-    dup //.instof exec pop     % The category must exist either way
+    dup /defineresource //.instof exec pop     % The category must exist either way
 
     % PLRM 8.2: "Before defining the resource instance, defineresource
     % verifies that the instance object is the correct type." A category
@@ -242,7 +244,7 @@ setglobal
     dup /CIDFont eq {
         1 index /defineresource //.xpostsys /.cidstamp get exec pop
     } if
-    currentglobal { //.instof exec }{ //.linstof exec } ifelse
+    currentglobal { /defineresource //.instof exec }{ //.linstof exec } ifelse
     2 index 2 index put exch pop
 
     % PLRM 8.2: defineresource "makes the object read-only if its access is
@@ -375,7 +377,7 @@ setglobal
         .gscratch /.lresources get category get dup key known
             { key get end exit }{ pop } ifelse
     } if
-    category //.instof exec /instances exch def
+    category /findresource //.instof exec /instances exch def
     instances key known not {
         % Miss: load the instance from the search path. The instance table
         % is shared, so a successful defineresource populates instances.
@@ -457,11 +459,11 @@ setglobal
             pop //.linstof exec exch undef
         }{
             % key category key -- the category is local, this key is not
-            pop //.instof exec exch undef
+            pop /undefineresource //.instof exec exch undef
         } ifelse
     }{
         % key category key .lresources category -- no local category
-        pop pop pop //.instof exec exch undef
+        pop pop pop /undefineresource //.instof exec exch undef
     } ifelse
 } .defop
 
@@ -529,7 +531,7 @@ setglobal
 %
 /resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
     % Merge the global table with any local instances over it
-    dup //.instof exec exch
+    dup /resourceforall //.instof exec exch
     .gscratch /.lresources get exch 2 copy known {
         get exch dup length 2 index length add 1 add dict
         exch { 2 index 3 1 roll put } forall

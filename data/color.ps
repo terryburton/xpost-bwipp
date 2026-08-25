@@ -1267,7 +1267,11 @@ end
 %  setcustomcolor and customcolorimage share it so the object is unpacked
 %  one way only.
 %
-.xpostsys /.customcolorspace {  % obj  .  [/Separation name alt {transform}]
+.xpostsys /.customcolorspace {  % obj /operator  .  [/Separation name alt {transform}]
+    % The name of the operator that asked goes under the object, so the
+    % refusal below reports it rather than the one this is written for
+    % (PLRM 3.11.1); the branches that succeed drop it again at the tail.
+    exch
     dup length 5 eq {
         aload pop                               % C m y k name
         6 dict begin
@@ -1289,8 +1293,9 @@ end
                           bb /mul load ] cvx ]
             end
         }{
-            pop /setcustomcolor cvx /rangecheck signalerror
+            pop cvx /rangecheck signalerror
     } ifelse } ifelse
+    exch pop
 } put
 
 %
@@ -1319,7 +1324,7 @@ end
 %
 /setcustomcolor [ /arraytype /numbertype ] {  % object tint  .  -
     exch                                        % Tint obj
-    //.customcolorspace exec setcolorspace
+    /setcustomcolor //.customcolorspace exec setcolorspace
     setcolor                                    % Tint setcolor
 } .defop
 
@@ -1333,7 +1338,7 @@ end
 /customcolorimage [ ] {  % w h bits matrix datasrc obj  .  -
     % w h bits matrix datasrc obj -- resolve the object's space first, before
     % any begin or gsave, so a malformed object leaves nothing to unwind.
-    //.customcolorspace exec        % ... space
+    /customcolorimage //.customcolorspace exec        % ... space
     6 dict begin
     /.sp exch def /.src exch def /.mtx exch def
     /.bits exch def /.h exch def /.w exch def

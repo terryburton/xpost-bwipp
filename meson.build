@@ -3411,6 +3411,26 @@ test('error-dict',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The other half of the same fact: the helpers that still name an operator
+# outright. Most are correct, because every route to them really is that one
+# operator, so the population is derived from the sources each run and held to
+# tests/operator-names, which says which are deliberate and why.
+test('operator-names',
+  find_program('tests/check-operator-names.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ])
+
+# Several operators share one validating helper, and a helper that names one
+# caller's operator in its refusal reports that name to every other caller.
+# Each case provokes the shared refusal from each operator that reaches it and
+# holds the reported name to the operator the program called (PLRM 3.11.1).
+test('operator-identity',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/operator_identity_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # An error is named in C, by the ERRORS enumeration, and in PostScript, by
 # the list errordict's standard handlers are built from. The two sets have
 # to be the same one: a C name with no handler is reported through the

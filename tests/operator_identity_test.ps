@@ -1,0 +1,59 @@
+%!testlib
+% An error names the operator the program called, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 3.11.1 has the error record the object that was executing when it
+% was raised, and $error /command is what a handler reports. Several
+% operators share one validating helper -- every resource operator reaches
+% its category through .instof, image and colorimage paint through
+% .imagepaintm, setcustomcolor and customcolorimage build their space
+% through .customcolorspace -- and a helper that names one caller's
+% operator in its refusal reports that name to every other caller.
+%
+% Each case here provokes the shared helper's refusal from each operator
+% that reaches it, and holds the reported name to the operator the program
+% actually called. The refusal itself is written once; only the name is
+% per-caller.
+
+% $error /command holds the object that was executing, which for a standard
+% operator is the operator itself and not its name, so the two are compared
+% as the strings they print as.
+/reported {  % {proc} /operator  .  -
+    /want exch 40 string cvs def
+    /got (<none>) def
+    stopped { /got $error /command get 40 string cvs def } if
+    clear
+    got want eq not {
+        (FAIL: ) print want print ( reported ) print got print (\n) print
+        /wrong wrong 1 add store
+    } if
+} def
+/wrong 0 def
+
+% ---------------------------------------------- the resource operators
+% All of them reach a category through .instof, whose refusal used to
+% name findresource whichever operator had asked.
+
+{ /NoSuchCategory 1 dict /NoSuchCategory undefineresource } /undefineresource reported
+{ (key) /NoSuchCategory findresource }                      /findresource     reported
+{ () { pop pop } 128 string /NoSuchCategory resourceforall } /resourceforall  reported
+
+% ------------------------------------------------------ the image operators
+% Both paint through .imagepaintm, which refuses a bits-per-component the
+% collectors cannot normalise.
+
+/row 3 string def
+{ 4 4 7 [4 0 0 -4 0 4] { row } image }                  /image      reported
+{ 4 4 7 [4 0 0 -4 0 4] { row } false 3 colorimage }     /colorimage reported
+
+% ------------------------------------------------ the custom-colour operators
+% Both build their separation space through .customcolorspace, which refuses
+% an object that is neither the four- nor the five-element form.
+
+/badobj [ 1 2 3 ] def
+{ badobj 0.5 setcustomcolor }                            /setcustomcolor   reported
+{ 4 4 8 [4 0 0 -4 0 4] { row } badobj customcolorimage } /customcolorimage reported
+
+wrong 0 eq (every shared refusal names the operator the program called) assert
+
+verdict

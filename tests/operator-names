@@ -1,0 +1,51 @@
+# Helpers that name an operator in a refusal, and the name each one uses.
+#
+# A helper shared by several operators cannot name one of them in its
+# refusal without reporting that name to all the others: PLRM 3.11.1 has
+# $error /command hold what was executing, and a program reads it to learn
+# which operator it called went wrong. Three helpers were doing exactly
+# that and now take the caller's name instead (.instof, .imagepaintm and
+# .customcolorspace); tests/operator_identity_test.ps holds them to it by
+# provoking each refusal from each operator.
+#
+# What remains here is the population that still names an operator
+# outright, so that a new one -- or a changed name -- is looked at rather
+# than landing unread. A row is fine when every route to the helper really
+# is that operator, and most of these are: the halftone helpers are reached
+# only under sethalftone, the shading ones only under shfill, the CID ones
+# only under show. Two rows are fine for a different reason: .endpage names
+# the page-device procedure that returned the wrong type, not its caller,
+# and .upathcheck names uappend because ufill, ueofill and ustroke call the
+# uappend operator itself.
+#
+# One row is a known defect, left as it is on purpose. crossdashbound names
+# stroke, and strokepath reaches the dash-count limit without stroke
+# running -- but stroke also calls strokepath internally when the device
+# will not take a path, so threading the name makes the reported operator
+# depend on the output device. Fixing it means threading the top-level
+# operator through stroke's own use of strokepath.
+#
+# helper                    names
+.checkpagefeatures          setpagedevice
+.checkpagehandlers          setpagedevice
+.cidface                    show
+.csvalidate                 setcolorspace
+.endpage                    EndPage
+.fmapnext                   show
+.fneval                     shfill
+.fneval2                    shfill
+.fnsampled                  shfill
+.htcelllimit                sethalftone
+.htextent                   sethalftone
+.htoptional                 sethalftone
+.htrequire                  sethalftone
+.htvalidate                 sethalftone
+.meshsh                     shfill
+.mrdflag                    shfill
+.mrdinit                    shfill
+.spacereduce                setcolorspace
+.upathcheck                 uappend
+.withspacebody              setcolor
+crossdashbound              stroke
+doclip                      clip
+loadgraphics                setpagedevice
