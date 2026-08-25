@@ -189,12 +189,15 @@ END {
         #
         # A line opening a body or a literal is not something to be set
         # off from: the first entry of a table, and the first statement
-        # inside a procedure, are where they belong already. Its own
-        # inline comment is stepped over before the shape is read.
+        # inside a procedure, are where they belong already. All three
+        # openers count -- a procedure's brace, an array's bracket and a
+        # dictionary's double angle. Its own inline comment is stepped
+        # over before the shape is read.
         above = (j >= 1) ? L[j] : ""
         sub(/[ \t]*%.*$/, "", above)
         sub(/[ \t]+$/, "", above)
-        runon = (j >= 1 && j < i - 1 && above !~ /^[ \t]*$/ && above !~ /[{[]$/)
+        runon = (j >= 1 && j < i - 1 && above !~ /^[ \t]*$/ \
+                 && above !~ /[{[]$/ && above !~ /<<$/)
 
         if (runon)                                     v = "runon"
         else if (inl && hdr)                           v = "twice"

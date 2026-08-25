@@ -334,7 +334,7 @@ true setglobal
     } forall
 } bind put
 
-/fill [ ] {
+/fill [ ] {  % -  .  -
     //.xpostsys /.colorroute get exec
     dup /pattern eq { pop //.xpostsys /.patternfill get exec }{
     % a colour that can never produce visible output: the path is
@@ -419,8 +419,8 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  x y proc  .intest  bool
-%  upath proc  .intest  bool
+%   x y proc  .  bool
+%  upath proc  .  bool
 %  The insideness core: proc resolves the subject region -- the spans
 %  the corresponding painting operator would mark, in the parts that
 %  operator would mark them in -- and the probe is either the device
@@ -688,7 +688,7 @@ true setglobal
 %
 .xpostsys /.imgbits << 1 true 2 true 4 true 8 true 12 true >> put
 
-.xpostsys /.rownorm {
+.xpostsys /.rownorm {  % -  .  -
     bits 8 eq {
         buf 0 rawrow putinterval
     }{ bits 1 eq {
@@ -1085,8 +1085,9 @@ true setglobal
                         /pbuf rowsamples string def
                         bd /prev pbuf put
                     } ifelse
-                    % keep this row's samples for the next call's blend
-                    /.keeprow {
+
+                    % Keep this row's samples for the next call's blend.
+                    /.keeprow {  % -  .  -
                         multi {
                             0 1 ncomp 1 sub { /c exch def
                                 pbufs c get 0 bufs c get putinterval
@@ -1224,7 +1225,11 @@ true setglobal
     } null 0 //.xpostsys /.callout get exec
 } put
 
-.xpostsys /.imagepaint {
+%
+%  The unmasked form: the same paint with no mask bits and no colour-key
+%  ranges, which is what an ImageType 1 image is.
+%
+.xpostsys /.imagepaint {  % width height bits mat datasrc decode ncomp  .  -
     null null //.xpostsys /.imagepaintm get exec
 } put
 
@@ -1274,7 +1279,7 @@ true setglobal
 %  row-by-row in the one stream (2), or in MaskDict's own DataSource
 %  (3), where the mask's grid may differ from the image's.
 %
-.xpostsys /.it1row {  % statedict  .it1row  datarow
+.xpostsys /.it1row {  % statedict  .  datarow
     begin
     //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
     0 1 iw 1 sub { /i exch def
@@ -1291,7 +1296,7 @@ true setglobal
     end
 } put
 
-.xpostsys /.it2row {  % statedict  .it2row  datarow
+.xpostsys /.it2row {  % statedict  .  datarow
     begin
     /rawrow mraw def //.xpostsys /.fill get exec
     iminv {
@@ -1307,7 +1312,7 @@ true setglobal
     end
 } put
 
-.xpostsys /.imagetype3 {
+.xpostsys /.imagetype3 {  % dict  .  -
     20 dict begin
     /d exch def
     /md d /MaskDict get def
@@ -1409,8 +1414,8 @@ true setglobal
 } put
 
 %
-%  width height bits/sample matrix datasrc  image  -
-%                                 imagedict  image  -
+%  width height bits/sample matrix datasrc  .  -
+%                                imagedict  .  -
 %  The five-operand form paints grey samples; the dictionary forms
 %  paint samples in the colour space current when image is invoked:
 %  ImageType 1 plainly, 3 under an explicit mask, 4 under colour-key
@@ -1470,12 +1475,13 @@ true setglobal
     3 [ 0 1 0 1 0 1 ]
     4 [ 0 1 0 1 0 1 0 1 ]
 >> put
+
 %
-%  The source count varies with multi and ncomp, so only the two
-%  operands that are always there can be stated; the sources beneath
-%  them are the body's to check.
+%  The source count varies with multi and ncomp, so the effect states the
+%  two operands that are always there and shows the sources as a run; how
+%  many there are is the body's to check.
 %
-/colorimage [ /booleantype /integertype ] {
+/colorimage [ /booleantype /integertype ] {  % width height bits matrix datasrc... multi ncomp  .  -
     4 dict begin
     /nc exch def
     /msrc exch def
@@ -1603,7 +1609,7 @@ setglobal
     end
 } put
 
-.xpostsys /.stencilmask {
+.xpostsys /.stencilmask {  % width height polarity mat datasrc interp  .  -
     {
     gsave
         newpath

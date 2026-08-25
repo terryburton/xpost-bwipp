@@ -31,12 +31,15 @@ true setglobal
 %  dictionaries producers write
 %
 .xpostsys begin
+
 %
 %  The position is the caller's, so this opens no dictionary of its own:
 %  a local one would take the /bp definitions with it and the stream
 %  would be read from the same place for ever.
 %
-/.mrdbits {  % nbits . v  (accumulated in a real, most significant first)
+%  Accumulated in a real, most significant bit first.
+%
+/.mrdbits {  % nbits  .  v
     dup 8 mod 0 eq bp 8 mod 0 eq and {
         8 idiv 0.0 exch {
             256 mul ds bp 8 idiv get add
@@ -86,7 +89,7 @@ true setglobal
     bps //.mrdbits exec
 } def
 
-/.fneval {
+/.fneval {  % t fn  .  c0..cn-1 n
     10 dict begin
     /f exch def
     /d0 f /Domain get 0 get def
@@ -184,7 +187,9 @@ true setglobal
         /j1 j0 1 add sy 1 sub 2 copy gt { exch } if pop def
         /fx ex i0 sub def
         /fy ey j0 sub def
-        /samp {  % i j c . v  (sample scaled to 0..1)
+
+        % The sample scaled to 0..1.
+        /samp {  % i j c  .  v
             3 1 roll sx mul add nc mul add //.fnsample exec max div
         } def
         0 1 nc 1 sub { /c exch def
@@ -301,7 +306,9 @@ true setglobal
     /px uy neg def
     /py ux def
     /big x0 y0 //.clipbig exec def
-    /band {  % sa sb  (fractions of the axis)  .band  -
+
+    % sa and sb are fractions of the axis.
+    /band {  % sa sb  .  -
         6 dict begin
         /sb exch def /sa exch def
         newpath
@@ -398,36 +405,40 @@ true setglobal
 /.mrdcoordbits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> def
 /.mrdcompbits << 1 true 2 true 4 true 8 true 12 true 16 true >> def
 /.mrdflagbits << 2 true 4 true 8 true >> def
-%
-%  - .mrdalign -
+
 %
 %  Step over the padding at the end of a vertex or a patch: what follows
 %  begins on a byte boundary whatever the fields before it came to.
 %
-/.mrdalign {
+/.mrdalign {  % -  .  -
     litds not { /bp bp 7 add 8 idiv 8 mul def } if
 } def
+
 %
-%  - .mrdmore bool
-%  whether any of the source is still unread, counted in whichever unit
-%  this source is read by
+%  Whether any of the source is still unread, counted in whichever unit
+%  this source is read by.
 %
-/.mrdmore {
+/.mrdmore {  % -  .  bool
     litds { dp ds length lt }{ bp ds length 8 mul lt } ifelse
 } def
-/.mrddec {  % k nbits . value  (field k of Decode applied)
+
+%
+%  Field k of Decode applied.
+%
+/.mrddec {  % k nbits  .  value
     dup //.mrdbits exec
     exch 2 exch exp 1 sub div
     /frv exch def /kk exch def
     dec kk 2 mul 1 add get dec kk 2 mul get sub frv mul
     dec kk 2 mul get add
 } def
+
 %
 %  a mesh DataSource may instead be an array of the flag, coordinate and
 %  colour values directly (PLRM 4.9.3): then BitsPer* and Decode are ignored
 %  and each field is one array element. /litds selects which reading applies.
 %
-/.mrdflag {  % - . flag
+/.mrdflag {  % -  .  flag
     litds { ds dp get cvi /dp dp 1 add def }
           { bpf //.mrdbits exec cvi } ifelse
     % PLRM gives each mesh type the values its edge flag may take -- 0, 1
@@ -439,17 +450,17 @@ true setglobal
         /shfill cvx /rangecheck signalerror
     } if
 } def
-/.mrdpt {  % - . [x y]
+/.mrdpt {  % -  .  [x y]
     litds { [ ds dp get ds dp 1 add get ] /dp dp 2 add def }
           { [ 0 bpc //.mrddec exec 1 bpc //.mrddec exec ] } ifelse
 } def
-/.mrdcolor {  % - . [c0..cn-1]
+/.mrdcolor {  % -  .  [c0..cn-1]
     litds { [ ds dp ncomp getinterval aload pop ] /dp dp ncomp add def }
            { [ 0 1 ncomp 1 sub { /c exch def
                  c 2 add bpcm //.mrddec exec
              } for ] } ifelse
 } def
-/.mrdvertex {  % - . [x y c0..cn-1]
+/.mrdvertex {  % -  .  [x y c0..cn-1]
     [ //.mrdpt exec aload pop //.mrdcolor exec aload pop ]
     % a vertex occupies a whole number of bytes, and for a free-form
     % mesh the flag read just before it belongs to the same one
@@ -523,7 +534,7 @@ true setglobal
 %  triangle sits within a couple of device pixels, then fill flat with
 %  the corner average
 %
-/.gmid {  % va vb . vm
+/.gmid {  % va vb  .  vm
     2 dict begin
     /b exch def /a exch def
     [ 0 1 a length 1 sub { /i exch def
@@ -555,7 +566,7 @@ true setglobal
 %  mesh's triangles are subdivided by one rule.
 %
 /.tridepthcap 7 def
-/.tridepth {
+/.tridepth {  % va vb vc  .  depth
     8 dict begin
     /vc exch def /vb exch def /va exch def
     /mnx 9e99 def /mny 9e99 def /mxx -9e99 def /mxy -9e99 def
@@ -571,6 +582,7 @@ true setglobal
     dup //.tridepthcap gt { pop //.tridepthcap } if
     end
 } def
+
 %
 %  The page, in the user space a mesh states its triangles in: a box a
 %  triangle lying wholly past one edge of marks no pixel within. Two
@@ -593,7 +605,7 @@ true setglobal
     }{ null } ifelse
     end
 } def
-/.gtri {
+/.gtri {  % va vb vc dpt  .  -
     6 dict begin
     /dpt exch def /vc exch def /vb exch def /va exch def
     % A triangle lying wholly past one edge of the page marks nothing
@@ -860,7 +872,7 @@ end
     6 //.patchsh   7 //.patchsh
 >> def
 
-systemdict /shfill [ /dicttype ] {
+systemdict /shfill [ /dicttype ] {  % dict  .  -
     % The type is settled before the gsave, because an error unwinds the
     % operand, dictionary and execution stacks and not the graphics
     % stack. Raising after the gsave would leave it unmatched, and a

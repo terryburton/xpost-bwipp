@@ -29,6 +29,7 @@ true setglobal
 %  v lo hi  .cieclamp  v'
 %
 .xpostsys begin
+
 %
 %  Run one of a colour space's decode procedures. Each family reduces a
 %  colour under a dictionary of its own, and the decode procedures are
@@ -39,7 +40,7 @@ true setglobal
 /.decode {  % v {proc}  .  v'
     null 1 //.xpostsys /.pcallout get exec
 } bind def
-/.cieclamp {
+/.cieclamp {  % v l h  .  v'
     3 dict begin
     /h exch def /l exch def
     dup l lt { pop l } if
@@ -256,7 +257,7 @@ true setglobal
     /CIEBasedDEF //.ciedefrgb
     /CIEBasedDEFG //.ciedefgrgb
 >> def
-/.ciergb {
+/.ciergb {  % comps... space  .  r g b
     dup 1 get exch 0 get
     //.ciefams exch get exec
 } bind def
@@ -274,7 +275,7 @@ true setglobal
     /CIEBasedDEF  [ /RangeDEF  [0 1 0 1 0 1] ]
     /CIEBasedDEFG [ /RangeDEFG [0 1 0 1 0 1 0 1] ]
 >> def
-/.cierange {
+/.cierange {  % space  .  range
     dup 0 get //.cierangekeys exch get
     aload pop
     3 -1 roll 1 get
@@ -330,7 +331,7 @@ end
     //.xpostsys /.callout get exec
 } bind put
 
-.xpostsys /.withspacebody {
+.xpostsys /.withspacebody {  % space comps {conv}  .  -
     % Bound the depth of procedure-driven colour conversion. A tint
     % transform (or a CIE Decode, an Indexed lookup) may set a colour in a
     % space whose own conversion re-enters here; the callout keeps the
@@ -367,7 +368,7 @@ end
 %
 %  The palette entry an Indexed index names, in the base space
 %
-.xpostsys /.idxconv {
+.xpostsys /.idxconv {  % -  .  -
     3 dict begin
     /cs graphicsdict /.csspace get def
     /ix graphicsdict /.csstash get 0 get def
@@ -414,7 +415,7 @@ end
 %  on the components the space was handed, or on what the transform
 %  returned -- is that operator's own refusal.
 %
-.xpostsys /.sepconv {
+.xpostsys /.sepconv {  % -  .  -
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
     dup 0 get /Separation eq { DEVICE /.registersep known } { false } ifelse {
@@ -446,7 +447,7 @@ end
 %
 %  the device RGB a CIE-based colour renders to
 %
-.xpostsys /.cieconv {
+.xpostsys /.cieconv {  % -  .  -
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
     //.xpostsys /.ciergb get exec
@@ -454,7 +455,7 @@ end
     setrgbcolor
 } bind put
 
-/setcolorspace [ /anytype ] {
+/setcolorspace [ /anytype ] {  % array|name  .  -
     dup //.xpostsys /.csvalidate get exec
     %[ currentcolor setcolordict currentcolorspace get counttomark 2 add -1 roll
     % record the space as set (what currentcolorspace reports), then the
@@ -490,7 +491,7 @@ end
     %exec pop
 } //.xpostsys /.defop get exec
 
-/currentcolorspace [ ] {
+/currentcolorspace [ ] {  % -  .  array
     % The space is reported as an array even when it was set as a bare
     % family name and has no parameters (PLRM 8.2), so that indexing the
     % result to ask which family it is works for every space rather than
@@ -503,7 +504,7 @@ end
     /DeviceGray /setgray cvx
     /DeviceRGB /setrgbcolor cvx
     /DeviceCMYK /setcmykcolor cvx
-    /Pattern {
+    /Pattern {  % comp1..compn pattern  .  -
         % comp1..compn pattern (components only under an uncoloured
         % pattern, in its underlying space), or the null object that
         % stands for an empty tiling pattern (PLRM 4.9.1). The null
@@ -533,8 +534,8 @@ end
 >> put
 
 %
-%    pattern  setpattern  -
-%    comp1..compn pattern  setpattern  -
+%               pattern  .  -
+%  comp1..compn pattern  .  -
 %
 %  Shorthand for entering the pattern colour space and setting the
 %  pattern as the colour; an uncoloured pattern takes the current
@@ -635,7 +636,7 @@ end
     /CIEBasedDEF 3
     /CIEBasedDEFG 4
 >> put
-.xpostsys /.ncomponents {
+.xpostsys /.ncomponents {  % -  .  int
     currentcolorspace //.xpostsys /.spacecomponents get exec
 } put
 
@@ -920,7 +921,7 @@ end
     % grey component, three RGB or four CMYK)
     /Process /currentcolor cvx
 >> put
-/currentcolor [ ] {
+/currentcolor [ ] {  % -  .  comp1..compN
     % a colour whose space records its components elsewhere than it
     % takes them -- Separation, DeviceN, Indexed, any CIE-based family --
     % reads back as the components it was set with, which setcolor put
@@ -933,10 +934,11 @@ end
     } ifelse
 } //.xpostsys /.defop get exec
 
-.xpostsys /.min {  % x y  . x (if x < y)
+.xpostsys /.min {  % x y  .  min
         %        y (otherwise)
     2 copy gt{exch}if pop
 } bind put
+
 %
 %  a colour component is clamped to the unit range (PLRM: values outside
 %  0 to 1 are adjusted to the nearest valid value). A pure global helper, so it
@@ -948,10 +950,10 @@ end
 
 .xpostsys /ColorConversion <<  % <</dest <</source {source-to-dest conversion}>> >>
     /DeviceGray <<
-        /DeviceGray {
+        /DeviceGray {  % -  .  gray
             graphicsdict /currgstate get /colorcomp1 get
         } bind
-        /DeviceRGB {
+        /DeviceRGB {  % -  .  gray
             graphicsdict /currgstate get /colorcomp1 get
             .3 mul
             graphicsdict /currgstate get /colorcomp2 get
@@ -959,7 +961,7 @@ end
             graphicsdict /currgstate get /colorcomp3 get
             .11 mul add
         } bind
-        /DeviceCMYK {
+        /DeviceCMYK {  % -  .  gray
             1
             graphicsdict /currgstate get /colorcomp1 get
             .3 mul
@@ -973,17 +975,17 @@ end
         } bind
     >>
     /DeviceRGB <<
-        /DeviceGray {
+        /DeviceGray {  % -  .  r g b
             graphicsdict /currgstate get /colorcomp1 get
             dup
             dup
         } bind
-        /DeviceRGB {
+        /DeviceRGB {  % -  .  r g b
             graphicsdict /currgstate get /colorcomp1 get
             graphicsdict /currgstate get /colorcomp2 get
             graphicsdict /currgstate get /colorcomp3 get
         } bind
-        /DeviceCMYK {
+        /DeviceCMYK {  % -  .  r g b
             graphicsdict /currgstate get /colorcomp4 get  % K
             1 graphicsdict /currgstate get /colorcomp1 get  % K 1 c
             2 index add 1 //.xpostsys /.min get exec sub  % K 1-min(1,c+k)
@@ -994,13 +996,13 @@ end
         } bind
     >>
     /DeviceCMYK <<
-        /DeviceGray {
+        /DeviceGray {  % -  .  c m y k
             0
             0
             0
             1 graphicsdict /currgstate get /colorcomp1 get sub
         } bind
-        /DeviceRGB {
+        /DeviceRGB {  % -  .  c m y k
             % full black generation and undercolor removal: the common
             % component moves entirely into the black channel, so black
             % separates as pure K rather than four inks
@@ -1015,7 +1017,7 @@ end
             1 graphicsdict /currgstate get /colorcomp3 get sub exch sub  % C' m' k y'
             exch                                                     % C' m' y' k
         } bind
-        /DeviceCMYK {
+        /DeviceCMYK {  % -  .  c m y k
             graphicsdict /currgstate get /colorcomp1 get
             graphicsdict /currgstate get /colorcomp2 get
             graphicsdict /currgstate get /colorcomp3 get
@@ -1024,20 +1026,20 @@ end
     >>
 >> put
 
-/setgray [ /numbertype ] {
+/setgray [ /numbertype ] {  % num  .  -
     graphicsdict /currgstate get /setspace /DeviceGray put
     graphicsdict /currgstate get /colorspace /DeviceGray put
     graphicsdict /currgstate get exch //.xpostsys /.c01 get exec /colorcomp1 exch put
     graphicsdict /currgstate get /sepindex null put
 } //.xpostsys /.defop get exec
 
-/currentgray [ ] {
+/currentgray [ ] {  % -  .  gray
     //.xpostsys /ColorConversion get /DeviceGray get
         graphicsdict /currgstate get /colorspace get
         get exec
 } //.xpostsys /.defop get exec
 
-/setrgbcolor [ /numbertype /numbertype /numbertype ] {
+/setrgbcolor [ /numbertype /numbertype /numbertype ] {  % r g b  .  -
     graphicsdict /currgstate get /setspace /DeviceRGB put
     graphicsdict /currgstate get /colorspace /DeviceRGB put
     graphicsdict /currgstate get exch //.xpostsys /.c01 get exec /colorcomp3 exch put
@@ -1046,7 +1048,7 @@ end
     graphicsdict /currgstate get /sepindex null put
 } //.xpostsys /.defop get exec
 
-/currentrgbcolor [ ] {
+/currentrgbcolor [ ] {  % -  .  r g b
     //.xpostsys /ColorConversion get /DeviceRGB get
         graphicsdict /currgstate get /colorspace get
         get exec
@@ -1079,7 +1081,7 @@ end
     setrgbcolor
 } //.xpostsys /.defop get exec
 
-/currenthsbcolor [ ] {
+/currenthsbcolor [ ] {  % -  .  h s b
     currentrgbcolor
     3 dict begin
     {/b /g /r}{exch def}forall
@@ -1098,7 +1100,7 @@ end
     end
 } //.xpostsys /.defop get exec
 
-/setcmykcolor [ /numbertype /numbertype /numbertype /numbertype ] {
+/setcmykcolor [ /numbertype /numbertype /numbertype /numbertype ] {  % c m y k  .  -
     graphicsdict /currgstate get /setspace /DeviceCMYK put
     graphicsdict /currgstate get /colorspace /DeviceCMYK put
     graphicsdict /currgstate get exch //.xpostsys /.c01 get exec /colorcomp4 exch put
@@ -1108,7 +1110,7 @@ end
     graphicsdict /currgstate get /sepindex null put
 } //.xpostsys /.defop get exec
 
-/currentcmykcolor [ ] {
+/currentcmykcolor [ ] {  % -  .  c m y k
     //.xpostsys /ColorConversion get /DeviceCMYK get
         graphicsdict /currgstate get /colorspace get
         get exec
@@ -1159,15 +1161,15 @@ end
     } ifelse } ifelse
 } put
 
-/findcmykcustomcolor [ /numbertype /numbertype /numbertype /numbertype /stringtype ] {
+/findcmykcustomcolor [ /numbertype /numbertype /numbertype /numbertype /stringtype ] {  % c m y k name  .  object
     5 array astore
 } //.xpostsys /.defop get exec
 
-/findrgbcustomcolor [ /numbertype /numbertype /numbertype /stringtype ] {
+/findrgbcustomcolor [ /numbertype /numbertype /numbertype /stringtype ] {  % r g b name  .  object
     4 array astore
 } //.xpostsys /.defop get exec
 
-/setcustomcolor [ /arraytype /numbertype ] {
+/setcustomcolor [ /arraytype /numbertype ] {  % object tint  .  -
     exch                                        % Tint obj
     //.xpostsys /.customcolorspace get exec setcolorspace
     setcolor                                    % Tint setcolor
@@ -1180,7 +1182,7 @@ end
 %  object comes last, over the same operands image takes; the space it
 %  installs is undone afterwards.
 %
-/customcolorimage [ ] {
+/customcolorimage [ ] {  % w h bits matrix datasrc obj  .  -
     % w h bits matrix datasrc obj -- resolve the object's space first, before
     % any begin or gsave, so a malformed object leaves nothing to unwind.
     //.xpostsys /.customcolorspace get exec        % ... space
@@ -1201,7 +1203,7 @@ end
 %  the one-operand image form it honours a Separation or DeviceN space rather
 %  than reading the samples as grey.
 %
-/separationimage [ ] {
+/separationimage [ ] {  % w h bits matrix datasrc  .  -
     5 dict begin
     /.src exch def /.mtx exch def
     /.bits exch def /.h exch def /.w exch def
@@ -1231,12 +1233,13 @@ end
     dup /DeviceGray  /currentgray      load put
     dup /DeviceRGB   /currentrgbcolor   load put
     dup /DeviceCMYK  /currentcmykcolor  load put
+
     % a /Process-native device takes each paint in the space its components
     % were recorded in. That is the marking pipeline's fetch, not the public
     % currentcolor: a Separation or DeviceN paint must deliver the RECORDED
     % tint-transformed components here, where currentcolor reads back the
     % tints the colour was set with
-    /Process {
+    /Process {  % -  .  comp1..compN
         //.xpostsys /currentcolordict get
         graphicsdict /currgstate get /colorspace get get exec
     } bind put

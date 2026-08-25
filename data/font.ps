@@ -56,11 +56,12 @@ true setglobal
 %  capture raster rather than to the page.
 %
 .xpostsys /.glyphstate << /advx 0 /advy 0 /capturing false >> put
-.xpostsys /.runbuild {  % ... proc  .runbuild  ...
+.xpostsys /.runbuild {  % ... proc  .  ...
     //.xpostsys /.runbuildbody get
     //.xpostsys /.buildkeys get 1
     //.xpostsys /.callout get exec
 } put
+
 %
 %  .inglyph counts glyph-build nesting: a build procedure may itself show
 %  text, so a bare flag would clear on the inner build and read false while
@@ -72,7 +73,7 @@ true setglobal
 %  operands it consumed getting here. The counting either side of it is
 %  the machinery's, and a failure in that is the operator's own.
 %
-.xpostsys /.runbuildbody {
+.xpostsys /.runbuildbody {  % ... proc  .  ...
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse 1 add
     graphicsdict exch /.inglyph exch put
     //.xpostsys /.pexec get exec
@@ -132,7 +133,7 @@ true setglobal
     exch pop
 } bind put
 
-/definefont [ /anytype /dicttype ] {  % /fontname -dict-
+/definefont [ /anytype /dicttype ] {  % key font  .  font
     dup type /dicttype ne
     2 index type /nulltype eq or {
         /definefont cvx /typecheck signalerror
@@ -289,11 +290,11 @@ true setglobal
 %  and makes the CTM matter where PostScript says it does: when the
 %  glyphs are marked, not when the font is scaled.
 %
-/scalefont [ /dicttype /numbertype ] {  % font size  scalefont  font'
+/scalefont [ /dicttype /numbertype ] {  % font size  .  font'
     dup matrix scale makefont
 } //.xpostsys /.defop get exec
 
-/makefont [ /dicttype /arraytype ] {  % font mat  makefont  font'
+/makefont [ /dicttype /arraytype ] {  % font mat  .  font'
     exch dup length 2 add dict copy         % Mat font'
     dup /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
                                             % mat font' oldfm
@@ -302,7 +303,7 @@ true setglobal
     1 index /FontMatrix 3 -1 roll put       % Font'
 } //.xpostsys /.defop get exec
 
-/setcharwidth [ /numbertype /numbertype ] {
+/setcharwidth [ /numbertype /numbertype ] {  % wx wy  .  -
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse
     0 eq { /setcharwidth cvx /undefined signalerror } if
     % the declaration itself, recorded out of the build's reach
@@ -449,7 +450,7 @@ true setglobal
     end
 } put
 
-/setcachedevice [ /numbertype /numbertype /numbertype /numbertype /numbertype /numbertype ] {
+/setcachedevice [ /numbertype /numbertype /numbertype /numbertype /numbertype /numbertype ] {  % wx wy llx lly urx ury  .  -
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse
     0 eq { /setcachedevice cvx /undefined signalerror } if
     graphicsdict /.t3want 2 copy known { get }{ pop pop false } ifelse
@@ -843,7 +844,7 @@ true setglobal
     { pop exch pop exec } ifelse
 } put
 
-/show [ /stringtype ] {
+/show [ /stringtype ] {  % string  .  -
     /show //.xpostsys /.needfont get exec
     /show //.xpostsys /.needpoint get exec
     //.xpostsys /.showclip get exec
@@ -876,7 +877,7 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-/widthshow [ /numbertype /numbertype /integertype /stringtype ] {
+/widthshow [ /numbertype /numbertype /integertype /stringtype ] {  % cx cy char string  .  -
     /widthshow //.xpostsys /.needfont get exec
     /widthshow //.xpostsys /.needpoint get exec
     //.xpostsys /.showclip get exec
@@ -886,7 +887,7 @@ true setglobal
         % (multi-byte) code matches, as the ordinary composite show walks it
         7 dict begin
         /fnt exch def /str exch def /mchar exch def /cdy exch def /cdx exch def
-        /.showhook { mchar eq { cdx cdy rmoveto } if } def
+        /.showhook { mchar eq { cdx cdy rmoveto } if } def  % char  .  -
         fnt str //.xpostsys /.showtype0 get exec
         end
     }{
@@ -930,7 +931,7 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-/ashow [ /numbertype /numbertype /stringtype ] {
+/ashow [ /numbertype /numbertype /stringtype ] {  % ax ay string  .  -
     /ashow //.xpostsys /.needfont get exec
     /ashow //.xpostsys /.needpoint get exec
     //.xpostsys /.showclip get exec
@@ -940,7 +941,7 @@ true setglobal
         % ordinary composite show and add the delta after each character
         6 dict begin
         /fnt exch def /str exch def /ady exch def /adx exch def
-        /.showhook { pop adx ady rmoveto } def
+        /.showhook { pop adx ady rmoveto } def  % char  .  -
         fnt str //.xpostsys /.showtype0 get exec
         end
     }{
@@ -981,7 +982,7 @@ true setglobal
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-/awidthshow [ /numbertype /numbertype /integertype /numbertype /numbertype /stringtype ] {
+/awidthshow [ /numbertype /numbertype /integertype /numbertype /numbertype /stringtype ] {  % cx cy char ax ay string  .  -
     /awidthshow //.xpostsys /.needfont get exec
     /awidthshow //.xpostsys /.needpoint get exec
     //.xpostsys /.showclip get exec
@@ -992,7 +993,7 @@ true setglobal
         9 dict begin
         /fnt exch def /str exch def /ady exch def /adx exch def
         /mchar exch def /cdy exch def /cdx exch def
-        /.showhook { adx ady rmoveto mchar eq { cdx cdy rmoveto } if } def
+        /.showhook { adx ady rmoveto mchar eq { cdx cdy rmoveto } if } def  % char  .  -
         fnt str //.xpostsys /.showtype0 get exec
         end
     }{
@@ -1051,7 +1052,7 @@ true setglobal
 %
 .xpostsys /.kshowshow /show load put
 
-/kshow [ /proctype /stringtype ] {
+/kshow [ /proctype /stringtype ] {  % proc string  .  -
     /kshow //.xpostsys /.needfont get exec
     /kshow //.xpostsys /.needpoint get exec
     % PLRM 8.2, of kshow: "if the current font is a composite font, an
@@ -1176,10 +1177,10 @@ true setglobal
 %  the show variants position per glyph: through a composite font one
 %  glyph spans however many bytes its CMap says, and the number array
 %  advances by glyphs, not bytes
-%  str  .glyphbytes  w -- the byte width of the glyph at the position,
-%  hidden in the private namespace and reached by a frozen reference
+%  The byte width of the glyph at the position, hidden in the private
+%  namespace and reached by a frozen reference.
 %
-.xpostsys /.glyphbytes {  % str p -> w
+.xpostsys /.glyphbytes {  % str p  .  w
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
         dup /FMapType get 9 eq {
@@ -1192,7 +1193,7 @@ true setglobal
     } ifelse
 } put
 
-/xshow [ /stringtype /anytype ] {
+/xshow [ /stringtype /anytype ] {  % string numarray  .  -
     /xshow //.xpostsys /.needfont get exec
     dup type /stringtype eq { .numstring2array } if
     5 dict begin
@@ -1210,7 +1211,7 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
-/yshow [ /stringtype /anytype ] {
+/yshow [ /stringtype /anytype ] {  % string numarray  .  -
     /yshow //.xpostsys /.needfont get exec
     dup type /stringtype eq { .numstring2array } if
     5 dict begin
@@ -1228,7 +1229,7 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
-/xyshow [ /stringtype /anytype ] {
+/xyshow [ /stringtype /anytype ] {  % string numarray  .  -
     /xyshow //.xpostsys /.needfont get exec
     dup type /stringtype eq { .numstring2array } if
     5 dict begin
@@ -1248,7 +1249,7 @@ true setglobal
     end
 } //.xpostsys /.defop get exec
 
-/stringwidth [ /stringtype ] {
+/stringwidth [ /stringtype ] {  % string  .  wx wy
     /stringwidth //.xpostsys /.needfont get exec
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /face eq { pop //stringwidth }{
@@ -1276,8 +1277,9 @@ true setglobal
 .xpostsys /.outlinepath {  % outline  .  -
     12 dict begin
     currentpoint /cy exch def /cx exch def
+
     % a glyph-space point on the stack becomes a user-space point
-    /cpt {  % x y . X Y
+    /cpt {  % x y  .  X Y
         neg idtransform exch cx add exch cy add
     } def
     {
@@ -1526,9 +1528,10 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  key  findencoding  encoding
+%  The encoding array a name stands for, which is the Encoding resource
+%  category under another name.
 %
-/findencoding [ /nametype ] { /Encoding findresource } //.xpostsys /.defop get exec
+/findencoding [ /nametype ] { /Encoding findresource } //.xpostsys /.defop get exec  % key  .  encoding
 
 %
 %  the show machinery rebinds the current font while it works through
@@ -1536,7 +1539,7 @@ true setglobal
 %  original setfont is kept in the private namespace and reached frozen.
 %
 .xpostsys /.rootsetfont /setfont load put
-/setfont [ /dicttype ] {
+/setfont [ /dicttype ] {  % font  .  -
     % a font dictionary, not any dictionary: one without a FontMatrix
     % has nothing to set a size or an orientation from
     dup /FontMatrix known not
@@ -1544,7 +1547,7 @@ true setglobal
     dup graphicsdict /currgstate get /rootfont 3 -1 roll put
     //.xpostsys /.rootsetfont get exec
 } //.xpostsys /.defop get exec
-/rootfont [ ] {
+/rootfont [ ] {  % -  .  font
     graphicsdict /currgstate get /rootfont 2 copy known
         { get }{ pop pop currentfont } ifelse
 } //.xpostsys /.defop get exec
@@ -1561,10 +1564,11 @@ true setglobal
 %  the glyph cache: rendered rasters replay across shows, and the
 %  operators read and set the store itself
 %
-/cachestatus [ ] { .cachestatus } //.xpostsys /.defop get exec
-/setcachelimit [ /integertype ] {
+/cachestatus [ ] { .cachestatus } //.xpostsys /.defop get exec  % -  .  bsize bmax msize mmax csize cmax blimit
+/setcachelimit [ /integertype ] {  % int  .  -
     .setcachelimit
 } //.xpostsys /.defop get exec
+
 %
 %  the interpreter takes the operands it knows from the top and
 %  ignores any deeper ones
@@ -1588,7 +1592,7 @@ true setglobal
     } if } ifelse } ifelse
     cleartomark
 } //.xpostsys /.defop get exec
-/currentcacheparams [ ] {
+/currentcacheparams [ ] {  % -  .  mark size lower upper
     % of the seven status figures, report bmax, a nominal lower
     % threshold, and the per-glyph ceiling
     2 dict begin
@@ -1597,8 +1601,8 @@ true setglobal
     exch pop 4 bl
     end
 } //.xpostsys /.defop get exec
-/setucacheparams [ ] { cleartomark } //.xpostsys /.defop get exec
-/ucachestatus [ ] { mark 0 32768 0 4096 32768 } //.xpostsys /.defop get exec
+/setucacheparams [ ] { cleartomark } //.xpostsys /.defop get exec  % mark ...  .  -
+/ucachestatus [ ] { mark 0 32768 0 4096 32768 } //.xpostsys /.defop get exec  % -  .  mark bsize bmax rsize rmax blimit
 
 %
 %  the required instances of the Encoding resource category, copied

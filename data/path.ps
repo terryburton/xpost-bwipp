@@ -29,7 +29,9 @@ true setglobal
 %
 %  Path Construction Operators
 %
-.xpostsys /cpath { graphicsdict /currgstate get /currpath get } bind put
+.xpostsys /cpath {  % -  .  path
+    graphicsdict /currgstate get /currpath get
+} bind put
 
 %
 %  enumerate current path in device coordinates: each element's points
@@ -76,7 +78,7 @@ bind put
 currentglobal false setglobal
 .gscratch /.pfdict 10 dict put
 setglobal
-/pathforall [ /proctype /proctype /proctype /proctype ] {
+/pathforall [ /proctype /proctype /proctype /proctype ] {  % moveproc lineproc curveproc closeproc  .  -
 .gscratch /.pfdict get
 begin
     4 array astore /procs exch def
@@ -106,7 +108,7 @@ end
 %  reversal delays each element by one so that its command pairs with
 %  the following element's point
 %
-.xpostsys /dopending {  % ex ey
+.xpostsys /dopending {  % ex ey  .  -
     pending /move eq { .devmoveto }{
     pending /line eq { .devlineto }{
     pending /curve eq {
@@ -120,7 +122,7 @@ end
     } ifelse } ifelse } ifelse
 } bind put
 
-/reversepath [ ] {
+/reversepath [ ] {  % -  .  -
 10 dict
 begin
     .pathempty not {
@@ -207,7 +209,7 @@ end
 %  on exit: pos is relative to current sequence element,
 %  and ipos and parity are set appropriately
 %
-.xpostsys /initial_ipos {
+.xpostsys /initial_ipos {  % -  .  -
     {
         pos dasharray ipos get lt { exit } if
         /pos pos dasharray ipos get sub def
@@ -224,7 +226,10 @@ end
 %  if we're not drawing, we need to update variables
 %  and move to `current-sequence-element-length pos sub` units along the trajectory
 %
-.xpostsys /crossdashbound {  % data rad ang
+%  The three operands come back so that both arms of the walk above
+%  leave the same three for it to drop; nothing reads them.
+%
+.xpostsys /crossdashbound {  % data rad ang  .  data rad ang
     {/ang/rad/data}{exch def}forall
     /partial dasharray ipos get pos sub def
     {  % loop
@@ -294,7 +299,7 @@ end
 %  apply dash parameters to current path
 %  modifies current path
 %
-.xpostsys /dashpath {
+.xpostsys /dashpath {  % -  .  -
     10 dict begin
     currentdash  % [] offset
     /dashoffset exch def
@@ -357,7 +362,7 @@ end
 %
 %  produce a vector from two points
 %
-.xpostsys /ptdiff {  % P0 P1
+.xpostsys /ptdiff {  % x0 y0 x1 y1  .  dx dy
     3 -1 roll sub
     3 1 roll exch sub exch  % Dx dy
 } bind put
@@ -389,12 +394,17 @@ end
 %  was set. Only a width of zero is the thinnest renderable line, taken
 %  as one device pixel carried back to user space.
 %
-.xpostsys /minlinewidth {
+.xpostsys /minlinewidth {  % -  .  width
     currentlinewidth abs
     dup 0 eq { pop 1 0 idtransform dup mul exch dup mul add sqrt } if
 } bind put
 
-.xpostsys /dolinejoin {  % RR|LL R|L C
+%
+%  The three points are the far outer point of the new segment, the near
+%  outer point of the old one, and the corner between them -- RR and R on
+%  a left turn, LL and L on a right one -- each as its own pair.
+%
+.xpostsys /dolinejoin {  % x1 y1 x2 y2 xc yc  .  -
     {
         {  % miter join: extend the outer edges to their intersection.
           % The corner offsets v_old and v_new both have the half-width
@@ -501,11 +511,12 @@ currentglobal false setglobal
     /pointL 2 array
     /pointLL 2 array
     /needcap false
-    % the previous subpath ended without a closepath: only now is it
+
+    % The previous subpath ended without a closepath: only now is it
     % known to be open, so it takes its caps here -- the trailing end
     % at the first point facing away from the first segment's travel,
-    % the leading end at the last point facing along the last one's
-    /docaps {
+    % the leading end at the last point facing along the last one's.
+    /docaps {  % -  .  -
         .gscratch /strokedict get /needcap get {
             .gscratch /strokedict get /firstpt get aload pop
             .gscratch /strokedict get /firstang get 180 add
@@ -703,7 +714,7 @@ currentglobal false setglobal
 >> put
 setglobal
 
-/strokepath [ ] {
+/strokepath [ ] {  % -  .  -
     flattenpath          % Convert all curve segments to line approximations
     //.xpostsys /dashpath get exec             % Apply dashing effect
     .gscratch /strokedict get /needcap false put

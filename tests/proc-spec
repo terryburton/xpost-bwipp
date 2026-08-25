@@ -26,20 +26,20 @@
 #   file <name>  pending    some do not, yet
 #
 file bboxdev.ps       annotated
-file cid.ps           pending
+file cid.ps           annotated
 file clip.ps          annotated
-file color.ps         pending
+file color.ps         annotated
 file device.ps        annotated
 file dscwrite.ps      annotated
 file err.ps           annotated
-file font.ps          pending
+file font.ps          annotated
 file graphics.ps      annotated
 file gstate.ps        pending
 file image.ps         annotated
 file init.ps          pending
 file nulldev.ps       annotated
-file paint.ps         pending
-file path.ps          pending
+file paint.ps         annotated
+file path.ps          annotated
 file pattern.ps       annotated
 file pbmimage.ps      annotated
 file pdfwrite.ps      annotated
@@ -49,9 +49,9 @@ file prepr.ps         annotated
 file qsort.ps         annotated
 file recorddev.ps     annotated
 file resource.ps      annotated
-file shade.ps         pending
+file shade.ps         annotated
 file svgwrite.ps      annotated
 file tiffimage.ps     annotated
 
-annotated 19
-pending 8
+annotated 25
+pending 2

@@ -46,7 +46,7 @@ true setglobal
     % attach it to the dictionary under construction as /GlyphData,
     % close the dictionary and the procedure set, and define the
     % completed CIDFont resource
-    /StartData {  % (Binary)|(Hex) length  StartData  -
+    /StartData {  % (Binary)|(Hex) length  .  -
         currentdict /.sdn 3 -1 roll put
         (Hex) eq {
             currentdict /.sdf currentfile /ASCIIHexDecode filter put
@@ -86,11 +86,11 @@ true setglobal
     % CMap is closed. A CMap a large font carries in hundreds of blocks, or
     % a program builds in thousands, then costs the number of entries rather
     % than its square.
-    /.cmapaddblock {  % block  /blkkey  .cmapaddblock  -
+    /.cmapaddblock {  % block /blkkey  .  -
         currentdict exch 2 copy known not { 2 copy 8 dict put } if
         get dup length 3 -1 roll put
     }
-    /.cmapflatten {  % /blkkey /flatkey  .cmapflatten  -
+    /.cmapflatten {  % /blkkey /flatkey  .  -
         currentdict 3 1 roll
         6 dict begin
         /fk exch def /bk exch def /cd exch def
@@ -110,36 +110,36 @@ true setglobal
         } if
         end
     }
-    /begincmap {}
-    /endcmap {
+    /begincmap {}  % -  .  -
+    /endcmap {  % -  .  -
         /.codespaceblk /.codespaces .cmapflatten
         /.cidrangeblk /.cidranges .cmapflatten
         /.cidcharblk /.cidchars .cmapflatten
     }
-    /begincodespacerange { pop mark }
-    /endcodespacerange {
+    /begincodespacerange { pop mark }  % int  .  mark
+    /endcodespacerange {  % mark lo hi ...  .  -
         counttomark array astore exch pop
         /.codespaceblk .cmapaddblock
     }
-    /begincidrange { pop mark }
-    /endcidrange {
+    /begincidrange { pop mark }  % int  .  mark
+    /endcidrange {  % mark lo hi cid ...  .  -
         counttomark array astore exch pop
         /.cidrangeblk .cmapaddblock
     }
-    /beginnotdefrange { pop mark }
-    /endnotdefrange {
+    /beginnotdefrange { pop mark }  % int  .  mark
+    /endnotdefrange {  % mark lo hi cid ...  .  -
         counttomark array astore exch pop
         /.notdefranges exch def
     }
-    /begincidchar { pop mark }
-    /endcidchar {
+    /begincidchar { pop mark }  % int  .  mark
+    /endcidchar {  % mark code cid ...  .  -
         counttomark array astore exch pop
         /.cidcharblk .cmapaddblock
     }
 
     % Single-descendant jobs select font 0; the association of later
     % ranges with other descendants is not kept
-    /usefont { pop }
+    /usefont { pop }  % int  .  -
 
     %
     % adopt the mapping of another CMap. Its code spaces, CID ranges
@@ -168,12 +168,12 @@ true setglobal
 
     % Base-font character mappings (ToUnicode tables) pass through
     % this procedure set too: accept and discard them
-    /beginbfchar { pop mark }
-    /endbfchar { cleartomark }
-    /beginbfrange { pop mark }
-    /endbfrange { cleartomark }
-    /beginrearrangedfont { pop pop mark }
-    /endrearrangedfont { cleartomark }
+    /beginbfchar { pop mark }  % int  .  mark
+    /endbfchar { cleartomark }  % mark obj...  .  -
+    /beginbfrange { pop mark }  % int  .  mark
+    /endbfrange { cleartomark }  % mark obj...  .  -
+    /beginrearrangedfont { pop pop mark }  % /name int  .  mark
+    /endrearrangedfont { cleartomark }  % mark obj...  .  -
 >> /ProcSet defineresource pop
 
 %
@@ -293,7 +293,9 @@ true setglobal
     12 dict begin
     /fidx exch def /fnt exch def /p exch def /str exch def
     /p0 p def
-    /nb {  % i . byte  (zero past the end)
+
+    % Zero past the end.
+    /nb {  % i  .  byte
         dup str length lt { str exch get }{ pop 0 } ifelse
     } def
     /fm fnt /FMapType get def
@@ -582,9 +584,12 @@ end
 } put
 
 %
-%  font  .cshsetfont  -
+%  Make a font the current one, without the rest of setfont's work: a
+%  composite show has already resolved the descendant it wants.
 %
-.xpostsys /.cshsetfont { graphicsdict /currgstate get /currfont 3 -1 roll put } put
+.xpostsys /.cshsetfont {  % font  .  -
+    graphicsdict /currgstate get /currfont 3 -1 roll put
+} put
 
 %
 %  cshow's walks compile into programs that run after the private dict
@@ -604,7 +609,7 @@ end
 %  already ended by then, so there is nothing of cshow's own left for the
 %  exit to strand.
 %
-/cshow [ /proctype /stringtype ] {
+/cshow [ /proctype /stringtype ] {  % proc string  .  -
     /cshow //.xpostsys /.needfont get exec
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
