@@ -219,6 +219,18 @@ font test check-type42-charstrings
 font width witness
 
 # ---- filter: files, the filters over them, and the scanner's reading
+#
+# xpost_file.* is not only the filters: it is every read of a stream, so a
+# change to how a byte is waited for reaches the job stream, the interactive
+# reader and what a run reports about its own status. Those tests are named
+# here as well as in their own areas, because a path finds ONE area and this
+# one has to answer for all of what the file module does.
+filter test job-stream
+filter test job-control
+filter test context-jobs
+filter test run-status
+filter test interrupt
+filter test cli-options
 filter path src/lib/xpost_file.*
 filter path src/lib/xpost_op_file.*
 filter path src/lib/xpost_op_token.*

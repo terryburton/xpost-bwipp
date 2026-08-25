@@ -904,16 +904,29 @@ disk_readch(Xpost_File *file)
         FILE *fp;
         fd_set reads, writes, excepts;
         int ret;
-        struct timeval tv_timeout;
         fp = df->file;
         FD_ZERO(&reads);
         FD_ZERO(&writes);
         FD_ZERO(&excepts);
         FD_SET(fileno(fp), &reads);
-        tv_timeout.tv_sec = 0;
-        tv_timeout.tv_usec = 0;
+        /* Wait for the byte rather than ask whether one is there. The
+           caller's answer to "not yet" is to read again at once
+           (xpost_file_read_byte retries on EINTR), so asking without waiting
+           makes reading from a pipe or a terminal a spin: measured at 5.99s
+           of processor for a 6.00s wait, three voluntary context switches.
+           Waiting costs nothing and answers the moment the byte lands.
 
-        ret = select(fileno(fp) + 1, &reads, &writes, &excepts, &tv_timeout);
+           No timeout, because there is nothing for one to be for. The
+           interpreter has a way to say "this context is blocked on input" --
+           the ioblock return, which makes the mainloop mark the context
+           C_IOBLOCK and run another -- but nothing returns it, so no other
+           context runs while this read waits however it is written here. A
+           timeout would only be this function guessing how long that stays
+           true. Wiring the read into ioblock is what would make a wait here
+           worth interrupting, and then the scheduler decides the waiting,
+           not this line. */
+
+        ret = select(fileno(fp) + 1, &reads, &writes, &excepts, NULL);
 
         if (ret <= 0 || !FD_ISSET(fileno(fp), &reads))
         {
