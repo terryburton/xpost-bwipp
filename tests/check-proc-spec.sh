@@ -152,21 +152,88 @@ function defname(l,   m) {
 # with an operand-type array between them where the definition declares
 # one. Anything else is left alone; see the note in the guard about
 # under-matching on purpose.
-function isdef(l) {
+#
+# The array may nest, and it may run past the end of its line: an
+# operator that takes several shapes of operand declares one list per
+# shape, and the longest of those do not fit on one line. Read a line at
+# a time and such a definition is not seen at all -- neither its effect
+# nor its header is ever asked about -- which is a check passing over the
+# operators that need it most, the polymorphic ones.
+function isdefstart(l) {
     if (l ~ /^[ \t]*%/) return 0
-    if (l ~ /^[ \t]*\/[^ \t\/{]+[ \t]+\{/) return 1
-    if (l ~ /^[ \t]*\/[^ \t\/{]+[ \t]+\[[^]]*\][ \t]+\{/) return 1
-    if (l ~ /^[.A-Za-z][A-Za-z0-9_.]*[ \t]+\/[^ \t\/{]+[ \t]+\{/) return 1
-    if (l ~ /^[.A-Za-z][A-Za-z0-9_.]*[ \t]+\/[^ \t\/{]+[ \t]+\[[^]]*\][ \t]+\{/) return 1
+    if (l ~ /^[ \t]*\/[^ \t\/{]+[ \t]+[[{]/) return 1
+    if (l ~ /^[.A-Za-z][A-Za-z0-9_.]*[ \t]+\/[^ \t\/{]+[ \t]+[[{]/) return 1
     return 0
+}
+
+# Whether what follows the name is an operand-type array and then the
+# brace that opens the body. The brace has to come AFTER the array
+# closes: an array definition carries braces of its own inside it --
+# `/rawrows [ ncomp { width string } repeat ] def` -- and taking the
+# first brace found would read every one of those as a procedure.
+function bodybrace(l,   i,n,c,q,d) {
+    n=length(l); i=1
+    while (i<=n && substr(l,i,1) ~ /[ \t]/) i++
+    # the dictionary a definition is put into, where one is named
+    if (substr(l,i,1) != "/") { while (i<=n && substr(l,i,1) !~ /[ \t]/) i++
+                                while (i<=n && substr(l,i,1) ~ /[ \t]/) i++ }
+    if (substr(l,i,1) != "/") return 0
+    while (i<=n && substr(l,i,1) !~ /[ \t]/) i++
+    while (i<=n && substr(l,i,1) ~ /[ \t]/) i++
+    if (substr(l,i,1) == "[") {
+        d=0; q=0
+        while (i<=n) {
+            c=substr(l,i,1)
+            if (q) { if (c=="\\"){i+=2;continue} if(c=="("){q++} else if(c==")"){q--} i++; continue }
+            if (c=="%") return 0
+            if (c=="(") { q=1; i++; continue }
+            if (c=="[") d++
+            else if (c=="]") { d--; if (d==0) { i++; break } }
+            i++
+        }
+        while (i<=n && substr(l,i,1) ~ /[ \t]/) i++
+    }
+    return (substr(l,i,1) == "{")
+}
+
+# The bracket depth a line leaves behind, strings and comments apart.
+function brdepth(l,   i,n,c,q,d) {
+    n=length(l); i=1; q=0; d=0
+    while (i<=n) {
+        c=substr(l,i,1)
+        if (q) { if (c=="\\"){i+=2;continue} if(c=="("){q++} else if(c==")"){q--} i++; continue }
+        if (c=="%") break
+        if (c=="(") { q=1; i++; continue }
+        if (c=="[") d++
+        else if (c=="]") d--
+        i++
+    }
+    return d
 }
 
 { L[FNR] = $0 }
 
 END {
     for (i = 1; i <= FNR; i++) {
-        if (!isdef(L[i])) continue
+        if (!isdefstart(L[i])) continue
         nm = defname(L[i])
+
+        # Follow the operand-type array to the line the brace is on: that
+        # is the line the effect belongs to, and the header stands above
+        # the line the definition starts on.
+        d = brdepth(L[i]); e = i; joined = L[i]
+        while (d > 0 && e < FNR) { e++; d += brdepth(L[e]); joined = joined " " L[e] }
+        # the brace may still be on a later line: the array closes at the
+        # end of one line and the body opens at the start of the next
+        while (!bodybrace(joined) && e < FNR \
+               && (L[e+1] ~ /^[ \t]*\{/ || L[e+1] ~ /^[ \t]*$/)) {
+            if (L[e+1] ~ /^[ \t]*$/) break
+            e++; joined = joined " " L[e]
+        }
+        if (!bodybrace(joined)) continue
+        head = i                      # where the header must abut
+        i = e                         # where the effect must sit
+
         p = code_pct(L[i])
         inl = p ? iseffect(substr(L[i], p)) : 0
 
@@ -174,7 +241,7 @@ END {
         # between: a block a blank line has floated off belongs to
         # nothing, and what it says is not this definition's header.
         hdr = 0; harrow = 0; hname = 0
-        for (j = i - 1; j >= 1 && L[j] ~ /^[ \t]*%/; j--) {
+        for (j = head - 1; j >= 1 && L[j] ~ /^[ \t]*%/; j--) {
             if (iseffect(L[j])) hdr++
             if (isarrow(L[j])) harrow++
             if (isnameform(L[j], nm)) hname++
@@ -196,7 +263,7 @@ END {
         above = (j >= 1) ? L[j] : ""
         sub(/[ \t]*%.*$/, "", above)
         sub(/[ \t]+$/, "", above)
-        runon = (j >= 1 && j < i - 1 && above !~ /^[ \t]*$/ \
+        runon = (j >= 1 && j < head - 1 && above !~ /^[ \t]*$/ \
                  && above !~ /[{[]$/ && above !~ /<<$/)
 
         if (runon)                                     v = "runon"
