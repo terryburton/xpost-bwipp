@@ -82,7 +82,17 @@ elif command -v gtimeout > /dev/null 2>&1; then
 else
     run_limited() {
         _rl=$1; shift
-        "$@" &
+        # 0<&0 keeps the standard input the caller redirected. A background
+        # command in a non-interactive shell is handed /dev/null unless it
+        # names a source of its own, and a redirection written on the call
+        # to this function is the function's, not the background command's.
+        # Every caller here feeds /dev/null, so nothing turns on it today --
+        # which is why it is written down rather than left out: a caller
+        # that piped a program in would read end-of-file instead, and a run
+        # that read nothing reports as a run that found nothing wrong. The
+        # arm this is in is the one no host with timeout(1) reaches, so the
+        # difference would show on one platform and not the others.
+        "$@" 0<&0 &
         _rl_job=$!
         ( sleep "$_rl"; kill -9 "$_rl_job" ) > /dev/null 2>&1 &
         _rl_watch=$!

@@ -43,11 +43,13 @@ DUMP = (r"(" + BEGIN + r"\n) print"
         r" (" + END + r"\n) print")
 
 # systemdict names whose presence depends on the build's optional libraries
-# (device loaders behind HAVE_LIBJPEG / HAVE_LIBPNG / HAVE_XCB) or the target
-# platform (the win32 device). They are allowed but not required, so the golden
-# set stays portable across build configurations. A name here is dropped from
-# the required set and permitted whether or not this build exposes it.
+# (device loaders behind HAVE_LIBJPEG / HAVE_LIBPNG / HAVE_XCB, and the name a
+# build with no face library states itself by) or the target platform (the
+# win32 device). They are allowed but not required, so the golden set stays
+# portable across build configurations. A name here is dropped from the
+# required set and permitted whether or not this build exposes it.
 OPTIONAL = {
+    "NOFACES",             # !HAVE_FREETYPE2 (present)
     "loadjpegdevice",      # HAVE_LIBJPEG
     "loadpngdevice",       # HAVE_LIBPNG
     "loadpngalphadevice",  # HAVE_LIBPNG
@@ -101,8 +103,9 @@ def gen(keys):
          "% Startup cleanliness: userdict and globaldict must be empty, and systemdict",
          "% must expose no name beyond the golden set below plus the build-optional",
          "% names, so no internal operator or procedure leaks into a userland-visible",
-         "% dictionary. The optional names (device loaders behind an optional library or",
-         "% the win32 device) are allowed but not required, keeping the test portable.",
+         "% dictionary. The optional names (device loaders behind an optional library,",
+         "% the win32 device, the name a build with no face library states itself by)",
+         "% are allowed but not required, keeping the test portable.",
          "% Prints SUCCESS iff so. Regenerate deliberately after an intended change.",
          "%",
          "% COLLECTION: this reads systemdict membership, not a memory bound. The",

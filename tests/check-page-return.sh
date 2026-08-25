@@ -19,10 +19,12 @@
 # It is therefore a Linux test: where that file is absent it skips, and the
 # reported-figure invariance check-vm-growth makes stands for the reclaim on
 # the platforms whose own page return (DiscardVirtualMemory, a fixed re-map)
-# is not read the same way.
+# is not read the same way. It skips too where the build has no backing that
+# can hand pages back at all, which is a configuration and not a platform.
 set -u
-src=${1:?usage: check-page-return.sh <srcroot> <xpost>}
-xpost=${2:?usage: check-page-return.sh <srcroot> <xpost>}
+src=${1:?usage: check-page-return.sh <srcroot> <xpost> <builddir>}
+xpost=${2:?usage: check-page-return.sh <srcroot> <xpost> <builddir>}
+build=${3:?usage: check-page-return.sh <srcroot> <xpost> <builddir>}
 
 . "$(dirname "$0")/guard-paths.sh"
 guard_require_srcroot "$src"
@@ -33,18 +35,47 @@ case $xpost in
     *)  xpost=$(cd "$(dirname "$xpost")" && pwd)/$(basename "$xpost") ;;
 esac
 guard_require_file "$xpost" "the interpreter, named absolutely"
+guard_require_file "$build/config.h" "the generated configuration header"
 
-# Resident memory is read from /proc/self/statm; where it is absent there is
-# nothing to measure, and the reported-figure invariance stands for the
-# reclaim. A skip, not a pass: a run that could not measure must not read as
-# one that measured and found the pages returned.
-if [ ! -r /proc/self/statm ]; then
-    echo "SKIP: /proc/self/statm is not readable, so resident memory cannot be"
-    echo "      measured; check-vm-growth holds the reported figures instead"
+guard_workdir
+
+# Resident memory is read from /proc/self/statm, and it is the interpreter
+# that reads it. Whether the shell can is a different question with a
+# different answer, and the two part company on exactly the platform this
+# was silently wrong on: the Windows build runs under a shell whose
+# emulation carries /proc while the native binary it starts does not, so a
+# shell-side test passed there and the figures came back missing or flat --
+# read as the page return having regressed. Ask the process that has to do
+# the reading. A skip, not a pass: a run that could not measure must not
+# read as one that measured and found the pages returned.
+#
+# Asked first, so a platform that cannot measure says that rather than
+# answering about its backing: Windows returns pages through its
+# reservation and would be misdescribed by the skip below.
+{
+    printf '{ (/proc/self/statm) (r) file closefile (YES) print } stopped\n'
+    printf '{ (NO) print } if flush\n'
+} > "$work/statm"
+if [ "$("$xpost" -q --no-sandbox -d null --jobserver < "$work/statm" 2>/dev/null)" \
+     != YES ]; then
+    echo "SKIP: the interpreter cannot read /proc/self/statm, so resident memory"
+    echo "      cannot be measured; check-vm-growth holds the reported figures"
     exit 77
 fi
 
-guard_workdir
+# What the two callers reach hands pages back only where the arena owns the
+# pages -- a mapping, or the reservation Windows takes. Configured onto the
+# host allocator (-Dmmap=false) the arena borrows its storage, there is no
+# call to make, the routine is compiled away to nothing, and resident memory
+# cannot fall however correct the reclaim is. That is a build being asked a
+# question it does not have rather than a regression, so it is a skip -- and
+# it is read off config.h, which is what the configuration decided, rather
+# than off the option, which is only what was asked for.
+if ! grep -q '^#define HAVE_MMAP' "$build/config.h"; then
+    echo "SKIP: this build backs virtual memory with the host allocator, which"
+    echo "      owns no pages to hand back; there is no page return to hold"
+    exit 77
+fi
 
 XPOST_DATA_DIR="$src/data"
 export XPOST_DATA_DIR

@@ -4076,7 +4076,28 @@ static int _pdfregsep(Xpost_Context *ctx,
     else
         _pdf_sep_hash_place(&a, i);
     if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        /* Nothing but this local names what has just been made: the three
+           strings of the separation, which the record's count does not
+           reach, and the index, which the rebuild allocates afresh after
+           releasing the one the record still names. Returning here left
+           both unreachable and the record naming storage that is gone.
+
+           So they are given up and the accumulator is put back as it was
+           found, with no index at all: a search with no index falls back
+           to the scan, which is what an index that could not be allocated
+           already leaves it doing. */
+        free(s->name);
+        free(s->csdef);
+        free(s->func);
+        free(a.sephash);
+        a.sephash = NULL;
+        a.sephashcap = 0;
+        a.nseps = i;
+        if (!_pdf_acc_put(ctx, priv, &a))
+            XPOST_LOG_ERR("cannot record the separation list without its index");
         return VMerror;
+    }
     xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
     return 0;
 }

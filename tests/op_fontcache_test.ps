@@ -75,16 +75,26 @@ mark before aload pop setcacheparams
 % third value) counts them, and re-using one adds none. The count is taken
 % here with the cache at the limits it was found with, so a glyph files
 % rather than being turned away for its size.
-/msizeof { cachestatus 7 array astore 2 get } def
-/Courier findfont /F exch def
-/m0 msizeof def
-[ 101 103 107 109 113 127 131 ] { /sz exch def
-    F sz scalefont setfont 72 100 moveto (Ag) show } forall
-msizeof m0 sub 7 eq
-    (cachestatus counts each new face-and-size combination once) assert
-[ 101 103 107 ] { /sz exch def
-    F sz scalefont setfont 72 100 moveto (Ag) show } forall
-msizeof m0 sub 7 eq
-    (re-using a cached combination adds no combination) assert
+%
+% This section alone needs a face: a build with no face library refuses
+% findfont with invalidfont, so there is nothing to file and nothing to
+% count. It is skipped there rather than the whole suite being skipped,
+% because everything above reads the cache's parameters and answers the
+% same whether or not the build can render a glyph -- and the faceless
+% build's lane runs the fast suite, which is the only place those
+% operators are held at all.
+systemdict /NOFACES known not {
+    /msizeof { cachestatus 7 array astore 2 get } def
+    /Courier findfont /F exch def
+    /m0 msizeof def
+    [ 101 103 107 109 113 127 131 ] { /sz exch def
+        F sz scalefont setfont 72 100 moveto (Ag) show } forall
+    msizeof m0 sub 7 eq
+        (cachestatus counts each new face-and-size combination once) assert
+    [ 101 103 107 ] { /sz exch def
+        F sz scalefont setfont 72 100 moveto (Ag) show } forall
+    msizeof m0 sub 7 eq
+        (re-using a cached combination adds no combination) assert
+} if
 
 verdict

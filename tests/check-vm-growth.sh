@@ -75,7 +75,18 @@ elif command -v gtimeout > /dev/null 2>&1; then
 else
     xg_limit() {
         _lim=$1; shift
-        "$@" &
+        # 0<&0 is not redundant. A command started in the background by a
+        # non-interactive shell is given /dev/null for standard input
+        # unless it redirects one itself, and a redirection written on the
+        # call to this function is not one of its own. Without it the whole
+        # corpus stream, fed in below, arrives as end-of-file, the job
+        # server reads no job at all, and the run reports that nothing was
+        # measured -- on the hosts with no timeout(1), macOS among them,
+        # and nowhere else, so the arm that says the limit is unavailable
+        # is also the arm that says the subject never ran. Naming the
+        # descriptor the function inherited is the redirection of its own
+        # that keeps it.
+        "$@" 0<&0 &
         _job=$!
         ( sleep "$_lim"; kill -9 "$_job" ) > /dev/null 2>&1 &
         _watch=$!
@@ -142,7 +153,15 @@ if grep -q 'cannot find table for ent' "$work/err" 2>/dev/null; then
 fi
 
 # Hold every job's baseline reading to the first, and require the sentinel.
-awk '
+#
+# Read in the C locale, because what is read is a corpus's whole output and
+# a corpus writes bytes: a workload printing a run of high bytes is not text
+# in the reader's encoding, and an awk that decodes its input stops at the
+# first such record rather than passing over it -- so the readings after it
+# are never seen, and what is reported is about the part of the stream that
+# was read. Bytes are what the probe lines are made of too, so nothing is
+# lost by reading the whole of it as bytes.
+LC_ALL=C awk '
     /^XG / {
         if (base == "") { base = $3 " " $4; bl = $3 + 0; bg = $4 + 0 }
         else if ($3 " " $4 != base) {

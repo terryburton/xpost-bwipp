@@ -14,13 +14,27 @@ set -u
 xpost=$1
 . "$(dirname "$0")/verdict.sh"
 
-tokfile=$(mktemp)
-prog=$(mktemp)
-trap 'rm -f "$tokfile" "$prog"' EXIT INT TERM
+# named absolutely before anything changes directory, since meson names it
+# relative to the build directory the run starts in
+xpost=$(path_anchor "$xpost")
+
+verdict_workdir
+
+# The token file is named to the interpreter relatively, and the run is made
+# from the directory holding it, so the name the program carries is one the
+# interpreter can resolve. A path from mktemp cannot be: on Windows the
+# interpreter is a native binary and mktemp's is its shell's, so the shell's
+# /tmp/... resolves against the current drive instead of the emulation root.
+# The argument list is converted for a native program and the file's contents
+# are not, so the program ran and the name inside it named nothing -- refused
+# with invalidfileaccess, since the sandbox asks whether a path is permitted
+# before anything asks whether it exists.
+tokfile=over-long-token.txt
+prog=token-limit.ps
 
 # a bare name token of seventy thousand characters, past the scan buffer
-head -c 70000 /dev/zero | tr '\0' 'a' > "$tokfile"
-cat > "$prog" <<EOF
+head -c 70000 /dev/zero | tr '\0' 'a' > "$work/$tokfile"
+cat > "$work/$prog" <<EOF
 { ($tokfile) (r) file token } stopped
 { \$error /errorname get /limitcheck eq
     { /hello 42 def hello 42 eq
@@ -33,7 +47,7 @@ EOF
 
 # stdout carries the run's own verdict; the scanner logs the overflow on
 # stderr, which is not the run's answer and is kept out of the judgement.
-out=$("$xpost" -q -d null "$prog" </dev/null 2>/dev/null)
+out=$(cd "$work" && "$xpost" -q -d null "$prog" </dev/null 2>/dev/null)
 st=$?
 verdict_ok "$out" "the over-long token run" || exit 1
 [ "$st" -eq 0 ] || { echo "FAILURES: the over-long token run exited with status $st"; exit 1; }

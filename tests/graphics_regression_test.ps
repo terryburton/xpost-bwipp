@@ -3036,22 +3036,35 @@ userdict /i undef userdict /pat undef userdict /iso.p undef
 
 % selectfont takes either a size or a matrix (PLRM 8.2). The matrix form
 % reaches makefont where the size form reaches scalefont, and both end at
-% setfont. The scaled entry is compared with room in it: the font's own
-% matrix carries single-precision values, and a build whose reals are
-% wider shows that rounding rather than hiding it -- 0.024 arrives as
-% 0.02400000113993883. The room is far below the difference a wrong
-% branch would make, which is the whole size.
+% setfont. Both scale the face's own matrix, so what is asserted is the
+% scaling and not a figure: the entry is read off the face this host
+% resolved and multiplied here, because the name /Courier means whichever
+% face answers to it and the faces differ in what they measure in. One
+% host answers with a face of a thousand units to the em and its entry is
+% 0.001; another substitutes one whose matrix is the identity. A figure
+% written down here would hold on the first and fail on the second, which
+% is a test about which face is installed and not about selectfont.
+%
+% The scaled entry is compared with room in it: the font's own matrix
+% carries single-precision values, and a build whose reals are wider
+% shows that rounding rather than hiding it -- 0.024 arrives as
+% 0.02400000113993883. The room is taken in the same units as the entry,
+% so it is the same room wherever this runs, and it is far below the
+% difference a wrong branch would make, which is the whole size.
 gsave
+/Courier findfont /FontMatrix get 0 get /base.m0 exch def
+/base.room base.m0 1e-3 mul def
 /Courier 12 selectfont
-currentfont /FontMatrix get 0 get 0.012 sub abs 1e-6 lt
+currentfont /FontMatrix get 0 get base.m0 12 mul sub abs base.room lt
     (selectfont scales by a size) assert
 /Courier [24 0 0 24 0 0] selectfont
-currentfont /FontMatrix get 0 get 0.024 sub abs 1e-6 lt
+currentfont /FontMatrix get 0 get base.m0 24 mul sub abs base.room lt
     (selectfont makes a font from a matrix) assert
 { /Courier (24) selectfont } stopped
     (selectfont refuses a size that is neither number nor matrix) assert
 clear
 grestore
+userdict /base.m0 undef userdict /base.room undef
 
 count 0 eq (operand stack is balanced) assert
 faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse

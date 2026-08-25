@@ -2,8 +2,9 @@
 % Startup cleanliness: userdict and globaldict must be empty, and systemdict
 % must expose no name beyond the golden set below plus the build-optional
 % names, so no internal operator or procedure leaks into a userland-visible
-% dictionary. The optional names (device loaders behind an optional library or
-% the win32 device) are allowed but not required, keeping the test portable.
+% dictionary. The optional names (device loaders behind an optional library,
+% the win32 device, the name a build with no face library states itself by)
+% are allowed but not required, keeping the test portable.
 % Prints SUCCESS iff so. Regenerate deliberately after an intended change.
 %
 % COLLECTION: this reads systemdict membership, not a memory bound. The
@@ -126,9 +127,10 @@ globaldict length 0 ne { globaldict length (globaldict not empty) bad } if
 
 % names present only when an optional library or the platform provides them
 /optional <<
-  (WIN32) true  (currentcontext) true  (detach) true  (fork) true
-  (join) true  (loadjpegdevice) true  (loadpngalphadevice) true  (loadpngdevice) true
-  (loadwin32device) true  (loadxcbdevice) true  (resetfile) true  (yield) true
+  (NOFACES) true  (WIN32) true  (currentcontext) true  (detach) true
+  (fork) true  (join) true  (loadjpegdevice) true  (loadpngalphadevice) true
+  (loadpngdevice) true  (loadwin32device) true  (loadxcbdevice) true  (resetfile) true
+  (yield) true
 >> def
 
 % no name may leak: every systemdict name key is golden or optional
