@@ -88,19 +88,31 @@ fi
 fail=0
 
 # ---- the devices a page-device request can make, and their makers ----
+# An entry runs to the brace that closes it, over as many lines as it
+# takes, and the maker it names may be on any of them. Read a line at a
+# time and the entries whose maker is not on their opening line are
+# skipped in silence -- which is a guard reporting about half the fleet
+# while reading as though it covered all of it.
 awk '/\.devicemakers *<</ { in_t = 1; next }
      in_t && />> *put/    { in_t = 0 }
-     in_t && /^ *\/[a-z]/ {
-         name = $1; sub(/^\//, "", name)
+     in_t && /^ *\/[a-z]/ { name = $1; sub(/^\//, "", name); ent = ""; depth = 0 }
+     in_t && name != "" {
+         ent = (ent == "") ? $0 : ent " " $0
+         code = $0
+         sub(/%.*$/, "", code)
+         depth += gsub(/\{/, "{", code) - gsub(/\}/, "}", code)
+         if (depth > 0) next
          # the maker is the last maker name the entry carries -- spelled
          # as a literal name, the entry reaching it in the private
          # dictionary rather than executing it bare
          maker = ""
-         for (i = 2; i <= NF; i++)
-             if ($i ~ /^\/?new[A-Za-z0-9_]+device$/) {
-                 maker = $i; sub(/^\//, "", maker)
+         m = split(ent, w, /[ \t]+/)
+         for (i = 1; i <= m; i++)
+             if (w[i] ~ /^\/?new[A-Za-z0-9_]+device$/) {
+                 maker = w[i]; sub(/^\//, "", maker)
              }
          if (maker != "") print name, maker
+         name = ""
      }' "$init_ps" | sort -u > "$work/makers"
 
 if [ ! -s "$work/makers" ]; then
