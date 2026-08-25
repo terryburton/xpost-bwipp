@@ -502,7 +502,6 @@ setglobal
 %  keeps that parameter state and accepts trapping zones, but generates no traps
 %  -- a conformant answer for a device without in-RIP trapping.
 %
-currentglobal true setglobal
 /Trapping <<
     % The cumulative trapping-parameter dictionary. The language prescribes no
     % default values (they are device-specific), so it starts empty.
@@ -526,7 +525,6 @@ currentglobal true setglobal
     /settrapzone {  % -  .  -
     } bind
 >> /ProcSet defineresource pop
-setglobal
 
 %
 %  ---- idiom recognition (PLRM 3.12.1) -----------------------------------
@@ -539,7 +537,6 @@ setglobal
 %  is walked. Only the top-level bound procedure is compared, not the nested
 %  ones bind descended into; the substitute is returned as bind's result.
 %
-currentglobal true setglobal
 
 %
 %  Two procedures match when corresponding elements are equal in the sense
@@ -656,8 +653,6 @@ currentglobal true setglobal
     //.internaldict /.cbind get exec
     //.xpostsys /.idiomsub get exec
 } bind put
-
-setglobal
 
 %
 %  ------------------------------------------------------------------------

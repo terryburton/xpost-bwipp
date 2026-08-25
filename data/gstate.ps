@@ -25,12 +25,13 @@ true setglobal
 %
 currentglobal false setglobal
 
+userdict begin
+
 %
 %  The template embeds local objects, so it is a local dictionary and takes a
 %  userdict anchor: systemdict is global and refuses a local value. The bake
 %  below finds it there, and .finalize drops the anchor once it is frozen.
 %
-userdict begin
 /.gstatetemplate <<
     % The space as set (what currentcolorspace reports; may be an array)
     /setspace /DeviceGray

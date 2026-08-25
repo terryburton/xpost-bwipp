@@ -477,6 +477,8 @@ end
     } ifelse
 } put
 
+currentglobal false setglobal
+
 %
 %
 %  Replace lineto segments . with
@@ -501,7 +503,6 @@ end
 %  strokedict holds the stroke switch tables and their per-render running
 %  state, so it stays in local VM.
 %
-currentglobal false setglobal
 .gscratch /strokedict <<
     /ang 0
     /oldcp 2 array

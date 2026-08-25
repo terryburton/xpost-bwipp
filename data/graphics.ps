@@ -31,6 +31,8 @@ true setglobal
 %
 systemdict begin
 
+    currentglobal false setglobal
+
     % graphicsdict holds the live per-render graphics state -- currgstate and
     % the gstack of local gstate copies -- so it and its accessors stay in
     % local VM. Being local they cannot be anchored in systemdict, which is
@@ -56,7 +58,6 @@ systemdict begin
     % a default run keeps the baked value it always had. .privatedict is baked
     % as the operator (//) so the deferred form does not depend on a name being
     % reachable on the dictionary stack.
-    currentglobal false setglobal
     .privatedict /.graphicsdict <<
         /currgstate 12 dict
         /gstackarray 100 array
@@ -121,7 +122,6 @@ systemdict begin
 %  there by name, so none of them stands on the dictionary stack and
 %  none can be captured by a definition of the program's own.
 %
-currentglobal true setglobal
 .xpostsys begin
 
 %
@@ -416,7 +416,6 @@ currentglobal true setglobal
 } bind def
 
 end
-setglobal
 
 %
 %  The binding pass below rebinds userdict and systemdict in place; it runs in

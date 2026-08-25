@@ -10,6 +10,67 @@
 % SPDX-License-Identifier: BSD-3-Clause
 
 %
+%  ---- how the interpreter comes up -----------------------------------
+%
+%  xpost_interpreter.c reads this file as a context is created, and what
+%  it does is build the language. Reading it top to bottom is reading
+%  the boot; it runs in this order.
+%
+%  systemdict is opened and the bank set to global. Everything the
+%  language is made of belongs to the interpreter rather than to any one
+%  job, so it is allocated where a job's restore cannot reach it. The
+%  bank stays global until the handover at the foot of the file.
+%
+%  The private namespaces come first, because everything after them is
+%  filed in one: .xpostsys for the global machinery, privatedict for the
+%  local kind, .internaldict for the C operators that are not part of
+%  the language a program sees, and .gscratch for the state a render
+%  mutates. Each is described where it is made.
+%
+%  .defopin and .defop follow. They define an operator together with the
+%  operand shapes it takes, so a wrong operand is refused by the
+%  definition rather than by the body, and every operator below is
+%  defined through them.
+%
+%  Then the parts a program reaches, in the order they come to depend on
+%  each other: statusdict and serverdict; the Level 2 shared-VM aliases,
+%  which are this interpreter's global VM under its other name; err.ps,
+%  because nothing after it can refuse properly without the error
+%  machinery; the printing family (=, ==, stack, pstack) and the
+%  execution dictionary; the job procedures a host calls to run one
+%  (start, startstdin, startfilename, startfile, and the no-graphics
+%  variants of each); and the page-device and system parameter
+%  operators.
+%
+%  Where the build has display PostScript, .dpsenabled is true and the
+%  context operators are defined next -- locks, conditions, notify,
+%  monitor and wait. A build without it defines none of them, and the
+%  names are simply absent.
+%
+%  The font directories, then resource.ps for the resource machinery,
+%  then findfont, which reaches through both. qsort.ps comes in beside
+%  them, for the one caller that sorts.
+%
+%  The remaining operators that need no graphics: user objects, forms,
+%  user paths, and the rectangle operators.
+%
+%  loadgraphics, which reads graphics.ps and everything under it. It is
+%  a PROCEDURE and not a call: graphics is loaded on demand, so a run
+%  that never paints never pays for it and a run that does pays once.
+%
+%  .finalize, the lockdown. It promotes the procedure-implemented
+%  operators to real operators, binds what is left, moves the private C
+%  operators out of systemdict into .internaldict, and seals what a
+%  program may not change. A procedure too, run after loadgraphics.
+%
+%  The handover: the bank goes local, which is where a program's own
+%  allocations belong, and the interactive helpers are defined. prepr.ps
+%  is read last, because the prompt is the last thing needed.
+%
+%  ---------------------------------------------------------------------
+%
+
+%
 %  QUIET is a job convention, not machinery state: real-world job streams
 %  execute it as a bare name -- tests/corpus/ghostscript/waterfal.ps reads
 %  `QUIET not { ... } if` -- so it must resolve by ordinary dictionary
@@ -42,7 +103,6 @@ true setglobal   % Systemdict is global, so these allocations must be global
 %  path/clip/image/graphics family use the get form; the colour/shading/pattern/
 %  halftone families bake.
 %
-currentglobal true setglobal
 userdict /.xpostsys 400 dict put
 
 %
@@ -52,7 +112,6 @@ userdict /.xpostsys 400 dict put
 %  no C code has; the caches C keeps here must be reachable from both sides.
 %
 userdict /.xpostsys get .setglobalprivatedict
-setglobal
 
 %
 %  .hostdict -- what this run's host settles, and nothing else.
@@ -78,7 +137,6 @@ setglobal
 %  outlive the restores that end a job; local memory would revert it with
 %  whichever job happened to be running.
 %
-currentglobal true setglobal
 .xpostsys /.hostdict 16 dict put
 
 %
@@ -95,9 +153,6 @@ currentglobal true setglobal
         { exch pop cvx /undefined signalerror }
     ifelse
 } bind put
-setglobal
-
-currentglobal true setglobal
 
 %
 %  The operands each operator takes. The definitions fill this through
@@ -180,7 +235,6 @@ currentglobal true setglobal
     currentdict 4 1 roll
     //.xpostsys /.defopin get exec
 } put
-setglobal
 
 %
 %  privatedict -- the interpreter's private LOCAL machinery dictionary. Recorded
@@ -227,8 +281,6 @@ currentglobal false setglobal
 .privatedict /.gscratchproc [ .privatedict /.gscratchdict get ] cvx put
 /.gscratch dup .privatedict /.gscratchproc get .wrapop def
 setglobal
-
-currentglobal true setglobal
 
 %
 %  The private C operators live under dot-prefixed names. Near the end of
@@ -284,14 +336,14 @@ end
 systemdict /QUIET known
     { .internaldict /QUIET systemdict /QUIET get put systemdict /QUIET undef }
 if
-setglobal
+
+currentglobal false setglobal
 
 %
 %  statusdict holds device/product status a program may change, so it is a local
 %  dictionary -- save and restore isolate a job's changes -- that systemdict names
 %  (copyudtosd), like $error, errordict and userdict.
 %
-currentglobal false setglobal
 userdict /statusdict <<
     /manualfeed false
     /product (Xpost)
@@ -359,8 +411,6 @@ setglobal
 /scheck /gcheck load def
 /shareddict globaldict def
 
-currentglobal true setglobal
-
 %
 %  Concatenate two strings -- a pure global helper, so it lives in .xpostsys
 %
@@ -390,9 +440,6 @@ currentglobal true setglobal
     cvn
     end
 } bind put
-setglobal
-
-currentglobal true setglobal
 
 %
 %  Take the page as the page device machinery measured it, where it has
@@ -414,9 +461,6 @@ currentglobal true setglobal
         1 get /height exch def
     }{ pop pop } ifelse
 } bind put
-setglobal
-
-currentglobal true setglobal
 
 %
 %  .loadmodule -- pull in one of the interpreter's own .ps files by name,
@@ -428,9 +472,6 @@ currentglobal true setglobal
     /DATA_DIR //.xpostsys /.hostvalue get exec
     exch //.xpostsys /.strcat get exec run
 } bind put
-setglobal
-
-currentglobal true setglobal
 
 %
 %  Whether a dictionary key names a device class. A class is defined
@@ -454,9 +495,6 @@ currentglobal true setglobal
         }{ pop false } ifelse
     }{ pop false } ifelse
 } bind put
-setglobal
-
-currentglobal true setglobal
 
 %
 %  The bind sweep the module loaders and the lockdown share. .bindone freezes
@@ -490,7 +528,6 @@ currentglobal true setglobal
 .xpostsys /.bindscope {  % dict  .  -
     8 //.xpostsys /.bindscoped get exec
 } bind put
-setglobal
 
 %
 % Predefined in xpost_interpreter.c:setlocalconfig()
@@ -744,8 +781,6 @@ execdict begin
     /execdepth 0 def
 end
 
-currentglobal true setglobal
-
 %
 %  Report a start-up that never reached a program: the graphics language
 %  could not be loaded, or the page device the run was started with could
@@ -802,7 +837,6 @@ currentglobal true setglobal
     } stopped { (\n) print flush } if
     //.internaldict /.rundied get exec
 } put
-setglobal
 
 %
 %  Initiate an interactive session with prompt a postscript 'executive'
@@ -835,8 +869,6 @@ setglobal
     /executive load stopped
     pop //quit  % The operator
 } def
-
-currentglobal true setglobal
 
 %
 %  Report a top-level job error the way a job server does: the standard
@@ -876,9 +908,6 @@ currentglobal true setglobal
         print flush
     } if
 } put
-setglobal
-
-currentglobal true setglobal
 
 %
 %
@@ -918,7 +947,6 @@ currentglobal true setglobal
     //clear
     //cleardictstack
 } put
-setglobal
 
 %
 %  Execute postscript program from stdin, and handle errors,
@@ -1271,14 +1299,13 @@ userdict begin
 false setglobal
 % traceon
 % debugloadon
-currentglobal
-false setglobal
+
+currentglobal true setglobal
 
 %
 %  //.xpostsys /.fontsubstitutions get: findfont's substitute-face table, hidden in the private
 %  global namespace where a program cannot reach it
 %
-currentglobal true setglobal
 .xpostsys /.fontsubstitutions <<
     /Times-Roman (Nimbus Roman No9 L)
     dup (URW Bookman L)
@@ -1304,9 +1331,10 @@ setglobal
 /FontDirectory
 <<
 >> def
-setglobal
 
 end  % Userdict
+
+currentglobal true setglobal
 
 %
 %  GlobalFontDirectory holds the fonts defined while the allocation mode was
@@ -1315,7 +1343,6 @@ end  % Userdict
 %  dictionary -- a program reading it must not see the local fonts.
 %  SharedFontDirectory is the same dictionary under an older name.
 %
-currentglobal true setglobal
 systemdict /GlobalFontDirectory << >> put
 systemdict /SharedFontDirectory systemdict /GlobalFontDirectory get put
 setglobal
@@ -1327,12 +1354,13 @@ setglobal
 %
 systemdict begin
 
+currentglobal true setglobal
+
 %
 %  executive is a global procedure in systemdict. It reaches $error by name,
 %  not with a frozen reference: $error is a name in systemdict for a dictionary
 %  in local VM, and a global procedure may not freeze a local object.
 %
-currentglobal true setglobal
 /executive [ ] {  % -  .  -
     //execdict begin
 
@@ -2261,6 +2289,8 @@ currentglobal true setglobal
 
             (/graphics.ps) //.xpostsys /.loadmodule get exec
 
+            currentglobal true setglobal
+
             % Page device selection and configuration. Keys:
             %   /OutputDevice   name from the device table (defaults to the
             %                   device the interpreter started with)
@@ -2300,7 +2330,6 @@ currentglobal true setglobal
             % onto the class -- becoming a device's defaults -- and the
             % instance they were asked for would never see them. A maker asked
             % for with nothing pending arms nothing.
-            currentglobal true setglobal
             .xpostsys /.armdevrequest {  % -  .  -
                 graphicsdict /.devpending 2 copy known {
                     2 copy get 3 1 roll undef
@@ -2308,6 +2337,8 @@ currentglobal true setglobal
                 }{ pop pop } ifelse
             } bind put
             setglobal
+
+            currentglobal true setglobal
 
             % Every maker lives in privatedict, the ones the boot files define
             % and the ones a C driver registers alike. A driver's is not there
@@ -2322,7 +2353,6 @@ currentglobal true setglobal
             % procedure an instance does: a build that ran with the features
             % armed would take them onto the class -- a device's defaults --
             % and the instance they were asked for would never see them.
-            currentglobal true setglobal
             .xpostsys /.devicemakers <<
                 /pgm {  % width height  .  device
                        //.xpostsys /.armdevrequest get exec
@@ -2405,11 +2435,12 @@ currentglobal true setglobal
             } forall
             setglobal
 
+            systemdict begin
+
             % The language is read into systemdict, but this pair is defined here,
             % by loadgraphics itself, after graphics.ps has returned and closed the
             % block that made systemdict current. They name it so they land with the
             % operators they belong beside rather than in the program's namespace.
-            systemdict begin
             /setpagedevice [ /dicttype ] {  % pagedevicedict  .  -
                 % A handler that cannot be run is refused here, not at the page
                 % boundary where finding out would leave the page half made. The
@@ -3064,6 +3095,17 @@ currentglobal true setglobal
 setglobal
 
 $error/initializing false put  % Ready to go!
+
+%
+%  The bank userland starts in. Everything above this line ran with
+%  global allocation in force, because the language it built belongs to
+%  the interpreter and outlives any job. What a program allocates is the
+%  program's, and belongs where save and restore can reach it, so the
+%  boot hands over in local VM.
+%
+%  This is load-bearing rather than tidy: without it the interpreter
+%  comes up global, and nothing a program drops is ever reclaimed.
+%
 false setglobal
 
 currentglobal true setglobal

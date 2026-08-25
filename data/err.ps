@@ -263,12 +263,13 @@ end
 end
 setglobal
 
+currentglobal true setglobal
+
 %
 %  handleerror is a global operator in systemdict that calls the procedure
 %  of the same name in errordict, so it is defined out here rather than
 %  inside the userdict block the local error dictionaries needed.
 %
-currentglobal true setglobal
 /handleerror {  % -  .  -
     errordict /handleerror get exec
 } def

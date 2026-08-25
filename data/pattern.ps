@@ -136,10 +136,11 @@ true setglobal
     readonly
 } //.xpostsys /.defop get exec
 
+.xpostsys begin
+
 %
 %  Whether the current colour is a pattern.
 %
-.xpostsys begin
 /.patternactive {  % -  .  bool
     graphicsdict /currgstate get /colorspace get /Pattern eq
 } bind def
