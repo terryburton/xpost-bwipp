@@ -2,6 +2,8 @@
 %
 % pattern.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % Tiling patterns (PLRM 4.9): makepattern, setpattern, and tiling the cells over a region.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -90,6 +92,7 @@ true setglobal
         dup /makepattern /YStep       //.xpostsys /.patternneed get exec
         dup /makepattern /PaintType   //.xpostsys /.patternneed get exec
         dup /makepattern /TilingType  //.xpostsys /.patternneed get exec
+
         % TilingType names one of three spacings (PLRM 4.9.2). Nothing
         % here goes on to read it, which is the reason to ask for it
         % rather than a reason to let it pass: a program that names a
@@ -100,6 +103,7 @@ true setglobal
                                  { dup 1 lt exch 3 gt or } ifelse {
             /makepattern cvx /rangecheck signalerror
         } if
+
         % PaintType says whether the cells carry their own colour or take
         % the colour set beneath them (PLRM Table 4.9), and there are two
         % of those. A third value would be read as one or the other by
@@ -109,6 +113,7 @@ true setglobal
                                  { dup 1 lt exch 2 gt or } ifelse {
             /makepattern cvx /rangecheck signalerror
         } if
+
         % XStep and YStep may be positive or negative but not zero (PLRM
         % Table 4.9): a step of zero describes a tiling whose cells never
         % advance. Refused here, because the tiling walk can only decline
@@ -121,6 +126,7 @@ true setglobal
     dup length 1 add dict copy
     exch matrix currentmatrix matrix concatmatrix
     1 index exch /Implementation exch put
+
     % PLRM 8.2: "Finally, makepattern makes the new dictionary read-only
     % and returns it." The instantiated pattern is this interpreter's
     % statement that the dictionary has been checked, and every later
@@ -180,8 +186,8 @@ true setglobal
     pat null ne {
     /pm pat /Implementation get def
     pat /setcolor /undefined //.xpostsys /.patterntype get exec 2 eq {
-        % a shading pattern: the shading paints the whole clip under
-        % the pattern space, no cells to step
+        % A shading pattern: the shading paints the whole clip under
+        % the pattern space, no cells to step.
         gsave
         pm setmatrix
         pat /Shading get shfill
@@ -191,10 +197,10 @@ true setglobal
     /xs pat /XStep get def
     /ys pat /YStep get def
     xs 0 ne ys 0 ne and {
-        % the region's bounds, carried to pattern space: clip box
+        % The region's bounds, carried to pattern space: clip box
         % corners through the CTM to the device, then back through
         % the pattern space. A region covering no pixels bounds
-        % nothing, and there is no cell of it for a cell to meet
+        % nothing, and there is no cell of it for a cell to meet.
         gsave //.xpostsys /.clipregionpath get exec flattenpath
         .pathempty { grestore }{
         pathbbox grestore
@@ -217,7 +223,8 @@ true setglobal
         /i1 px1 bb 0 get sub xs div ceiling cvi def
         /j0 py0 bb 3 get sub ys div floor cvi def
         /j1 py1 bb 1 get sub ys div ceiling cvi def
-        % a degenerate mapping tiles without bound: refuse it
+
+        % A degenerate mapping tiles without bound: refuse it
         i1 i0 sub 1 add j1 j0 sub 1 add mul dup 65536 le exch 0 gt and {
             i0 1 i1 { /i exch def
                 j0 1 j1 { /j exch def
@@ -240,8 +247,9 @@ true setglobal
                     }{
                         0 setgray
                     } ifelse
-                    % the paint procedure runs on the caller's stacks:
-                    % its defs are its own, out of this dict's names
+
+                    % The paint procedure runs on the caller's stacks:
+                    % its defs are its own, out of this dict's names.
                     pat dup /PaintProc get
                     null 1 //.xpostsys /.pcallout get exec
                     grestore
@@ -265,17 +273,18 @@ true setglobal
 %  stored by the trivial branch of clip would not combine.
 %
 /.patternclip {  % [spans]  .  -
-    //.xpostsys /.clipstoreparts get exec
-    % the region is pixel-band spans, which no single path under the
+    % The region is pixel-band spans, which no single path under the
     % nonzero rule describes: a device that clips for itself has no
     % shape to be given, and the one the caller's own clip left behind
-    % is not this one
+    % is not this one.
+    //.xpostsys /.clipstoreparts get exec
     graphicsdict /currgstate get /currpath get
     null //.xpostsys /.setclipregion get exec
-    % and the region is not left standing in as the current path: a
+
+    % And the region is not left standing in as the current path: a
     % segment appended to a path is written into the storage the path
     % already holds while there is room, so the cells about to be walked
-    % would otherwise build on the very region they are being cut from
+    % would otherwise build on the very region they are being cut from.
     newpath
 } bind def
 

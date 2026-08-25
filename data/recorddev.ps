@@ -2,6 +2,8 @@
 %
 % recorddev.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The record device: write down what a page asks to paint and replay it at Emit.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -71,7 +73,6 @@
 %
 
 %
-%  dict  .bandheight  rows
 %  How many rows of its page a device holds at once: the page's own
 %  height where it holds the whole of it, and fewer where it holds a
 %  band of it.
@@ -134,6 +135,7 @@ end } bind put
     dev /.playclass known ph 0 gt and {
         /cls .privatedict dev /.playclass get get def
         /rowbytes dev //.xpostsys /.rowbytes get exec def
+
         % A row whose bytes are past what an integer counts is a row no
         % band holds one of, so there is nothing to divide: the page is
         % asked for whole and refused by the raster that cannot hold it,
@@ -305,7 +307,8 @@ end } bind put
     /ph exch def
     /pw exch def
     /nm exch def
-    % the rows the device being made would hold of this page
+
+    % The rows the device being made would hold of this page
     /held ph def
     graphicsdict /.rasterband 2 copy known { get }{ pop pop null } ifelse
     dup type dup /arraytype eq exch /packedarraytype eq or
@@ -654,7 +657,8 @@ setglobal
                 { run length 2 ge }{ false } ifelse {
                 /rtop run 0 get def
                 /rrows run 1 get def
-                % the run is held to the page, whatever named it
+
+                % The run is held to the page, whatever named it
                 rtop 0 lt rtop ph ge or { /rtop 0 def } if
                 rrows 1 lt { /rrows 1 def } if
                 rtop rrows add ph gt { /rrows ph rtop sub def } if
@@ -669,6 +673,7 @@ setglobal
         % that says whether the run arrives in more than one of them.
         /bandrows rec //.xpostsys /.bandheight get exec def
         /banding bandrows imgrows lt def
+
         % ... and the rows it is built with, which is a band of the run
         % where the run arrives in more than one and the whole run where
         % it does not. A budget buying more rows than there are to hold
@@ -698,6 +703,7 @@ setglobal
             /page rec /.playdev get def
         }{
             rec //.xpostsys /.playdrop get exec
+
             % The run of rows this raster holds is left where a page
             % device leaves one for the device it is about to build, and
             % Create takes it from there. It is the first band of the run
@@ -708,6 +714,7 @@ setglobal
             % this raster holds are the record's answer and not whatever
             % the caller happened to leave behind.
             graphicsdict /.rasterband [ imgtop rasterrows ] put
+
             % The features of the page-device request this record was
             % made for, left for the class-to-instance copy the painter
             % is made through, which takes them and writes them onto
@@ -726,12 +733,14 @@ setglobal
                 put
             /page pw ph cls dup /Create get exec def
             graphicsdict /.rasterband undef
-            % named as soon as it exists, so that a device this record
+
+            % Named as soon as it exists, so that a device this record
             % built is a device this record gives up however the rest of
-            % this ends
+            % this ends.
             rec /.playdev page put
             rec /.playrows bandrows put
             rec page //.internaldict /.playbuilt get exec
+
             % The raster's first move onto a run of rows, made here and
             % not left to the first page. What a device takes up to be
             % able to move a run -- the rows it built, and a row to clear
@@ -755,7 +764,7 @@ setglobal
 
         % and the pages the announcing semantics have counted, which they
         % count on the device they were asked of (data/device.ps) -- this
-        % record, and not the device it paints through
+        % record, and not the device it paints through.
         rec /pagenumber known
             { page /pagenumber rec /pagenumber get put } if
 
@@ -848,6 +857,7 @@ setglobal
         /banding bandrows imgrows lt def
 
         rec /.outputfile known { page /.outputfile rec /.outputfile get put } if
+
         % The colour the page was cleared to, carried onto the raster
         % that paints it. That colour is what a device shows over a row
         % it holds no pixel of, and the raster below holds no pixel of
@@ -859,6 +869,7 @@ setglobal
         % that page was cleared to.
         rec /.ground known
             { rec /.ground get aload pop page dup /Ground get exec } if
+
         % The screen the page was painted under, carried onto the raster
         % the same way and for the same reason. A device rendering a grey
         % as a pattern of pixels lays the rows it holds no pixel of under
@@ -870,17 +881,19 @@ setglobal
         rec page //.internaldict /.playscreen get exec
 
         banding {
-            % what the page's emission keeps between bands: the file it
+            % What the page's emission keeps between bands: the file it
             % is going to and how far down the page it has got. It is
             % this page's and not the page before's, so a raster standing
             % again is given a fresh one.
             page /.bandpage 4 dict put
             imgtop bandrows imgtop imgrows add 1 sub {
                 /top exch def
-                % the last band is the rows the run has left
+
+                % The last band is the rows the run has left
                 /rows bandrows imgtop imgrows add top sub
                     2 copy gt { exch } if pop def
                 /bot top rows add 1 sub def
+
                 % A band that comes to nothing but the ground is not
                 % painted at all: the raster is not moved onto its rows,
                 % nothing is played into them and they are not put out
@@ -905,8 +918,9 @@ setglobal
                     page dup /Emit get exec
                 } if
             } for
+
             % and the call that holds nothing, which says the page is
-            % finished and closes the file behind it
+            % finished and closes the file behind it.
             0 0 page dup /.moveband get exec
         }{
             % A page painted in one band is one run of rows, and a

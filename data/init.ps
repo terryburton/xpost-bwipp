@@ -2,20 +2,12 @@
 %
 % init.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % Interpreter start-up, run before systemdict is sealed; builds the systemdict procedures.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
-
-%
-% init.ps is run before systemdict is made readonly
-%
-% systemdict /ud userdict put %trigger backup error handler
-%
-
-%
-% procedures in systemdict
-%
 
 %
 %  QUIET is a job convention, not machinery state: real-world job streams
@@ -27,10 +19,6 @@
 %
 /QUIET where { pop }{ (loading init.ps...\n) print } ifelse
 
-%
-% (35\n) print
-% currentfile flushfile
-%
 systemdict begin  % Make these definitions in systemdict
 true setglobal   % Systemdict is global, so these allocations must be global
 
@@ -56,6 +44,7 @@ true setglobal   % Systemdict is global, so these allocations must be global
 %
 currentglobal true setglobal
 userdict /.xpostsys 400 dict put
+
 %
 %  Recorded in the context as well, where the collector roots it and the C
 %  reaches it. The anchor below is dropped at lockdown and what holds the
@@ -109,6 +98,7 @@ currentglobal true setglobal
 setglobal
 
 currentglobal true setglobal
+
 %
 %  The operands each operator takes. The definitions fill this through
 %  .defop, so the statement sits beside the body it describes; lockdown
@@ -132,7 +122,7 @@ currentglobal true setglobal
 %  names are late-bound, so this line parses when the context operators are
 %  absent (a default run never forks, so .childrun never runs).
 %
-.xpostsys /.childrun { stopped { handleerror currentcontext detach } if } put
+.xpostsys /.childrun { stopped { handleerror currentcontext detach } if } put  % proc  .  -
 
 %
 %  The operators whose bodies arrived already read-only. A body is bound
@@ -158,6 +148,7 @@ currentglobal true setglobal
 .xpostsys /.defopin {  % dict /name [ specs ] { proc }  .  -
     4 dict begin
     /d.proc exch def /d.sig exch def /d.name exch def /d.dict exch def
+
     % The statements are filed in a global dictionary, so a statement must
     % be global itself or the file is refused. Most are: a module is read
     % with global allocation in force. One written where the allocation is
@@ -190,6 +181,7 @@ currentglobal true setglobal
     //.xpostsys /.defopin get exec
 } put
 setglobal
+
 %
 %  privatedict -- the interpreter's private LOCAL machinery dictionary. Recorded
 %  in the context (where the collector roots it and C reaches it) but never placed
@@ -202,6 +194,7 @@ setglobal
 currentglobal false setglobal
 256 dict .setprivatedict
 setglobal
+
 %
 %  DATA_DIR, the directory this run found its boot files in, is handed in by the
 %  bootstrap through userdict -- the only dictionary there is that early. Seed
@@ -214,6 +207,7 @@ userdict /DATA_DIR known {
     .xpostsys /.hostdict get /DATA_DIR userdict /DATA_DIR get dup length string copy put
     userdict /DATA_DIR undef
 } if
+
 %
 %  .gscratch returns the local scratch dictionary the machinery mutates each
 %  render (strokedict, caches, local resources); it is a LOCAL object the
@@ -221,6 +215,7 @@ userdict /DATA_DIR known {
 %  Defined before any module loads.
 %
 currentglobal false setglobal
+
 %
 %  Both are local, and privatedict is the local dictionary the machinery
 %  lives in, so they go there outright. The procedure takes the scratch
@@ -234,6 +229,7 @@ currentglobal false setglobal
 setglobal
 
 currentglobal true setglobal
+
 %
 %  The private C operators live under dot-prefixed names. Near the end of
 %  graphics loading they are relocated out of systemdict into .internaldict, so
@@ -250,8 +246,8 @@ userdict /.internaldict 256 dict put
 { dup systemdict exch get .internaldict 3 1 roll put } forall
 
 %
-%  the guarded accessor by which a font program reaches the private
-%  operators; the password is part of the language folklore
+%  The guarded accessor by which a font program reaches the private
+%  operators; the password is part of the language folklore.
 %
 /internaldict [ /integertype ] {  % int  .  dict
     1183615869 eq { //.internaldict }{
@@ -303,8 +299,8 @@ userdict /statusdict <<
 setglobal
 
 %
-%  the page-size convenience operators of the printer products, which
-%  driver prologs invoke from their PPD feature blocks
+%  The page-size convenience operators of the printer products, which
+%  driver prologs invoke from their PPD feature blocks.
 %
 <<
     /letter      [ 612  792]
@@ -325,7 +321,7 @@ setglobal
 } forall
 
 %
-%  the job server's dictionary. exitserver ends the encapsulated job and
+%  The job server's dictionary. exitserver ends the encapsulated job and
 %  starts an unencapsulated one, so the definitions made after it outlive
 %  the job -- the idiom every driver prolog uses. It is `true password
 %  startjob`, which the interpreter answers by folding the run's state into
@@ -337,7 +333,7 @@ setglobal
 %
 currentglobal false setglobal
 userdict /serverdict 2 dict put
-serverdict /exitserver {
+serverdict /exitserver {  % password  .  -
     true exch startjob not
     { /exitserver errordict /invalidaccess get exec }
     if
@@ -351,22 +347,23 @@ setglobal
 %
 
 %
-%  the interpreter answers for the whole language
+%  The interpreter answers for the whole language
 %
 /languagelevel 3 def
 
 %
-%  the shared-VM view of global VM, one and the same here
+%  The shared-VM view of global VM, one and the same here.
 %
 /setshared /setglobal load def
 /currentshared /currentglobal load def
 /scheck /gcheck load def
 /shareddict globaldict def
 
-%
-%  concatenate two strings -- a pure global helper, so it lives in .xpostsys
-%
 currentglobal true setglobal
+
+%
+%  Concatenate two strings -- a pure global helper, so it lives in .xpostsys
+%
 .xpostsys /.strcat {  % a b  .  ab
     2 copy
     length exch length exch 1 index add  % A b an bn+an
@@ -382,7 +379,7 @@ currentglobal true setglobal
 %
 .xpostsys /.crdname {  % intent deviceconfig halftone  .  name
     4 dict begin
-    /astext { dup type /stringtype ne { dup length string cvs } if } bind def
+    /astext { dup type /stringtype ne { dup length string cvs } if } bind def  % obj  .  string
     /ht exch astext def
     /dc exch astext def
     astext
@@ -395,8 +392,8 @@ currentglobal true setglobal
 } bind put
 setglobal
 
-%
-%  -  .adoptexactpage  -
+currentglobal true setglobal
+
 %
 %  Take the page as the page device machinery measured it, where it has
 %  been measured. A page is points and need not come to whole numbers of
@@ -410,8 +407,7 @@ setglobal
 %  which is the device being built: a procedure does not stand a
 %  dictionary of its own between the two.
 %
-currentglobal true setglobal
-.xpostsys /.adoptexactpage {
+.xpostsys /.adoptexactpage {  % -  .  -
     graphicsdict /.exactpagedims 2 copy known {
         get
         dup 0 get /width exch def
@@ -420,20 +416,23 @@ currentglobal true setglobal
 } bind put
 setglobal
 
+currentglobal true setglobal
+
 %
 %  .loadmodule -- pull in one of the interpreter's own .ps files by name,
-%  factoring the "(/x.ps) //.xpostsys /.loadmodule get exec" idiom that appears throughout
-%  the machinery. In .xpostsys like every other helper, and global with it.
+%  factoring the "(/x.ps) //.xpostsys /.loadmodule get exec" idiom that
+%  appears throughout the machinery. In .xpostsys like every other
+%  helper, and global with it.
 %
-currentglobal true setglobal
 .xpostsys /.loadmodule {  % (/name.ps)  .  -
     /DATA_DIR //.xpostsys /.hostvalue get exec
     exch //.xpostsys /.strcat get exec run
 } bind put
 setglobal
 
+currentglobal true setglobal
+
 %
-%  key  .isclassname  bool
 %  Whether a dictionary key names a device class. A class is defined
 %  under a name of one shape and nothing else in the dictionaries the
 %  mirror and the lockdown walk carries it, so the shape is what says
@@ -448,7 +447,6 @@ setglobal
 %  raise on the second, taking the lockdown -- and with it every start
 %  procedure -- down with it.
 %
-currentglobal true setglobal
 .xpostsys /.isclassname {  % key  .  bool
     dup type /nametype eq {
         60 string cvs dup length 7 ge {
@@ -457,6 +455,8 @@ currentglobal true setglobal
     }{ pop false } ifelse
 } bind put
 setglobal
+
+currentglobal true setglobal
 
 %
 %  The bind sweep the module loaders and the lockdown share. .bindone freezes
@@ -470,7 +470,6 @@ setglobal
 %  cyclic dictionary graph. Init-time helpers only -- nothing calls them while
 %  a program runs.
 %
-currentglobal true setglobal
 .xpostsys /.bindone {  % value  .  -
     dup type /arraytype eq 1 index xcheck and { bind } if pop
 } bind put
@@ -494,9 +493,9 @@ currentglobal true setglobal
 setglobal
 
 %
-%% predefined in xpost_interpreter.c:setlocalconfig()
-%%
-% /DATA_DIR 
+% Predefined in xpost_interpreter.c:setlocalconfig()
+%
+% /DATA_DIR
 %     /PACKAGE_DATA_DIR dup where { %PACKAGE_DATA_DIR is passed from the config if is_installed is true
 %         exch get
 %     }{
@@ -529,21 +528,16 @@ setglobal
 //.internaldict /QUIET known { }{ (DATA_DIR =) print
     /DATA_DIR //.xpostsys /.hostvalue get exec print (\n) print } ifelse
 
-%
-% (1\n)print
-% /product (Xpost) def % now an operator in xpost_op_misc.c
-% /version (0) def % now an operator in xpost_op_misc.c
-% /revision 0 def % now an operator in xpost_op_misc.c
-%
-/run [ /stringtype ] { (r) file cvx exec } //.xpostsys /.defop get exec
-/Run { (\() print dup =print (\) run\n) print flush run } def
+/run [ /stringtype ] { (r) file cvx exec } //.xpostsys /.defop get exec  % string  .  -
+/Run { (\() print dup =print (\) run\n) print flush run } def  % string  .  -
 
 %
 % (2\n)print
 %
 /=string 128 string def
+
 %
-%  the scratch string serves every cvs in the machinery: as an operator
+%  The scratch string serves every cvs in the machinery: as an operator
 %  pushing it, procedures binding as they load freeze the reference,
 %  and a program may take the name for itself. Anchor the pusher procedure in
 %  internaldict rather than systemdict so a program enumerating systemdict does
@@ -552,7 +546,7 @@ setglobal
 %
 .internaldict /.=stringproc [ //=string ] cvx put
 /=string dup .internaldict /.=stringproc get .wrapop def
-/=print {
+/=print {  % obj  .  -
     dup type /stringtype ne {
         //=string cvs
     } if
@@ -563,7 +557,7 @@ setglobal
 %
 % (3\n)print
 %
-/= [ /anytype ] {
+/= [ /anytype ] {  % obj  .  -
     //=print exec
     (\n) print
 } //.xpostsys /.defop get exec
@@ -591,12 +585,13 @@ setglobal
 %
 % (5\n)print
 %
-/stack [ ] { count dup 1 add copy //= repeat pop } //.xpostsys /.defop get exec
+/stack [ ] { count dup 1 add copy //= repeat pop } //.xpostsys /.defop get exec  % -  .  -
 
 %
 % (6\n)print
 %
 systemdict begin
+
 %
 %  ==
 %
@@ -605,10 +600,10 @@ systemdict begin
     /rmargin 72 def
     /NL (\n) def
 
-    /cvsprint {
+    /cvsprint {  % obj  .  -
         =string cvs tprint
     } def
-    /tprint {
+    /tprint {  % string  .  -
         dup length cp add rmargin gt {
             NL print
             /cp 0 def
@@ -616,11 +611,11 @@ systemdict begin
         dup length cp add /cp exch def
         print
     } def
-    /typeprint { dup type exec } def
+    /typeprint { dup type exec } def  % obj  .  -
 
     /maxdepth 24 def
     /maxnodes 65536 def
-    /arraytype {
+    /arraytype {  % array  .  -
         dup rcheck {
             % A depth cap alone cannot bound the work of printing an array
             % that refers to itself, or shares a subtree: each of the depth
@@ -646,7 +641,8 @@ systemdict begin
             } ifelse
         }{ pop (-array-) tprint } ifelse
     } def
-    % a packed array prints as an array does: the delimiters follow its
+
+    % A packed array prints as an array does: the delimiters follow its
     % executability and the elements print in turn
     /packedarraytype /arraytype load def
     { cvsprint }
@@ -654,32 +650,32 @@ systemdict begin
     dup /integertype exch def
     /realtype exch def
 
-    /invalidtype { pop (@INVALID@) tprint } def
-    /nulltype { pop (null) tprint } def
-    /dicttype { pop (-dict-) tprint } def
-    /filetype { pop (-file-) tprint } def
-    /marktype { pop (-mark-) tprint } def
-    /fonttype { pop (-font-) tprint } def
-    /contexttype { pop (-context-) tprint } def
+    /invalidtype { pop (@INVALID@) tprint } def  % obj  .  -
+    /nulltype { pop (null) tprint } def  % null  .  -
+    /dicttype { pop (-dict-) tprint } def  % dict  .  -
+    /filetype { pop (-file-) tprint } def  % file  .  -
+    /marktype { pop (-mark-) tprint } def  % mark  .  -
+    /fonttype { pop (-font-) tprint } def  % font  .  -
+    /contexttype { pop (-context-) tprint } def  % context  .  -
 
-    /nametype {
+    /nametype {  % name  .  -
         dup xcheck not {
             (/) tprint
         } if
         cvsprint
     } def
 
-    /operatortype {
+    /operatortype {  % operator  .  -
         (--) tprint
         =string cvs tprint
         (--) tprint
     } def
 
-    /savetype {
+    /savetype {  % save  .  -
         pop (-savelevel-) tprint
     } def
 
-    % re-readable string escaping for ==: a byte becomes \\ \( \) for
+    % Re-readable string escaping for ==: a byte becomes \\ \( \) for
     % those three, a named escape for the five control characters that
     % have one, its own character when printable, and \ddd octal
     % otherwise -- so the output scans back to the same string
@@ -705,7 +701,7 @@ systemdict begin
         } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse
     } def
 
-    /stringtype {
+    /stringtype {  % string  .  -
         dup rcheck {
             (\() tprint
             { .escbyte } forall
@@ -723,7 +719,7 @@ systemdict begin
     % operator name to the operator.
     currentdict //.xpostsys /.bindscope get exec
 
-/==only {
+/==only {  % obj  .  -
     %traceon
     //==dict begin
         /cp 0 def
@@ -734,19 +730,21 @@ systemdict begin
     { stop } if    % So an error inside == does not strand it on the
                    % dict stack; re-raise once the dict stack is clean
 } end def  % Remove ==dict, installing == in userdict
-/== [ /anytype ] { ==only (\n) print } //.xpostsys /.defop get exec
-/pstack [ ] { count dup 1 add copy //== repeat pop } //.xpostsys /.defop get exec
+/== [ /anytype ] { ==only (\n) print } //.xpostsys /.defop get exec  % obj  .  -
+/pstack [ ] { count dup 1 add copy //== repeat pop } //.xpostsys /.defop get exec  % -  .  -
 end  % Back to systemdict
 
 /execdict 6 dict def
 execdict begin
     /quitflag false def
-    /checkquit {
+    /checkquit {  % -  .  -
         //execdict /quitflag get
         { exit } if
     } def
     /execdepth 0 def
 end
+
+currentglobal true setglobal
 
 %
 %  Report a start-up that never reached a program: the graphics language
@@ -776,20 +774,20 @@ end
 %  a failure part way through the sentence must still reach the recording
 %  that the exit status is read from.
 %
-%  in the private global namespace, reached by the start procedures below
-%  through a frozen reference, so it does not sit visible in systemdict
+%  In the private global namespace, reached by the start procedures below
+%  through a frozen reference, so it does not sit visible in systemdict.
 %
-currentglobal true setglobal
-.xpostsys /.reportloadfailure {
+.xpostsys /.reportloadfailure {  % -  .  -
     {
         (unable to load graphics) print
-        % the request is read from the settings this run has, which is
+
+        % The request is read from the settings this run has, which is
         % where a value the invocation decided is kept, so it is there to
         % be named whether or not the attempt reached the device
         % the device the run asked for rather than the one its page was
         % given to: a selection that can arrive a band at a time is made
         % through the recording class, and naming that back at a caller
-        % would be reporting a choice made on its behalf
+        % would be reporting a choice made on its behalf.
         (: device ) print
         /StartDeviceAsked //.xpostsys /.hostvalue get exec
         dup null eq { pop /StartDevice //.xpostsys /.hostvalue get exec } if
@@ -807,10 +805,10 @@ currentglobal true setglobal
 setglobal
 
 %
-%  initiate an interactive session with prompt
-%  a postscript 'executive' session
+%  Initiate an interactive session with prompt a postscript 'executive'
+%  session.
 %
-/start {
+/start {  % -  .  -
     currentglobal
     false setglobal
     {
@@ -823,8 +821,9 @@ setglobal
         pstack
         quit
     } if
-    % shadow the `quit` operator with this procedure which checks
-    % the depth of 'executive' nesting
+
+    % Shadow the `quit` operator with this procedure which checks the
+    % depth of 'executive' nesting.
     userdict /quit {
         %exit
         //execdict /quitflag true put
@@ -837,8 +836,10 @@ setglobal
     pop //quit  % The operator
 } def
 
+currentglobal true setglobal
+
 %
-%  report a top-level job error the way a job server does: the standard
+%  Report a top-level job error the way a job server does: the standard
 %  error line (through handleerror), then -- only when an error really
 %  occurred, not on a normal quit -- the notice that the rest of the job
 %  is flushed to end of file. An interactive executive keeps going, so it
@@ -860,11 +861,11 @@ setglobal
 %  what this procedure holds in its own body: the two notices below are
 %  its own strings and print without asking for anything.
 %
-%  in the private global namespace, reached by the start procedures below through
-%  a frozen reference, so it does not sit visible in systemdict
+%  In the private global namespace, reached by the start procedures
+%  below through a frozen reference, so it does not sit visible in
+%  systemdict.
 %
-currentglobal true setglobal
-.xpostsys /.handlejoberror {
+.xpostsys /.handlejoberror {  % -  .  -
     $error /newerror get {
         { handleerror } stopped {
             (%%[ Report incomplete: reporting this error raised another ]%%\n)
@@ -877,8 +878,9 @@ currentglobal true setglobal
 } put
 setglobal
 
+currentglobal true setglobal
+
 %
-%  -  .endjob  -
 %
 %  What a job does after its program: the page it painted and never asked
 %  for is ended, and the stacks are put back to the state a job begins
@@ -906,11 +908,11 @@ setglobal
 %  program that redefined either name would otherwise decide what
 %  resetting the stacks means.
 %
-%  in the private global namespace, reached by the start procedures below
-%  through a frozen reference, so it does not sit visible in systemdict
+%  In the private global namespace, reached by the start procedures
+%  below through a frozen reference, so it does not sit visible in
+%  systemdict.
 %
-currentglobal true setglobal
-.xpostsys /.endjob {
+.xpostsys /.endjob {  % -  .  -
     { //.xpostsys /.endjobpage get exec } stopped { } if
     { //.xpostsys /.formcachedrop get exec } stopped { } if
     //clear
@@ -919,10 +921,10 @@ currentglobal true setglobal
 setglobal
 
 %
-%  execute postscript program from stdin, and handle errors,
-%  but do not assume an interactive session
+%  Execute postscript program from stdin, and handle errors,
+%  but do not assume an interactive session.
 %
-/startstdin {
+/startstdin {  % -  .  -
     {
         //.xpostsys /loadgraphics get exec
         //.xpostsys /.finalize get exec
@@ -936,14 +938,15 @@ setglobal
     } stopped {
         //.xpostsys /.handlejoberror get exec
     } if
-    % a page the program painted and never asked for is ended here, and
+
+    % A page the program painted and never asked for is ended here, and
     % the stacks the job used go back to the state a job begins with
     //.xpostsys /.endjob get exec
     quit
 } def
 
 %
-%  execute postscript program from a named file, and handle errors.
+%  Execute postscript program from a named file, and handle errors.
 %
 %  The named program is a job and the job ends where the program ends (PLRM
 %  3.7.7). A run with a user at the other end of it is offered the interactive
@@ -952,7 +955,7 @@ setglobal
 %  standard input is somebody typing. The C settles that before the run and
 %  leaves the answer in privatedict.
 %
-/startfilename {  % (filename)
+/startfilename {  % string  .  -
     {
         //.xpostsys /loadgraphics get exec
         //.xpostsys /.finalize get exec
@@ -967,8 +970,9 @@ setglobal
     } stopped {
         //.xpostsys /.handlejoberror get exec
     } if
-    % a page the program painted and never asked for is ended here, and
-    % the stacks the job used go back to the state a job begins with
+
+    % A page the program painted and never asked for is ended here, and
+    % the stacks the job used go back to the state a job begins with.
     //.xpostsys /.endjob get exec
     quit
 } def
@@ -977,10 +981,10 @@ setglobal
 %
 
 %
-%  execute a postscript program from a file object, which may represent
+%  Execute a postscript program from a file object, which may represent
 %  a stream with no associated "name".
 %
-/startfile {  % file-object
+/startfile {  % file  .  -
     //.internaldict /QUIET known { }{ (startfile\n)print } ifelse
     {
         //.xpostsys /loadgraphics get exec
@@ -996,8 +1000,9 @@ setglobal
         //.internaldict /.rundied get exec
         //.xpostsys /.handlejoberror get exec
     } if
-    % a page the program painted and never asked for is ended here, and
-    % the stacks the job used go back to the state a job begins with
+
+    % A page the program painted and never asked for is ended here, and
+    % the stacks the job used go back to the state a job begins with.
     //.xpostsys /.endjob get exec
     quit
 } def
@@ -1007,10 +1012,11 @@ setglobal
 %  graphics-loading counterpart above but runs .finalize alone, without
 %  loadgraphics: the interpreter is still locked down -- the standard operators
 %  are promoted, the machinery's references frozen and the private namespaces
-%  sealed and hidden -- while the graphics modules are never loaded. This exercises the path in which loadgraphics
-%  is genuinely optional, and lets a program that needs no graphics avoid the cost.
+%  sealed and hidden -- while the graphics modules are never loaded.
+%  This exercises the path in which loadgraphics is genuinely optional,
+%  and lets a program that needs no graphics avoid the cost.
 %
-/startstdinnographics {
+/startstdinnographics {  % -  .  -
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
         //.internaldict /.rundied get exec
@@ -1024,7 +1030,7 @@ setglobal
     quit
 } def
 
-/startfilenamenographics {  % (filename)
+/startfilenamenographics {  % string  .  -
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
         //.internaldict /.rundied get exec
@@ -1039,7 +1045,7 @@ setglobal
     quit
 } def
 
-/startfilenographics {  % file-object
+/startfilenographics {  % file  .  -
     { //.xpostsys /.finalize get exec } stopped {
         (unable to lock down interpreter\n)print flush
         //.internaldict /.rundied get exec
@@ -1068,13 +1074,13 @@ setglobal
 %  The language and nothing else. Which device this run has and which
 %  page it is at are not language; making the device is the step below.
 %
-/loadlanguage {
+/loadlanguage {  % -  .  -
     { //.xpostsys /loadgraphics get exec
       //.xpostsys /.finalize get exec } stopped pop
     quit
 } def
 
-/loadlanguagenographics {
+/loadlanguagenographics {  % -  .  -
     { //.xpostsys /.finalize get exec } stopped pop
     quit
 } def
@@ -1090,12 +1096,12 @@ setglobal
 %  procedure that has already been through this repeats nothing.
 %  Failure is left unreported for the reason it is above.
 %
-/startdevice {
+/startdevice {  % -  .  -
     { //.xpostsys /.startdevice get exec } stopped pop
     quit
 } def
 
-/prompt [ ] {
+/prompt [ ] {  % -  .  -
     (PS) print
     count dup 0 eq { pop } { (<) print //=print exec } ifelse
     //execdict /execdepth get {
@@ -1112,8 +1118,8 @@ setglobal
 %  currentuserparams and setuserparams are operators over that state and are
 %  not defined here.
 %
-/setdevparams [ /stringtype /dicttype ] { pop pop } //.xpostsys /.defop get exec
-/currentdevparams [ /stringtype ] { pop 0 dict } //.xpostsys /.defop get exec
+/setdevparams [ /stringtype /dicttype ] { pop pop } //.xpostsys /.defop get exec  % string dict  .  -
+/currentdevparams [ /stringtype ] { pop 0 dict } //.xpostsys /.defop get exec  % string  .  dict
 
 %
 %  MaxBandBytes and CurBandHeight are the pair a program asks about
@@ -1137,9 +1143,10 @@ setglobal
 %  say. A run whose graphics never loaded has no band loop and no device
 %  to ask, and answers nought to both.
 %
-/currentsystemparams [ ] {
+/currentsystemparams [ ] {  % -  .  dict
     << /RealFormat (IEEE) /ByteOrder true /MaxFontCache 1048576
-       % where external resources are found: the first resource directory,
+
+       % Where external resources are found: the first resource directory,
        % separated by /. Reported, not set -- the search path is the host's.
        /GenericResourceDir //.xpostsys /.genericresourcedir get exec
        /GenericResourcePathSep (/)
@@ -1149,6 +1156,7 @@ setglobal
        /CurBandHeight
            //.xpostsys /.curbandheight 2 copy known
                { get exec }{ pop pop 0 } ifelse
+
        % RecordSpill says where a retained page's marks are to be held
        % and CurRecordSpill where the page in hand has them. Reported and
        % never set, for the reason CurBandHeight is: PLRM Appendix G bars
@@ -1160,7 +1168,7 @@ setglobal
        exch /RecordSpill exch 3 -1 roll /CurRecordSpill exch
     >>
 } //.xpostsys /.defop get exec
-/setsystemparams [ /dicttype ] { pop } //.xpostsys /.defop get exec
+/setsystemparams [ /dicttype ] { pop } //.xpostsys /.defop get exec  % dict  .  -
 
 %
 %  Display PostScript synchronisation (PLRM 2nd ed 7.1). lock and condition are
@@ -1192,10 +1200,11 @@ setglobal
         % monitor of a lock this context already holds is invalidcontext
         dup /held get 1 index /owner get currentcontext eq and
             { /monitor cvx /invalidcontext signalerror } if
-        % acquire: wait while another context holds it, then take it
+        % Acquire: wait while another context holds it, then take it
         { dup /held get not { exit } if yield } loop
         dup /held true put
         dup /owner currentcontext put
+
         % Run the procedure, releasing the lock however it ends. The release
         % is `{ theLock /held false put }` with the lock captured, so the whole
         % is `{ proc } stopped { release stop } { release } ifelse` built with
@@ -1222,16 +1231,19 @@ setglobal
         2 dict begin
         /.wcond exch def                       % Lock
         /.wlk exch def                         %
-        % wait on a lock this context does not hold is invalidcontext
+
+        % Wait on a lock this context does not hold is invalidcontext
         .wlk /held get .wlk /owner get currentcontext eq and not
             { end /wait cvx /invalidcontext signalerror } if
-        % release the lock and wait for a notify issued after this point
+
+        % Release the lock and wait for a notify issued after this point
         .wcond /gen get                        % Startgen
         .wlk /held false put
         .wlk /owner null put
         { .wcond /gen get 1 index gt { exit } if yield } loop
         pop
-        % reacquire the lock before returning to the monitor
+
+        % Reacquire the lock before returning to the monitor
         { .wlk /held get not { exit } if yield } loop
         .wlk /held true put
         .wlk /owner currentcontext put
@@ -1253,21 +1265,15 @@ setglobal
     { pop } ifelse
 } forall
 
-end  % Systemdict
+end  % systemdict
 
 userdict begin
 false setglobal
-
-%
-%  (s1) (s2) (s3) ... (sN) n  ncat  (s1s2s3...sN)
-%
-
-%
 % traceon
 % debugloadon
-%
 currentglobal
 false setglobal
+
 %
 %  //.xpostsys /.fontsubstitutions get: findfont's substitute-face table, hidden in the private
 %  global namespace where a program cannot reach it
@@ -1327,7 +1333,7 @@ systemdict begin
 %  in local VM, and a global procedure may not freeze a local object.
 %
 currentglobal true setglobal
-/executive [ ] {
+/executive [ ] {  % -  .  -
     //execdict begin
 
     /execdepth execdepth 1 add def
@@ -1338,7 +1344,7 @@ currentglobal true setglobal
         (\n) print
     } ifelse
 
-    {  %loop
+    {  % loop
         /quitflag false def
         $error /newerror false put
         /prompt load stopped {
@@ -1387,12 +1393,13 @@ setglobal
 %
 (/resource.ps) //.xpostsys /.loadmodule get exec
 
-/findfont [ /anytype ] {
-    % a resource key is an object of any type except null (PLRM 3.9),
+/findfont [ /anytype ] {  % key  .  font
+    % A resource key is an object of any type except null (PLRM 3.9),
     % so only null is refused here; anything else is looked up and, not
     % being found, substituted for like any other unknown name
     dup type /nulltype eq { /findfont cvx /typecheck signalerror } if
-    % both directories are consulted: the local one first, as the
+
+    % Both directories are consulted: the local one first, as the
     % specification says, then the global one for a font a prolog defined
     % while the allocation mode was global
     FontDirectory 1 index known {
@@ -1401,21 +1408,22 @@ setglobal
     GlobalFontDirectory 1 index known {
         GlobalFontDirectory exch get
     }{
-        {   % try the operator, which states FontType, FontMatrix
+        {   % Try the operator, which states FontType, FontMatrix
             % and FontBBox for the face behind the name
             //findfont
-            % a text font's built-in encoding is the standard one; a
+
+            % A text font's built-in encoding is the standard one; a
             % fresh copy, so a program re-encoding in place cannot
             % touch the shared array. A face without standard glyph
             % names still resolves through its character map.
             dup /Encoding StandardEncoding dup length array copy put
             dup /BuildChar {} put
-        } stopped {  % operator failed:
-            //.xpostsys /.fontsubstitutions get exch 2 copy known {  % try substitution
+        } stopped {  % Operator failed:
+            //.xpostsys /.fontsubstitutions get exch 2 copy known {  % Try substitution
                 get
                 findfont  % Call proc (tail-)recursively
             }{
-                % nothing found and nothing to substitute: the
+                % Nothing found and nothing to substitute: the
                 % operator yields a font or says why not
                 exch pop pop
                 /findfont cvx /invalidfont signalerror
@@ -1425,7 +1433,7 @@ setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  the user-object table lives in userdict, growing as indices demand
+%  The user-object table lives in userdict, growing as indices demand.
 %
 /defineuserobject [ /integertype /anytype ] {  % index any  .  -
     exch
@@ -1441,27 +1449,25 @@ setglobal
     UserObjects exch 3 -1 roll put
 } //.xpostsys /.defop get exec
 
-%
 /execuserobject [ /integertype ] {  % index  .  -
     UserObjects exch get exec
 } //.xpostsys /.defop get exec
 
-%
 /undefineuserobject [ /integertype ] {  % index  .  -
     UserObjects exch null put
 } //.xpostsys /.defop get exec
 
+currentglobal true setglobal
+
 %
-%  formdict  .execformdirect  -
-%  paint the form afresh: its matrix concatenates, its bounding box
+%  Paint the form afresh: its matrix concatenates, its bounding box
 %  clips, and the paint procedure runs with the dictionary at hand.
 %  The paint procedure is the program's, so it runs beneath the
 %  boundary: a failure inside it is that procedure's own object
 %  failing, and the operand stack goes back to what the procedure
-%  found rather than to execform's operand
+%  found rather than to execform's operand.
 %
-currentglobal true setglobal
-.xpostsys /.execformdirect {
+.xpostsys /.execformdirect {  % formdict  .  -
     gsave
     dup /Matrix get concat
     dup /BBox get aload pop     % Form llx lly urx ury
@@ -1498,13 +1504,13 @@ currentglobal true setglobal
 } put
 setglobal
 
-%
-%  formdict  .execformbox  bx by w h
-%  the device pixel box holding the form's bounding box under the
-%  current transformation and the form's own matrix
-%
 currentglobal true setglobal
-.xpostsys /.execformbox {
+
+%
+%  The device pixel box holding the form's bounding box under the
+%  current transformation and the form's own matrix.
+%
+.xpostsys /.execformbox {  % formdict  .  bx by w h
     8 dict begin
     /fd exch def
     gsave
@@ -1527,8 +1533,8 @@ currentglobal true setglobal
 } put
 setglobal
 
-%
-%  -  .formcachedrop  -
+currentglobal true setglobal
+
 %
 %  Give up every drawing the form cache is holding.
 %
@@ -1548,8 +1554,7 @@ setglobal
 %  space -- placing it in another would be a colour nobody named, and is
 %  refused rather than painted.
 %
-currentglobal true setglobal
-.xpostsys /.formcachedrop {
+.xpostsys /.formcachedrop {  % -  .  -
     graphicsdict /.formcache 2 copy known {
         get { exch pop dup /drawing known
                 { /drawing get dup /Destroy get exec }{ pop } ifelse } forall
@@ -1599,11 +1604,12 @@ setglobal
     not {
         //.xpostsys /.execformdirect get exec
     }{
-        % the form's paint procedure is the program's, and runs inside
+        % The form's paint procedure is the program's, and runs inside
         % this dictionary: an error out of it is a way out of the body
         % like returning is, so the dictionary comes off either way
         20 dict {
         /fd exch def
+
         % The serial naming this form, stamped only where the dictionary
         % carries none. A form dictionary is the program's, so what is
         % there may be a serial this never issued: a program may write
@@ -1642,6 +1648,7 @@ setglobal
             graphicsdict /.formlast 2 index put
             fd /.formid 3 -1 roll put
         } if
+
         % The key: the form and the linear part of the transformation,
         % written out in full rather than rounded, so two executions
         % share a drawing only where the transformation that made it is
@@ -1684,6 +1691,7 @@ setglobal
         } ifelse def
         fd //.xpostsys /.execformbox get exec
         /fh exch def /fw exch def /fby exch def /fbx exch def
+
         % Whether the clip holds the whole of the form's box. What
         % reaches a recorder is already cut to the clip, so a drawing
         % captured under a clip that cuts it is cut wherever it is
@@ -1717,6 +1725,7 @@ setglobal
                     cap DEVICE //.internaldict /.recordsaving get exec
                         //.internaldict /.playsaving get exec
                 } if
+
                 % The table is full: the entry captured longest ago
                 % gives up its place -- and its drawing with it, since
                 % what a recorder holds is not virtual memory and
@@ -1744,7 +1753,8 @@ setglobal
                     } if
                 } if
                 gsave
-                % what the clip has cut so far: a shape the clip cuts is
+
+                % What the clip has cut so far: a shape the clip cuts is
                 % resolved into whole pixel rows before it reaches a
                 % device, and rows cannot be carried a fraction of a
                 % pixel and stay the rows the shape covers there. So a
@@ -1753,6 +1763,7 @@ setglobal
                 % inside it painted afresh under its own box, are the
                 % two ways that happens.
                 graphicsdict /currgstate get /device cap put
+
                 % The clip the capture paints under: the form's box, out
                 % to whole pixels and one further, in the device's own
                 % coordinates. It holds a procedure that paints outside
@@ -1763,6 +1774,7 @@ setglobal
                 matrix setmatrix
                 newpath fbx 1 sub fby 1 sub fw 2 add fh 2 add rectclip
                 cm2 setmatrix
+
                 % Counted from here, once that box is in force, so that
                 % what is measured is what the description painted and not
                 % the box itself. The box reaches one pixel beyond the
@@ -1777,6 +1789,7 @@ setglobal
                 /cuts //.internaldict /.clipcuts get exec def
                 fd //.xpostsys /.execformcapture get exec
                 grestore
+
                 % Whether what it painted stays inside the box it
                 % declared. A drawing is placed whole and nothing cuts
                 % it where it lands, so a description that paints
@@ -1793,7 +1806,8 @@ setglobal
                         bx0 fbx ge by0 fby ge and
                         bx1 fbx fw add le and by1 fby fh add le and
                     }{ true } ifelse and def
-                % one past the newest capture held, so the entries read
+
+                % One past the newest capture held, so the entries read
                 % out in the order they were made. Read after the
                 % capture, since a form painting forms captures theirs
                 % inside it and those entries are in the table by now.
@@ -1811,6 +1825,7 @@ setglobal
         } if
         fits fc key known and { fc key get /drawing known }{ false } ifelse {
             /fe fc key get def
+
             % Where this execution puts the drawing: how far it is from
             % the position the drawing was painted at, in the device's
             % own coordinates. Not rounded to a pixel -- which pixels a
@@ -1820,7 +1835,7 @@ setglobal
             /dx cm 4 get fe /tx get sub def
             /dy cm 5 get fe /ty get sub def
             DEVICE /.recordplace known {
-                % a device holding a record of its own is given the
+                % A device holding a record of its own is given the
                 % placement to write down, so the drawing is held once
                 % for the page rather than played once per placement
                 fe /drawing get dx dy DEVICE dup /.recordplace get exec
@@ -1842,8 +1857,9 @@ setglobal
 %  where an opcode of 32 or more repeats the following operator that
 %  many fewer than its value times
 %
-/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } //.xpostsys /.defop get exec    % The box is advisory here
-/ucache [ ] {} //.xpostsys /.defop get exec
+% The box is advisory here.
+/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } //.xpostsys /.defop get exec  % llx lly urx ury  .  -
+/ucache [ ] {} //.xpostsys /.defop get exec  % -  .  -
 
 currentglobal true setglobal
 .xpostsys /.upathops [ /setbbox /moveto /rmoveto /lineto /rlineto /curveto
@@ -1851,6 +1867,7 @@ currentglobal true setglobal
 setglobal
 currentglobal true setglobal
 .xpostsys /.upathargs [ 4 2 2 2 2 6 6 5 5 5 0 0 ] put
+
 %
 %  A spec names an object type, or one of two families: numbertype for
 %  either number, proctype for an executable array.
@@ -1911,13 +1928,13 @@ currentglobal true setglobal
 >> put
 setglobal
 
+currentglobal true setglobal
+
 %
-%  obj  .upathcheck  obj
 %  A user path is an executable array of numbers and user-path operator
 %  names, or the encoded pair of an argument list and an operator string.
 %
-currentglobal true setglobal
-.xpostsys /.upathcheck {
+.xpostsys /.upathcheck {  % obj  .  obj
     4 dict begin
     /u.p exch def
     /u.pend 0 def
@@ -1951,7 +1968,6 @@ currentglobal true setglobal
 } put
 setglobal
 
-%
 /uappend [ /arraytype ] {  % userpath  .  -
     //.xpostsys /.upathcheck get exec
     dup xcheck {
@@ -1968,7 +1984,6 @@ setglobal
             dup 31 gt {
                 32 sub /rep exch def
             }{
-                /op exch def
                 % A repeat count precedes an operator so that one run of
                 % arguments feeds it several times -- three coordinate pairs
                 % through one lineto. An operator that takes no arguments,
@@ -1979,6 +1994,7 @@ setglobal
                 % bounded already, by the arguments running out. So a repeat
                 % of a no-argument operator is refused; an out-of-range
                 % operator is refused by the .upathargs fetch below.
+                /op exch def
                 //.xpostsys /.upathargs get op get 0 eq  rep 1 gt  and {
                     /uappend cvx /rangecheck signalerror
                 } if
@@ -1993,12 +2009,13 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-%
-%  matrix and user path operands tell apart by shape: a matrix is a
-%  six-element literal array of numbers
-%
 currentglobal true setglobal
-.xpostsys /.isupmat {
+
+%
+%  Matrix and user path operands tell apart by shape: a matrix is a
+%  six-element literal array of numbers.
+%
+.xpostsys /.isupmat {  % obj  .  obj bool
     dup type /arraytype eq
     1 index xcheck not and
     1 index length 6 eq and
@@ -2007,8 +2024,13 @@ currentglobal true setglobal
 } put
 setglobal
 
-/ufill [ /arraytype ] { gsave newpath uappend fill grestore } //.xpostsys /.defop get exec
-/ueofill [ /arraytype ] { gsave newpath uappend eofill grestore } //.xpostsys /.defop get exec
+/ufill [ /arraytype ] { gsave newpath uappend fill grestore } //.xpostsys /.defop get exec  % userpath  .  -
+/ueofill [ /arraytype ] { gsave newpath uappend eofill grestore } //.xpostsys /.defop get exec  % userpath  .  -
+
+%
+%       userpath  .  -
+%  userpath matrix  .  -
+%
 /ustroke [ /arraytype ] {
     //.xpostsys /.isupmat get exec {
         gsave newpath exch uappend concat stroke grestore
@@ -2016,6 +2038,11 @@ setglobal
         gsave newpath uappend stroke grestore
     } ifelse
 } //.xpostsys /.defop get exec
+
+%
+%       userpath  .  -
+%  userpath matrix  .  -
+%
 /ustrokepath [ /arraytype ] {
     //.xpostsys /.isupmat get exec {
         matrix currentmatrix 3 1 roll
@@ -2028,7 +2055,7 @@ setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  the current path, written as a user path in current user space
+%  The current path, written as a user path in current user space.
 %
 /upath [ /booleantype ] {  % bool  .  userpath
     [ exch { /ucache cvx } if
@@ -2061,8 +2088,7 @@ setglobal
 } def
 
 %
-%  -    currentdistillerparams  dict
-%  dict setdistillerparams        -
+%
 %  The parameters that steer PDF production. This build produces PDF through the
 %  pdfwrite device, which setpagedevice configures; setdistillerparams records
 %  whatever a program sets and currentdistillerparams hands the set back, so a
@@ -2080,7 +2106,7 @@ setglobal
     /LockDistillerParams false
 >> put
 
-/setdistillerparams [ /dicttype ] {
+/setdistillerparams [ /dicttype ] {  % dict  .  -
     //.xpostsys /.distillerparams get /LockDistillerParams get {
         pop
     }{
@@ -2088,13 +2114,13 @@ setglobal
     } ifelse
 } //.xpostsys /.defop get exec
 
-/currentdistillerparams [ ] {
+/currentdistillerparams [ ] {  % -  .  dict
     //.xpostsys /.distillerparams get dup length dict copy
 } //.xpostsys /.defop get exec
 
 %
-%    /fontname size  selectfont  -
-%  /fontname matrix  selectfont  -
+%  /fontname size  .  -
+%  /fontname matrix  .  -
 %
 /selectfont [ /anytype /numbertype ] {
     dup type /arraytype eq {
@@ -2112,11 +2138,16 @@ setglobal
 %  x y w h
 %
 currentglobal true setglobal   % Global .xpostsys helpers
+
 %
 %  .n2a decodes an encoded-number-string into a plain array, for the numstring forms
 %
 .xpostsys /.n2a /.numstring2array load put
-.xpostsys /.rect1 {  %ccw in device space -- x y w h  appends one rectangle subpath
+
+%
+%  Counter-clockwise in device space; appends one rectangle subpath.
+%
+.xpostsys /.rect1 {  % x y w h  .  -
     dtransform 4 2 roll transform 4 2 roll
     dup 0 gt { neg 3 2 roll 1 index sub 3 1 roll } if
     1 index 0 lt { exch neg 4 3 roll 1 index sub 4 1 roll exch } if
@@ -2128,9 +2159,14 @@ currentglobal true setglobal   % Global .xpostsys helpers
     neg 0 rlineto
     lineto
 } put
+
 %
-%  the operand is either four numbers (x y w h) for a single rectangle, or a
-%  numarray / numstring holding 4n numbers for n rectangles (PLRM 8.2)
+%    x y w h  .  -
+%   numarray  .  -
+%  numstring  .  -
+%
+%  One rectangle from four numbers, or n rectangles from a numarray or
+%  numstring holding 4n numbers (PLRM 8.2).
 %
 .xpostsys /rect {
     dup type /stringtype eq { //.xpostsys /.n2a get exec } if
@@ -2147,7 +2183,7 @@ currentglobal true setglobal   % Global .xpostsys helpers
 setglobal
 
 %
-%  the painting pair works on its own path and leaves the caller's untouched;
+%  The painting pair works on its own path and leaves the caller's untouched;
 %  rectclip clips by the rectangles alone and clears the path, as the language
 %  specifies. rectstroke also accepts a trailing matrix, which is concatenated
 %  to the CTM after the path is built but before stroking (PLRM 8.2).
@@ -2157,14 +2193,16 @@ setglobal
 %
 /rectfill [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
-    { gsave newpath //.xpostsys /rect get exec fill grestore }
+    {  % x y w h | numarray | numstring  .  -
+      gsave newpath //.xpostsys /rect get exec fill grestore }
     //.xpostsys /.defop get exec
 /rectstroke [ [ /numbertype /numbertype /numbertype /numbertype /arraytype ]
               [ /numbertype /numbertype /numbertype /numbertype ]
               [ /arraytype /arraytype ] [ /stringtype /arraytype ]
-              [ /arraytype ] [ /stringtype ] ] {
+              [ /arraytype ] [ /stringtype ] ] {  % x y w h [matrix] | numarray [matrix] | numstring [matrix]  .  -
     gsave newpath
-    % a trailing matrix is a six-element array; a numarray always holds 4n
+
+    % A trailing matrix is a six-element array; a numarray always holds 4n
     % numbers, so length six is unambiguously the optional stroke matrix
     dup type /arraytype eq { dup length 6 eq }{ false } ifelse
         { 1 dict begin /.m exch def //.xpostsys /rect get exec .m concat end }
@@ -2174,15 +2212,17 @@ setglobal
 } //.xpostsys /.defop get exec
 /rectclip [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
-    { newpath //.xpostsys /rect get exec clip newpath }
+    {  % x y w h | numarray | numstring  .  -
+      newpath //.xpostsys /rect get exec clip newpath }
     //.xpostsys /.defop get exec
 
+currentglobal true setglobal
+
 %
-%  load graphics support. Global: the device-maker procedures baked into this
+%  Load graphics support. Global: the device-maker procedures baked into this
 %  body are global, matching the global .xpostsys their table installs into.
 %
-currentglobal true setglobal
-.xpostsys /loadgraphics {
+.xpostsys /loadgraphics {  % -  .  -
     % The load records its own completion below, so a lockdown that stops
     % after it does not send it round again. A locked-down interpreter is
     % the other answer to the same question: systemdict is shut for good
@@ -2206,6 +2246,7 @@ currentglobal true setglobal
                 { /loadgraphics cvx exch signalerror }
             ifelse
         } if
+
         % The depth the dictionary stack has here is the depth it is put
         % back to below. The language is read with systemdict open and
         % current, so a reading that stopped part way and left it current
@@ -2213,413 +2254,445 @@ currentglobal true setglobal
         % dictionary that has just been closed.
         .internaldict /GRAPHICS_LOAD_DEPTH countdictstack put
         {
-        % Open the writeable window on systemdict before the language is
-        % read. The finalizer closes it, and closing it spends the
-        % one-shot, so a program cannot reopen it.
-        .sysdictunlock
+            % Open the writeable window on systemdict before the language is
+            % read. The finalizer closes it, and closing it spends the
+            % one-shot, so a program cannot reopen it.
+            .sysdictunlock
 
-        (/graphics.ps) //.xpostsys /.loadmodule get exec
+            (/graphics.ps) //.xpostsys /.loadmodule get exec
 
-    % Page device selection and configuration. Keys:
-    %   /OutputDevice   name from the device table (defaults to the
-    %                   device the interpreter started with)
-    %   /PageSize       [w h] points (default 612x792)
-    %   /HWResolution   [rx ry] dots per inch (default [72 72])
-    %   /OutputFile     output path for the device
-    %   /PageOffset     [x y] points, translated after initgraphics
-    %   /ImagingBBox    [llx lly urx ury] points, or null for the whole
-    %                   page: the boundary the program says it paints
-    %                   within, which a device may hold less than the
-    %                   page for (PLRM 6.2)
-    % Every other key is stored on the device dictionary, which is how
-    % device features (TextAlphaBits, WhiteIsOpaque, the codec knobs
-    % png_compression_level, png_interlaced, png_filter, jpeg_quality,
-    % ...) are reached. They arrive there twice: written onto the
-    % instance as it is copied from its class, so a driver reading one
-    % as the device is created sees it, and again on the finished
-    % device.
-    % Same-device requests merge over the previous ones, so a partial
-    % dictionary adjusts the page; switching OutputDevice starts from
-    % the new device's defaults. The outgoing device is destroyed, the
-    % new device is installed in the graphics state template, and the
-    % page is reinitialised.
-    % The device roster. -d and setpagedevice are two spellings of one
-    % selection, so this names every device the interpreter can be
-    % started with (xpost_interpreter.c setlocalconfig, held to it by
-    % tests/check-device-roster.sh). A device selectable only by -d is
-    % worse than merely unreachable by name: a request naming no device
-    % defaults to the running one, so on such a device every
-    % setpagedevice raises rangecheck and the page cannot be resized.
-    %
-    % -  .armdevrequest  -
-    % Move the features a page-device request left pending into the
-    % slot the class-to-instance copy takes (.devrequest). Run by every
-    % device maker, after whatever driver loading the maker does: a
-    % driver's class build copies through the same procedure an
-    % instance does, so features armed across a load would be taken
-    % onto the class -- becoming a device's defaults -- and the
-    % instance they were asked for would never see them. A maker asked
-    % for with nothing pending arms nothing.
-    currentglobal true setglobal
-    .xpostsys /.armdevrequest {
-        graphicsdict /.devpending 2 copy known {
-            2 copy get 3 1 roll undef
-            graphicsdict /.devrequest 3 -1 roll put
-        }{ pop pop } ifelse
-    } bind put
-    setglobal
+            % Page device selection and configuration. Keys:
+            %   /OutputDevice   name from the device table (defaults to the
+            %                   device the interpreter started with)
+            %   /PageSize       [w h] points (default 612x792)
+            %   /HWResolution   [rx ry] dots per inch (default [72 72])
+            %   /OutputFile     output path for the device
+            %   /PageOffset     [x y] points, translated after initgraphics
+            %   /ImagingBBox    [llx lly urx ury] points, or null for the whole
+            %                   page: the boundary the program says it paints
+            %                   within, which a device may hold less than the
+            %                   page for (PLRM 6.2)
+            % Every other key is stored on the device dictionary, which is how
+            % device features (TextAlphaBits, WhiteIsOpaque, the codec knobs
+            % png_compression_level, png_interlaced, png_filter, jpeg_quality,
+            % ...) are reached. They arrive there twice: written onto the
+            % instance as it is copied from its class, so a driver reading one
+            % as the device is created sees it, and again on the finished
+            % device.
+            % Same-device requests merge over the previous ones, so a partial
+            % dictionary adjusts the page; switching OutputDevice starts from
+            % the new device's defaults. The outgoing device is destroyed, the
+            % new device is installed in the graphics state template, and the
+            % page is reinitialised.
+            % The device roster. -d and setpagedevice are two spellings of one
+            % selection, so this names every device the interpreter can be
+            % started with (xpost_interpreter.c setlocalconfig, held to it by
+            % tests/check-device-roster.sh). A device selectable only by -d is
+            % worse than merely unreachable by name: a request naming no device
+            % defaults to the running one, so on such a device every
+            % setpagedevice raises rangecheck and the page cannot be resized.
+            %
+            % Move the features a page-device request left pending into the
+            % slot the class-to-instance copy takes (.devrequest). Run by every
+            % device maker, after whatever driver loading the maker does: a
+            % driver's class build copies through the same procedure an
+            % instance does, so features armed across a load would be taken
+            % onto the class -- becoming a device's defaults -- and the
+            % instance they were asked for would never see them. A maker asked
+            % for with nothing pending arms nothing.
+            currentglobal true setglobal
+            .xpostsys /.armdevrequest {  % -  .  -
+                graphicsdict /.devpending 2 copy known {
+                    2 copy get 3 1 roll undef
+                    graphicsdict /.devrequest 3 -1 roll put
+                }{ pop pop } ifelse
+            } bind put
+            setglobal
 
-    % Every maker lives in privatedict, the ones the boot files define
-    % and the ones a C driver registers alike. A driver's is not there
-    % until its loader has run -- the driver is brought in on first use
-    % rather than at startup -- so those makers look first and load on
-    % a miss, the load leaving the maker where the look looked.
-    %
-    % Each entry arms the request: the features a page-device request
-    % left pending are moved into the slot the class-to-instance copy
-    % takes (.armdevrequest), after whatever loading the entry does.
-    % After, because a driver's class build copies through the same
-    % procedure an instance does: a build that ran with the features
-    % armed would take them onto the class -- a device's defaults --
-    % and the instance they were asked for would never see them.
-    currentglobal true setglobal
-    .xpostsys /.devicemakers <<
-        /pgm { //.xpostsys /.armdevrequest get exec
-               .privatedict /newPGMIMAGEdevice get exec }
-        /pbm { //.xpostsys /.armdevrequest get exec
-               .privatedict /newPBMIMAGEdevice get exec }
-        /ppm { //.xpostsys /.armdevrequest get exec
-               .privatedict /newPPMIMAGEdevice get exec }
-        /tiff { //.xpostsys /.armdevrequest get exec
-               .privatedict /newTIFFIMAGEdevice get exec }
-        /null { //.xpostsys /.armdevrequest get exec
-               .privatedict /newnulldevice get exec }
-        /bbox { //.xpostsys /.armdevrequest get exec
-               .privatedict /newbboxdevice get exec }
-        /pdfwrite { //.xpostsys /.armdevrequest get exec
-               .privatedict /newPDFWRITEdevice get exec }
-        /svgwrite { //.xpostsys /.armdevrequest get exec
-               .privatedict /newSVGWRITEdevice get exec }
-        /dscwrite { //.xpostsys /.armdevrequest get exec
-               .privatedict /newDSCWRITEdevice get exec }
-        /png { .privatedict /newpngdevice 2 copy known not
-               { loadpngdevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /pngalpha { .privatedict /newpngalphadevice 2 copy known not
-               { loadpngalphadevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /jpeg { .privatedict /newjpegdevice 2 copy known not
-               { loadjpegdevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /bgr { .privatedict /newbgrdevice 2 copy known not
-               { loadbgrdevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /raster { .privatedict /newrasterdevice 2 copy known not
-               { loadrasterdevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /record { .privatedict /newrecorddevice 2 copy known not
-               { loadrecorddevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /xcb { .privatedict /newxcbdevice 2 copy known not
-               { loadxcbdevice } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /gdi { .privatedict /newwin32device 2 copy known not
-               { loadwin32device } if
-               //.xpostsys /.armdevrequest get exec get exec }
-        /gl { .privatedict /newwin32device 2 copy known not
-               { loadwin32device } if
-               //.xpostsys /.armdevrequest get exec get exec }
-    >> put
-    % A driver the build left out registers no loader, so the maker
-    % above would answer undefined. Drop those entries instead, and an
-    % unbuilt device gets the same rangecheck as a name that was never
-    % a device at all.
-    <<
-        /png /loadpngdevice  /pngalpha /loadpngalphadevice
-        /jpeg /loadjpegdevice
-        /bgr /loadbgrdevice  /raster /loadrasterdevice
-        /record /loadrecorddevice
-        /xcb /loadxcbdevice
-        /gdi /loadwin32device  /gl /loadwin32device
-    >> {
-        where { pop pop }{ .xpostsys /.devicemakers get exch undef } ifelse
-    } forall
-    setglobal
+            % Every maker lives in privatedict, the ones the boot files define
+            % and the ones a C driver registers alike. A driver's is not there
+            % until its loader has run -- the driver is brought in on first use
+            % rather than at startup -- so those makers look first and load on
+            % a miss, the load leaving the maker where the look looked.
+            %
+            % Each entry arms the request: the features a page-device request
+            % left pending are moved into the slot the class-to-instance copy
+            % takes (.armdevrequest), after whatever loading the entry does.
+            % After, because a driver's class build copies through the same
+            % procedure an instance does: a build that ran with the features
+            % armed would take them onto the class -- a device's defaults --
+            % and the instance they were asked for would never see them.
+            currentglobal true setglobal
+            .xpostsys /.devicemakers <<
+                /pgm {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newPGMIMAGEdevice get exec }
+                /pbm {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newPBMIMAGEdevice get exec }
+                /ppm {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newPPMIMAGEdevice get exec }
+                /tiff {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newTIFFIMAGEdevice get exec }
+                /null {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newnulldevice get exec }
+                /bbox {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newbboxdevice get exec }
+                /pdfwrite {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newPDFWRITEdevice get exec }
+                /svgwrite {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newSVGWRITEdevice get exec }
+                /dscwrite {  % width height  .  device
+                       //.xpostsys /.armdevrequest get exec
+                       .privatedict /newDSCWRITEdevice get exec }
+                /png {  % width height  .  device
+                       .privatedict /newpngdevice 2 copy known not
+                       { loadpngdevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /pngalpha {  % width height  .  device
+                       .privatedict /newpngalphadevice 2 copy known not
+                       { loadpngalphadevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /jpeg {  % width height  .  device
+                       .privatedict /newjpegdevice 2 copy known not
+                       { loadjpegdevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /bgr {  % width height  .  device
+                       .privatedict /newbgrdevice 2 copy known not
+                       { loadbgrdevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /raster {  % width height  .  device
+                       .privatedict /newrasterdevice 2 copy known not
+                       { loadrasterdevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /record {  % width height  .  device
+                       .privatedict /newrecorddevice 2 copy known not
+                       { loadrecorddevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /xcb {  % width height  .  device
+                       .privatedict /newxcbdevice 2 copy known not
+                       { loadxcbdevice } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /gdi {  % width height  .  device
+                       .privatedict /newwin32device 2 copy known not
+                       { loadwin32device } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+                /gl {  % width height  .  device
+                       .privatedict /newwin32device 2 copy known not
+                       { loadwin32device } if
+                       //.xpostsys /.armdevrequest get exec get exec }
+            >> put
 
-    % The language is read into systemdict, but this pair is defined here,
-    % by loadgraphics itself, after graphics.ps has returned and closed the
-    % block that made systemdict current. They name it so they land with the
-    % operators they belong beside rather than in the program's namespace.
-    systemdict begin
-    /setpagedevice [ /dicttype ] {  % pagedevicedict  .  -
-        % A handler that cannot be run is refused here, not at the page
-        % boundary where finding out would leave the page half made. The
-        % refusal comes before the working dictionary is opened, so a
-        % caught one does not leave the dictionary stack deeper than it
-        % was found.
-        dup //.xpostsys /.checkpagehandlers get exec pop
-        % and a device feature whose value is not of the type the
-        % machinery reads it as, refused where the request naming it can
-        % still be told about it
-        dup //.xpostsys /.checkpagefeatures get exec pop
-        17 dict begin
-        /pd exch def
-        % PLRM 6.2.6: an operator that deactivates the page device calls
-        % EndPage as its first action, and transmits the page it ends only
-        % if EndPage says to. The standard answer for a device going away
-        % is not to, so a device carrying no handler emits nothing here.
-        %
-        % A handler that fails is not allowed to stop the device standing
-        % down. Letting the failure out would leave the page device
-        % impossible to replace -- every later attempt would run the same
-        % handler and fail the same way -- so the device would be stuck
-        % behind a procedure the program can no longer reach to fix. The
-        % page is ending regardless, so a failure is read as the standard
-        % answer and the handover goes ahead. showpage and copypage do let
-        % such a failure out, where the program can catch it and try again.
-        /xmit false def
-        mark { 2 //.xpostsys /.endpage get exec /xmit exch store }
-        stopped { } if cleartomark
-        xmit {
-            /DEVICE where { pop
-                DEVICE type /dicttype eq { DEVICE //.xpostsys /.transmitpage get exec } if
-            } if
-        } if
-        % requests merge with the accumulated parameters, except that
-        % switching OutputDevice reinstalls the new device's defaults:
-        % nothing carries across a device change
-        /merged
-        pd /OutputDevice 2 copy known {
-            get graphicsdict /.pagedevice 2 copy known {
-                get /OutputDevice 2 copy known
-                    { get }{ pop pop null } ifelse
-            }{ pop pop null } ifelse ne
-        }{ pop pop false } ifelse
-            { pd length 8 add dict }
-            { graphicsdict /.pagedevice 2 copy known
-                { get dup length pd length add dict copy }
-                { pop pop pd length 8 add dict }
-            ifelse }
-        ifelse def
-        pd { merged 3 1 roll put } forall
-        % A request may name any keys, and every one accumulates: each
-        % call merges its request into the page-device dictionary the last
-        % call left -- what currentpagedevice reports and the next call
-        % starts from -- so a program adding a fresh key on every call
-        % grows that dictionary without bound. The whole of it is copied on
-        % each call, above, so that a restore can revert the slot to the
-        % dictionary a save saw; a dictionary grown without bound makes that
-        % copy cost more on every page, the square of the calls in all.
-        % Bound the accumulated keys well above the standard page-device
-        % parameters and any device's own, so a request naming that many
-        % distinct keys is refused rather than a run made to copy an
-        % ever-larger dictionary onto every page it prints.
-        merged length 512 gt {
-            end /setpagedevice cvx /limitcheck signalerror
-        } if
-        /dev merged /OutputDevice 2 copy known { get }{ pop pop
-            graphicsdict /.outputdevice 2 copy known
-            { get }{ pop pop /pgm } ifelse
-        } ifelse def
-        //.xpostsys /.devicemakers get dev known not {
-            end /setpagedevice cvx /rangecheck signalerror
-        } if
-        /res merged /HWResolution 2 copy known { get }{ pop pop [72 72] } ifelse def
-        /size merged /PageSize 2 copy known { get }{ pop pop [612 792] } ifelse def
-        /off merged /PageOffset 2 copy known { get }{ pop pop [0 0] } ifelse def
-        /sx res 0 get 72 div def
-        /sy res 1 get 72 div def
-        % raster buffers need whole pixels, but the page itself need not
-        % be integral: a vector device adopts the exact dimensions (its
-        % width and height are points, written into its output syntax)
-        /pwf size 0 get sx mul def
-        /phf size 1 get sy mul def
-        /pw pwf ceiling cvi def
-        /ph phf ceiling cvi def
+            % A driver the build left out registers no loader, so the maker
+            % above would answer undefined. Drop those entries instead, and an
+            % unbuilt device gets the same rangecheck as a name that was never
+            % a device at all.
+            <<
+                /png /loadpngdevice  /pngalpha /loadpngalphadevice
+                /jpeg /loadjpegdevice
+                /bgr /loadbgrdevice  /raster /loadrasterdevice
+                /record /loadrecorddevice
+                /xcb /loadxcbdevice
+                /gdi /loadwin32device  /gl /loadwin32device
+            >> {
+                where { pop pop }{ .xpostsys /.devicemakers get exch undef } ifelse
+            } forall
+            setglobal
 
-        graphicsdict /.exactpagedims [pwf phf] put
-        % PLRM 6.2: a program supplying an imaging bounding box asserts
-        % that it paints no marks outside it, and applications are asked
-        % to supply one wherever they can, since a device is then free to
-        % hold less of the page than the page. The run of rows the box
-        % reaches is left here for the device about to be made; a device
-        % that holds its page some other way never asks for it.
-        merged /ImagingBBox 2 copy known {
-            get size 1 get off 1 get sy ph
-            //.xpostsys /.imagingrows get exec
-            dup null eq { pop }{ graphicsdict /.rasterband 3 -1 roll put } ifelse
-        }{ pop pop } ifelse
-        % The device features of this request: every accumulated key the
-        % page machinery does not read itself. Split out once, because
-        % they go to the device twice -- left pending here, armed by the
-        % maker below after any driver loading it does (.armdevrequest,
-        % which is what keeps a driver's own class build from taking
-        % them), and taken by the class-to-instance copy, which writes
-        % them onto the instance as it is born (.classcopydict,
-        % data/device.ps), so that a key a device reads as it is
-        % created is on its dictionary by then; and put onto the
-        % finished device again below, where the completion reads
-        % them. A maker that stops between the arming and the copy
-        % leaves the armed entry standing, which is the .rasterband
-        % residue again: every route that makes a device arms before
-        % its Create, so a leaving is overwritten and never inherited.
-        /feat merged length dict def
-        merged {  % key value
-            1 index /OutputDevice eq
-            2 index /PageSize eq or
-            2 index /HWResolution eq or
-            2 index /OutputFile eq or
-            2 index /PageOffset eq or
-            { pop pop }{ feat 3 1 roll put } ifelse
-        } forall
-        % The output binding is a page-device parameter: a request's
-        % /OutputFile is the one way a program changes it, and it goes
-        % to the device among the features, under the spelling the
-        % machinery reads. What is stored is a copy made read-only
-        % here, so the path the file-permit machinery vets at the open
-        % is the path the page goes to -- a program keeping a reference
-        % to its request's own string cannot steer the output after the
-        % request was checked. The copy is stored back on the
-        % accumulated request as well, which is what currentpagedevice
-        % reports; like every parameter it accumulates on the device
-        % and a device switch starts from the new device's defaults,
-        % the run's own -o binding among them.
-        merged /OutputFile 2 copy known {
-            get dup length string copy readonly
-            dup merged /OutputFile 3 -1 roll put
-            feat /OutputFileName 3 -1 roll put
-        }{ pop pop } ifelse
-        graphicsdict /.devpending feat put
-        % the new device builds under its own local name -- DEVICE
-        % everywhere means the accessor reading the graphics state, and
-        % the machinery's frozen references to it must not see the
-        % half-configured newcomer.
-        % The incumbent is still whole here, and stays whole until this
-        % returns: a maker can fail at run time -- no display to open, an
-        % output path that will not take a file, dimensions that admit no
-        % buffer -- and a program that catches that error goes on painting
-        % on the device it already had. Retiring the incumbent first would
-        % leave the graphics state naming a device whose buffers are freed,
-        % so the next mark made after the caught error reads freed memory.
-        % Which device that name is made through at the page this request
-        % asks for. A page too large for the band budget to cover is made
-        % through the recording class, which holds it in less memory than
-        % the page, and a page the budget covers is made on the device
-        % named, recording nothing (.devicefor, data/recorddev.ps). It is
-        % weighed here as well as where the run's own device was made
-        % (.startdevice, data/device.ps), because declaring a page is how
-        % a program states one: a job that opens at the standard page and
-        % asks for a long one is a job whose pages are the one it asked
-        % for, and weighing only the page it opened at would hold every
-        % one of them whole.
-        %
-        % Here rather than anywhere else in the job, because this is
-        % where a page description has already given up what it knew of
-        % the device before: the page is erased and the device replaced
-        % whatever the answer is, so nothing has been painted that a
-        % change of route could lose. What PLRM Appendix G bars a page
-        % description from -- choosing how its marks are held -- it is no
-        % nearer to here, since the same page is weighed the same way
-        % whatever the request was trying to arrange.
-        %
-        % The name below is the device the request asked of, and this
-        % answer is only which device is made from it, so the route is
-        % nowhere recorded as a device name and every later request is
-        % weighed from the selection again.
-        /made dev pw ph //.xpostsys /.devicefor get exec def
-        /newdev pw ph //.xpostsys /.devicemakers get made get exec def
-        graphicsdict /.exactpagedims undef
-        graphicsdict /.rasterband undef
+            % The language is read into systemdict, but this pair is defined here,
+            % by loadgraphics itself, after graphics.ps has returned and closed the
+            % block that made systemdict current. They name it so they land with the
+            % operators they belong beside rather than in the program's namespace.
+            systemdict begin
+            /setpagedevice [ /dicttype ] {  % pagedevicedict  .  -
+                % A handler that cannot be run is refused here, not at the page
+                % boundary where finding out would leave the page half made. The
+                % refusal comes before the working dictionary is opened, so a
+                % caught one does not leave the dictionary stack deeper than it
+                % was found.
+                dup //.xpostsys /.checkpagehandlers get exec pop
 
-        % retire the outgoing device (Destroy frees its buffers; a
-        % vector device's output was written by showpage's Emit)
-        /DEVICE where { pop
-            DEVICE type /dicttype eq {
-                DEVICE dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
-            } if
-        } if
+                % And a device feature whose value is not of the type the
+                % machinery reads it as, refused where the request naming it can
+                % still be told about it.
+                dup //.xpostsys /.checkpagefeatures get exec pop
+                17 dict begin
+                /pd exch def
 
-        % the device features again, on the finished device before the
-        % completion reads them: the process colour model arrives among
-        % them, and which marking methods fit the device depends on it.
-        % The copy above already wrote them onto the instance the maker
-        % built; this writes the same values, and is what puts them on a
-        % device whose class carries a copy procedure of its own.
-        feat { newdev 3 1 roll put } forall
-        merged /OutputDevice dev put
-        graphicsdict /.pagedevice merged put
+                % PLRM 6.2.6: an operator that deactivates the page device calls
+                % EndPage as its first action, and transmits the page it ends only
+                % if EndPage says to. The standard answer for a device going away
+                % is not to, so a device carrying no handler emits nothing here.
+                %
+                % A handler that fails is not allowed to stop the device standing
+                % down. Letting the failure out would leave the page device
+                % impossible to replace -- every later attempt would run the same
+                % handler and fail the same way -- so the device would be stuck
+                % behind a procedure the program can no longer reach to fix. The
+                % page is ending regardless, so a failure is read as the standard
+                % answer and the handover goes ahead. showpage and copypage do let
+                % such a failure out, where the program can catch it and try again.
+                /xmit false def
+                mark { 2 //.xpostsys /.endpage get exec /xmit exch store }
+                stopped { } if cleartomark
+                xmit {
+                    /DEVICE where { pop
+                        DEVICE type /dicttype eq { DEVICE //.xpostsys /.transmitpage get exec } if
+                    } if
+                } if
 
-        % post-construction fixups, the same ones the device the
-        % interpreter started with receives (data/device.ps)
-        newdev sx sy .privatedict /.completedevice get exec
+                % Requests merge with the accumulated parameters, except that
+                % switching OutputDevice reinstalls the new device's defaults:
+                % nothing carries across a device change.
+                /merged
+                pd /OutputDevice 2 copy known {
+                    get graphicsdict /.pagedevice 2 copy known {
+                        get /OutputDevice 2 copy known
+                        { get }{ pop pop null } ifelse
+                    }{ pop pop null } ifelse ne
+                }{ pop pop false } ifelse
+                { pd length 8 add dict }
+                { graphicsdict /.pagedevice 2 copy known
+                    { get dup length pd length add dict copy }
+                    { pop pop pd length 8 add dict }
+                    ifelse }
+                ifelse def
+                pd { merged 3 1 roll put } forall
 
-        % the template and the live gstate carry the device; painting
-        % and the defaultmatrix operator resolve it through them
-        % what was held for the device being replaced, given up before
-        % anything can reach for it: a drawing carries the colour space
-        % of the device its marks were made for
-        //.xpostsys /.formcachedrop get exec
-        .privatedict /.gstatetemplate get exec /device newdev put
-        graphicsdict /currgstate get /device newdev put
-        % Record the installed device against the save depth it was
-        % installed at. A restore back past this point puts the previous
-        % device into the template again and leaves this one holding a
-        % raster or a content accumulator that is not virtual memory, so
-        % the collector will neither reach it nor free it; the record is
-        % what lets restore retire it there. After the two puts above,
-        % because it names the device the template now carries.
-        newdev //.internaldict /.devinstalled get exec
-        % installing a device reinitialises the whole graphics state
-        % barring the font parameter, which is more than initgraphics
-        % resets: the device-dependent parameters go back to defaults
-        % too, since they described the device being retired
-        //.xpostsys /.initdevicegstate get exec
-        % the page a device is installed on starts clear: resetting the
-        % graphics state does not touch raster memory, so without this
-        % the job paints onto whatever the buffer was created holding,
-        % and emits it
-        erasepage
-        off aload pop translate
-        % the page count belongs to the device, so an activation starts it
-        % again at zero, and setpagedevice calls BeginPage as its last
-        % action before returning (PLRM 6.2.6)
-        0 //.xpostsys /.setpageno get exec
-        //.xpostsys /.beginpage get exec
-        end
-    } //.xpostsys /.defop get exec
+                % A request may name any keys, and every one accumulates: each
+                % call merges its request into the page-device dictionary the last
+                % call left -- what currentpagedevice reports and the next call
+                % starts from -- so a program adding a fresh key on every call
+                % grows that dictionary without bound. The whole of it is copied on
+                % each call, above, so that a restore can revert the slot to the
+                % dictionary a save saw; a dictionary grown without bound makes that
+                % copy cost more on every page, the square of the calls in all.
+                % Bound the accumulated keys well above the standard page-device
+                % parameters and any device's own, so a request naming that many
+                % distinct keys is refused rather than a run made to copy an
+                % ever-larger dictionary onto every page it prints.
+                merged length 512 gt {
+                    end /setpagedevice cvx /limitcheck signalerror
+                } if
+                /dev merged /OutputDevice 2 copy known { get }{ pop pop
+                    graphicsdict /.outputdevice 2 copy known
+                    { get }{ pop pop /pgm } ifelse
+                } ifelse def
+                //.xpostsys /.devicemakers get dev known not {
+                    end /setpagedevice cvx /rangecheck signalerror
+                } if
+                /res merged /HWResolution 2 copy known { get }{ pop pop [72 72] } ifelse def
+                /size merged /PageSize 2 copy known { get }{ pop pop [612 792] } ifelse def
+                /off merged /PageOffset 2 copy known { get }{ pop pop [0 0] } ifelse def
+                /sx res 0 get 72 div def
+                /sy res 1 get 72 div def
+                % raster buffers need whole pixels, but the page itself need not
+                % be integral: a vector device adopts the exact dimensions (its
+                % width and height are points, written into its output syntax)
+                /pwf size 0 get sx mul def
+                /phf size 1 get sy mul def
+                /pw pwf ceiling cvi def
+                /ph phf ceiling cvi def
 
-    /currentpagedevice [ ] {  % -  .  dict
-        graphicsdict /.pagedevice 2 copy known { get
-            dup length 1 add dict copy
-        }{ pop pop
-            << /PageSize [ DEVICE /dimensions get aload pop ] >>
-        } ifelse
-    } //.xpostsys /.defop get exec
-    end  % Systemdict
+                graphicsdict /.exactpagedims [pwf phf] put
 
-    % The language stands. Recorded by the load itself, as the last thing
-    % it does, so that the step after it stopping leaves this true: a
-    % reading that finished is not a reading to do again.
-    .internaldict /GRAPHICS_LOADED true put
+                % PLRM 6.2: a program supplying an imaging bounding box asserts
+                % that it paints no marks outside it, and applications are asked
+                % to supply one wherever they can, since a device is then free to
+                % hold less of the page than the page. The run of rows the box
+                % reaches is left here for the device about to be made; a device
+                % that holds its page some other way never asks for it.
+                merged /ImagingBBox 2 copy known {
+                    get size 1 get off 1 get sy ph
+                    //.xpostsys /.imagingrows get exec
+                    dup null eq { pop }{ graphicsdict /.rasterband 3 -1 roll put } ifelse
+                }{ pop pop } ifelse
+
+                % The device features of this request: every accumulated key the
+                % page machinery does not read itself. Split out once, because
+                % they go to the device twice -- left pending here, armed by the
+                % maker below after any driver loading it does (.armdevrequest,
+                % which is what keeps a driver's own class build from taking
+                % them), and taken by the class-to-instance copy, which writes
+                % them onto the instance as it is born (.classcopydict,
+                % data/device.ps), so that a key a device reads as it is
+                % created is on its dictionary by then; and put onto the
+                % finished device again below, where the completion reads
+                % them. A maker that stops between the arming and the copy
+                % leaves the armed entry standing, which is the .rasterband
+                % residue again: every route that makes a device arms before
+                % its Create, so a leaving is overwritten and never inherited.
+                /feat merged length dict def
+                merged {  % key value
+                    1 index /OutputDevice eq
+                    2 index /PageSize eq or
+                    2 index /HWResolution eq or
+                    2 index /OutputFile eq or
+                    2 index /PageOffset eq or
+                    { pop pop }{ feat 3 1 roll put } ifelse
+                } forall
+
+                % The output binding is a page-device parameter: a request's
+                % /OutputFile is the one way a program changes it, and it goes
+                % to the device among the features, under the spelling the
+                % machinery reads. What is stored is a copy made read-only
+                % here, so the path the file-permit machinery vets at the open
+                % is the path the page goes to -- a program keeping a reference
+                % to its request's own string cannot steer the output after the
+                % request was checked. The copy is stored back on the
+                % accumulated request as well, which is what currentpagedevice
+                % reports; like every parameter it accumulates on the device
+                % and a device switch starts from the new device's defaults,
+                % the run's own -o binding among them.
+                merged /OutputFile 2 copy known {
+                    get dup length string copy readonly
+                    dup merged /OutputFile 3 -1 roll put
+                    feat /OutputFileName 3 -1 roll put
+                }{ pop pop } ifelse
+                graphicsdict /.devpending feat put
+
+                % The new device builds under its own local name -- DEVICE
+                % everywhere means the accessor reading the graphics state, and
+                % the machinery's frozen references to it must not see the
+                % half-configured newcomer.
+                % The incumbent is still whole here, and stays whole until this
+                % returns: a maker can fail at run time -- no display to open, an
+                % output path that will not take a file, dimensions that admit no
+                % buffer -- and a program that catches that error goes on painting
+                % on the device it already had. Retiring the incumbent first would
+                % leave the graphics state naming a device whose buffers are freed,
+                % so the next mark made after the caught error reads freed memory.
+                % Which device that name is made through at the page this request
+                % asks for. A page too large for the band budget to cover is made
+                % through the recording class, which holds it in less memory than
+                % the page, and a page the budget covers is made on the device
+                % named, recording nothing (.devicefor, data/recorddev.ps). It is
+                % weighed here as well as where the run's own device was made
+                % (.startdevice, data/device.ps), because declaring a page is how
+                % a program states one: a job that opens at the standard page and
+                % asks for a long one is a job whose pages are the one it asked
+                % for, and weighing only the page it opened at would hold every
+                % one of them whole.
+                %
+                % Here rather than anywhere else in the job, because this is
+                % where a page description has already given up what it knew of
+                % the device before: the page is erased and the device replaced
+                % whatever the answer is, so nothing has been painted that a
+                % change of route could lose. What PLRM Appendix G bars a page
+                % description from -- choosing how its marks are held -- it is no
+                % nearer to here, since the same page is weighed the same way
+                % whatever the request was trying to arrange.
+                %
+                % The name below is the device the request asked of, and this
+                % answer is only which device is made from it, so the route is
+                % nowhere recorded as a device name and every later request is
+                % weighed from the selection again.
+                /made dev pw ph //.xpostsys /.devicefor get exec def
+                /newdev pw ph //.xpostsys /.devicemakers get made get exec def
+                graphicsdict /.exactpagedims undef
+                graphicsdict /.rasterband undef
+
+                % Retire the outgoing device (Destroy frees its buffers; a
+                % vector device's output was written by showpage's Emit)
+                /DEVICE where { pop
+                    DEVICE type /dicttype eq {
+                        DEVICE dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
+                    } if
+                } if
+
+                % The device features again, on the finished device before the
+                % completion reads them: the process colour model arrives among
+                % them, and which marking methods fit the device depends on it.
+                % The copy above already wrote them onto the instance the maker
+                % built; this writes the same values, and is what puts them on a
+                % device whose class carries a copy procedure of its own.
+                feat { newdev 3 1 roll put } forall
+                merged /OutputDevice dev put
+                graphicsdict /.pagedevice merged put
+
+                % Post-construction fixups, the same ones the device the
+                % interpreter started with receives (data/device.ps).
+                newdev sx sy .privatedict /.completedevice get exec
+
+                % The template and the live gstate carry the device; painting
+                % and the defaultmatrix operator resolve it through them
+                % what was held for the device being replaced, given up before
+                % anything can reach for it: a drawing carries the colour space
+                % of the device its marks were made for.
+                //.xpostsys /.formcachedrop get exec
+                .privatedict /.gstatetemplate get exec /device newdev put
+                graphicsdict /currgstate get /device newdev put
+
+                % Record the installed device against the save depth it was
+                % installed at. A restore back past this point puts the previous
+                % device into the template again and leaves this one holding a
+                % raster or a content accumulator that is not virtual memory, so
+                % the collector will neither reach it nor free it; the record is
+                % what lets restore retire it there. After the two puts above,
+                % because it names the device the template now carries.
+                newdev //.internaldict /.devinstalled get exec
+
+                % Installing a device reinitialises the whole graphics state
+                % barring the font parameter, which is more than initgraphics
+                % resets: the device-dependent parameters go back to defaults
+                % too, since they described the device being retired.
+                //.xpostsys /.initdevicegstate get exec
+
+                % The page a device is installed on starts clear: resetting the
+                % graphics state does not touch raster memory, so without this
+                % the job paints onto whatever the buffer was created holding,
+                % and emits it.
+                erasepage
+                off aload pop translate
+
+                % The page count belongs to the device, so an activation starts it
+                % again at zero, and setpagedevice calls BeginPage as its last
+                % action before returning (PLRM 6.2.6).
+                0 //.xpostsys /.setpageno get exec
+                //.xpostsys /.beginpage get exec
+                end
+            } //.xpostsys /.defop get exec
+
+            /currentpagedevice [ ] {  % -  .  dict
+                graphicsdict /.pagedevice 2 copy known { get
+                    dup length 1 add dict copy
+                }{ pop pop
+                    << /PageSize [ DEVICE /dimensions get aload pop ] >>
+                } ifelse
+            } //.xpostsys /.defop get exec
+            end  % Systemdict
+
+            % The language stands. Recorded by the load itself, as the last thing
+            % it does, so that the step after it stopping leaves this true: a
+            % reading that finished is not a reading to do again.
+            .internaldict /GRAPHICS_LOADED true put
 
         } stopped {
-        % The load is over however it ended, so what it opened closes
-        % here. The dictionaries it left open go back to the depth
-        % recorded above, and the writeable window on systemdict closes
-        % whether or not the interpreter's own error handler has already
-        % closed it: a fault raised in PostScript never passes through
-        % that handler, and would otherwise leave systemdict open for the
-        % rest of the run.
-        countdictstack //.internaldict /GRAPHICS_LOAD_DEPTH get sub
-        dup 0 gt { { end } repeat }{ pop } ifelse
-        .sysdictrelock
-        % Kept where the attempt that met it can still name it: this is
-        % the last point at which $error holds this load's own error.
-        .internaldict /GRAPHICS_LOAD_STOPPED
+
+            % The load is over however it ended, so what it opened closes
+            % here. The dictionaries it left open go back to the depth
+            % recorded above, and the writeable window on systemdict closes
+            % whether or not the interpreter's own error handler has already
+            % closed it: a fault raised in PostScript never passes through
+            % that handler, and would otherwise leave systemdict open for the
+            % rest of the run.
+            countdictstack //.internaldict /GRAPHICS_LOAD_DEPTH get sub
+            dup 0 gt { { end } repeat }{ pop } ifelse
+            .sysdictrelock
+
+            % Kept where the attempt that met it can still name it: this is
+            % the last point at which $error holds this load's own error.
+            .internaldict /GRAPHICS_LOAD_STOPPED
             $error /newerror get $error /errorname known and
-                { $error /errorname get }{ null } ifelse
-        put
-        stop
+            { $error /errorname get }{ null } ifelse
+            put
+            stop
         } if
     } ifelse
 } put
@@ -2636,6 +2709,7 @@ currentglobal true setglobal
 %  step records its own completion, the load in GRAPHICS_LOADED and this in
 %  LOCKDOWN_DONE, which is what keeps each idempotent without either standing
 %  for the other.
+%
 %  A start-up step whose order matters says so here. The steps below have
 %  to run in one order and no other -- a name has to be an operator before
 %  anything can freeze a reference to it, systemdict has to be open before
@@ -2652,7 +2726,7 @@ currentglobal true setglobal
     } ifelse
 } bind put
 
-.xpostsys /.finalize {
+.xpostsys /.finalize {  % -  .  -
     //.internaldict /LOCKDOWN_DONE known { }{
         % A lockdown that stopped is not attempted again, and every attempt
         % after the first answers with what stopped the first. The lockdown
@@ -2670,6 +2744,7 @@ currentglobal true setglobal
                 { /.finalize cvx exch signalerror }
             ifelse
         } if
+
         % The depth the dictionary stack has here is the depth it is put
         % back to below. The promotion opens a working dictionary around
         % each operator it moves, so a lockdown that stopped part way
@@ -2677,297 +2752,312 @@ currentglobal true setglobal
         % afterwards would be aimed at it.
         //.internaldict /LOCKDOWN_DEPTH countdictstack put
         {
-        % Open a writeable window on systemdict. loadgraphics opens the same
-        % one before reading the language into it; this call covers the run
-        % that never loads graphics, and is what lets the steps below undefine
-        % the private C operators from systemdict once they are copied into
-        % .internaldict. The matching relock below closes it, and closing it
-        % spends the one-shot so a program cannot reopen it.
-        .sysdictunlock
-        systemdict wcheck
+
+            % Open a writeable window on systemdict. loadgraphics opens the same
+            % one before reading the language into it; this call covers the run
+            % that never loads graphics, and is what lets the steps below undefine
+            % the private C operators from systemdict once they are copied into
+            % .internaldict. The matching relock below closes it, and closing it
+            % spends the one-shot so a program cannot reopen it.
+            .sysdictunlock
+            systemdict wcheck
             (systemdict must be open for the steps below to take names out of it)
             //.xpostsys /.mustbe get exec
-    % Promote the procedure-implemented standard operators to real
-    % operators: load answers operatortype for them and bind
-    % substitutes them, so the classic self-redefinition idiom
-    % /stroke { 1 2 scale stroke } bind def captures the standard
-    % behaviour instead of recursing into itself. Only names holding
-    % executable arrays promote; the procedures stay defed in
-    % .wrappedprocs, keeping them inside the collector's view (the
-    % operator table is outside it).
-    % The register keeps the procedures inside the collector's view, the
-    % operator table being outside it. It lives in privatedict, with the
-    % rest of the interpreter's own machinery, and exists whether or not
-    % graphics was loaded.
-    .privatedict /.wrappedprocs 256 dict put
-    % Which operators these are is not stated here. An operator written in
-    % PostScript states the operands it takes where it is defined, through
-    % .defop, and that statement going into .opsigs is what makes it one of
-    % these: the promotion runs over the statements. A list of names beside
-    % them would be the same fact written twice, and the two copies could
-    % disagree in either direction with nothing to notice -- a name wrapped
-    % without a statement takes whatever it is given, and a name stated
-    % without being wrapped states its operands to nobody. Neither is
-    % expressible now.
-    %
-    % The statements are a dictionary, so the promotion order is the
-    % dictionary's rather than an author's. That is what the second pass
-    % below is for: nothing is bound until every one of them is promoted,
-    % so no outcome depends on the order they came out in.
-    //.xpostsys /.opsigs get {
-        pop                                  % The statement; the key is the name
-        dup where {
-            exch 2 copy get
-            dup type /arraytype eq 1 index xcheck and {
-                .privatedict /.wrappedprocs get 2 index 2 index put
-                % an operator that states its operands is wrapped with
-                % the statement, so the dispatcher enforces it before
-                % the procedure runs, exactly as for one written in C.
-                % It goes back into the dictionary it was found in: the
-                % language is read into systemdict, but the boot file
-                % defines a few of these into userdict first.
-                //.xpostsys /.wrapwithsig get exec
-            }{ pop pop pop } ifelse
-        }{ pop } ifelse
-    } forall
-    % Now, and not before, freeze each promoted body. bind replaces a name
-    % with an operator only where the name already answers with one, and it
-    % makes what it binds read-only, so it gets one chance at each body: a
-    % body bound while its neighbours were still procedures would keep
-    % their names for good, dynamic and reachable by a program redefining
-    % them, and the later .bindscope sweep could not come back for it. The
-    % pass above promoted every one of them, so every call between them
-    % freezes here. The operator holds the same array the register does,
-    % so binding it in place is binding what the operator runs; the bound
-    % (now read-only) reference goes back into the register, which is what
-    % tells the sweep below this body is finished.
-    [ .privatedict /.wrappedprocs get { pop } forall ]
-    { .privatedict /.wrappedprocs get exch 2 copy get bind put } forall
-    % With the standard operators now operator-typed, freeze the
-    % machinery's own references to them with the shared recursive
-    % sweep: every procedure table it can reach through nested
-    % dictionaries -- the wrapped implementations, the device makers,
-    % the graphics state template, the error handlers, and any table
-    % inside a table -- has its operator references resolved now.
-    % Every name the promotion pass covered is an operator by now. Binding
-    % substitutes operators and leaves names alone, so a name still holding
-    % its procedure here would keep a dynamic reference in every machinery
-    % procedure that calls it, reachable by a program redefining the name.
-    % counted in a scratch dictionary, so the check leaves no name behind
-    1 dict begin
-    /n 0 def
-    .privatedict /.wrappedprocs get {
-        pop                                  % The value; the key is the name
-        dup type /nametype eq {
-            dup where {
-                1 index get type /operatortype ne { /n n 1 add store } if
-            }{ } ifelse
-        } if
-        pop
-    } forall
-    n 0 eq
-    end
-    (every promoted name must be an operator before references are frozen)
-    //.xpostsys /.mustbe get exec
+            % Promote the procedure-implemented standard operators to real
+            % operators: load answers operatortype for them and bind
+            % substitutes them, so the classic self-redefinition idiom
+            % /stroke { 1 2 scale stroke } bind def captures the standard
+            % behaviour instead of recursing into itself. Only names holding
+            % executable arrays promote; the procedures stay defed in
+            % .wrappedprocs, keeping them inside the collector's view (the
+            % operator table is outside it).
+            % The register keeps the procedures inside the collector's view, the
+            % operator table being outside it. It lives in privatedict, with the
+            % rest of the interpreter's own machinery, and exists whether or not
+            % graphics was loaded.
+            .privatedict /.wrappedprocs 256 dict put
 
-    % The other half of the same post-condition. The gate above says every
-    % name the promotion took is an operator; this says the promotion took
-    % every name it should have. An operator that states its operands is
-    % one by now, or is not defined in this run at all -- a --no-graphics
-    % run loads none of the graphics modules, and the statements they
-    % record when they do load are the same statements either way. A name
-    % still holding its procedure would be an operator the dispatcher had
-    % been told about and the promotion passed over.
-    1 dict begin
-    /n 0 def
-    //.xpostsys /.opsigs get {
-        pop                                  % The statement; the key is the name
-        dup where {
-            1 index get type /operatortype ne { /n n 1 add store } if
-        }{ } ifelse
-        pop
-    } forall
-    n 0 eq
-    end
-    (every operator that states its operands must be one after the promotion)
-    //.xpostsys /.mustbe get exec
+            % Which operators these are is not stated here. An operator written in
+            % PostScript states the operands it takes where it is defined, through
+            % .defop, and that statement going into .opsigs is what makes it one of
+            % these: the promotion runs over the statements. A list of names beside
+            % them would be the same fact written twice, and the two copies could
+            % disagree in either direction with nothing to notice -- a name wrapped
+            % without a statement takes whatever it is given, and a name stated
+            % without being wrapped states its operands to nobody. Neither is
+            % expressible now.
+            %
+            % The statements are a dictionary, so the promotion order is the
+            % dictionary's rather than an author's. That is what the second pass
+            % below is for: nothing is bound until every one of them is promoted,
+            % so no outcome depends on the order they came out in.
+            //.xpostsys /.opsigs get {
+                pop                                  % The statement; the key is the name
+                dup where {
+                    exch 2 copy get
+                    dup type /arraytype eq 1 index xcheck and {
+                        .privatedict /.wrappedprocs get 2 index 2 index put
+                        % An operator that states its operands is wrapped with
+                        % the statement, so the dispatcher enforces it before
+                        % the procedure runs, exactly as for one written in C.
+                        % It goes back into the dictionary it was found in: the
+                        % language is read into systemdict, but the boot file
+                        % defines a few of these into userdict first.
+                        //.xpostsys /.wrapwithsig get exec
+                    }{ pop pop pop } ifelse
+                }{ pop } ifelse
+            } forall
 
-    % The third post-condition, and the one that makes the binding below
-    % worth doing. A body bound at its own definition is read-only before
-    % any of the names it calls answers with an operator, and bind ignores
-    % a read-only array -- so no later pass can finish it and it keeps
-    % those names for the rest of the run, which is a program's
-    % redefinition waiting to be picked up from inside a standard
-    % operator. .defop records any body that arrives read-only; holding
-    % that register to empty is what stops a bind being put back at a
-    % definition, where it reads like caution and costs the opposite.
-    //.xpostsys /.boundatdef get length 0 eq
-    (no operator body may be bound before the promotion binds it)
-    //.xpostsys /.mustbe get exec
+            % Now, and not before, freeze each promoted body. bind replaces a name
+            % with an operator only where the name already answers with one, and it
+            % makes what it binds read-only, so it gets one chance at each body: a
+            % body bound while its neighbours were still procedures would keep
+            % their names for good, dynamic and reachable by a program redefining
+            % them, and the later .bindscope sweep could not come back for it. The
+            % pass above promoted every one of them, so every call between them
+            % freezes here. The operator holds the same array the register does,
+            % so binding it in place is binding what the operator runs; the bound
+            % (now read-only) reference goes back into the register, which is what
+            % tells the sweep below this body is finished.
+            [ .privatedict /.wrappedprocs get { pop } forall ]
+            { .privatedict /.wrappedprocs get exch 2 copy get bind put } forall
 
-    systemdict //.xpostsys /.bindscope get exec
-    userdict //.xpostsys /.bindscope get exec
-    % graphicsdict exists only once graphics has loaded; without it there is
-    % nothing to bind and this step is simply skipped
-    /graphicsdict where { pop graphicsdict //.xpostsys /.bindscope get exec } if
-    errordict //.xpostsys /.bindscope get exec
-    % the private helper namespace too, so a helper's own operator references
-    % (the get and exec of //.xpostsys /h get exec, and everything else) freeze
-    % and survive a program shadowing an operator name
-    .xpostsys //.xpostsys /.bindscope get exec
-    % the mutable scratch holds procedure tables too (the stroke switch
-    % handlers live inside strokedict); bind them so they survive a program
-    % shadowing the operator names they call
-    .gscratch //.xpostsys /.bindscope get exec
-    % privatedict holds machinery procedures too -- the gstate-template accessor,
-    % the device class methods -- so bind them against a shadowed operator name
-    % the same way. The anchor procedures moved here below were bound in userdict
-    % before the move, so they carry their frozen references with them.
-    .privatedict //.xpostsys /.bindscope get exec
+            % With the standard operators now operator-typed, freeze the
+            % machinery's own references to them with the shared recursive
+            % sweep: every procedure table it can reach through nested
+            % dictionaries -- the wrapped implementations, the device makers,
+            % the graphics state template, the error handlers, and any table
+            % inside a table -- has its operator references resolved now.
+            % Every name the promotion pass covered is an operator by now. Binding
+            % substitutes operators and leaves names alone, so a name still holding
+            % its procedure here would keep a dynamic reference in every machinery
+            % procedure that calls it, reachable by a program redefining the name.
+            % counted in a scratch dictionary, so the check leaves no name behind
+            1 dict begin
+            /n 0 def
+            .privatedict /.wrappedprocs get {
+                pop                                  % The value; the key is the name
+                dup type /nametype eq {
+                    dup where {
+                        1 index get type /operatortype ne { /n n 1 add store } if
+                    }{ } ifelse
+                } if
+                pop
+            } forall
+            n 0 eq
+            end
+            (every promoted name must be an operator before references are frozen)
+            //.xpostsys /.mustbe get exec
 
-    % Install idiom recognition. The plain bind is kept in .internaldict and
-    % /bind becomes an operator that runs it and then offers the result to
-    % IdiomSet substitution (PLRM 3.12.1, LanguageLevel 3). This is done here,
-    % after every sweep above has bound the machinery with the plain operator,
-    % so only a program's own binds from now on carry the substitution step;
-    % it names the operand it takes so a non-procedure is refused as bind.
-    .internaldict /.cbind systemdict /bind get put
-    systemdict /bind
-        /bind .xpostsys /.bindwrap get [ /proctype ] .wrapopsig
-        put
+            % The other half of the same post-condition. The gate above says every
+            % name the promotion took is an operator; this says the promotion took
+            % every name it should have. An operator that states its operands is
+            % one by now, or is not defined in this run at all -- a --no-graphics
+            % run loads none of the graphics modules, and the statements they
+            % record when they do load are the same statements either way. A name
+            % still holding its procedure would be an operator the dispatcher had
+            % been told about and the promotion passed over.
+            1 dict begin
+            /n 0 def
+            //.xpostsys /.opsigs get {
+                pop                                  % The statement; the key is the name
+                dup where {
+                    1 index get type /operatortype ne { /n n 1 add store } if
+                }{ } ifelse
+                pop
+            } forall
+            n 0 eq
+            end
+            (every operator that states its operands must be one after the promotion)
+            //.xpostsys /.mustbe get exec
 
-    % userdict, errordict, $error and FontDirectory are names in systemdict for
-    % local dictionaries; the userdict copies are dropped so each name resolves
-    % in systemdict.
-    [ /userdict /errordict /$error /FontDirectory /statusdict /serverdict ] {
-        dup systemdict exch known { userdict exch undef }{ pop } ifelse
-    } forall
+            % The third post-condition, and the one that makes the binding below
+            % worth doing. A body bound at its own definition is read-only before
+            % any of the names it calls answers with an operator, and bind ignores
+            % a read-only array -- so no later pass can finish it and it keeps
+            % those names for the rest of the run, which is a program's
+            % redefinition waiting to be picked up from inside a standard
+            % operator. .defop records any body that arrives read-only; holding
+            % that register to empty is what stops a bind being put back at a
+            % definition, where it reads like caution and costs the opposite.
+            //.xpostsys /.boundatdef get length 0 eq
+            (no operator body may be bound before the promotion binds it)
+            //.xpostsys /.mustbe get exec
 
-    % Relocate the private C operators from systemdict into .internaldict. Every
-    % machinery reference to them is now frozen -- the standard operators bound
-    % above and .bindscope over the loaded procedures -- so a program
-    % enumerating systemdict sees only the standard names, while a font program
-    % reaches them through 1183615869 internaldict. Two operators stay, both
-    % dotted, so no program name collides with them. The local-state accessors
-    % (.gscratch/.privatedict) are the operators the machinery reaches its
-    % per-render scratch and its private dictionary through: driver prologs and
-    % machinery name them at run time, past the reach of the bind pass, so
-    % relocating them breaks rendering (verified). The C core reaches privatedict
-    % through the context field, not by name. .sysdictunlock and .sysdictrelock
-    % relocate with the rest: the unlock has already run, and the relock below is
-    % reached through .internaldict.
-    [ systemdict {
-        exch dup type /nametype eq
-        2 index type /operatortype eq and
-        { dup 60 string cvs 0 get 46 eq
-          1 index /.lockdown ne and
-          1 index /.permitfileread ne and
-          1 index /.permitfilewrite ne and
-          1 index /.resourcefileopen ne and
-          1 index /.gscratch ne and
-          1 index /.privatedict ne and
-        }{ false } ifelse
-        { exch pop }{ pop pop } ifelse
-    } forall ]
-    dup { dup systemdict exch get .internaldict 3 1 roll put } forall
-    { systemdict exch undef } forall
-    % The internal draw-line flag is interpreter state a program has no use
-    % for; it goes into .internaldict, out of a program's sight, while it is
-    % still writable here. .internaldict is sealed below, so the flag cannot
-    % be removed or overwritten afterwards.
-    .internaldict /USEDRAWLINE true put
-    % device -- so a job's page setup does not leak into the next. In local VM the
-    % ordinary save/restore reverts those writes; a global home does not.
-    % Rebind each to a local copy in privatedict now that the device modules have
-    % finished loading, with headroom for the parameters setpagedevice adds, and
-    % drop the userdict anchor: the classes leave the program's namespace entirely
-    % and the makers, the C drivers and setpagedevice reach them through
-    % privatedict.
-    currentglobal false setglobal
-    % Which dictionaries those are is read off the one holding them
-    % rather than named here, for the reason data/device.ps reads the
-    % mirror the same way: a class states itself by the name it is
-    % defined under, and a list beside it is a second statement a class
-    % added later does not reach. The keys are taken before any of them
-    % is dropped, since what is walked here is what is being written to.
-    [ systemdict { pop } forall ]
-    { dup //.xpostsys /.isclassname get exec
-        { dup systemdict 1 index get dup length 16 add dict copy  % Name name localcopy
-          .privatedict 3 1 roll put                              % Name (privatedict/name = localcopy)
-          systemdict exch undef }                                % Drop the load-time anchor
-        { pop } ifelse
-    } forall
+            systemdict //.xpostsys /.bindscope get exec
+            userdict //.xpostsys /.bindscope get exec
 
-    .internaldict /.sysdictrelock get exec
+            % graphicsdict exists only once graphics has loaded; without it there is
+            % nothing to bind and this step is simply skipped
+            /graphicsdict where { pop graphicsdict //.xpostsys /.bindscope get exec } if
+            errordict //.xpostsys /.bindscope get exec
 
-    % Return the device class dictionaries to local VM. setpagedevice records the
-    % page geometry into them at run time, and that state must be subject to save
-    % and restore -- a restore to before a setpagedevice reinstates the earlier
-    % Move the remaining local machinery anchors into privatedict as well: the
-    % graphics scratch and the wrapped-operator anchor procedures. These are
-    % reached only through frozen references and the operator table, both of
-    % which the privatedict root keeps alive, so the objects move by reference
-    % (no copy) and dropping the userdict anchor hides them without breaking a
-    % thing.
-    [ /.error ]
-    { dup userdict exch known
-        { dup dup userdict exch get .privatedict 3 1 roll put userdict exch undef }
-        { pop } ifelse
-    } forall
-    % the gstate-template dictionary is frozen into its accessor proc (already in
-    % privatedict), so only its userdict anchor remains -- drop it
-    userdict /.gstatetemplate known { userdict /.gstatetemplate undef } if
-    setglobal
+            % The private helper namespace too, so a helper's own operator references
+            % (the get and exec of //.xpostsys /h get exec, and everything else) freeze
+            % and survive a program shadowing an operator name
+            .xpostsys //.xpostsys /.bindscope get exec
 
-    % The interpreter is locked down. Recorded last, so that a lockdown
-    % which stopped anywhere above records instead what stopped it.
-    .internaldict /LOCKDOWN_DONE true put
+            % The mutable scratch holds procedure tables too (the stroke switch
+            % handlers live inside strokedict); bind them so they survive a program
+            % shadowing the operator names they call
+            .gscratch //.xpostsys /.bindscope get exec
 
-    % Seal the private namespaces, as the last act of all. They are fully
-    % populated now -- init and the graphics modules have defined every helper,
-    % the C operators have been relocated into .internaldict and the local
-    % machinery anchors have moved into privatedict -- and the machinery only
-    % reads them hereafter, always through a frozen // reference to the object.
-    % Freeze each read-only so a program cannot overwrite a helper, and drop its
-    % userdict anchor so a program cannot reach or even enumerate it. The frozen
-    % references keep the objects alive and working; .gscratchdict stays writable
-    % and anchored, as the machinery mutates it every render.
-    %
-    % Last because .internaldict is where a lockdown that stopped writes what
-    % stopped it: sealed any earlier, a stop between the seal and the end would
-    % have nowhere to record and the attempt after it would start over.
-    userdict /.internaldict get readonly pop
-    userdict /.xpostsys get readonly pop
-    userdict /.internaldict undef
-    userdict /.xpostsys undef
-    % The graphics state is not initialised here. It is initialised by
-    % the device being installed, which is what settles the parameters
-    % that describe how a device renders, and no device has been made
-    % yet: the lockdown is language work and runs whether or not this
-    % run ever has one.
+            % privatedict holds machinery procedures too -- the gstate-template accessor,
+            % the device class methods -- so bind them against a shadowed operator name
+            % the same way. The anchor procedures moved here below were bound in userdict
+            % before the move, so they carry their frozen references with them.
+            .privatedict //.xpostsys /.bindscope get exec
+
+            % Install idiom recognition. The plain bind is kept in .internaldict and
+            % /bind becomes an operator that runs it and then offers the result to
+            % IdiomSet substitution (PLRM 3.12.1, LanguageLevel 3). This is done here,
+            % after every sweep above has bound the machinery with the plain operator,
+            % so only a program's own binds from now on carry the substitution step;
+            % it names the operand it takes so a non-procedure is refused as bind.
+            .internaldict /.cbind systemdict /bind get put
+            systemdict /bind
+            /bind .xpostsys /.bindwrap get [ /proctype ] .wrapopsig
+            put
+
+            % userdict, errordict, $error and FontDirectory are names in systemdict for
+            % local dictionaries; the userdict copies are dropped so each name resolves
+            % in systemdict.
+            [ /userdict /errordict /$error /FontDirectory /statusdict /serverdict ] {
+                dup systemdict exch known { userdict exch undef }{ pop } ifelse
+            } forall
+
+            % Relocate the private C operators from systemdict into .internaldict. Every
+            % machinery reference to them is now frozen -- the standard operators bound
+            % above and .bindscope over the loaded procedures -- so a program
+            % enumerating systemdict sees only the standard names, while a font program
+            % reaches them through 1183615869 internaldict. Two operators stay, both
+            % dotted, so no program name collides with them. The local-state accessors
+            % (.gscratch/.privatedict) are the operators the machinery reaches its
+            % per-render scratch and its private dictionary through: driver prologs and
+            % machinery name them at run time, past the reach of the bind pass, so
+            % relocating them breaks rendering (verified). The C core reaches privatedict
+            % through the context field, not by name. .sysdictunlock and .sysdictrelock
+            % relocate with the rest: the unlock has already run, and the relock below is
+            % reached through .internaldict.
+            [ systemdict {
+                    exch dup type /nametype eq
+                    2 index type /operatortype eq and
+                    { dup 60 string cvs 0 get 46 eq
+                      1 index /.lockdown ne and
+                      1 index /.permitfileread ne and
+                      1 index /.permitfilewrite ne and
+                      1 index /.resourcefileopen ne and
+                      1 index /.gscratch ne and
+                      1 index /.privatedict ne and
+                    }{ false } ifelse
+                    { exch pop }{ pop pop } ifelse
+                } forall ]
+            dup { dup systemdict exch get .internaldict 3 1 roll put } forall
+            { systemdict exch undef } forall
+
+            % The internal draw-line flag is interpreter state a program has no use
+            % for; it goes into .internaldict, out of a program's sight, while it is
+            % still writable here. .internaldict is sealed below, so the flag cannot
+            % be removed or overwritten afterwards.
+            .internaldict /USEDRAWLINE true put
+
+            % device -- so a job's page setup does not leak into the next. In local VM the
+            % ordinary save/restore reverts those writes; a global home does not.
+            % Rebind each to a local copy in privatedict now that the device modules have
+            % finished loading, with headroom for the parameters setpagedevice adds, and
+            % drop the userdict anchor: the classes leave the program's namespace entirely
+            % and the makers, the C drivers and setpagedevice reach them through
+            % privatedict.
+            currentglobal false setglobal
+
+            % Which dictionaries those are is read off the one holding them
+            % rather than named here, for the reason data/device.ps reads the
+            % mirror the same way: a class states itself by the name it is
+            % defined under, and a list beside it is a second statement a class
+            % added later does not reach. The keys are taken before any of them
+            % is dropped, since what is walked here is what is being written to.
+            [ systemdict { pop } forall ]
+            { dup //.xpostsys /.isclassname get exec
+                { dup systemdict 1 index get dup length 16 add dict copy  % Name name localcopy
+                  .privatedict 3 1 roll put                              % Name (privatedict/name = localcopy)
+                  systemdict exch undef }                                % Drop the load-time anchor
+                { pop } ifelse
+            } forall
+
+            .internaldict /.sysdictrelock get exec
+
+            % Return the device class dictionaries to local VM. setpagedevice records the
+            % page geometry into them at run time, and that state must be subject to save
+            % and restore -- a restore to before a setpagedevice reinstates the earlier
+            % Move the remaining local machinery anchors into privatedict as well: the
+            % graphics scratch and the wrapped-operator anchor procedures. These are
+            % reached only through frozen references and the operator table, both of
+            % which the privatedict root keeps alive, so the objects move by reference
+            % (no copy) and dropping the userdict anchor hides them without breaking a
+            % thing.
+            [ /.error ]
+            { dup userdict exch known
+                { dup dup userdict exch get .privatedict 3 1 roll put userdict exch undef }
+                { pop } ifelse
+            } forall
+
+            % The gstate-template dictionary is frozen into its accessor proc (already in
+            % privatedict), so only its userdict anchor remains -- drop it
+            userdict /.gstatetemplate known { userdict /.gstatetemplate undef } if
+            setglobal
+
+            % The interpreter is locked down. Recorded last, so that a lockdown
+            % which stopped anywhere above records instead what stopped it.
+            .internaldict /LOCKDOWN_DONE true put
+
+            % Seal the private namespaces, as the last act of all. They are fully
+            % populated now -- init and the graphics modules have defined every helper,
+            % the C operators have been relocated into .internaldict and the local
+            % machinery anchors have moved into privatedict -- and the machinery only
+            % reads them hereafter, always through a frozen // reference to the object.
+            % Freeze each read-only so a program cannot overwrite a helper, and drop its
+            % userdict anchor so a program cannot reach or even enumerate it. The frozen
+            % references keep the objects alive and working; .gscratchdict stays writable
+            % and anchored, as the machinery mutates it every render.
+            %
+            % Last because .internaldict is where a lockdown that stopped writes what
+            % stopped it: sealed any earlier, a stop between the seal and the end would
+            % have nowhere to record and the attempt after it would start over.
+            userdict /.internaldict get readonly pop
+            userdict /.xpostsys get readonly pop
+            userdict /.internaldict undef
+            userdict /.xpostsys undef
+
+            % The graphics state is not initialised here. It is initialised by
+            % the device being installed, which is what settles the parameters
+            % that describe how a device renders, and no device has been made
+            % yet: the lockdown is language work and runs whether or not this
+            % run ever has one.
 
         } stopped {
-        % The lockdown is over however it ended, so what it opened closes
-        % here. The dictionaries it left open go back to the depth
-        % recorded above, and the writeable window on systemdict closes
-        % whether or not the interpreter's own error handler has already
-        % closed it: a fault raised in PostScript never passes through
-        % that handler, and would otherwise leave systemdict open for the
-        % rest of the run.
-        countdictstack //.internaldict /LOCKDOWN_DEPTH get sub
-        dup 0 gt { { end } repeat }{ pop } ifelse
-        % The relock as the operator itself: the steps above take the
-        % dotted operators out of systemdict, so by this point the name
-        % answers from .internaldict rather than from the dictionary
-        % stack, and this reaches it either way.
-        //.sysdictrelock
-        % Kept where the attempt that met it can still name it: this is
-        % the last point at which $error holds this lockdown's own error.
-        //.internaldict /LOCKDOWN_STOPPED
+            % The lockdown is over however it ended, so what it opened closes
+            % here. The dictionaries it left open go back to the depth
+            % recorded above, and the writeable window on systemdict closes
+            % whether or not the interpreter's own error handler has already
+            % closed it: a fault raised in PostScript never passes through
+            % that handler, and would otherwise leave systemdict open for the
+            % rest of the run.
+            countdictstack //.internaldict /LOCKDOWN_DEPTH get sub
+            dup 0 gt { { end } repeat }{ pop } ifelse
+
+            % The relock as the operator itself: the steps above take the
+            % dotted operators out of systemdict, so by this point the name
+            % answers from .internaldict rather than from the dictionary
+            % stack, and this reaches it either way.
+            //.sysdictrelock
+
+            % Kept where the attempt that met it can still name it: this is
+            % the last point at which $error holds this lockdown's own error.
+            //.internaldict /LOCKDOWN_STOPPED
             $error /newerror get $error /errorname known and
-                { $error /errorname get }{ null } ifelse
-        put
-        stop
+            { $error /errorname get }{ null } ifelse
+            put
+            stop
         } if
     } ifelse
 } put
@@ -2976,34 +3066,32 @@ setglobal
 $error/initializing false put  % Ready to go!
 false setglobal
 
-%
-%  debug ps functions -- interpreter aids, not language operators, so private
-%
 currentglobal true setglobal
-.xpostsys /doprompt {
+
+%
+%  Debug ps functions -- interpreter aids, not language operators, so private
+%
+.xpostsys /doprompt {  % -  .  -
     (\nbreak>)print flush
     (%lineedit)(r)file
     cvx {exec}stopped pop } put
-.xpostsys /pause { //.xpostsys /doprompt get exec } put
+.xpostsys /pause { //.xpostsys /doprompt get exec } put  % -  .  -
 setglobal
 
 currentglobal true setglobal
-.xpostsys /.dir {
+.xpostsys /.dir {  % -  .  -
     (*) { = } 128 string filenameforall
 } put
 setglobal
 
 currentglobal true setglobal
-.xpostsys /xpost {
+.xpostsys /xpost {  % -  .  -
     (Xpost is running. Type '(filename)run' to run a program.\n)print
 } put
 setglobal
 
 (/prepr.ps) //.xpostsys /.loadmodule get exec  % Use nifty preview prompt!
 
-end  % Systemdict
+end  % systemdict
 
 //.internaldict /QUIET known { }{ (eof init.ps\n)print } ifelse
-%
-% loadgraphics %called by start* procs
-%

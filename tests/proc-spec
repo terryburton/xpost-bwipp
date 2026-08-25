@@ -34,9 +34,9 @@ file dscwrite.ps      annotated
 file err.ps           annotated
 file font.ps          annotated
 file graphics.ps      annotated
-file gstate.ps        pending
+file gstate.ps        annotated
 file image.ps         annotated
-file init.ps          pending
+file init.ps          annotated
 file nulldev.ps       annotated
 file paint.ps         annotated
 file path.ps          annotated
@@ -53,5 +53,5 @@ file shade.ps         annotated
 file svgwrite.ps      annotated
 file tiffimage.ps     annotated
 
-annotated 25
-pending 2
+annotated 27
+pending 0

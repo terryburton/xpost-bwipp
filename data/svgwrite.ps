@@ -2,6 +2,8 @@
 %
 % svgwrite.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The svgwrite device: emit an SVG document from the recorded page.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -40,13 +42,15 @@
 
     /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
-    % the page dimensions are points and need not be integral; adopt the
-    % exact values when the page device machinery published them
+
+    % The page dimensions are points and need not be integral; adopt the
+    % exact values when the page device machinery published them.
     //.xpostsys /.adoptexactpage get exec
     currentdict } //.xpostsys /.indict get exec
     dup /.copydict get exec
     {
         currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
+
         % Where the identities written into the document are counted
         % from. A clipPath is referenced by identity, so no two of them
         % in one document may be named alike; and what has been written
@@ -71,18 +75,18 @@
         dup //.internaldict /.pdffree get exec pop
     } bind
 
-    % append a string to the content accumulator (held outside VM via /Private)
+    % Append a string to the content accumulator (held outside VM via /Private)
     /.put {  % str  .  -
         currentdict //.internaldict /.pdfput get exec
     } bind
 
-    % append a number in SVG syntax (integer, or two decimals; never
-    % exponential), through the vector writers' shared formatter
+    % Append a number in SVG syntax (integer, or two decimals; never
+    % exponential), through the vector writers' shared formatter.
     /.svgnum {  % num  .  -
         //.xpostsys /.num2str get exec .put
     } bind
 
-    % append a colour as an rgb() percentage triple, quoted
+    % Append a colour as an rgb() percentage triple, quoted
     /.svgrgb {  % r g b  .  -
         ("rgb\() .put
         3 -1 roll 100 mul .svgnum (%,) .put
@@ -139,7 +143,7 @@
         //.internaldict /.svgfillpoly get exec
     } bind
 
-    % append collected path elements (coordinates then a /m /l /c /h
+    % Append collected path elements (coordinates then a /m /l /c /h
     % name each, from the .devpathforall walker) as SVG path commands
     % Walk the device path and append its path-data commands as they are
     % reached -- Mx y, Lx y, C and the six control points, Z -- returning
@@ -198,7 +202,8 @@
     % data URI under the image-to-device matrix.
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
     { {siint sidec sirows sim sinc sih siw}{exch def}forall
-        % per-component decode tables to bytes
+
+        % Per-component decode tables to bytes
         /siluts [ 0 1 sinc 1 sub { /c exch def
             /silt 256 string def
             0 1 255 { /v exch def
@@ -222,7 +227,8 @@
         (" preserveAspectRatio="none" image-rendering=") .put
         siint { (auto") }{ (pixelated") } ifelse .put
         ( href="data:image/bmp;base64,) .put
-        % header: BITMAPFILEHEADER + BITMAPINFOHEADER, little-endian
+
+        % Header: BITMAPFILEHEADER + BITMAPINFOHEADER, little-endian
         /sihdr 54 string def
         /sip 0 def
         /sb1 {  % byte  .  -
@@ -237,9 +243,10 @@
         66 sb1 77 sb1 sisz sb4 0 sb4 54 sb4
         40 sb4 siw sb4 sih sb4 1 sb2 24 sb2 0 sb4
         sirowb sih mul sb4 2835 sb4 2835 sb4 0 sb4 0 sb4
-        % accumulate bmp bytes into 48000-byte chunks and base64 each;
+
+        % Accumulate bmp bytes into 48000-byte chunks and base64 each;
         % a partial flush keeps a three-byte alignment so the padding
-        % appears only at the very end
+        % appears only at the very end.
         /sibuf 48000 string def
         /sibp 0 def
         /siflush {  % -  .  -
@@ -298,6 +305,7 @@
     /FillPath {  % r g b IMAGE  .  -
         dup 5 1 roll            % Keep the device for the clip close below
         //.internaldict /.svgfillpath get exec
+
         % a clip adopted for this fill ends with it
         {
             currentdict /.svgclipopen 2 copy known { get }{ pop pop false } ifelse {
@@ -314,12 +322,13 @@
     % costs one element and keeps its curves.
     /ClipPath {  % path IMAGE  .  -
     {
-        % the next identity this document has not used: the counter is
-        % the one made at Create, which a restore does not reach
+        % The next identity this document has not used: the counter is
+        % the one made at Create, which a restore does not reach.
         currentdict /.svgids get /clipid 2 copy get 1 add put
         /.svgcid currentdict /.svgids get /clipid get def
-        % the path walker reads the current path, so install the clip
-        % shape for the walk and put the working path back after
+
+        % The path walker reads the current path, so install the clip
+        % shape for the walk and put the working path back after.
         graphicsdict /currgstate get /currpath get
         exch
         graphicsdict /currgstate get exch /currpath exch put
@@ -358,17 +367,17 @@
 
     /Emit {  % IMAGE  .  -
     {
-        % an SVG document holds one page, so successive pages are written
+        % An SVG document holds one page, so successive pages are written
         % to separate files: the name settled for this page carries the
         % page number where the output name has a %d, and without one
-        % every page rewrites the same file
+        % every page rewrites the same file.
         /F .outputfile (w) file def
         /.w {  % str  .  -
             F exch writestring
         } def
 
         % page size in points: unscale the device resolution carried in
-        % the defaultmatrix fixup; a raw 1:1 device is unaffected
+        % the defaultmatrix fixup; a raw 1:1 device is unaffected.
         currentdict //.xpostsys /.devres-to-points get exec
         /sy exch def /sx exch def
 
@@ -388,8 +397,9 @@
 
         % start the next page fresh: showpage's page clear and later
         % marks must not stack on the emitted content (a later Emit
-        % rewrites the output with the then-current page)
+        % rewrites the output with the then-current page).
         currentdict //.internaldict /.pdfreset get exec
+
         % and with it the identities, since a document holds one page and
         % an identity need only be unique within the document it is
         % written into. Counting from the same place for each of them is

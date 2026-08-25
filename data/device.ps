@@ -2,6 +2,8 @@
 %
 % device.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % Device-level operators independent of the device implementation, and showpage semantics.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -21,7 +23,7 @@
 true setglobal
 
 %
-%  the one number formatter for the vector writers (the PDF, SVG and DSC
+%  The one number formatter for the vector writers (the PDF, SVG and DSC
 %  devices format every coordinate and dimension through it): an integral
 %  value prints as an integer; anything else prints with exactly two
 %  decimals, never exponential -- round(n*100) sidesteps binary-float
@@ -43,7 +45,7 @@ true setglobal
 } bind put
 
 %
-%  the device-resolution scale carried in the defaultmatrix fixup applied
+%  The device-resolution scale carried in the defaultmatrix fixup applied
 %  after construction; a raw 1:1 device answers 1 1. Dividing a device
 %  dimension by its scale yields the page size in points, which is how
 %  the vector writers and the bounding-box device report their pages
@@ -98,23 +100,26 @@ true setglobal
     dup /width known {
         dup { /dimensions [width height] def } //.xpostsys /.indict get exec
     } if
-    % the file name this run was started with. A request's own binding
+
+    % The file name this run was started with. A request's own binding
     % is a device feature and arrives through the merge below, writing
     % over this; there is no third source, the output path being a
     % page-device parameter and not a name a program defines.
     /OutputFileName //.xpostsys /.hostvalue get exec
     dup null eq { pop }{ 1 index exch /OutputFileName exch put } ifelse
-    % the request's features, taken, kept on the instance under
+
+    % The request's features, taken, kept on the instance under
     % /.devrequest -- the recording class reads them back there for the
-    % painter it builds -- and written over the class's entries
+    % painter it builds -- and written over the class's entries.
     graphicsdict /.devrequest 2 copy known {
         get                                 % Copy req
         graphicsdict /.devrequest undef
         dup 2 index exch /.devrequest exch put
         {  % copy key value
             1 index /Private eq
-            % a name the class holds something executable under is a
-            % method, and a method is not the request's to write here
+
+            % A name the class holds something executable under is a
+            % method, and a method is not the request's to write here.
             3 index 3 index 2 copy known
                 { get xcheck }{ pop pop false } ifelse
             or
@@ -153,6 +158,7 @@ true setglobal
         { get }{ pop pop null } ifelse def
     /bf.row bf.budget type /integertype eq
         { bf.dev //.xpostsys /.rowbytes get exec }{ null } ifelse def
+
     % A class that prices no row in bytes is a class no band arithmetic
     % can be done for, and nothing here can say whether its budget is
     % short.
@@ -196,9 +202,10 @@ true setglobal
     % the scratch dictionary below is opened, so that a refusal leaves
     % nothing to be taken back.
     2 index //.xpostsys /.bandfits get exec
-    % the scratch dictionary and the matrix built below hold the device,
+
+    % The scratch dictionary and the matrix built below hold the device,
     % which is a local object, so they are made in local VM whatever the
-    % caller was allocating in
+    % caller was allocating in.
     currentglobal false setglobal
     4 dict begin
     /og exch def /sy exch def /sx exch def /dev exch def
@@ -249,6 +256,7 @@ true setglobal
     % execute.
     dev /NoOutput known not {
         /cs dev /nativecolorspace get cvlit def
+
         % The compiled scanline fill paints in the device's native
         % colour space, and it paints in two of them; a device declaring
         % any other keeps the class's own polygon fill, which takes its
@@ -256,6 +264,7 @@ true setglobal
         cs /DeviceGray eq cs /DeviceRGB eq or {
             dev /FillPoly //.internaldict /.fillpoly get put
         } if
+
         % The compiled rectangle fills write the page as the array of
         % row strings the base classes keep it in under /ImgData
         % (.xpost_PGMIMAGE, PPMIMAGE), so they fit a device whose raster
@@ -286,7 +295,6 @@ true setglobal
 } bind put
 
 %
-%                                  null
 %  The run of a page's rows an imaging bounding box reaches.
 %
 %  PLRM 6.2 gives ImagingBBox as four numbers in the default user
@@ -333,14 +341,13 @@ true setglobal
 } bind put
 
 %
-%  name  .pagefilename  name'
-%  substitute the page number for a %d marker in an output file name,
+%  Substitute the page number for a %d marker in an output file name,
 %  counting the pages transmitted; without the marker every page writes
 %  the same file, last page standing
 %  the page counter lives in a global dict so it survives the save/restore
 %  a program wraps around each page (the separation-plate idiom); a counter
 %  kept in the local device dictionary is rewound by restore, and every page
-%  then reuses the same %d number
+%  then reuses the same %d number.
 %
 .xpostsys /.pagestate 1 dict put
 .xpostsys /.pagefilename {  % name  .  name'
@@ -383,7 +390,8 @@ true setglobal
     ifelse
     //.xpostsys /.pagefilename get exec
     1 index exch /.outputfile exch put
-    % what became of this page, for a run that asked to be told
+
+    % What became of this page, for a run that asked to be told
     //.internaldict /QUIET known
         { }{ dup //.xpostsys /.reportpage get exec } ifelse
     dup /Emit get exec
@@ -542,20 +550,22 @@ end } bind put
 %
 .xpostsys /.currecordspill {  % -  .  /asked /held
 2 dict begin
+
     % What the run asked for, read from the run: it is the run's answer
     % whatever device happens to be in hand, and a page painted directly
     % carries no record to ask.
     /asked /RecordSpill //.xpostsys /.hostvalue get exec def
     asked type /nametype ne { /asked /auto def } if
-    % not /where: bind bakes the operator of that name into this body,
-    % and a local of the same name would never be the one read back
+
+    % Not /where: bind bakes the operator of that name into this body,
+    % and a local of the same name would never be the one read back.
     /held /memory def
     /graphicsdict where {
         pop graphicsdict /currgstate get /device get
         dup type /dicttype eq {
             % a device holding a record is the one to ask; one painting
             % its own page holds its marks nowhere and answers /memory,
-            % which is where the pixels of such a page are
+            % which is where the pixels of such a page are.
             dup /.playclass known {
                 dup //.internaldict /.recordspill get exec
                 /held exch def pop
@@ -656,10 +666,11 @@ end } bind put
     graphicsdict /currgstate get /device 2 copy known
         { get null ne }{ pop pop false } ifelse
     { }{
-        % the device is a local object: a page device's parameters are
+        % The device is a local object: a page device's parameters are
         % written into it as the job runs, and a restore has to take
-        % them back
+        % them back.
         currentglobal false setglobal
+
         % The device this run asked for, which is the name a page-device
         % request naming none goes on being made from, and the name a
         % refusal is reported under. The route a page takes is not part
@@ -667,11 +678,13 @@ end } bind put
         % handed to the recording class before it gets here, and taking
         % that back is what the weighing below does.
         /StartDeviceAsked //.xpostsys /.hostvalue get exec
-        % a device the build left the driver out of registers no maker,
+
+        % A device the build left the driver out of registers no maker,
         % so the roster the page-device request is held to is the roster
-        % here as well
+        % here as well.
         //.xpostsys /.devicemakers get 1 index known not
             { /.startdevice cvx /undefined signalerror } if
+
         % Which device that selection is made through at the page this
         % run opens at. A page too large for the band budget to cover is
         % made through the recording class, which holds it in less memory
@@ -684,13 +697,15 @@ end } bind put
         //.xpostsys /.devicefor get exec
         /StartPageSize //.xpostsys /.hostvalue get exec aload pop
         3 -1 roll //.xpostsys /.devicemakers get exch get exec
-        % the interpreter's own device takes the same finishing
+
+        % The interpreter's own device takes the same finishing
         % setpagedevice gives the ones it makes; the start-up page is at
         % the device's own resolution, so the point-to-device scale is
-        % 1:1
+        % 1:1.
         dup 1 1 .privatedict /.completedevice get exec
-        % the template and the live state carry the device; painting and
-        % the defaultmatrix operator resolve it through them
+
+        % The template and the live state carry the device; painting and
+        % the defaultmatrix operator resolve it through them.
         .privatedict /.gstatetemplate get exec /device 2 index put
         graphicsdict /currgstate get /device 2 index put
         pop
@@ -698,13 +713,15 @@ end } bind put
         setglobal
         //.internaldict /QUIET known { }{
             (device made, initialising graphics state\n)print } ifelse
-        % the state a newly installed device starts from, which is the
+
+        % The state a newly installed device starts from, which is the
         % state any other device would start from, so it is built the
-        % same way
+        % same way.
         //.xpostsys /.initdevicegstate get exec
-        % the first page starts clear. Every later one is cleared by
+
+        % The first page starts clear. Every later one is cleared by
         % showpage; the reset clears none of them, since it resets the
-        % graphics state and not raster memory
+        % graphics state and not raster memory.
         erasepage
     } ifelse
 } put
@@ -761,7 +778,7 @@ end } bind put
 
     % XPOST_SHOWPAGE_NOPAUSE
     1 {
-        % don't do it.
+        % Don't do it.
         % do not pause right here.
     }
 
@@ -774,7 +791,7 @@ end } bind put
 %
 %  copypage transmits the page without erasing it (PLRM 8.2), so it ends
 %  a page for the embedder's purposes but not for the program's: it takes
-%  the same three behaviours, less the page number and the erasure
+%  the same three behaviours, less the page number and the erasure.
 %
 .xpostsys /CopypageSemanticsDict <<
     0 { (----copypage----) //.xpostsys /.pagepause get exec }
@@ -794,12 +811,10 @@ end } bind put
 %  starts again at zero for each device activated.
 %
 
-%
 .xpostsys /.pageno {  % -  .  int
     //.xpostsys /.pagestate get /.plrmpage 2 copy known { get }{ pop pop 0 } ifelse
 } bind put
 
-%
 .xpostsys /.setpageno {  % int  .  -
     //.xpostsys /.pagestate get exch /.plrmpage exch put
 } bind put
@@ -818,12 +833,10 @@ end } bind put
 %  finish -- that one is dropped, as it is by the interpreters this follows.
 %
 
-%
 .xpostsys /.pagemarked {  % -  .  bool
     //.xpostsys /.pagestate get /.marked 2 copy known { get }{ pop pop false } ifelse
 } bind put
 
-%
 .xpostsys /.setpagemarked {  % bool  .  -
     //.xpostsys /.pagestate get exch /.marked exch put
 } bind put
@@ -839,12 +852,10 @@ end } bind put
 %
 .privatedict /.pagestate //.xpostsys /.pagestate get put
 
-%
 .xpostsys /.pagesent {  % -  .  bool
     //.xpostsys /.pagestate get /.sent 2 copy known { get }{ pop pop false } ifelse
 } bind put
 
-%
 .xpostsys /.setpagesent {  % bool  .  -
     //.xpostsys /.pagestate get exch /.sent exch put
 } bind put
@@ -908,9 +919,8 @@ end } bind put
     } forall
 } bind put
 
-%
 .xpostsys /.beginpage {  % -  .  -
-    % a page that has just begun carries nothing yet
+    % A page that has just begun carries nothing yet.
     false //.xpostsys /.setpagemarked get exec
     /BeginPage //.xpostsys /.pagehandler get exec
     dup null eq { pop }{
@@ -930,11 +940,12 @@ end } bind put
     /reason exch def
     /EndPage //.xpostsys /.pagehandler get exec
     dup null eq {
-        % no handler: transmit a page ended by showpage or copypage, and
-        % do not transmit one ended by the device going away
+        % No handler: transmit a page ended by showpage or copypage, and
+        % do not transmit one ended by the device going away.
         pop reason 2 ne true
     }{
         /h exch def
+
         % The handler owes exactly one answer, and only a boolean is one.
         % How many it left is read from how deep the stack stood before it
         % ran, so the verdict does not depend on what the caller happened to
@@ -945,8 +956,9 @@ end } bind put
         count base 1 add eq
         dup { pop dup type /booleantype eq } if
     } ifelse
-    % the dictionary comes off before anything is refused, so a handler that
-    % answers wrongly does not leave the dictionary stack deeper as well
+
+    % The dictionary comes off before anything is refused, so a handler that
+    % answers wrongly does not leave the dictionary stack deeper as well.
     end
     { }{ /EndPage cvx /typecheck signalerror } ifelse
 } bind put
@@ -957,6 +969,7 @@ end } bind put
         true //.xpostsys /.setpagesent get exec
         //.xpostsys /ShowpageSemanticsDict get /ShowpageSemantics //.xpostsys /.hostvalue get exec get exec
     } if
+
     % a page ended by showpage is counted whether or not it was transmitted
     //.xpostsys /.pageno get exec 1 add //.xpostsys /.setpageno get exec
     //.xpostsys /.beginpage get exec
@@ -969,7 +982,8 @@ end } bind put
         flushpage
         //.xpostsys /CopypageSemanticsDict get /ShowpageSemantics //.xpostsys /.hostvalue get exec get exec
     } if
-    % copypage ends a page without counting it (PLRM 6.2.6)
+
+    % copypage ends a page without counting it (PLRM 6.2.6).
     //.xpostsys /.beginpage get exec
 } //.xpostsys /.defop get exec
 

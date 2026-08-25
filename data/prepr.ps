@@ -2,6 +2,8 @@
 %
 % prepr.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The preview prompt: the interactive executive prompt.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -9,14 +11,14 @@
 
 %
 %  If the stack is empty, it displays the standard, Adobe prompt
-%  PS>
+%  PS>.
 %
 %  But if the stack is not empty, the prompt will contain a digest
 %  of the stack contents, single letters for most types,
 %  t or f for booleans, 0-9 for the integers 0-9 respectively,
 %  + for integers 10 and above. - for integers below zero
 %  Capital Letters for Composite Objects
-%  lowercase letters for simple objects
+%  lowercase letters for simple objects.
 %
 
 %
@@ -56,6 +58,7 @@ currentglobal true setglobal
 % Attempt to use the level-2 dict constructor >>
 %
 { (>>) cvx cvn exec def } stopped { pop
+
     %level-1 workaround
     counttomark 2 idiv dup dict begin { def } repeat
     cleartomark currentdict end def

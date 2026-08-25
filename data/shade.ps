@@ -2,6 +2,8 @@
 %
 % shade.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % Smooth shading (PLRM 4.9.3): shfill resolves a gradient to a stack of flat-colour fills.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -24,11 +26,10 @@
 true setglobal
 
 %
-%  t fndict  .fneval  c0..cn-1
-%  evaluate a PostScript function dictionary at t: exponential
+%  Evaluate a PostScript function dictionary at t: exponential
 %  interpolation (type 2), stitching (type 3), and one-input sampled
 %  (type 0, byte-aligned sample depths) functions serve the shading
-%  dictionaries producers write
+%  dictionaries producers write.
 %
 .xpostsys begin
 
@@ -54,6 +55,7 @@ true setglobal
         } repeat
     } ifelse
 } def
+
 %
 %  The widths PLRM 3.10.1 allows a sample to be. A sampled function's
 %  DataSource is a continuous bit stream with no padding at a byte
@@ -122,8 +124,8 @@ true setglobal
         hi lo eq { e0 }{ t lo sub hi lo sub div e1 e0 sub mul e0 add } ifelse
         f /Functions get k get //.xpostsys /.fneval get exec
     }{ 0 eq {
-        % sampled with one input: linear interpolation between the
-        % bracketing samples
+        % Sampled with one input: linear interpolation between the
+        % bracketing samples.
         /size f /Size get 0 get def
         //.fnsampled exec
         /x t d0 sub d1 d0 sub dup 0 eq { pop 1 } if div
@@ -149,7 +151,7 @@ true setglobal
 %
 %  evaluate a two-input function: a sampled function with a 2-D Size,
 %  bilinear between the four bracketing samples, or an array of
-%  two-input single-output functions, one per component
+%  two-input single-output functions, one per component.
 %
 /.fneval2 {  % x y fn  .  c0..cn-1 n
     dup type /arraytype eq {
@@ -206,10 +208,10 @@ true setglobal
 } def
 
 %
-%  function-based shading (type 1): the domain rectangle, taken
+%  Function-based shading (type 1): the domain rectangle, taken
 %  through the optional Matrix, paints as a grid of cells a few
 %  device pixels across, each filled flat with the function's colour
-%  at its centre
+%  at its centre.
 %
 /.fnsh {  % shdict  .  -
     14 dict begin
@@ -242,8 +244,8 @@ true setglobal
 } def
 
 %
-%  set the colour the current shading's function gives at t; a mesh
-%  shading passes components directly and skips the function
+%  Set the colour the current shading's function gives at t; a mesh
+%  shading passes components directly and skips the function.
 %
 /.shcolor {  % t  .  -
     shfn null eq {
@@ -256,7 +258,7 @@ true setglobal
 %
 %  a radius from the given point that covers the whole clip region:
 %  the farthest corner of the region's box, plus a margin. A region
-%  covering no pixels bounds nothing and is covered by a radius of zero
+%  covering no pixels bounds nothing and is covered by a radius of zero.
 %
 /.clipbig {  % x y  .  r
     6 dict begin
@@ -278,9 +280,9 @@ true setglobal
 } def
 
 %
-%  bands across the axis, each a strip of the plane perpendicular to
+%  Bands across the axis, each a strip of the plane perpendicular to
 %  it, painted with the function's colour at its midpoint; extended
-%  ends paint half-plane caps in the end colours
+%  ends paint half-plane caps in the end colours.
 %
 /.axialsh {  % shdict  .  -
     20 dict begin
@@ -298,8 +300,9 @@ true setglobal
     len 0 ne {
     /nb len round cvi 16 2 copy lt { exch } if pop
         256 2 copy gt { exch } if pop def
-    % unit vectors along and across the axis, and a breadth that
-    % covers the clip
+
+    % Unit vectors along and across the axis, and a breadth that
+    % covers the clip.
     /ax dx dup mul dy dup mul add sqrt def
     /ux dx ax div def
     /uy dy ax div def
@@ -342,10 +345,10 @@ true setglobal
 } def
 
 %
-%  the circle family painted outside in: each step fills its whole
+%  The circle family painted outside in: each step fills its whole
 %  circle, the next smaller covering the centre, so the last leaves
 %  the gradient; an extended outer end floods the clip first and an
-%  extended inner end is the innermost circle itself
+%  extended inner end is the innermost circle itself.
 %
 /.radialsh {  % shdict  .  -
     20 dict begin
@@ -357,7 +360,8 @@ true setglobal
     /t0 sh /Domain 2 copy known { get 0 get }{ pop pop 0 } ifelse def
     /t1 sh /Domain 2 copy known { get 1 get }{ pop pop 1 } ifelse def
     /ex sh /Extend 2 copy known { get }{ pop pop [ false false ] } ifelse def
-    % step count from the device size of the swept ring
+
+    % Step count from the device size of the swept ring
     /nb cx1 cx0 sub cy1 cy0 sub dtransform dup mul exch dup mul add sqrt
         cr1 cr0 sub 0 dtransform dup mul exch dup mul add sqrt add
         round cvi 16 2 copy lt { exch } if pop
@@ -369,7 +373,8 @@ true setglobal
         inout { cx1 cy1 }{ cx0 cy0 } ifelse
         2 copy //.clipbig exec 0 360 arc fill
     } if
-    % paint from the larger circle to the smaller
+
+    % Paint from the larger circle to the smaller
     nb -1 0 { /i exch def
         /s i nb div def
         inout not { /s 1 s sub def } if
@@ -384,7 +389,7 @@ true setglobal
 } def
 
 %
-%  mesh vertex readers.
+%  Mesh vertex readers.
 %
 %  A packed DataSource is a bit stream, not a byte stream: PLRM 4.9.3
 %  lets a coordinate be 1, 2, 4, 8, 12, 16, 24 or 32 bits and a colour
@@ -441,11 +446,12 @@ true setglobal
 /.mrdflag {  % -  .  flag
     litds { ds dp get cvi /dp dp 1 add def }
           { bpf //.mrdbits exec cvi } ifelse
+
     % PLRM gives each mesh type the values its edge flag may take -- 0, 1
     % and 2 for a triangle, and 3 as well for a patch -- and flagmax is
     % the painter's own. A value outside them says which edge is shared
     % with a shape the data does not describe, so there is nothing to
-    % paint and nothing to guess
+    % paint and nothing to guess.
     dup 0 lt 1 index flagmax gt or {
         /shfill cvx /rangecheck signalerror
     } if
@@ -462,8 +468,9 @@ true setglobal
 } def
 /.mrdvertex {  % -  .  [x y c0..cn-1]
     [ //.mrdpt exec aload pop //.mrdcolor exec aload pop ]
+
     % a vertex occupies a whole number of bytes, and for a free-form
-    % mesh the flag read just before it belongs to the same one
+    % mesh the flag read just before it belongs to the same one.
     //.mrdalign exec
 } def
 
@@ -490,10 +497,10 @@ true setglobal
     /bp 0 def
     /litds ds type /arraytype eq def
     litds {
-        % an array DataSource: flag, coordinates and colours are literal
+        % An array DataSource: flag, coordinates and colours are literal
         % numbers, one parametric value per vertex under a Function or
         % one per colour-space component otherwise (BitsPer* and Decode
-        % ignored, PLRM)
+        % ignored, PLRM).
         /ncomp shfn null eq { //.ncomponents exec }{ 1 } ifelse def
     }{
         /dec sh /Decode get def
@@ -504,9 +511,10 @@ true setglobal
             { sh /BitsPerFlag 2 copy known { get }{ pop pop 8 } ifelse }
             ifelse def
         /ncomp dec length 4 sub 2 idiv def
+
         % a width the specification does not give is one no producer can
         % have meant, and reading it would be reading somebody else's
-        % field
+        % field.
         //.mrdcoordbits bpc known
         //.mrdcompbits bpcm known and
         flagreq { //.mrdflagbits bpf known and } if not {
@@ -516,9 +524,9 @@ true setglobal
 } def
 
 %
-%  set a mesh colour: components directly, or -- when the shading
+%  Set a mesh colour: components directly, or -- when the shading
 %  carries a Function -- a single parametric value through it. The
-%  mesh painters bind /shfn before any triangle paints
+%  mesh painters bind /shfn before any triangle paints.
 %
 /.gsetcolor {  % [c0..cn-1]  .  -
     shfn null eq {
@@ -529,10 +537,9 @@ true setglobal
 } def
 
 %
-%  va vb vc depth  .gtri  -
 %  paint a Gouraud triangle: subdivide at the edge midpoints until the
 %  triangle sits within a couple of device pixels, then fill flat with
-%  the corner average
+%  the corner average.
 %
 /.gmid {  % va vb  .  vm
     2 dict begin
@@ -542,8 +549,8 @@ true setglobal
     } for ]
     end
 } def
+
 %
-%  va vb vc  .tridepth  depth
 %  How finely to subdivide a Gouraud triangle, from the size the triangle
 %  comes to on the device. Each level halves an edge, so a triangle L
 %  device units across needs log2(L/k) levels to bring its flat fills
@@ -608,6 +615,7 @@ true setglobal
 /.gtri {  % va vb vc dpt  .  -
     6 dict begin
     /dpt exch def /vc exch def /vb exch def /va exch def
+
     % A triangle lying wholly past one edge of the page marks nothing
     % there, so its subdivision is skipped. This holds a mesh's cost to
     % the page when a Decode or a stray coordinate throws a triangle's
@@ -651,17 +659,19 @@ true setglobal
 } def
 
 %
-%  free-form (type 4) and lattice-form (type 5) triangle meshes with
-%  per-vertex colours
+%  Free-form (type 4) and lattice-form (type 5) triangle meshes with
+%  per-vertex colours.
 %
 /.meshsh {  % shdict  .  -
     24 dict begin
     /gclipbox //.gtriclip exec def
+
     % a lattice (type 5) mesh carries no per-vertex flag, so BitsPerFlag
-    % may be absent from one of the two types this paints
+    % may be absent from one of the two types this paints.
     false 2 //.mrdinit exec
     sh /ShadingType get 5 eq {
         /vpr sh /VerticesPerRow get def
+
         % PLRM 4.9.3: a lattice mesh has at least two vertices per row.
         % A row of fewer consumes no vertices from the source, so the read
         % position never advances and the row loop below never reaches its
@@ -722,16 +732,16 @@ true setglobal
 } def
 
 %
-%  the 4x4 control grid slot (row-major, rows pairing with u) for
+%  The 4x4 control grid slot (row-major, rows pairing with u) for
 %  each patch point p1..p16 in the data-stream order: the boundary
 %  counterclockwise from the first corner, then the four interior
-%  points
+%  points.
 %
 /.pgridmap [ 0 1 2 3 7 11 15 14 13 12 8 4 5 6 10 9 ] def
 
 %
 %  a weighted combination of grid points, divided by 9: the Coons
-%  interior points are ninths of boundary sums
+%  interior points are ninths of boundary sums.
 %
 /.pmix {  % [w slot w slot ...]  .  [x y]
     4 dict begin
@@ -748,15 +758,16 @@ true setglobal
 } def
 
 %
-%  paint the current 4x4 grid g with corner colours cols: collapse
+%  Paint the current 4x4 grid g with corner colours cols: collapse
 %  the grid's columns at each u by .bez1, sweep the resulting curve
 %  in v, and hand the cells to the Gouraud triangles with corner
-%  colours blended bilinearly
+%  colours blended bilinearly.
 %
 /.patchpaint {  % -  .  -
     10 dict begin
     /gclipbox //.gtriclip exec def
-    % subdivision from the device size of the boundary points
+
+    % Subdivision from the device size of the boundary points
     /mnx 9e99 def /mny 9e99 def /mxx -9e99 def /mxy -9e99 def
     0 1 11 { //.pgridmap exch get g exch get aload pop transform
         dup mxy gt { dup /mxy exch def } if dup mny lt { dup /mny exch def } if pop
@@ -806,14 +817,16 @@ true setglobal
 %
 %  Coons (type 6) and tensor-product (type 7) patch meshes. A Coons
 %  patch completes to a tensor patch by the standard interior points,
-%  so one surface serves both
+%  so one surface serves both.
 %
 /.patchsh {  % shdict  .  -
     30 dict begin
-    % both patch types carry a flag on every patch, so BitsPerFlag is
-    % required of them
+
+    % Both patch types carry a flag on every patch, so BitsPerFlag is
+    % required of them.
     true 3 //.mrdinit exec
     /tensor sh /ShadingType get 7 eq def
+
     % pts: p1..p16 as [x y] in data order; cols: c1..c4; g: the grid
     /pts 16 array def
     /cols 4 array def
@@ -827,8 +840,8 @@ true setglobal
             0 1 np { pts exch //.mrdpt exec put } for
             0 1 3 { cols exch //.mrdcolor exec put } for
         }{
-            % the shared edge is the previous patch's: its four
-            % points become p1..p4 and its two colours c1..c2
+            % The shared edge is the previous patch's: its four
+            % points become p1..p4 and its two colours c1..c2.
             /oldp [ [ 3 4 5 6 ] [ 6 7 8 9 ] [ 9 10 11 0 ] ] flag 1 sub get
                    [ exch { pts exch get } forall ] def
             /oldc [ [ 1 2 ] [ 2 3 ] [ 3 0 ] ] flag 1 sub get
@@ -838,11 +851,12 @@ true setglobal
             0 1 3 { /k exch def pts k oldp k get put } for
             0 1 1 { /k exch def cols k oldc k get put } for
         } ifelse
+
         % a patch, flag and all, occupies a whole number of bytes
         //.mrdalign exec
         0 1 np { /k exch def g //.pgridmap k get pts k get put } for
         tensor not {
-            % the Coons interior points, as ninths of boundary sums
+            % The Coons interior points, as ninths of boundary sums
             g 5 [ -4 0 6 1 6 4 -2 3 -2 12 3 13 3 7 -1 15 ] //.pmix exec put
             g 6 [ -4 3 6 2 6 7 -2 0 -2 15 3 4 3 14 -1 12 ] //.pmix exec put
             g 9 [ -4 12 6 13 6 8 -2 15 -2 0 3 1 3 11 -1 3 ] //.pmix exec put
@@ -855,11 +869,11 @@ true setglobal
 end
 
 %
-%    shdict  shfill  -
-%  paint the shading over the current clip region; the current path
-%  survives untouched
+%  Paint the shading over the current clip region; the current path
+%  survives untouched.
 %
 .xpostsys begin
+
 %
 %  Which procedure paints each shading type (PLRM 4.9.3). Written as a
 %  table rather than a chain of tests: the chain asked five questions of

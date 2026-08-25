@@ -2,6 +2,8 @@
 %
 % err.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The error dictionaries, installed from init.ps.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -23,7 +25,7 @@ $error begin
 
     % The standard entries the reference interpreters carry: whether
     % an error records the stacks into $error (settable to skip the
-    % snapshot), and the extra context certain errors leave behind
+    % snapshot), and the extra context certain errors leave behind.
     /recordstacks true def
     /errorinfo null def
     /ostack null def
@@ -32,7 +34,7 @@ $error begin
 
     % Whether the standard handler reports an error as a binary object
     % sequence rather than as text; the sequence needs binary encoding
-    % to be enabled as well
+    % to be enabled as well.
     /binary false def
 end
 
@@ -154,7 +156,7 @@ errordict begin
                 % A binary object sequence when one is asked for and
                 % binary encoding is enabled: a four element array under
                 % tag 250 carrying the class of error, its name, what
-                % was executing, and a boolean
+                % was executing, and a boolean.
                 currentdict /binary known { binary }{ false } ifelse
                 currentobjectformat 0 ne and {
                     [ /Error errorname
@@ -168,7 +170,7 @@ errordict begin
                           /arraytype eq
                       or or or or or or not {
                           % An operator, or anything else no sequence
-                          % can carry, stands in as its name
+                          % can carry, stands in as its name.
                           128 string cvs cvn
                       } if
                       false ]

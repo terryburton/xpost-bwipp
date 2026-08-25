@@ -2,6 +2,8 @@
 %
 % pbmimage.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The PBM bilevel raster device, the sibling of the grayscale device.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -118,7 +120,7 @@
 %
 %  Emission thresholds and packs through the compiled row writer, a run
 %  of the page's rows at a time; the header ahead of them and the Emit
-%  dispatch that calls both are inherited
+%  dispatch that calls both are inherited.
 %
 .xpost_PBMIMAGE /.writeband {  % rows file  .  -
     //.internaldict /.writebitrows get exec

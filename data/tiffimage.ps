@@ -2,6 +2,8 @@
 %
 % tiffimage.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The TIFF raster device, the sibling of the 24-bit rgb device.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -155,7 +157,7 @@
 
         % The directory: 12 entries (2 + 144 + 4 bytes), then the
         % bits-per-sample triple and the two resolution rationals,
-        % 172 bytes in all at the given offset; the strip sits at 8
+        % 172 bytes in all at the given offset; the strip sits at 8.
         /ifdbuild {  % ifd-offset compression strip-length  .  -
             /sl exch def /cmp exch def /ifd exch def
             /hp 0 def

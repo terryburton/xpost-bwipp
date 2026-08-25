@@ -2,6 +2,8 @@
 %
 % graphics.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The graphics-state machinery and the graphics language installed into global systemdict.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -10,9 +12,9 @@
 //.internaldict /QUIET known { }{ (loading graphics.ps...\n)print } ifelse
 
 %
-%  fallback definitions so this file can run standalone; in the normal flow
+%  Fallback definitions so this file can run standalone; in the normal flow
 %  DATA_DIR is one of the settings this run made, and a run that settled no
-%  directory answers with the null every unsettled setting answers with
+%  directory answers with the null every unsettled setting answers with.
 %
 /DATA_DIR //.xpostsys /.hostvalue get exec null eq {
     currentglobal true setglobal
@@ -72,7 +74,7 @@ systemdict begin
 
     % .DEVICEproc is bound only now, with graphicsdict already an operator,
     % so bind freezes the operator into it rather than leaving a name a
-    % program could take for itself
+    % program could take for itself.
     currentglobal false setglobal
     .privatedict /.DEVICEproc
         { graphicsdict /currgstate get /device get } bind put
@@ -299,7 +301,7 @@ currentglobal true setglobal
     2 index 1 index graphicsdict //.cosave exec
 
     % ds: the machinery's own dictionaries, taken off here and held
-    % outermost first for the program below to put back
+    % outermost first for the program below to put back.
     1 index dup 0 gt { array }{ pop //.conothing } ifelse
     2 index 1 sub -1 0 {
         1 index exch currentdict put
@@ -309,6 +311,7 @@ currentglobal true setglobal
     % The depths to come back to
     graphicsdict /gptr get
     countdictstack
+
     % pr ks nd ov ds gp dd
     [
         counttomark 7 add index /stopped load

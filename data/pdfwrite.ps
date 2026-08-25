@@ -2,6 +2,8 @@
 %
 % pdfwrite.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The pdfwrite device: emit a PDF document from the recorded page.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -47,7 +49,7 @@
 %  uncompressed without zlib.
 %
 /.xpost_PDFWRITE <<
-    % each paint reaches the content stream in the colour space it was
+    % Each paint reaches the content stream in the colour space it was
     % set in -- grey as g/G, RGB as rg/RG, CMYK as k/K -- so a press
     % workflow receives pure-K ink as pure K rather than a converted
     % black. A single-space model can be adopted via setpagedevice
@@ -63,8 +65,9 @@
 
     /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
-    % the page dimensions are points and need not be integral; adopt the
-    % exact values when the page device machinery published them
+
+    % The page dimensions are points and need not be integral; adopt the
+    % exact values when the page device machinery published them.
     //.xpostsys /.adoptexactpage get exec
     currentdict } //.xpostsys /.indict get exec
     dup /.copydict get exec
@@ -74,13 +77,15 @@
         /.pdfimages 0 array def
         /.opused 8 dict def   % Overprint states used on this page -> ExtGState entries
         /.oplast 0 def        % Last overprint state emitted (0 = the default, nothing emitted)
+
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
-        % choose the output form and, when the name is already set, reach the
+
+        % Choose the output form and, when the name is already set, reach the
         % single-file output now -- before the job's first per-page save -- so
         % restore cannot close it (a handle opened after a save is closed by
-        % that restore)
+        % that restore).
         currentdict dup /.setupoutput get exec
     currentdict
     } //.xpostsys /.indict get exec } bind
@@ -126,8 +131,8 @@
             } if
         } if
         //.xpostsys /.vecout get /ready get {
-            % the document stays open across the change of device; this one
-            % writes it from here on
+            % The document stays open across the change of device; this one
+            % writes it from here on.
             //.xpostsys /.vecout get /owner known
             currentdict /.vecticket known and {
                 //.xpostsys /.vecout get /owner get currentdict /.vecticket get ne {
@@ -141,7 +146,7 @@
                 currentglobal true setglobal
                 OutputFileName (%d) search { pop pop pop false }{ pop true } ifelse
                 {
-                    % single-file: open the accumulating file now, before any
+                    % Single-file: open the accumulating file now, before any
                     % per-page save, so restore cannot close it. A name that
                     % cannot be opened here -- a platform's null sink, say --
                     % is left to the first Emit, where the per-file writer
@@ -152,7 +157,8 @@
                         //.xpostsys /.vecout get /single false put
                     }{
                         exch pop
-                        % the record is global so a page's restore cannot
+
+                        % The record is global so a page's restore cannot
                         % rewind it, but a file object lives in local memory
                         % whatever dictionary holds it, and a global
                         % dictionary is not a root for local memory
@@ -167,15 +173,16 @@
                         dup /sepsdone 0 put
                         dup /headered false put
                         dup /np 0 put
-                        % the name this document answers for, copied where the
+
+                        % The name this document answers for, copied where the
                         % record itself lives so a global dictionary holds no
-                        % local value
+                        % local value.
                         dup /name OutputFileName dup length string copy put
                         /ready true put
                     } ifelse
                 }{
                     % a %d selects the per-file writer, which opens each page's
-                    % own file at Emit; this record stays idle
+                    % own file at Emit; this record stays idle.
                     //.xpostsys /.vecout get dup /single false put
                     dup /name OutputFileName dup length string copy put
                     /ready true put
@@ -189,28 +196,29 @@
     } //.xpostsys /.indict get exec } bind
 
     /Destroy {  % IMAGE  .  -
-        % finalise the accumulating file (page tree, cross-reference and
+        % Finalise the accumulating file (page tree, cross-reference and
         % trailer) before releasing the content accumulator, and only from the
         % device holding the ticket on it: a page device change hands the open
         % document to its replacement, and the device being retired is no
         % longer the one writing it.
         % .endfile runs with the device current, so it needs its own copy (get
-        % consumes one, the body the other) while leaving the device for .pdffree
+        % consumes one, the body the other) while leaving the device for .pdffree.
         dup /.vecticket known //.xpostsys /.vecout get /owner known and {
             dup /.vecticket get //.xpostsys /.vecout get /owner get eq
         }{ false } ifelse
         {
             //.xpostsys /.vecout get /single get { dup dup /.endfile get exec } if
-            % stand the shared record down: the interpreter retires a device at
+
+            % Stand the shared record down: the interpreter retires a device at
             % setpagedevice and again at job end, so a repeated Destroy must not
-            % finalise the closed file a second time
+            % finalise the closed file a second time.
             //.xpostsys /.vecout get dup /single false put
                 dup /ready false put /owner undef
         } if
         dup //.internaldict /.pdffree get exec pop
     } bind
 
-    % the zero pad for xref offsets is a shared read-only constant, kept in the
+    % The zero pad for xref offsets is a shared read-only constant, kept in the
     % global private dictionary rather than leaking a name into userdict. The
     % paginated single-file path keeps its across-page bookkeeping (the open
     % file, the name it was opened under, the running object number, each
@@ -226,7 +234,8 @@
         .xpostsys /.vecout get /single false put
         .xpostsys /.vecout get /ready false put
         .xpostsys /.vecout get /docid 0 put
-        % the maps a document fills in belong to the record rather than to any
+
+        % The maps a document fills in belong to the record rather than to any
         % one document: each is keyed by a counter the document restarts from
         % zero, so a document writes every entry it later reads and what an
         % earlier one left above that count is never consulted. They are made
@@ -238,12 +247,12 @@
         .xpostsys /.vecout get /sobj 16 dict put
     setglobal
 
-    % append a string to the content accumulator (held outside VM via /Private)
+    % Append a string to the content accumulator (held outside VM via /Private)
     /.put {  % str  .  -
         currentdict //.internaldict /.pdfput get exec
     } bind
 
-    % append a string to the paginated single-file output (its open file lives
+    % Append a string to the paginated single-file output (its open file lives
     % in the shared record) and carry the count of bytes emitted so far, which
     % is where the cross-reference offsets come from. The count is kept here
     % rather than asked of the file because a stream that cannot be positioned
@@ -276,13 +285,13 @@
         //.xpostsys /.vecout get /bytepos get put
     } bind
 
-    % append a number in PDF syntax (integer, or two decimals; never
-    % exponential), through the vector writers' shared formatter
+    % Append a number in PDF syntax (integer, or two decimals; never
+    % exponential), through the vector writers' shared formatter.
     /.pdfnum {  % num  .  -
         //.xpostsys /.num2str get exec .put
     } bind
 
-    % format a number in PDF syntax to a fresh string at the accumulator's
+    % Format a number in PDF syntax to a fresh string at the accumulator's
     % full precision (colour levels and function source need more than the
     % coordinate formatter's two decimals). The C op matches .put's own
     % formatting, so both the marking methods and separation registration
@@ -291,11 +300,11 @@
         //.internaldict /.pdfnumstr get exec
     } bind
 
-    % the number of components the colour pipeline delivered with the
+    % The number of components the colour pipeline delivered with the
     % current paint: under the /Process native space each paint arrives
     % in the space it was set in (one grey component, three RGB or four
     % CMYK, read from the graphics state that produced it); a single
-    % adopted model is three or four wide throughout
+    % adopted model is three or four wide throughout.
     /.ncomps {  % -  .  n
         nativecolorspace /Process eq {
             graphicsdict /currgstate get /colorspace get
@@ -306,7 +315,7 @@
         } ifelse
     } bind
 
-    % append a fill or stroke colour: a separation registered with this
+    % Append a fill or stroke colour: a separation registered with this
     % device paints in its /CS<i> resource space at the recorded tint,
     % dropping the process components the marking pipeline supplies;
     % otherwise the paint's space applies -- one component as g/G,
@@ -386,13 +395,13 @@
         } ifelse } ifelse } ifelse
     } bind
 
-    % concatenate two strings into a new one: the interpreter's own,
+    % Concatenate two strings into a new one: the interpreter's own,
     % under the name this file calls it by. Writing a second one here
     % cost two names in whatever dictionary was current at each call.
     /.strcat //.xpostsys /.strcat get
 
-    % escape a separation name into PDF name syntax: regular characters
-    % pass, delimiters and characters outside 33..126 become #xx
+    % Escape a separation name into PDF name syntax: regular characters
+    % pass, delimiters and characters outside 33..126 become #xx.
     /.escname {  % string  .  string'
         /.esrc exch def
         /.eout .esrc length 3 mul string def
@@ -414,7 +423,7 @@
         .eout 0 .epos getinterval
     } bind
 
-    % the PDF Type 4 (calculator) function operator set
+    % The PDF Type 4 (calculator) function operator set
     /.t4ops <<
         /abs true /add true /atan true /ceiling true /cos true /cvi true
         /cvr true /div true /exp true /floor true /idiv true /ln true
@@ -426,10 +435,10 @@
         /copy true /dup true /exch true /index true /pop true /roll true
     >>
 
-    % serialise a tint transform procedure as Type 4 calculator source:
+    % Serialise a tint transform procedure as Type 4 calculator source:
     % numbers, operator names within the Type 4 set and nested
     % procedures pass; anything else (a bound operator, a literal name,
-    % a string) disqualifies the procedure and sampling takes over
+    % a string) disqualifies the procedure and sampling takes over.
     /.t4build {  % proc  .  string true | false
         /.t4ok true def
         ({ )
@@ -458,7 +467,7 @@
         .t4ok { (}) .strcat true }{ pop false } ifelse
     } bind
 
-    % sample the tint transform at 256 points into 8-bit Type 0 data
+    % Sample the tint transform at 256 points into 8-bit Type 0 data
     /.t0build {  % -  .  string
         256 .sepnout mul string /.smp exch def
         0 1 255 {
@@ -558,8 +567,8 @@
         w 1 add .pdfnum ( ) .put h 1 add .pdfnum ( re\nf\n) .put
     } //.xpostsys /.indict get exec }
 
-    % c1..cN polygon IMAGE . -  ; append the fill colour, the subpath
-    % moveto/lineto/closepath, and a nonzero-winding fill. The per-coordinate
+    % Append the fill colour, the subpath moveto/lineto/closepath, and
+    % a nonzero-winding fill. The per-coordinate
     % formatting is the hot loop, so it is done in C (.pdffillpoly),
     % appending to the accumulator; the colour is emitted here, where
     % separations are the device's business.
@@ -625,8 +634,8 @@
         .pcn
     } bind
 
-    % c1..cN IMAGE . -  ; fill the current path as one content-stream
-    % path with curves preserved (the flattening fill goes through
+    % Fill the current path as one content-stream path with curves
+    % preserved (the flattening fill goes through
     % FillPoly instead), subpaths closed implicitly by the fill,
     % which winds nonzero as the fill operator does. The per-element
     % formatting walks the path in C (.pdffillpath), appending to the
@@ -636,6 +645,7 @@
     {
         .pdffillcolor
         currentdict //.internaldict /.pdffillpath get exec
+
         % a clip adopted for this fill ends with it
         currentdict /.pdfclipopen 2 copy known { get }{ pop pop false } ifelse {
             (Q\n) .put
@@ -651,7 +661,7 @@
     % emission balances, so it governs that fill alone.
     /ClipPath {  % path IMAGE  .  -
     {
-        % the path walker reads the current path, so install the clip
+        % The path walker reads the current path, so install the clip
         % shape for the walk and put the working path back after. No
         % scratch dictionary is opened: the accumulator methods below
         % append through currentdict, which must stay the device.
@@ -676,8 +686,9 @@
             << /w piw /h pih /nc pinc /rows pirows /dec pidec
                /int piint >> ] def
         (q\n) .put
+
         % a rectangular clip region travels with the paint; the
-        % painting operators arrive pre-clipped, images cannot
+        % painting operators arrive pre-clipped, images cannot.
         //.internaldict /.cliprect get exec {
             /picy1 exch def /picx1 exch def /picy0 exch def /picx0 exch def
             picx0 .pdfnum ( ) .put picy0 .pdfnum ( ) .put
@@ -712,7 +723,7 @@
             .emitdevpath pop
             (S\n) .put
         }{
-            % an empty path strokes nothing: drop the unused colour
+            % An empty path strokes nothing: drop the unused colour
             .ncomps { pop } repeat
         } ifelse
     } //.xpostsys /.indict get exec }
@@ -727,7 +738,7 @@
     % how a page is written into one, so that is all that is written twice.
     /Emit {  % IMAGE  .  -
         % .setupoutput and the writer each run with the device current, so each
-        % needs its own copy (get consumes one, the body the other)
+        % needs its own copy (get consumes one, the body the other).
         dup dup /.setupoutput get exec
         //.xpostsys /.vecout get /single get {
             dup /.emitpage get exec
@@ -750,13 +761,14 @@
     % earlier document left above the count is never consulted.
     /.begindoc {  % IMAGE  .  -
     {
-        % the file is allocated global because the record that holds it is,
-        % and a global dictionary may not hold a local object
+        % The file is allocated global because the record that holds it is,
+        % and a global dictionary may not hold a local object.
         currentglobal true setglobal
         .outputfile (w) file
-        % but a file lives in local memory whatever dictionary names it, and
+
+        % But a file lives in local memory whatever dictionary names it, and
         % a global dictionary is no root for local memory (PLRM 3.7.2), so it
-        % is named from the local dictionary the collector roots as well
+        % is named from the local dictionary the collector roots as well.
         dup .privatedict exch /.vecoutfile exch put
         //.xpostsys /.vecout get dup /F 4 -1 roll put
         dup /bytepos 0 put
@@ -782,6 +794,7 @@
             //.xpostsys /.vecout get /headered true put
         } if
         /Chunks currentdict //.internaldict /.pdfchunks get exec def
+
         % CompressPages false (a distiller parameter) leaves the content stream
         % uncompressed, so the page is readable; the default compresses it.
         //.xpostsys /.distillerparams get /CompressPages get false eq {
@@ -795,7 +808,7 @@
         /nseps currentdict //.internaldict /.pdfsepcount get exec def
         /nimg .pdfimages length def
 
-        % content stream object
+        % Content stream object
         /coobj .nextobj def
         coobj .recordoff
         coobj 20 string cvs .vw ( 0 obj\n<< /Length ) .vw clen 20 string cvs .vw
@@ -804,9 +817,9 @@
         Chunks { .vw } forall
         (\nendstream\nendobj\n) .vw
 
-        % separation function objects new since the previous page (the registry
+        % Separation function objects new since the previous page (the registry
         % is cumulative and deduped by name); map each index to its object so a
-        % separation shared across pages is written once and referenced by all
+        % separation shared across pages is written once and referenced by all.
         //.xpostsys /.vecout get /sepsdone get 1 nseps 1 sub {
             /si exch def
             /so .nextobj def
@@ -818,7 +831,7 @@
         } for
         //.xpostsys /.vecout get /sepsdone nseps put
 
-        % this page's image objects; remember their numbers for the resources
+        % This page's image objects; remember their numbers for the resources
         /imgobjs nimg array def
         0 1 nimg 1 sub {
             /ii exch def
@@ -848,8 +861,8 @@
             ( >>\nstream\n) .vw imc { .vw } forall (\nendstream\nendobj\n) .vw
         } for
 
-        % the page object, referencing the content, every registered
-        % separation and this page's images; its parent is the page tree
+        % The page object, referencing the content, every registered
+        % separation and this page's images; its parent is the page tree.
         /pgobj .nextobj def
         pgobj .recordoff
         pgobj 20 string cvs .vw ( 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ) .vw
@@ -910,7 +923,7 @@
             (%PDF-1.4\n) .vw //.xpostsys /.vecout get /headered true put
         } if
 
-        % object 2: the page tree over every emitted page
+        % Object 2: the page tree over every emitted page
         2 .recordoff
         (2 0 obj\n<< /Type /Pages /Kids [) .vw
         0 1 //.xpostsys /.vecout get /np get 1 sub {
@@ -918,16 +931,17 @@
         } for
         (] /Count ) .vw //.xpostsys /.vecout get /np get 20 string cvs .vw ( >>\nendobj\n) .vw
 
-        % object 1: the catalog
+        % Object 1: the catalog
         1 .recordoff
         (1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n) .vw
 
-        % document info from DOCINFO pdfmarks, if any
+        % Document info from DOCINFO pdfmarks, if any
         /haveinfo .docinfo length 0 gt def
         haveinfo {
             /infoobj .nextobj def
             infoobj .recordoff
             infoobj 20 string cvs .vw ( 0 obj\n<<) .vw
+
             % A DOCINFO key is a name and its value is whatever the mark
             % carried; both reach the file, so both are escaped where they
             % could otherwise carry the bytes that end a name or a string
@@ -953,7 +967,7 @@
             ( >>\nendobj\n) .vw
         } if
 
-        % cross-reference table and trailer
+        % Cross-reference table and trailer
         /maxobj //.xpostsys /.vecout get /nextobj get 1 sub def
         /xoff //.xpostsys /.vecout get /bytepos get def
         (xref\n0 ) .vw maxobj 1 add 20 string cvs .vw (\n0000000000 65535 f \n) .vw
@@ -964,7 +978,7 @@
         haveinfo { ( /Info ) .vw infoobj 20 string cvs .vw ( 0 R) .vw } if
         ( >>\nstartxref\n) .vw xoff 20 string cvs .vw (\n%%EOF\n) .vw
 
-        % close the file unless it is stdout, and give up the local hold
+        % Close the file unless it is stdout, and give up the local hold
         //.xpostsys /.vecout get /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
         .privatedict /.vecoutfile undef
     } //.xpostsys /.indict get exec } bind

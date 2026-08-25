@@ -2,6 +2,8 @@
 %
 % clip.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The clipping region: setting it, resolving it, and meeting a paint against it.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -194,9 +196,9 @@ true setglobal
             } ifelse
         } if
     } stopped {
-        % a tile that handed its refusal up leaves its own dictionaries
+        % A tile that handed its refusal up leaves its own dictionaries
         % open behind it, and the caller is owed a clean stack under the
-        % failure it is about to be given
+        % failure it is about to be given.
         countdictstack d0 sub { end } repeat
         count n0 sub { pop } repeat
         end
@@ -254,7 +256,7 @@ true setglobal
     setmatrix
 
     % The region is the whole page, which constrains nothing a device has
-    % to be told about, so there is no shape to hand one
+    % to be told about, so there is no shape to hand one.
     graphicsdict /currgstate get /currpath get
     null //.xpostsys /.setclipregion get exec
     graphicsdict /currgstate get /currpath 3 -1 roll put
@@ -280,12 +282,12 @@ true setglobal
         % The region is a rectangle containing the whole path, so the
         % intersection is the flattened path already in hand: nothing to
         % cut, and the region stays a path so a vector device's
-        % whole-path output stays exact
+        % whole-path output stays exact.
     }{
     % Two overlapping rectangles intersect to a rectangle: build it
     % directly, so the region stays recognizable as one -- the
     % hairline walk and the raster painters read its bounds -- rather
-    % than dissolving into pixel-band spans
+    % than dissolving into pixel-band spans.
     .cliprect { .pathisrect { true }{ 4 { pop } repeat false } ifelse }
               { false } ifelse {
         8 dict begin
@@ -308,14 +310,14 @@ true setglobal
         % resulting pixel-band rectangles are winding-uniform, so
         % stacked regions of any shape combine exactly. The answer
         % arrives in parts where no single array states it, and the
-        % parts become the one path the region is held in
+        % parts become the one path the region is held in.
         false //.xpostsys /.fillsubjparts get exec
         //.xpostsys /.clippartsmeet get exec
         //.xpostsys /.clipstoreparts get exec
     } ifelse } ifelse
 
     % Each branch above left the new region as the current path: put the
-    % caller's path back and install the clip, both faces at once
+    % caller's path back and install the clip, both faces at once.
     graphicsdict /currgstate get /currpath get      % Source saved region
     graphicsdict /currgstate get /currpath 3 index put
     exch pop                                        % Source region
@@ -353,7 +355,7 @@ true setglobal
 %  the y-flip), which would keep the exterior and clip everything away.
 %  Reverse such a polygon so its winding always matches.
 %  doubled signed area of a closed polygon (first point repeated at the
-%  end); positive when wound counter-clockwise in device space
+%  end); positive when wound counter-clockwise in device space.
 %
 .xpostsys /polyarea2 {  % poly  .  a2
     8 dict begin
@@ -422,7 +424,7 @@ true setglobal
                 } ifelse
             } for
         ] def
-        out length 0 gt {                  % re-close: repeat the first vertex
+        out length 0 gt {                  % Re-close: repeat the first vertex
             [ out aload pop out 0 get ]
         }{
             out
@@ -473,18 +475,18 @@ true setglobal
 %  subpath per scanline -- which for a vector device is the whole page
 %  written out a row at a time.
 %
-%  convert the path to an array of polygons (arrays of points)
+%  Convert the path to an array of polygons (arrays of points)
 %  convert clipregion to array of polygons
 %  traverse the clipregion
 %     convert line to [A B C] form
 %     feed polygon and line to hodgman-sutherland,
 %        receiving new polygon.
-%  convert polygon array back to path structure
+%  convert polygon array back to path structure.
 %
 .xpostsys /doclip {  % -  .  -
     % When the clip region is an axis-aligned rectangle that already
     % contains the whole path, clipping passes every point through
-    % unchanged: skip the polygon-clipping machinery
+    % unchanged: skip the polygon-clipping machinery.
     .cliptrivial not {
         %DICT
         20 dict
@@ -500,6 +502,7 @@ true setglobal
                     ] exch  % ... [ ... ] [x0 y0]
                     [ exch  % ... [ ... ] [ [x0 y0]
                 } if  % ... mark [x0 y0]
+
                 %pstack()=
             }
             { 2 array astore }  % ... mark [x0 y0] ... [xN yN]
@@ -537,6 +540,7 @@ true setglobal
             (//.xpostsys /doclip get exec)=
             (PA: )print PA ==
             (CR: )print CR ==
+
             %hook
         } if
 
@@ -562,11 +566,11 @@ true setglobal
         /shn 0 def
         /shnmax 4000000 def
         /holemax 200 def
-        CR {  % one clipping polygon
+        CR {  % One clipping polygon
             //.xpostsys /despike get exec
 
             % Fewer than three points bound no area (e.g. the bare pen
-            % moveto charpath leaves after its outlines)
+            % moveto charpath leaves after its outlines).
             dup length 3 lt {
                 pop
             }{
@@ -583,7 +587,8 @@ true setglobal
                     /V exch def
                     U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 lt {
                         % A degenerate edge (a contour closing on its own start,
-                        % exactly or within float noise) has no usable half-plane
+                        % exactly or within float noise) has no usable
+                        % half-plane.
                     }{
                         [ U aload pop V aload pop //.xpostsys /p2abc get exec ]  % Clip-line
                         /CL exch def
@@ -591,7 +596,7 @@ true setglobal
                             CL ==
                         } if
 
-                        /PA [ PA {  % one subject polygon
+                        /PA [ PA {  % One subject polygon
                             CL //.xpostsys /hodgman-sutherland get exec
                             /shn shn 1 add def
                             shn shnmax gt { /clip cvx /limitcheck signalerror } if
@@ -605,7 +610,7 @@ true setglobal
 
                 % Subtract the (convex) hole: the difference decomposes into
                 % one piece per hole edge - the part beyond that edge,
-                % limited by the edges before it
+                % limited by the edges before it.
                 //.xpostsys /normclipwind get exec
                 /HP exch def
                 /HL [
@@ -670,8 +675,8 @@ true setglobal
 } bind put
 
 %
-%  append a null-separated polygon array (device-space point pairs) to
-%  the current path
+%  Append a null-separated polygon array (device-space point pairs) to
+%  the current path.
 %
 .xpostsys /.polytopath {  % poly  .  -
     1 dict begin
@@ -690,7 +695,7 @@ true setglobal
 } bind put
 
 %
-%  intersect the clip region with the even-odd interior of the current
+%  Intersect the clip region with the even-odd interior of the current
 %  path. The interior resolves to pixel-band rectangles through the
 %  fill pipeline's scan-conversion; the rectangles, being
 %  winding-uniform, intersect the existing region exactly through the
@@ -705,9 +710,10 @@ true setglobal
         //.xpostsys /.clippartsmeet get exec
     } if
     //.xpostsys /.clipstoreparts get exec
-    % the region is the even-odd interior resolved to pixel-band spans,
+
+    % The region is the even-odd interior resolved to pixel-band spans,
     % which no single path under the nonzero rule describes: a device
-    % that clips for itself has no shape to be given
+    % that clips for itself has no shape to be given.
     graphicsdict /currgstate get /currpath get
     null //.xpostsys /.setclipregion get exec
     graphicsdict /currgstate get /currpath 3 -1 roll put

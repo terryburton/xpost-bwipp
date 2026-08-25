@@ -2,6 +2,8 @@
 %
 % resource.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The Level 2 resource machinery: named instances per category, held in global VM.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -41,10 +43,11 @@ true setglobal
 %
 .xpostsys /.facecache 32 dict put
 //.xpostsys /.resources get /Category 32 dict put
+
 %
 %  /Category is itself one of the categories it lists: PLRM Table 3.9 calls it
 %  recursive, so it carries an implementation dictionary of its own alongside
-%  the ones it holds for everything else
+%  the ones it holds for everything else.
 %
 //.xpostsys /.resources get /Category get /Category << /Category /Category >> put
 
@@ -123,7 +126,7 @@ true setglobal
 } bind put
 
 %
-%  the standard regular categories exist from the start, empty until
+%  The standard regular categories exist from the start, empty until
 %  instances are defined into them. /Generic is among them: a program
 %  copies its implementation dictionary to seed a category of its own
 %  (PLRM 3.9.3), and it is a category in its own right, taking instances
@@ -169,7 +172,6 @@ true setglobal
     }{ pop pop null } ifelse
 } bind put
 
-%
 .xpostsys /.instof {  % category  .  instances
     //.xpostsys /.resources get exch 2 copy known not {
         pop pop /findresource cvx /undefinedresource signalerror
@@ -179,14 +181,14 @@ true setglobal
 
 %
 %  instances defined in local VM live beside the global table and go
-%  away with restore, as the local dictionary holding them does
+%  away with restore, as the local dictionary holding them does.
 %
 currentglobal false setglobal
 .gscratch /.lresources 32 dict put
 setglobal
 
 %
-%  the local table of a category, created on first use
+%  The local table of a category, created on first use
 %
 .xpostsys /.linstof {  % category  .  instances
     .gscratch /.lresources get exch 2 copy known not {
@@ -195,15 +197,15 @@ setglobal
     get
 } bind put
 
-%
 /defineresource [ /anytype /anytype /nametype ] {  % key instance category  .  instance
     dup /Category eq {
-        % defining an instance of /Category is defining a category, so it
+        % Defining an instance of /Category is defining a category, so it
         % gets the table its instances will live in; the implementation
-        % dictionary is the instance being defined
+        % dictionary is the instance being defined.
         2 index //.xpostsys /.catinstances get exec
     } if
     dup //.xpostsys /.instof get exec pop     % The category must exist either way
+
     % PLRM 8.2: "Before defining the resource instance, defineresource
     % verifies that the instance object is the correct type." A category
     % holding its instances to no type takes any.
@@ -211,6 +213,7 @@ setglobal
     dup null eq { pop }{
         2 index type ne { /defineresource cvx /typecheck signalerror } if
     } ifelse
+
     % PLRM 5.9: a CIDFont dictionary also carries a FontType, inserted by
     % definefont or by defineresource. This is the other of the two. The
     % question is asked of the CATEGORY rather than of the dictionary,
@@ -223,6 +226,7 @@ setglobal
     } if
     currentglobal { //.xpostsys /.instof get exec }{ //.xpostsys /.linstof get exec } ifelse
     2 index 2 index put exch pop
+
     % PLRM 8.2: defineresource "makes the object read-only if its access is
     % not already restricted", so what a category hands out cannot be altered
     % behind the back of whoever holds it. Access belongs to composites, and a
@@ -303,7 +307,7 @@ setglobal
     }{
         2 copy //.xpostsys /.resourcefind get exec {
             % key category file -- run the already-opened, confined file
-            % directly; running it by name would reopen it outside the path
+            % directly; running it by name would reopen it outside the path.
             currentglobal exch true setglobal cvx exec setglobal
             pop pop true
         }{
@@ -312,13 +316,13 @@ setglobal
     } ifelse } ifelse
 } bind put
 
-%
 /findresource [ /anytype /nametype ] {  % key category  .  instance
   {  % loop, so the local-shadow path can exit early
     2 dict begin
     /category exch def
     /key exch def
-    % ensure the category is defined. A category is itself an instance of
+
+    % Ensure the category is defined. A category is itself an instance of
     % /Category, stored under Category/<name> in the resource layout, so a
     % reference to an as-yet-unloaded category loads its implementation.
     //.xpostsys /.resources get category known not {
@@ -327,6 +331,7 @@ setglobal
     //.xpostsys /.resources get category known not {
         end /findresource cvx /undefinedresource signalerror
     } if
+
     % a local instance shadows a global one of the same name
     .gscratch /.lresources get category known {
         .gscratch /.lresources get category get dup key known
@@ -334,7 +339,7 @@ setglobal
     } if
     category //.xpostsys /.instof get exec /instances exch def
     instances key known not {
-        % miss: load the instance from the search path. The instance table
+        % Miss: load the instance from the search path. The instance table
         % is shared, so a successful defineresource populates instances.
         key category //.xpostsys /.loadresource get exec not
         { end /findresource cvx /undefinedresource signalerror } if
@@ -347,9 +352,8 @@ setglobal
   } loop
 } //.xpostsys /.defop get exec
 
-%
 /resourcestatus [ /anytype /nametype ] {  % key category  .  status size true | false
-    % querying a category that does not exist is an undefined error (PLRM);
+    % Querying a category that does not exist is an undefined error (PLRM);
     % only a present-but-absent instance yields false. Ensure the category is
     % defined the same way findresource does before reporting on an instance.
     2 dict begin
@@ -361,6 +365,7 @@ setglobal
     //.xpostsys /.resources get category known not {
         end /resourcestatus cvx /undefined signalerror
     } if
+
     % An instance in VM reports status 0, size 0 (a local instance shadows a
     % global one). An instance not in VM but available as a file on the search
     % path reports status 2, size -1 -- its presence without loading it -- the
@@ -385,7 +390,6 @@ setglobal
     } ifelse } ifelse } ifelse } ifelse
 } //.xpostsys /.defop get exec
 
-%
 /undefineresource [ /anytype /nametype ] {  % key category  .  -
     % Each arm reaches the same shape before it acts: the key and the
     % category, in that order, so that the instance dictionary the
@@ -424,7 +428,7 @@ setglobal
                 t ti get dup 42 eq {  % *
                     pop /star ti def /smk si def /ti ti 1 add def /adv true def
                 }{
-                    dup 92 eq ti 1 add tl lt and {  % escaped literal
+                    dup 92 eq ti 1 add tl lt and {  % Escaped literal
                         pop
                         t ti 1 add get s si get eq {
                             /ti ti 2 add def /si si 1 add def /adv true def
@@ -469,7 +473,7 @@ setglobal
 %  found rather than to resourceforall's four operands.
 %
 /resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
-    % merge the global table with any local instances over it
+    % Merge the global table with any local instances over it
     dup //.xpostsys /.instof get exec exch
     .gscratch /.lresources get exch 2 copy known {
         get exch dup length 2 index length add 1 add dict
@@ -500,7 +504,7 @@ setglobal
 %
 currentglobal true setglobal
 /Trapping <<
-    % the cumulative trapping-parameter dictionary. The language prescribes no
+    % The cumulative trapping-parameter dictionary. The language prescribes no
     % default values (they are device-specific), so it starts empty.
     /.trapparams 15 dict
 
@@ -654,6 +658,7 @@ currentglobal true setglobal
 } bind put
 
 setglobal
+
 %
 %  ------------------------------------------------------------------------
 %

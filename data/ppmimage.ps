@@ -2,6 +2,8 @@
 %
 % ppmimage.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The PPM colour raster device.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -27,7 +29,7 @@
 %  grayscale class builds as well. Three components interleaved in one
 %  string of the row would come to a third of that width.
 %
-%  procedures (.xpost_PPMIMAGE is the Class dictionary, IMAGE an
+%  Procedures (.xpost_PPMIMAGE is the Class dictionary, IMAGE an
 %  instance returned by Create):
 %            width height .xpost_PPMIMAGE  Create  ->  IMAGE
 %                  r g b x y IMAGE  PutPix  ->  -
@@ -73,7 +75,7 @@
         0 get length 0 ne
     } bind
 
-    % what one .rowalloc costs the memory it allocates from, as the
+    % What one .rowalloc costs the memory it allocates from, as the
     % elements and the string bytes it takes: a planar row is the three
     % elements naming its planes and one byte per pixel in each of them.
     % Create prices the whole raster from this before it builds any of
@@ -83,7 +85,7 @@
     } bind
 
     % scale each component in [0,1] to its plane's byte, and read the
-    % three back
+    % three back.
     /.rowput {  % row x c1 c2 c3  .  -
         .chan 4 index 2 get 4 index 3 -1 roll put
         .chan 3 index 1 get 3 index 3 -1 roll put
@@ -95,7 +97,7 @@
         exch 2 get exch get
     } bind
 
-    % the planes interleave through the compiled row writer
+    % The planes interleave through the compiled row writer
     /.writeband {  % rows file  .  -
         //.internaldict /.writergbrows get exec
     } bind

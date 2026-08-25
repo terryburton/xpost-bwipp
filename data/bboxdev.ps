@@ -2,6 +2,8 @@
 %
 % bboxdev.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The bounding-box device: measure the marks a page makes without rendering them.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -129,11 +131,12 @@
                 count /n0 exch def
                 { .fillpolyargs } stopped {
                     count n0 sub { pop } repeat
-                    % a path of more points than one polygon array
+
+                    % A path of more points than one polygon array
                     % describes: read the vertices off the path itself,
                     % a point at a time. An area-less subpath's points
                     % are counted this way where the polygon form drops
-                    % them, so the box is never too small
+                    % them, so the box is never too small.
                     { transform .maxmin } dup {} {} pathforall
                 }{
                     //.xpostsys /.polybounds get exec {
@@ -169,7 +172,7 @@
 
     /Emit {  % IMAGE  .  -
         {
-            minx maxx gt {  % nothing was marked
+            minx maxx gt {  % Nothing was marked
                 (%%BoundingBox: 0 0 0 0\n) print
                 (%%HiResBoundingBox: 0 0 0 0\n) print
             }{

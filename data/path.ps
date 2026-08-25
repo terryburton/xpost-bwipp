@@ -2,6 +2,8 @@
 %
 % path.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The current path, a packed byte string, and the path-construction operators over it.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -34,8 +36,8 @@ true setglobal
 } bind put
 
 %
-%  enumerate current path in device coordinates: each element's points
-%  are pushed for the matching procedure (nothing for close)
+%  Enumerate current path in device coordinates: each element's points
+%  are pushed for the matching procedure (nothing for close).
 %
 %  The walk runs in a dictionary of its own, opened through the bracket
 %  that takes it off again however the walk ends, error included
@@ -58,8 +60,7 @@ true setglobal
 bind put
 
 %
-%  move line curve close  pathforall  -
-%  enumerate current path in user coordinates. The caller's
+%  Enumerate current path in user coordinates. The caller's
 %  procedures run outside the enumerator's dictionary scope -- the
 %  scope pops around each call and resumes after -- so a procedure
 %  that accumulates a running total by def reaches the caller's
@@ -104,9 +105,9 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  emit the held-back element, drawn to the endpoint on the stack;
+%  Emit the held-back element, drawn to the endpoint on the stack;
 %  reversal delays each element by one so that its command pairs with
-%  the following element's point
+%  the following element's point.
 %
 .xpostsys /dopending {  % ex ey  .  -
     pending /move eq { .devmoveto }{
@@ -127,7 +128,8 @@ end
 begin
     .pathempty not {
         /str //.xpostsys /cpath get exec def
-        % collect elements: [ [x y 0] [x y 1] [x1 y1 x2 y2 x3 y3 2] [3] ... ]
+
+        % Collect elements: [ [x y 0] [x y 1] [x1 y1 x2 y2 x3 y3 2] [3] ... ]
         /elems [
             /off 0 def
             {  % loop
@@ -186,8 +188,8 @@ end
 %  the start of the path. It is interpreted as the distance into the dash pattern
 %  (measured in user space units) at which to start the pattern. Before beginning to
 %  stroke a path, the stroke operator cycles through the elements of array, adding up
-%  distances and alternating dashes and gaps as usual, but without generating any 
-%  output. When the accumulated distance reaches the value specified by offset, it 
+%  distances and alternating dashes and gaps as usual, but without generating any
+%  output. When the accumulated distance reaches the value specified by offset, it
 %  begins stroking from the starting point of the path, using the dash pattern from
 %  the point that has been reached. Each subpath of a path is treated independently;
 %  the dash pattern is restarted and the offset reapplied at the beginning of each
@@ -196,10 +198,10 @@ end
 
 %
 %  The dashing routine maintains several variables relating to position in
-%  the dash sequence. It attempts to maintain the following 
+%  the dash sequence. It attempts to maintain the following
 %  pos: relative user-space distance from start of current dash sequence element
 %  ipos: index to dash array designating current dash sequence element
-%  parity: drawing/not-drawing status
+%  parity: drawing/not-drawing status.
 %
 
 %
@@ -207,7 +209,7 @@ end
 %  and discovers whether we're initially drawing or not (parity)
 %  on start: pos is an "absolute" user-space distance
 %  on exit: pos is relative to current sequence element,
-%  and ipos and parity are set appropriately
+%  and ipos and parity are set appropriately.
 %
 .xpostsys /initial_ipos {  % -  .  -
     {
@@ -219,12 +221,12 @@ end
 } put
 
 %
-%  when crossing a dash sequence boundary
+%  When crossing a dash sequence boundary
 %  if we're drawing, we need to draw a line to
 %  pos units along the trajectory defined by the (source) subpath line
 %  and update pos=0 ++ipos parity=!parity
 %  if we're not drawing, we need to update variables
-%  and move to `current-sequence-element-length pos sub` units along the trajectory
+%  and move to `current-sequence-element-length pos sub` units along the trajectory.
 %
 %  The three operands come back so that both arms of the walk above
 %  leave the same three for it to drop; nothing reads them.
@@ -259,13 +261,13 @@ end
 
 %
 %  "switch" actions (indexed by .pathnext command code) for iterating
-%  the source subpath; handlers receive device coordinates
+%  the source subpath; handlers receive device coordinates.
 %
 .xpostsys /dashdict <<
     0 {  % move: x y
         2 copy 2 array astore /firstpt exch def  % Device, for close
         itransform 2 array astore /cp exch def
-        parity 0 eq {  % initially drawing, create initial move
+        parity 0 eq {  % Initially drawing, create initial move
             cp aload pop moveto
         } if
     }
@@ -275,15 +277,15 @@ end
         2 index aload pop itransform
         //.xpostsys /ptdiff get exec  % D dx dy
         //.xpostsys /magang get exec  % D rad ang
-        1 index pos add dasharray ipos get le {  % same dash position
+        1 index pos add dasharray ipos get le {  % Same dash position
             1 index pos add /pos exch def
             parity 0 eq {  % if drawing, continue line
-                % the cp update leaves its copy of the endpoint on
-                % top: emit the line to it directly
+                % The cp update leaves its copy of the endpoint on
+                % top: emit the line to it directly.
                 2 index /cp 1 index aload pop itransform 2 array astore def
                 aload pop .devlineto
             } if
-        }{  % cross a dash pattern boundary
+        }{  % Cross a dash pattern boundary
             //.xpostsys /crossdashbound get exec
         } ifelse
         pop pop pop
@@ -296,8 +298,8 @@ end
 >> put
 
 %
-%  apply dash parameters to current path
-%  modifies current path
+%  Apply dash parameters to current path
+%  modifies current path.
 %
 .xpostsys /dashpath {  % -  .  -
     10 dict begin
@@ -307,6 +309,7 @@ end
     /pos dashoffset def
     /ipos 0 def
     /parity 0 def
+
     % A dash pattern of small elements laid along a long path makes a dash
     % for every element the path crosses, which a program sizes with the
     % length of the path and the smallness of the pattern -- a few lines of
@@ -336,8 +339,8 @@ end
         //.xpostsys /initial_ipos get exec
 
         .pathempty not {
-            % the dash pattern restarts and the offset is reapplied at
-            % the beginning of each subpath
+            % The dash pattern restarts and the offset is reapplied at
+            % the beginning of each subpath.
             /i_pos pos def
             /i_ipos ipos def
             /i_parity parity def
@@ -360,7 +363,7 @@ end
 } put
 
 %
-%  produce a vector from two points
+%  Produce a vector from two points
 %
 .xpostsys /ptdiff {  % x0 y0 x1 y1  .  dx dy
     3 -1 roll sub
@@ -368,7 +371,7 @@ end
 } bind put
 
 %
-%  convert cartesian vector to polar
+%  Convert cartesian vector to polar
 %
 .xpostsys /magang {  % dx dy  .  rad ang
     2 copy
@@ -377,7 +380,7 @@ end
 } bind put
 
 %
-%  convert polar vector to cartesian
+%  Convert polar vector to cartesian
 %
 .xpostsys /ravec {  % rad ang  .  dx dy
     dup cos 2 index mul  % Rad ang rad*cos(ang)
@@ -406,13 +409,13 @@ end
 %
 .xpostsys /dolinejoin {  % x1 y1 x2 y2 xc yc  .  -
     {
-        {  % miter join: extend the outer edges to their intersection.
+        {  % Miter join: extend the outer edges to their intersection.
           % The corner offsets v_old and v_new both have the half-width
           % magnitude and meet at the turn angle, so the apex sits at
           % C + (v_old + v_new)/(1 + cos delta), and the PLRM ratio
           % miterlength/width = 1/cos(delta/2) exceeds the miter limit
           % exactly when limit^2 (1 + cos delta) < 2: then the join
-          % falls back to the bevel triangle
+          % falls back to the bevel triangle.
             10 dict begin
             {/cy /cx /oy /ox /ny /nx}{exch def}forall
             /vox ox cx sub def /voy oy cy sub def
@@ -444,7 +447,7 @@ end
 } put
 
 %
-%  append the line-cap shape at one end of an open subpath: the
+%  Append the line-cap shape at one end of an open subpath: the
 %  endpoint in device space and the outward direction along the
 %  segment. A butt cap adds nothing; a round cap is the half-disc
 %  beyond the end; a projecting square extends half a width past it.
@@ -476,7 +479,7 @@ end
 
 %
 %
-%  replace lineto segments . with 
+%  Replace lineto segments . with
 %                          |              L LL
 %                          |              /C--
 %        1 rmoveto --.-- closepath 5     /
@@ -580,12 +583,13 @@ currentglobal false setglobal
 
         .gscratch /strokedict get /justmoved get not {  % draw join
             .gscratch /strokedict get /ang get .gscratch /strokedict get /oldang get sub
-            % the side reads from the turn within one revolution: the
+
+            % The side reads from the turn within one revolution: the
             % atan angles wrap at 360, so a difference below -180 is
-            % the same turn seen across the seam
+            % the same turn seen across the seam.
             dup 0 lt { 360 add } if
             /DEBUGSTROKE where { pop (C)= pstack()= } if
-            dup 0 le exch 180 ge or {  % right turn
+            dup 0 le exch 180 ge or {  % Right turn
 
                 .gscratch /strokedict get /pointLL get aload pop
                 .gscratch /strokedict get /oldpointL get aload pop
@@ -594,7 +598,7 @@ currentglobal false setglobal
 
                 /DEBUGSTROKE where { pop (D)= pstack()= } if
                 closepath
-            }{  % left turn
+            }{  % Left turn
 
                 .gscratch /strokedict get /pointRR get aload pop
                 .gscratch /strokedict get /oldpointR get aload pop
@@ -653,12 +657,13 @@ currentglobal false setglobal
 
         .gscratch /strokedict get /justmoved get not {  % draw join
             .gscratch /strokedict get /ang get .gscratch /strokedict get /oldang get sub
-            % the side reads from the turn within one revolution: the
+
+            % The side reads from the turn within one revolution: the
             % atan angles wrap at 360, so a difference below -180 is
-            % the same turn seen across the seam
+            % the same turn seen across the seam.
             dup 0 lt { 360 add } if
             /DEBUGSTROKE where { pop (C)= pstack()= } if
-            dup 0 le exch 180 ge or {  % right turn
+            dup 0 le exch 180 ge or {  % Right turn
 
                 .gscratch /strokedict get /pointLL get aload pop
                 .gscratch /strokedict get /oldpointL get aload pop
@@ -667,7 +672,7 @@ currentglobal false setglobal
 
                 /DEBUGSTROKE where { pop (D)= pstack()= } if
                 closepath
-            }{  % left turn
+            }{  % Left turn
 
                 .gscratch /strokedict get /pointRR get aload pop
                 .gscratch /strokedict get /oldpointR get aload pop
@@ -680,11 +685,12 @@ currentglobal false setglobal
 
             %draw final line join
             .gscratch /strokedict get /firstang get .gscratch /strokedict get /ang get sub
-            % the side reads from the turn within one revolution: the
+
+            % The side reads from the turn within one revolution: the
             % atan angles wrap at 360, so a difference below -180 is
-            % the same turn seen across the seam
+            % the same turn seen across the seam.
             dup 0 lt { 360 add } if
-            dup 0 le exch 180 ge or {  % right turn
+            dup 0 le exch 180 ge or {  % Right turn
 
                 .gscratch /strokedict get /firstLL get aload pop
                 .gscratch /strokedict get /pointL get aload pop
@@ -692,7 +698,7 @@ currentglobal false setglobal
                 //.xpostsys /dolinejoin get exec
 
                 closepath
-            }{  % left turn
+            }{  % Left turn
 
                 .gscratch /strokedict get /firstRR get aload pop
                 .gscratch /strokedict get /pointR get aload pop
@@ -707,6 +713,7 @@ currentglobal false setglobal
         .gscratch /strokedict get /cp get aload pop moveto  % Moveto 6
 
         .gscratch /strokedict get /justmoved false put
+
         % a closed subpath meets itself through its joins: no cap owed
         .gscratch /strokedict get /needcap false put
     }
@@ -726,13 +733,15 @@ setglobal
         {  % loop
             str off .pathnext not { exit } if  % Coords... cmd nextoff
             /off exch def                     % Coords... cmd
-            % the path holds device coordinates; the outline is built
+
+            % The path holds device coordinates; the outline is built
             % in user space, so a move or line's point is carried back
-            % through the CTM before the handler sees it
+            % through the CTM before the handler sees it.
             dup 2 lt { 3 1 roll itransform 3 -1 roll } if
             .gscratch /strokedict get exch get exec
         } loop
-        % the path ran out with a subpath still open: its caps are owed
+
+        % The path ran out with a subpath still open: its caps are owed
         .gscratch /strokedict get /docaps get exec
         end
     } if

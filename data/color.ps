@@ -2,6 +2,8 @@
 %
 % color.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % Colour spaces and colour selection, including the CIE-based spaces.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -25,9 +27,6 @@ true setglobal
 %  beyond the recorded stub take no part.
 %
 
-%
-%  v lo hi  .cieclamp  v'
-%
 .xpostsys begin
 
 %
@@ -40,6 +39,7 @@ true setglobal
 /.decode {  % v {proc}  .  v'
     null 1 //.xpostsys /.pcallout get exec
 } bind def
+
 /.cieclamp {  % v l h  .  v'
     3 dict begin
     /h exch def /l exch def
@@ -48,7 +48,6 @@ true setglobal
     end
 } bind def
 
-%
 /.ciexyzrgb {  % X Y Z whitepoint  .  r g b
     5 dict begin
     /wp exch def /Z exch def /Y exch def /X exch def
@@ -67,7 +66,6 @@ true setglobal
     end
 } bind def
 
-%
 /.cielmnxyzrgb {  % L M N ciedict  .  r g b
     8 dict begin
     /cd exch def /NN exch def /MM exch def /LL exch def
@@ -91,7 +89,6 @@ true setglobal
     end
 } bind def
 
-%
 /.cieabcrgb {  % A B C ciedict  .  r g b
     8 dict begin
     /cd exch def /CC exch def /BB exch def /AA exch def
@@ -114,7 +111,6 @@ true setglobal
     end
 } bind def
 
-%
 /.ciearpgb {  % A ciedict  .  r g b
     6 dict begin
     /cd exch def /AA exch def
@@ -132,7 +128,7 @@ true setglobal
 
 %
 %  A value within its range, over a table of n steps: the bracketing
-%  indices and the fraction between them
+%  indices and the fraction between them.
 %
 /.cietblpos {  % v lo hi n  .  i0 i1 f
     5 dict begin
@@ -149,12 +145,10 @@ true setglobal
     end
 } bind def
 
-%
 /.cietblval {  % byte-fraction lo hi  .  v
     1 index sub mul add
 } bind def
 
-%
 /.ciedefrgb {  % D E F ciedict  .  r g b
     24 dict begin
     /cd exch def /FF exch def /EE exch def /DD exch def
@@ -177,8 +171,9 @@ true setglobal
     EE rh 2 get rh 3 get ni //.cietblpos exec /if_ exch def /i1 exch def /i0 exch def
     FF rh 4 get rh 5 get nj //.cietblpos exec /jf exch def /j1 exch def /j0 exch def
     /ra cd /RangeABC 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
-    % the eight surrounding table entries, weighted trilinearly by
-    % iteration -- clamped duplicate indices then weigh nothing extra
+
+    % The eight surrounding table entries, weighted trilinearly by
+    % iteration -- clamped duplicate indices then weigh nothing extra.
     0 1 2 { /c exch def
         0
         0 1 1 { /ah exch def
@@ -199,7 +194,6 @@ true setglobal
     end
 } bind def
 
-%
 /.ciedefgrgb {  % D E F G ciedict  .  r g b
     28 dict begin
     /cd exch def /GG exch def /FF exch def /EE exch def /DD exch def
@@ -249,7 +243,7 @@ true setglobal
 } bind def
 
 %
-%  The family dispatch: comps [ /Family dict ]  .ciergb  r g b
+%  The family dispatch, keyed by the space's own name.
 %
 /.ciefams <<
     /CIEBasedA //.ciearpgb
@@ -262,8 +256,6 @@ true setglobal
     //.ciefams exch get exec
 } bind def
 
-%
-%  space  .cierange  range
 %
 %  The range a CIE-based space declares its components over. Each family
 %  names the entry that carries it and has its own default for a
@@ -405,7 +397,7 @@ end
 } bind put
 
 %
-%  the alternative-space colour a Separation or DeviceN tint transforms to
+%  The alternative-space colour a Separation or DeviceN tint transforms to
 %
 %  The tint transform is the program's, so it runs beneath the boundary:
 %  what fails in there is the program's own object failing, the operand
@@ -419,11 +411,11 @@ end
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
     dup 0 get /Separation eq { DEVICE /.registersep known } { false } ifelse {
-        % a device that preserves separations also receives the
+        % A device that preserves separations also receives the
         % (tint, space) pair: convert first (the device-space
         % setters clear the gstate's separation record), then
         % register with the device and record its index and the
-        % tint for the marking methods
+        % tint for the marking methods.
         2 copy dup 2 get setcolorspace
         3 get //.xpostsys /.pexec get exec
         graphicsdict /.csspace get 2 get //.xpostsys /.csalt get exec
@@ -445,7 +437,7 @@ end
 } bind put
 
 %
-%  the device RGB a CIE-based colour renders to
+%  The device RGB a CIE-based colour renders to
 %
 .xpostsys /.cieconv {  % -  .  -
     graphicsdict /.csstash get aload pop
@@ -457,16 +449,17 @@ end
 
 /setcolorspace [ /anytype ] {  % array|name  .  -
     dup //.xpostsys /.csvalidate get exec
+
     %[ currentcolor setcolordict currentcolorspace get counttomark 2 add -1 roll
     % record the space as set (what currentcolorspace reports), then the
     % space the colour components are recorded in: setcolor converts an
     % Indexed colour through its base and a Separation or DeviceN tint
-    % through its alternative, so reduce through any such chain
+    % through its alternative, so reduce through any such chain.
     graphicsdict /currgstate get 1 index /setspace exch put
     dup //.xpostsys /.spaceispattern get exec {
-        % a pattern space: setcolor stores the pattern for the
+        % A pattern space: setcolor stores the pattern for the
         % painting machinery; a second element names the underlying
-        % space an uncoloured pattern's cells paint with
+        % space an uncoloured pattern's cells paint with.
         1 dict begin
         /sp exch def
         graphicsdict /currgstate get /colorspace /Pattern put
@@ -485,9 +478,11 @@ end
     graphicsdict /currgstate get /colorcomp4 0.0 put
     graphicsdict /currgstate get /sepindex null put
     graphicsdict /currgstate get /tintcomps null put
+
     % and the colour the space is entered holding, which the space
-    % itself decides
+    % itself decides.
     //.xpostsys /.csinitcolor get exec
+
     %exec pop
 } //.xpostsys /.defop get exec
 
@@ -521,8 +516,9 @@ end
             /n bs //.xpostsys /.spacecomponents get exec def
             n array astore
             graphicsdict /currgstate get exch /patcomps exch put
-            % what currentcolor answers with: the components beneath an
-            % uncoloured pattern, and the pattern itself
+
+            % What currentcolor answers with: the components beneath an
+            % uncoloured pattern, and the pattern itself.
             [ graphicsdict /currgstate get /patcomps get aload pop pat ]
         }{
             graphicsdict /currgstate get /patcomps null put
@@ -544,17 +540,17 @@ end
 %  pattern itself is the operand stated.
 %
 /setpattern [ /dicttype ] {
-    % a pattern dictionary, which is one that has been through
+    % A pattern dictionary, which is one that has been through
     % makepattern. The same question makepattern asked, asked the same
     % way: this operator is reached with dictionaries that never went
     % through it, and one of those must be refused for the reason it is
-    % wrong rather than for whichever entry a later site happened to want
+    % wrong rather than for whichever entry a later site happened to want.
     dup /setpattern /typecheck //.xpostsys /.patterntype get exec pop
     dup /PaintType 2 copy known { get 2 eq }{ pop pop false } ifelse not {
         [ /Pattern ] setcolorspace
     }{
-        % the underlying space is the current one -- or, when that is
-        % already a pattern space, its own underlying space
+        % The underlying space is the current one -- or, when that is
+        % already a pattern space, its own underlying space.
         currentcolorspace
         dup //.xpostsys /.spaceispattern get exec {
             dup type /arraytype eq { dup length 1 gt }{ false } ifelse
@@ -566,7 +562,6 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  .ncomponents  n
 %
 %  The number of colour components the current colour space takes: an
 %  Indexed colour is one index, a Separation one tint, a DeviceN one
@@ -630,12 +625,14 @@ end
     /DeviceRGB 3
     /DeviceCMYK 4
 >> put
+
 .xpostsys /.ciecomps <<
     /CIEBasedA 1
     /CIEBasedABC 3
     /CIEBasedDEF 3
     /CIEBasedDEFG 4
 >> put
+
 .xpostsys /.ncomponents {  % -  .  int
     currentcolorspace //.xpostsys /.spacecomponents get exec
 } put
@@ -744,23 +741,23 @@ end
 } put
 
 %
-%  walk a colour space down to the device space a colour in it is finally
+%  Walk a colour space down to the device space a colour in it is finally
 %  recorded in, without touching the graphics state: an Indexed space
 %  reduces through its base, a Separation or DeviceN through its
 %  alternative, and a CIE-based family to device RGB. A family none of
-%  those knows is undefined
+%  those knows is undefined.
 %
 .xpostsys /.csvalidate {  % space  .  -
     1 dict begin
     /sp exch def
     sp //.xpostsys /.spaceispattern get exec {
-        % a pattern space carries the space its uncoloured cells paint
-        % with as a second element, when it carries one at all
+        % A pattern space carries the space its uncoloured cells paint
+        % with as a second element, when it carries one at all.
         sp type /arraytype eq {
             sp length 1 gt { sp 1 get //.xpostsys /.csvalidate get exec } if
         } if
     }{
-        % a tint space reaches its alternative space by calling a
+        % A tint space reaches its alternative space by calling a
         % procedure the program supplied (PLRM 4.8.5), so a fourth
         % element that cannot be called is not a tint transform and the
         % array is not a colour space. The refusal is here because this
@@ -782,7 +779,8 @@ end
                 { /setcolorspace cvx /typecheck signalerror } if
         } if
         /sp sp //.xpostsys /.spacereduce get exec def
-        % an array still standing here names a family nothing reduced
+
+        % An array still standing here names a family nothing reduced
         sp type /arraytype eq { /sp sp 0 get def } if
         sp type /nametype ne
             { /setcolorspace cvx /typecheck signalerror } if
@@ -791,14 +789,20 @@ end
     } ifelse
     end
 } put
+
 %
 %  The component count follows the current colour space, so the operand
 %  stated is the topmost one: a component, or the pattern of a pattern
 %  space, or the null object a pattern space holds before a pattern is
 %  set.
 %
+%  comp1..compN  .  -
+%       pattern  .  -
+%          null  .  -
+%
 /setcolor [ [ /numbertype ] [ /dicttype ] [ /nulltype ] ] {
     currentcolorspace
+
     % PLRM 4.9.1: the colour value in a Pattern space is a null object,
     % treated as an empty tiling pattern, and a program may set that
     % value itself. No other family gives null a meaning, so the operand
@@ -816,7 +820,7 @@ end
         % is the nearest whole number to it and an index outside 0 to
         % hival is the nearer of those two bounds (PLRM 4.8.4); the
         % rounding and the clipping are both done before the integer is
-        % taken, so an index with no integer in it still names an entry
+        % taken, so an index with no integer in it still names an entry.
         exch round
         dup 0 lt { pop 0 } if
         1 index 2 get 1 index lt { pop dup 2 get } if
@@ -827,7 +831,7 @@ end
     dup //.xpostsys /.spacekind get exec /tint eq
     {
         % [/Separation name alt tint] or [/DeviceN names alt tint]: the
-        % tints convert through the transform into the alternative space
+        % tints convert through the transform into the alternative space.
         dup 0 get /Separation eq { pop 1 }{ 1 get length } ifelse
         array astore
         //.xpostsys /.tintsclamp get exec
@@ -836,8 +840,8 @@ end
     } {
     dup //.xpostsys /.spacekind get exec /cie eq
     {
-        % a CIE-based colour: the family pipeline runs it down to device
-        % RGB, which is a different component count in every family but ABC
+        % A CIE-based colour: the family pipeline runs it down to device
+        % RGB, which is a different component count in every family but ABC.
         pop //.xpostsys /.ncomponents get exec
         array astore
         currentcolorspace exch
@@ -845,7 +849,7 @@ end
         //.xpostsys /.cieclampcomps get exec
         //.xpostsys /.cieconv get //.xpostsys /.withspace get exec
     }{
-        % a pattern space arrives as an array: dispatch on the family
+        % A pattern space arrives as an array: dispatch on the family
         dup type /arraytype eq { 0 get } if
         //.xpostsys /setcolordict get exch get exec
     } ifelse } ifelse } ifelse
@@ -876,11 +880,11 @@ end
     currentcolorspace
     dup //.xpostsys /.spacekind get exec
     dup /pattern eq {
-        % the null pattern, which is what currentcolor answers with
+        % The null pattern, which is what currentcolor answers with
         % until a pattern is set. Set through setcolor like every other
         % family's entry colour, so the state a Pattern space is entered
         % holding is written in one place and is by construction the
-        % state a program reaches by setting null itself
+        % state a program reaches by setting null itself.
         pop pop
         null //setcolor exec
     }{
@@ -888,16 +892,16 @@ end
         pop pop 0 //setcolor exec
     }{
     dup /tint eq {
-        % a Separation enters at full tint, a DeviceN at full in each of
+        % A Separation enters at full tint, a DeviceN at full in each of
         % its names, so the count comes from the space rather than the
-        % kind
+        % kind.
         pop dup 0 get /Separation eq
             { pop 1.0 }{ 1 get length { 1.0 } repeat } ifelse
         //setcolor exec
     }{
     dup /cie eq {
-        % the space itself is kept: clamping a CIE colour needs the
-        % range its space declares
+        % The space itself is kept: clamping a CIE colour needs the
+        % range its space declares.
         pop
         [ //.xpostsys /.ncomponents get exec { 0.0 } repeat ]
         //.xpostsys /.cieclampcomps get exec
@@ -916,17 +920,18 @@ end
     /DeviceGray /currentgray cvx
     /DeviceRGB /currentrgbcolor cvx
     /DeviceCMYK /currentcmykcolor cvx
-    % a device with the /Process native space takes each paint in the
+
+    % A device with the /Process native space takes each paint in the
     % space it was set in: deliver the current colour unconverted (one
-    % grey component, three RGB or four CMYK)
+    % grey component, three RGB or four CMYK).
     /Process /currentcolor cvx
 >> put
 /currentcolor [ ] {  % -  .  comp1..compN
-    % a colour whose space records its components elsewhere than it
+    % A colour whose space records its components elsewhere than it
     % takes them -- Separation, DeviceN, Indexed, any CIE-based family --
     % reads back as the components it was set with, which setcolor put
     % aside; everything else delivers the recorded components, keyed by
-    % the space they are recorded in
+    % the space they are recorded in.
     graphicsdict /currgstate get /tintcomps get type /arraytype eq {
         graphicsdict /currgstate get /tintcomps get aload pop
     }{
@@ -940,7 +945,7 @@ end
 } bind put
 
 %
-%  a colour component is clamped to the unit range (PLRM: values outside
+%  A colour component is clamped to the unit range (PLRM: values outside
 %  0 to 1 are adjusted to the nearest valid value). A pure global helper, so it
 %  lives in .xpostsys beside .min and the colour conversions that freeze it in.
 %
@@ -1003,9 +1008,9 @@ end
             1 graphicsdict /currgstate get /colorcomp1 get sub
         } bind
         /DeviceRGB {  % -  .  c m y k
-            % full black generation and undercolor removal: the common
+            % Full black generation and undercolor removal: the common
             % component moves entirely into the black channel, so black
-            % separates as pure K rather than four inks
+            % separates as pure K rather than four inks.
             1 graphicsdict /currgstate get /colorcomp1 get sub
             1 graphicsdict /currgstate get /colorcomp2 get sub //.xpostsys /.min get exec
             1 graphicsdict /currgstate get /colorcomp3 get sub //.xpostsys /.min get exec  % K
@@ -1055,7 +1060,7 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  the components are recorded in RGB, converted with the usual
+%  The components are recorded in RGB, converted with the usual
 %  hexcone model (hue scaled to a sector 0-5; the sector's fractional
 %  part blends between the derived p, q and t values). Each component is
 %  clamped to [0,1] first, as the reference interpreters clamp hue rather
@@ -1234,14 +1239,16 @@ end
     dup /DeviceRGB   /currentrgbcolor   load put
     dup /DeviceCMYK  /currentcmykcolor  load put
 
-    % a /Process-native device takes each paint in the space its components
-    % were recorded in. That is the marking pipeline's fetch, not the public
-    % currentcolor: a Separation or DeviceN paint must deliver the RECORDED
-    % tint-transformed components here, where currentcolor reads back the
-    % tints the colour was set with
-    /Process {  % -  .  comp1..compN
-        //.xpostsys /currentcolordict get
-        graphicsdict /currgstate get /colorspace get get exec
-    } bind put
+%
+%  A /Process-native device takes each paint in the space its components
+%  were recorded in. That is the marking pipeline's fetch, not the public
+%  currentcolor: a Separation or DeviceN paint must deliver the RECORDED
+%  tint-transformed components here, where currentcolor reads back the
+%  tints the colour was set with.
+%
+/Process {  % -  .  comp1..compN
+    //.xpostsys /currentcolordict get
+    graphicsdict /currgstate get /colorspace get get exec
+} bind put
 
 //.internaldict /QUIET known { }{ (eof color\n)print } ifelse

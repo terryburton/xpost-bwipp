@@ -2,6 +2,8 @@
 %
 % font.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % Type 3 font handling and the font operators over the C fontconfig/freetype access.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -10,7 +12,7 @@
 %
 %  Many font operators are implemented as C functions and
 %  these use fontconfig and freetype to access host OS  fonts.
-%  see src/lib/xpost_font.[ch] and src/lib/xpost_op_font.[ch]
+%  see src/lib/xpost_font.[ch] and src/lib/xpost_op_font.[ch].
 %
 
 %
@@ -40,10 +42,12 @@ true setglobal
 %  builds glyphs against the same count -- so the bracket puts it back.
 %
 .xpostsys /.buildkeys [ /.inglyph ] put
+
 %
-%  the capture pair the glyph cache is mid-use of while a build runs
+%  The capture pair the glyph cache is mid-use of while a build runs.
 %
 .xpostsys /.t3capkeys [ /.t3want /.t3cap ] put
+
 %
 %  What a build declared, kept where the build itself cannot take it back.
 %  A build procedure is the program's, and a program may bracket one in save
@@ -166,9 +170,10 @@ true setglobal
         } stopped {
             /definefont cvx /invalidfont signalerror
         } if
-        % a re-encoded copy of a findfont dictionary already holds a
+
+        % A re-encoded copy of a findfont dictionary already holds a
         % working face in /Private and shares it; a program-borne
-        % dictionary assembles one from its sfnts
+        % dictionary assembles one from its sfnts.
         dup /Private known not {
         dup .loadfont42
         } if
@@ -176,7 +181,8 @@ true setglobal
     dup 1 eq 2 index /CharStrings known and
     2 index /Private 2 copy known { get type /dicttype eq }{ pop pop false } ifelse and {
         pop
-        % an embedded Type 1 program: its interpreted dictionaries are
+
+        % An embedded Type 1 program: its interpreted dictionaries are
         % written back out as a font program and opened as a face. The
         % charstrings flatten here, where forall lives; the subroutines are
         % read from the (no-access) Private dictionary inside .loadfont1, in C,
@@ -188,19 +194,21 @@ true setglobal
             {
                 dup /FontMatrix known not {stop} if
                 dup /Encoding known not {stop} if
-                % either build procedure suffices: BuildGlyph fonts
-                % answer show through the derivation below
+
+                % Either build procedure suffices: BuildGlyph fonts
+                % answer show through the derivation below.
                 dup /BuildChar known 1 index /BuildGlyph known or
                 not {stop} if
             } stopped {
                 /definefont cvx /invalidfont signalerror
             } if
-            % a font defining only BuildGlyph serves the string
+
+            % A font defining only BuildGlyph serves the string
             % operators through the standard derivation: the code's
             % Encoding entry names the glyph to build. The derivation is
             % this interpreter's own procedure and reaches BuildGlyph
             % from inside the bracket the caller already opened around
-            % it, so it runs the glyph procedure directly
+            % it, so it runs the glyph procedure directly.
             dup /BuildChar known not {
                 dup /BuildChar {
                     1 index /Encoding get exch get
@@ -233,6 +241,7 @@ true setglobal
     dup /FontName known not {
         dup /FontName 3 index put
     } if
+
     % A serial keys the glyph cache, and it names one dictionary. PLRM
     % 5.5 identifies a cached glyph by "the original base font or CIDFont
     % dictionary from which the glyph description was obtained", so a
@@ -272,9 +281,10 @@ true setglobal
         dup /.fontid //.internaldict /.newfontserial get exec put
         dup /.fontidof 2 index put
     } if
+
     % FontDirectory denotes the global directory while the allocation mode
     % is global, so a font built there is filed there and outlives the
-    % restores that empty the local one
+    % restores that empty the local one.
     FontDirectory exch 2 index exch put
     findfont
 } //.xpostsys /.defop get exec
@@ -297,6 +307,7 @@ true setglobal
 /makefont [ /dicttype /arraytype ] {  % font mat  .  font'
     exch dup length 2 add dict copy         % Mat font'
     dup /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
+
                                             % mat font' oldfm
     3 -1 roll exch                          % Font' mat oldfm
     matrix concatmatrix                     % Font' newfm
@@ -306,7 +317,8 @@ true setglobal
 /setcharwidth [ /numbertype /numbertype ] {  % wx wy  .  -
     graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse
     0 eq { /setcharwidth cvx /undefined signalerror } if
-    % the declaration itself, recorded out of the build's reach
+
+    % The declaration itself, recorded out of the build's reach
     //.xpostsys /.glyphstate get
     dup /advy 3 index put
     dup /advx 4 index put
@@ -331,7 +343,9 @@ true setglobal
 %
 
 %
-%                                 false
+%  -  .  [serial name] true
+%        false
+%
 %  What the mask cache is asked to remember a glyph by. PLRM 5.5 says
 %  what identifies a cached glyph: the font dictionary the description
 %  came from, the character selector -- "a character name in a base
@@ -374,7 +388,7 @@ true setglobal
 %  carry an identity across that kind of change, and a program that does
 %  has said two different glyphs are the same glyph.
 %
-.xpostsys /.glyphkey {  % -  .  [serial name] true
+.xpostsys /.glyphkey {
     font /.fontid known {
         font /.fontid get
         dup type /integertype eq {
@@ -393,9 +407,9 @@ true setglobal
 } bind put
 
 %
-%  declare the glyph's metrics and turn the build's marks into a
+%  Declare the glyph's metrics and turn the build's marks into a
 %  coverage mask: painting swaps to a raster sized from the glyph box
-%  under the transform in force, shifted onto it in device space
+%  under the transform in force, shifted onto it in device space.
 %
 .xpostsys /.maskcapture {  % wx wy llx lly urx ury  .  -
     16 dict begin
@@ -422,21 +436,24 @@ true setglobal
     W 1 ge H 1 ge and W 2048 le and H 2048 le and {
         0 0 transform /oy exch def /ox exch def
         /mdev W H .privatedict /newPGMIMAGEdevice get exec def
-        % the compiled rasterizers, as device selection wires them
+
+        % The compiled rasterizers, as device selection wires them
         mdev /FillPoly //.internaldict /.fillpoly get put
         mdev /FillRect //.internaldict /.fillrectgray get put
-        % the advances belong to the glyph, not to whatever font the
+
+        % The advances belong to the glyph, not to whatever font the
         % build procedure leaves current: a glyph that shows text of
         % its own retunes currfont and it never comes back before the
-        % capture is filed
+        % capture is filed.
         graphicsdict /.t3cap <<
             /mdev mdev /w W /h H /bx0 bx0 /by0 by0 /ox ox /oy oy
             /advx wx /advy wy
         >> put
-        % said out of the build's reach as well: the capture, the raster it
+
+        % Said out of the build's reach as well: the capture, the raster it
         % paints into and the marks on it are all younger than any save the
         % build has open, so a restore of its own takes the three of them
-        % together and the record here is what is left to say so
+        % together and the record here is what is left to say so.
         //.xpostsys /.glyphstate get /capturing true put
         graphicsdict /currgstate get /device mdev put
         matrix currentmatrix
@@ -464,7 +481,7 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  render a Type 3 glyph through the glyph cache: a hit replays the
+%  Render a Type 3 glyph through the glyph cache: a hit replays the
 %  stored mask and its advances; a miss runs the build procedure,
 %  capturing its marks when it declares setcachedevice, and paints
 %  the fresh entry the same way a hit does.
@@ -479,26 +496,30 @@ true setglobal
     {
     20 dict begin
     /code exch def /font exch def
-    % what an enclosing build declared, held while this one declares its own
+
+    % What an enclosing build declared, held while this one declares its own
     % and put back once this one has been read: a build may show text, and
-    % the glyphs of that text declare against the same record
+    % the glyphs of that text declare against the same record.
     /gst //.xpostsys /.glyphstate get def
     /heldadvx gst /advx get def
     /heldadvy gst /advy get def
     /heldcapturing gst /capturing get def
     /devmat matrix currentmatrix def
     0 0 transform /devy exch def /devx exch def
-    % the cache serves only within a rectangular clip that holds the
+
+    % The cache serves only within a rectangular clip that holds the
     % whole raster: a glyph crossing the clip edge builds direct,
-    % which clips its marks exactly
+    % which clips its marks exactly.
     /clipok .cliprect {
         4 array astore /cliparr exch def true
     }{ false } ifelse def
-    % the key names the entry for the rest of this build, so it is taken
+
+    % The key names the entry for the rest of this build, so it is taken
     % once here: a glyph whose font carries no key the cache can be asked
-    % for builds direct, as one outside the clip does
+    % for builds direct, as one outside the clip does.
     /keyok //.xpostsys /.glyphkey get exec
         { /gkey exch def true }{ false } ifelse def
+
     % A captured mask is coverage, replayed in the one colour the
     % raster route reads out of the graphics state, so a pattern
     % cannot come through it. The build runs direct instead, where its
@@ -513,13 +534,13 @@ true setglobal
         gst /advx xa put
         gst /advy ya put
     }{
-    % nothing of this glyph has been drawn anywhere yet
+    % Nothing of this glyph has been drawn anywhere yet
     gst /capturing false put
     maskok not {
-        % build direct, marks clipped and coloured by the ordinary
+        % Build direct, marks clipped and coloured by the ordinary
         % paint pipeline. setcachedevice declares the metrics and
         % captures nothing here, which is what a build nested inside
-        % another's capture must not disturb
+        % another's capture must not disturb.
         gsave
         graphicsdict /.t3want false put
         font code font /BuildChar get
@@ -559,7 +580,7 @@ true setglobal
                 gst /advx xa put
                 gst /advy ya put
             }{
-                % past the cache ceiling: build again, painting direct
+                % Past the cache ceiling: build again, painting direct
                 gsave
                 font code font /BuildChar get
                 //.xpostsys /.runbuild get exec
@@ -567,9 +588,9 @@ true setglobal
             } ifelse
         }{
             gst /capturing get {
-                % a restore of the build's own took the capture back, and
+                % A restore of the build's own took the capture back, and
                 % the raster its marks went to with it, so the glyph stands
-                % undrawn: build it again with its marks going to the page
+                % undrawn: build it again with its marks going to the page.
                 gsave
                 graphicsdict /.t3want false put
                 font code font /BuildChar get
@@ -577,8 +598,9 @@ true setglobal
                 grestore
             } if
     } ifelse } ifelse } ifelse
-    % the advance this glyph declared, put where the showing operators read
-    % it, and the enclosing build's record put back
+
+    % The advance this glyph declared, put where the showing operators read
+    % it, and the enclosing build's record put back.
     graphicsdict /currgstate get /currfont get
     dup /xadvance gst /advx get put
     /yadvance gst /advy get put
@@ -653,12 +675,12 @@ true setglobal
             4 array astore
             h exch /clipbox exch put
         }{
-            % the region's vertices, where a single array states them.
+            % The region's vertices, where a single array states them.
             % .clipregionpoly refuses where none does, rather than
             % answer with a box a consumer that wanted the vertices
             % would take for them; it stands the region in for the
             % current path while it reads, so a refusal leaves the
-            % region standing there and the caller's path is put back
+            % region standing there and the caller's path is put back.
             /oldpath graphicsdict /currgstate get /currpath get def
             count /n1 exch def
             { //.xpostsys /.clipregionpoly get exec } stopped {
@@ -667,17 +689,18 @@ true setglobal
                 null
             } if
             /poly exch def
-            % the rows and columns the region reaches: the tiles are
+
+            % The rows and columns the region reaches: the tiles are
             % cut out of them, and the bounds are what stands in for
             % the region if the tiles fail. Only the bounds are wanted
             % here, so where no array states the vertices they come off
             % the path the region is held as instead -- a path's box is
-            % over its own points, which are those vertices
+            % over its own points, which are those vertices.
             /any false def
             poly null eq {
-                % the region is held in device coordinates and pathbbox
+                % The region is held in device coordinates and pathbbox
                 % reports through the CTM, so the identity stands over
-                % the measurement
+                % the measurement.
                 matrix currentmatrix
                 //.xpostsys /.clipregionpath get exec
                 matrix setmatrix
@@ -706,17 +729,19 @@ true setglobal
             } ifelse
             h /clipbox null put
             any not {
-                % a region with no vertices covers no pixel
+                % A region with no vertices covers no pixel
                 h /clipspans [ ] put
             }{
                 /sl //.xpostsys /.cliptilerows get def
-                % every column the region could reach: a tile spanning
-                % those, met against the region, leaves the region's own
+
+                % Every column the region could reach: a tile spanning
+                % those, met against the region, leaves the region's own.
                 /tx0 xlo floor cvi 1 sub def
                 /tx1 xhi ceiling cvi 1 add def
-                % and no further across the rows than the region
+
+                % And no further across the rows than the region
                 % reaches: a tile that runs past it would be halved over
-                % rows it could hold nothing in
+                % rows it could hold nothing in.
                 /ylim yhi ceiling cvi 1 add def
                 count /n0 exch def
                 /d0 countdictstack def
@@ -726,8 +751,8 @@ true setglobal
                       //.xpostsys /.cliptile get exec
                     } for ]
                 } stopped {
-                    % a tile handed its refusal up leaves its own
-                    % dictionaries open behind it
+                    % A tile handed its refusal up leaves its own
+                    % dictionaries open behind it.
                     countdictstack d0 sub { end } repeat
                     count n0 sub { pop } repeat
                     h /clipbox [ xlo ylo xhi yhi ] put
@@ -772,9 +797,10 @@ true setglobal
 .xpostsys /.showoutline {  % subject hook stroked  .  -
     4 dict begin
     /pstroke exch def
-    % a hook is a procedure, and a name holding one runs when it is
+
+    % A hook is a procedure, and a name holding one runs when it is
     % read: it is defined only when there is one, and asked after by
-    % the dictionary rather than by reading it
+    % the dictionary rather than by reading it.
     dup null eq { pop }{ /phook exch def } ifelse
     /psubj exch def
     gsave
@@ -861,12 +887,14 @@ true setglobal
         newpath
         dup /FontMatrix get concat
         exch
+
         %pstack()=
         {
             //.xpostsys /.t3build get exec
             graphicsdict /currgstate get /currfont get
             dup /xadvance get 1 index /yadvance get
             translate
+
             %hook
         } forall
         pop
@@ -883,8 +911,8 @@ true setglobal
     //.xpostsys /.showclip get exec
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
-        % a composite font: add the delta after the character whose full
-        % (multi-byte) code matches, as the ordinary composite show walks it
+        % A composite font: add the delta after the character whose full
+        % (multi-byte) code matches, as the ordinary composite show walks it.
         7 dict begin
         /fnt exch def /str exch def /mchar exch def /cdy exch def /cdx exch def
         /.showhook { mchar eq { cdx cdy rmoveto } if } def  % char  .  -
@@ -910,6 +938,7 @@ true setglobal
         dup concat
         cx cy 3 2 roll idtransform /cy exch def /cx exch def
         exch
+
         %pstack()=
         {
             dup /curcode exch def
@@ -920,6 +949,7 @@ true setglobal
             curcode charcode eq {
                 cx cy translate
             } if
+
             %hook
         } forall
         pop
@@ -937,8 +967,8 @@ true setglobal
     //.xpostsys /.showclip get exec
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
-        % a composite font decodes to descendant glyphs; walk it with the
-        % ordinary composite show and add the delta after each character
+        % A composite font decodes to descendant glyphs; walk it with the
+        % ordinary composite show and add the delta after each character.
         6 dict begin
         /fnt exch def /str exch def /ady exch def /adx exch def
         /.showhook { pop adx ady rmoveto } def  % char  .  -
@@ -964,6 +994,7 @@ true setglobal
         dup concat
         dx dy 3 2 roll idtransform /dy exch def /dx exch def
         exch
+
         %pstack()=
         {
             //.xpostsys /.t3build get exec
@@ -971,6 +1002,7 @@ true setglobal
             dup /xadvance get 1 index /yadvance get
             translate
             dx dy translate
+
             %hook
         } forall
         pop
@@ -988,8 +1020,8 @@ true setglobal
     //.xpostsys /.showclip get exec
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /composite eq {
-        % a composite font: the ashow delta after every character, plus the
-        % widthshow delta after the character whose full code matches
+        % A composite font: the ashow delta after every character, plus the
+        % widthshow delta after the character whose full code matches.
         9 dict begin
         /fnt exch def /str exch def /ady exch def /adx exch def
         /mchar exch def /cdy exch def /cdx exch def
@@ -999,9 +1031,10 @@ true setglobal
     }{
     dup //.xpostsys /.fontroute get exec /face eq {
         pop
-        % the binding takes both deltas in device space; the outline
+
+        % The binding takes both deltas in device space; the outline
         % route moves the pen in user space, which is where the
-        % operands arrive
+        % operands arrive.
         6 dict begin
         /vstr exch def /vady exch def /vadx exch def
         /vchar exch def /vcy exch def /vcx exch def
@@ -1010,37 +1043,39 @@ true setglobal
         //.xpostsys /.showroute get exec
         end
     }{
-    % bring the operands (cx cy char ax ay string font) into the order the
-    % binding expects: string font ax ay cx cy char, top-down char cy cx ay ax
-    7 2 roll 5 2 roll
-    5 dict begin
-    {charcode cy cx dy dx}{exch def}forall
-    gsave
-        currentpoint translate
-        newpath
-        dup /FontMatrix get
-        dup concat
-        dup dx dy 3 2 roll idtransform /dy exch def /dx exch def
-        cx cy 3 2 roll idtransform /cy exch def /cx exch def
-        exch
-        %pstack()=
-        {
-            dup /curcode exch def
-            //.xpostsys /.t3build get exec
-            graphicsdict /currgstate get /currfont get
-            dup /xadvance get 1 index /yadvance get
-            translate
-            dx dy translate
-            curcode charcode eq {
-                cx cy translate
-            } if
-            %hook
-        } forall
-        pop
-        0 0 transform
-    grestore
-    end
-    itransform moveto
+        % Bring the operands (cx cy char ax ay string font) into the order the
+        % binding expects: string font ax ay cx cy char, top-down char cy cx ay ax.
+        7 2 roll 5 2 roll
+        5 dict begin
+        {charcode cy cx dy dx}{exch def}forall
+        gsave
+            currentpoint translate
+            newpath
+            dup /FontMatrix get
+            dup concat
+            dup dx dy 3 2 roll idtransform /dy exch def /dx exch def
+            cx cy 3 2 roll idtransform /cy exch def /cx exch def
+            exch
+
+            %pstack()=
+            {
+                dup /curcode exch def
+                //.xpostsys /.t3build get exec
+                graphicsdict /currgstate get /currfont get
+                dup /xadvance get 1 index /yadvance get
+                translate
+                dx dy translate
+                curcode charcode eq {
+                    cx cy translate
+                } if
+
+                %hook
+            } forall
+            pop
+            0 0 transform
+        grestore
+        end
+        itransform moveto
 
     } ifelse } ifelse
 } //.xpostsys /.defop get exec
@@ -1048,13 +1083,14 @@ true setglobal
 %
 %  kshow's compiled program paints through the implementation's own
 %  show, captured here while the name still holds this file's
-%  procedure -- an array, which a compiled program pushes as data
+%  procedure -- an array, which a compiled program pushes as data.
 %
 .xpostsys /.kshowshow /show load put
 
 /kshow [ /proctype /stringtype ] {  % proc string  .  -
     /kshow //.xpostsys /.needfont get exec
     /kshow //.xpostsys /.needpoint get exec
+
     % PLRM 8.2, of kshow: "if the current font is a composite font, an
     % invalidfont error occurs". The reason it is stated separately from
     % the byte-wise walk below is that the walk would reach its own
@@ -1063,6 +1099,7 @@ true setglobal
     graphicsdict /currgstate get /currfont get //.xpostsys /.fontroute get exec /composite eq {
         /kshow cvx /invalidfont signalerror
     } if
+
     % The walk compiles into a program here and the program runs after
     % this dict ends, so the kerning procedure executes on the caller's
     % stacks with no machinery state live anywhere: there are no names
@@ -1116,6 +1153,7 @@ true setglobal
     /glyphshow //.xpostsys /.needpoint get exec
     //.xpostsys /.showclip get exec
     graphicsdict /currgstate get /currfont get
+
     % PLRM 8.2, of glyphshow: "if the current font is a composite font,
     % an invalidfont error occurs" -- the same sentence it gives kshow.
     % Asking for the face route asks the whole question; asking only
@@ -1136,8 +1174,9 @@ true setglobal
             currentpoint translate
             newpath
             fnt /FontMatrix get concat
-            % a build procedure that never reports a width (or a name
-            % the font cannot serve) must not advance the pen
+
+            % A build procedure that never reports a width (or a name
+            % the font cannot serve) must not advance the pen.
             fnt /xadvance 0 put
             fnt /yadvance 0 put
             gsave
@@ -1166,7 +1205,7 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%    str numarray  xshow  -
+%
 %  Show each character, replacing the glyph's advance with the
 %  corresponding displacement: after painting glyph i the current
 %  point moves to the previous point offset by the array's user-space
@@ -1254,9 +1293,10 @@ true setglobal
     graphicsdict /currgstate get /currfont get
     dup //.xpostsys /.fontroute get exec /face eq { pop //stringwidth }{
     pop
-    % the measurement needs no currentpoint of its own: the string
+
+    % The measurement needs no currentpoint of its own: the string
     % shows from the origin on the null device and the point it
-    % reaches is the advance
+    % reaches is the advance.
     gsave
         nulldevice
         0 0 moveto
@@ -1278,7 +1318,7 @@ true setglobal
     12 dict begin
     currentpoint /cy exch def /cx exch def
 
-    % a glyph-space point on the stack becomes a user-space point
+    % A glyph-space point on the stack becomes a user-space point.
     /cpt {  % x y  .  X Y
         neg idtransform exch cx add exch cy add
     } def
@@ -1366,8 +1406,9 @@ true setglobal
     /cpheld graphicsdict /currgstate get /currpath get def
     newpath
     cpx cpy moveto
+
     % StrokeWidth is a character space distance, carried to user space
-    % through the font's matrix
+    % through the font's matrix.
     cpfont /StrokeWidth 2 copy known { get }{ pop pop 0 } ifelse
     0 cpfont /FontMatrix get dtransform
     dup mul exch dup mul add sqrt setlinewidth
@@ -1434,7 +1475,7 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  the standard text encoding, as the PLRM's Appendix E defines it
+%  The standard text encoding, as the PLRM's Appendix E defines it
 %
 /StandardEncoding [
      /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef
@@ -1500,9 +1541,8 @@ true setglobal
     /udieresis /yacute /thorn /ydieresis
 ] readonly def
 
-%
 /undefinefont [ /anytype ] {  % key  .  -
-    % remove it from whichever directory holds it
+    % Remove it from whichever directory holds it
     dup GlobalFontDirectory exch known
         { GlobalFontDirectory exch undef }
         { FontDirectory exch undef } ifelse
@@ -1515,10 +1555,10 @@ true setglobal
 %
 
 %
-%  run the encrypted portion of a Type 1 font program: the decrypted
+%  Run the encrypted portion of a Type 1 font program: the decrypted
 %  stream executes with systemdict as the current dictionary, and the
 %  dictionary is popped when the stream is exhausted -- the program
-%  inside closes its own file with currentfile closefile
+%  inside closes its own file with currentfile closefile.
 %
 /eexec [ /filetype ] {  % file  .  -
     .eexecdecode cvx
@@ -1534,14 +1574,14 @@ true setglobal
 /findencoding [ /nametype ] { /Encoding findresource } //.xpostsys /.defop get exec  % key  .  encoding
 
 %
-%  the show machinery rebinds the current font while it works through
+%  The show machinery rebinds the current font while it works through
 %  a composite; rootfont answers with the font the program set. The
 %  original setfont is kept in the private namespace and reached frozen.
 %
 .xpostsys /.rootsetfont /setfont load put
 /setfont [ /dicttype ] {  % font  .  -
     % a font dictionary, not any dictionary: one without a FontMatrix
-    % has nothing to set a size or an orientation from
+    % has nothing to set a size or an orientation from.
     dup /FontMatrix known not
         { /setfont cvx /invalidfont signalerror } if
     dup graphicsdict /currgstate get /rootfont 3 -1 roll put
@@ -1553,16 +1593,16 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  the wider glyph metrics reduce to the horizontal ones
+%  The wider glyph metrics reduce to the horizontal ones.
 %
 /setcachedevice2 [ /numbertype /numbertype /numbertype /numbertype /numbertype
-                   /numbertype /numbertype /numbertype /numbertype /numbertype ] {
+                   /numbertype /numbertype /numbertype /numbertype /numbertype ] {  % w0x w0y llx lly urx ury w1x w1y vx vy  .  -
     pop pop pop pop setcachedevice
 } //.xpostsys /.defop get exec
 
 %
-%  the glyph cache: rendered rasters replay across shows, and the
-%  operators read and set the store itself
+%  The glyph cache: rendered rasters replay across shows, and the
+%  operators read and set the store itself.
 %
 /cachestatus [ ] { .cachestatus } //.xpostsys /.defop get exec  % -  .  bsize bmax msize mmax csize cmax blimit
 /setcachelimit [ /integertype ] {  % int  .  -
@@ -1570,11 +1610,12 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  the interpreter takes the operands it knows from the top and
-%  ignores any deeper ones
-%  the operands are delimited by a mark rather than counted, so there is
+%  The interpreter takes the operands it knows from the top and
+%  ignores any deeper ones.
+%
+%  The operands are delimited by a mark rather than counted, so there is
 %  nothing to state: a statement about the top would answer typecheck
-%  where the absent mark must answer unmatchedmark
+%  where the absent mark must answer unmatchedmark.
 %
 /setcacheparams [ ] {  % mark [size [lower]] upper  .  -
     counttomark 3 ge {
@@ -1593,8 +1634,8 @@ true setglobal
     cleartomark
 } //.xpostsys /.defop get exec
 /currentcacheparams [ ] {  % -  .  mark size lower upper
-    % of the seven status figures, report bmax, a nominal lower
-    % threshold, and the per-glyph ceiling
+    % Of the seven status figures, report bmax, a nominal lower
+    % threshold, and the per-glyph ceiling.
     2 dict begin
     mark cachestatus
     /bl exch def pop pop pop pop
@@ -1605,8 +1646,8 @@ true setglobal
 /ucachestatus [ ] { mark 0 32768 0 4096 32768 } //.xpostsys /.defop get exec  % -  .  mark bsize bmax rsize rmax blimit
 
 %
-%  the required instances of the Encoding resource category, copied
-%  into global VM where the instance tables live
+%  The required instances of the Encoding resource category, copied
+%  into global VM where the instance tables live.
 %
 /StandardEncoding StandardEncoding dup length array copy /Encoding defineresource pop
 /ISOLatin1Encoding ISOLatin1Encoding dup length array copy /Encoding defineresource pop

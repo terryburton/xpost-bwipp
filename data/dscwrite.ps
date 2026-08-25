@@ -2,6 +2,8 @@
 %
 % dscwrite.ps
 %
+% vim: set sw=4 sts=4 tw=72 et:
+%
 % The dscwrite device: emit a DSC-conformant PostScript document from the recorded page.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -72,12 +74,13 @@
 .xpost_DSCWRITE /nativecolorspace /Process put
 
 %
-%  no separation registry: paints fall back to process colours
+%  No separation registry: paints fall back to process colours
 %
 .xpost_DSCWRITE /.registersep undef
+
 %
-%  no image consumer either: sampled images paint through the
-%  ordinary methods rather than reference objects Emit never writes
+%  No image consumer either: sampled images paint through the
+%  ordinary methods rather than reference objects Emit never writes.
 %
 .xpost_DSCWRITE /PaintImage undef
 
@@ -111,7 +114,7 @@
     currentdict //.xpostsys /.devres-to-points get exec
     /sy exch def /sx exch def
 
-    % header and prolog once, at the first page (the resolution fixup is ready)
+    % Header and prolog once, at the first page (the resolution fixup is ready)
     //.xpostsys /.vecout get /headered get not {
         (%!PS-Adobe-3.0\n) .vw
         (%%Creator: Xpost\n) .vw
@@ -150,16 +153,16 @@
         //.xpostsys /.vecout get /headered true put
     } if
 
-    % this page (label and ordinal both the running page number)
+    % This page (label and ordinal both the running page number)
     //.xpostsys /.vecout get /np get 1 add /pn exch def
     (%%Page: ) .vw pn 20 string cvs .vw ( ) .vw pn 20 string cvs .vw (\n) .vw
     (%%PageBoundingBox: 0 0 ) .vw
     width sx div ceiling cvi 20 string cvs .vw ( ) .vw
     height sy div ceiling cvi 20 string cvs .vw (\n) .vw
 
-    % the marks position themselves: the accumulator opens with the matrix
+    % The marks position themselves: the accumulator opens with the matrix
     % taking its y-down device units to the page. A device resolution above
-    % one-to-one unscales first, so the output page stays in points
+    % one-to-one unscales first, so the output page stays in points.
     sx 1 ne sy 1 ne or {
         1 sx div .vwnum ( ) .vw 1 sy div .vwnum ( scale\n) .vw
     } if
@@ -168,7 +171,7 @@
     (showpage\n) .vw
     (%%PageTrailer\n) .vw
 
-    % advance the page count; start the next page fresh
+    % Advance the page count; start the next page fresh
     //.xpostsys /.vecout get dup /np get 1 add /np exch put
     currentdict //.internaldict /.pdfreset get exec
 } //.xpostsys /.indict get exec } put
