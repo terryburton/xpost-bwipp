@@ -8,9 +8,19 @@
 # include <config.h>
 #endif
 
+#include <errno.h> /* EEXIST, for a cache directory already made */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+# include <direct.h> /* _mkdir */
+# define _xpost_mkdir(p) _mkdir(p)
+#else
+# include <sys/types.h>
+# include <sys/stat.h> /* mkdir */
+# define _xpost_mkdir(p) mkdir((p), 0777)
+#endif
 
 #include "xpost.h"
 #include "xpost_log.h"
@@ -1466,4 +1476,135 @@ xpost_vm_image_load(Xpost_Context *ctx, const char *path)
     free(bytes);
     _in_use = taken;
     return taken;
+}
+
+/* ---- where an image lives when nothing names one -------------------
+ *
+ * An image is worth having only if a run gets one without being asked
+ * to arrange it, so the two places one is looked for are settled here
+ * rather than left to whoever starts the interpreter.
+ *
+ * The first is beside the boot files. An image there is part of an
+ * installation: built once by whoever assembled it, out of exactly the
+ * files sitting next to it, and read by every run on the machine. It is
+ * never written by a run -- the directory belongs to the installation
+ * and a run may not have it, nor should want it.
+ *
+ * The second is a cache belonging to the user, which is where a run
+ * writes. That is a cache in the ordinary sense: losing it costs the
+ * time the image would have saved and nothing else, so it goes where
+ * the platform puts such things and is dropped as freely.
+ *
+ * ONE FILE PER LANGUAGE, and the name says which. Two builds whose
+ * images could not be read by each other must not be offered the same
+ * file: the object width decides what the bytes mean, and the
+ * configuration decides which language was built. Both are in the name.
+ * What is deliberately NOT in the name is this build's identity. It
+ * would stop two builds of the same width and configuration from
+ * taking turns at one file -- but the stamps already refuse an image
+ * from another build, so taking turns costs a rebuild, which is what a
+ * run with no image pays anyway. Keying by build instead would leave a
+ * file behind for every build ever run, growing a directory nobody
+ * looks at, to save a cost that is only ever paid once per switch.
+ */
+
+/* Make one directory, saying nothing of a directory that is already
+   there: two runs starting together both find it missing and both
+   make it, and the one that lost has what it wanted. */
+static int _make_dir(const char *path)
+{
+    return (_xpost_mkdir(path) == 0 || errno == EEXIST);
+}
+
+/* The directory a user's caches go in, by the convention of the
+   platform. Answers 0 where the environment does not say -- a run with
+   no home has nowhere of its own to write, which is not a failure of
+   anything and leaves it booting the long way. */
+static int _cache_dir(char *buf, size_t len)
+{
+    const char *base;
+    int n;
+
+#ifdef _WIN32
+    base = getenv("LOCALAPPDATA");
+    if (!base || !base[0])
+        return 0;
+    n = snprintf(buf, len, "%s\\xpost", base);
+#else
+    base = getenv("XDG_CACHE_HOME");
+    if (base && base[0])
+    {
+        n = snprintf(buf, len, "%s/xpost", base);
+    }
+    else
+    {
+        base = getenv("HOME");
+        if (!base || !base[0])
+            return 0;
+        /* The parent is made too: a home that has never held a cache
+           has no .cache for this to go in, and one missing directory
+           is not a reason to boot the long way for ever after. */
+        n = snprintf(buf, len, "%s/.cache", base);
+        if (n < 0 || (size_t)n >= len)
+            return 0;
+        if (!_make_dir(buf))
+            return 0;
+        n = snprintf(buf, len, "%s/.cache/xpost", base);
+    }
+#endif
+    if (n < 0 || (size_t)n >= len)
+        return 0;
+    return 1;
+}
+
+/* The name an image of this language goes under. */
+static int _image_name(char *buf, size_t len)
+{
+    int n = snprintf(buf, len, "xpost-%u-%02x.vmimg",
+                     (unsigned int)sizeof(Xpost_Object),
+                     xpost_vm_image_config());
+
+    return !(n < 0 || (size_t)n >= len);
+}
+
+int xpost_vm_image_default_path(char *buf, size_t len,
+                                const char *datadir, int for_write)
+{
+    char dir[XPOST_PATH_MAX];
+    char name[64];
+    int n;
+
+    if (!buf || len == 0 || !_image_name(name, sizeof(name)))
+        return 0;
+
+    /* Beside the boot files, for reading only, and only where one is
+       actually there: the fall through to the cache is what a machine
+       with no installed image wants, and asking the file system is the
+       only way to tell the two apart. */
+    if (!for_write && datadir && datadir[0])
+    {
+        FILE *f;
+        int err;
+
+        n = snprintf(buf, len, "%s/%s", datadir, name);
+        /* Through the one opener every disk file the interpreter reads
+           goes through, so that this asks the question the same way the
+           read of the image will answer it. */
+        if (n > 0 && (size_t)n < len
+            && (f = xpost_diskfile_fopen(buf, "rb", 1, &err)))
+        {
+            fclose(f);
+            return 1;
+        }
+    }
+
+    if (!_cache_dir(dir, sizeof(dir)))
+        return 0;
+    /* Made on the way to reading as well as to writing. A first run
+       reads nothing and writes, and the write wants the directory. */
+    if (!_make_dir(dir))
+        return 0;
+
+    n = snprintf(buf, len, "%s/%s", dir, name);
+    return !(n < 0 || (size_t)n >= len);
 }

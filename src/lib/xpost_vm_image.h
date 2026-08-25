@@ -7,6 +7,8 @@
 #ifndef XPOST_VM_IMAGE_H
 #define XPOST_VM_IMAGE_H
 
+#include <stddef.h> /* size_t */
+
 #include "xpost.h" /* XPAPI, xpost_vm_image_refuse */
 #include "xpost_private.h" /* XPOST_TEST_VISIBLE */
 
@@ -404,5 +406,27 @@ XPOST_TEST_VISIBLE int xpost_vm_image_refused(void);
  * language to build or to accept.
  */
 XPOST_TEST_VISIBLE unsigned int xpost_vm_image_config(void);
+
+/**
+ * @brief Where an image lives when nothing names one.
+ *
+ * @param[out] buf Where the path is written.
+ * @param[in] len How much room @p buf has.
+ * @param[in] datadir Where this run found its boot files, or NULL.
+ * @param[in] for_write Whether the caller means to write the image.
+ * @return 1 where @p buf holds a path, 0 where there is nowhere.
+ *
+ * A read is offered an image beside the boot files where one is there,
+ * and the user's own cache otherwise. A write is only ever offered the
+ * cache: the installed image belongs to whoever assembled it.
+ *
+ * The name carries the object width and the configuration, which are
+ * what decide whether one build's image means anything to another.
+ * Answers 0 where the platform does not say where a user's caches go,
+ * which leaves the caller booting the language the long way.
+ */
+XPOST_TEST_VISIBLE int xpost_vm_image_default_path(char *buf, size_t len,
+                                                   const char *datadir,
+                                                   int for_write);
 
 #endif

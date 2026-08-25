@@ -502,6 +502,7 @@ xpost_vm_image_bank_field_name
 xpost_vm_image_bank_name
 xpost_vm_image_config
 xpost_vm_image_config_set
+xpost_vm_image_default_path
 xpost_vm_image_in_use
 xpost_vm_image_load
 xpost_vm_image_refuse

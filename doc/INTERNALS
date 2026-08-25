@@ -44,6 +44,63 @@ true result about a tree the caller did not mean. tests/guard-paths.sh
 exists for that reason; see doc/CONTRIBUTING.md.
 
 
+The image of virtual memory
+---------------------------
+
+Building the language out of the boot files is most of what starting the
+interpreter costs. An image is that work saved: both banks of a context's
+virtual memory written whole, so that a later run reads the language back
+instead of assembling it. Reading one is around six times quicker than
+building.
+
+A run that is told nothing looks for an image itself, in two places:
+
+    <the boot file directory>/xpost-<object size>-<config>.vmimg
+    <the user's cache directory>/xpost/xpost-<object size>-<config>.vmimg
+
+and, having found none, writes the second. The first is for an
+installation: built once by whoever assembled it, out of the files
+sitting beside it, and read by every run on the machine. It is never
+written by a run. The second is a cache in the ordinary sense -- deleting
+it costs the time it would have saved and nothing else -- and goes where
+the platform puts such things: $XDG_CACHE_HOME or $HOME/.cache on Unix,
+%LOCALAPPDATA% on Windows.
+
+The name carries the object width and the configuration because those
+decide what the bytes mean and which language was built; a run is never
+offered an image belonging to another. What the name deliberately does
+not carry is the identity of the build, so two builds of the same width
+and configuration take turns at one file rather than leaving a file each
+behind for ever. Taking a turn costs a rebuild, which is what a run with
+no image pays anyway.
+
+Nothing about this is trusted to the name. The head of every image
+carries stamps -- layout, byte order, structure sizes, this build's
+identity, a hash of every boot file, the operator table row by row -- and
+the last four bytes are a digest of all the rest. Any disagreement is a
+refusal, and every refusal means the language is built from the boot
+files: a missing, stale, damaged or foreign image costs a run the time it
+would have saved and nothing else. A run that built the language then
+writes the image, through a file named for its own process and moved onto
+the name, so another run finds either a whole image or none.
+
+Three environment variables override all of it:
+
+    XPOST_VM_IMAGE          read this image rather than looking
+    XPOST_VM_IMAGE_WRITE    write to this file rather than the cache
+    XPOST_NO_VM_IMAGE       read and write nothing; build the language
+
+The test suite sets the last of these. Which of the two ways a run comes
+up would otherwise depend on whether a file happened to be sitting in the
+cache, and a suite whose subject is the language must not answer
+differently for that reason. The image has its own tests, which say where
+their image is.
+
+Only a quiet run reads or writes one: the boot files narrate their own
+loading, a run that reads an image does no loading to narrate, and the
+flag that silences the narration is part of what an image carries.
+
+
 Modules
 -------
 

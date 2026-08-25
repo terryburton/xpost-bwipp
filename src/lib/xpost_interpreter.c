@@ -16,6 +16,14 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#ifdef _WIN32
+# include <process.h> /* _getpid, to name a file no other run is writing */
+# define _xpost_getpid() _getpid()
+#else
+# include <unistd.h> /* getpid, likewise */
+# define _xpost_getpid() getpid()
+#endif
+
 #include "xpost.h"
 #include "xpost_log.h"
 #include "xpost_compat.h" /* xpost_isatty */
@@ -2771,40 +2779,57 @@ XPOST_TEST_VISIBLE void xpost_interpreter_data_dir(char *datadir,
 #undef XPOST_PATH_INIT
 
 /* Where an image of virtual memory is read from, and where one is
-   written to. Both are named by the environment rather than by an
-   argument: an image is a property of an installation -- one file
-   beside the boot files it was built out of -- and every caller of the
-   library gets it or does not without knowing it exists.
+   written to. Neither is an argument: an image is a property of an
+   installation -- one file beside the boot files it was built out of --
+   and every caller of the library gets it or does not without knowing
+   it exists.
 
-   Nothing names one by default, so a build that has not been given one
-   boots the way it always has. XPOST_NO_VM_IMAGE names nothing and
-   means it: it is what turns the reading off for a run that wants the
-   long way without moving the file.
+   A run that is told nothing finds one for itself, at the two places
+   xpost_vm_image_default_path names, and writes one where it found
+   none. That is what makes the image worth having: the saving belongs
+   to whoever runs the interpreter rather than to whoever knew to
+   arrange it. The environment still overrides both ends --
+   XPOST_VM_IMAGE names one to read and XPOST_VM_IMAGE_WRITE one to
+   write -- and XPOST_NO_VM_IMAGE names nothing and means it, turning
+   both off for a run that wants the long way without moving any file.
 
    Only a quiet run reads or writes one. The boot files narrate their own
    loading, and a run that reads an image does no loading to narrate; the
    flag that silences that narration is itself part of what an image
    carries, so an image and the run reading it must agree about it. */
-static const char *_image_read_path(int quiet)
+static const char *_image_read_path(int quiet, const char *datadir)
 {
+    static char found[XPOST_PATH_MAX];
     const char *path;
 
     if (!quiet || xpost_vm_image_refused() || getenv("XPOST_NO_VM_IMAGE"))
         return NULL;
     path = getenv("XPOST_VM_IMAGE");
-    return (path && path[0]) ? path : NULL;
+    if (path && path[0])
+        return path;
+    return xpost_vm_image_default_path(found, sizeof(found), datadir, 0)
+           ? found : NULL;
 }
 
-static const char *_image_write_path(void)
+/* A run that read an image has nothing to write: what it would write is
+   what it read. A run that built the language writes what it built, so
+   that the next one does not have to. */
+static const char *_image_write_path(const char *datadir)
 {
+    static char chosen[XPOST_PATH_MAX];
     const char *path = getenv("XPOST_VM_IMAGE_WRITE");
 
-    return (path && path[0]) ? path : NULL;
+    if (path && path[0])
+        return path;
+    if (getenv("XPOST_NO_VM_IMAGE") || xpost_vm_image_in_use())
+        return NULL;
+    return xpost_vm_image_default_path(chosen, sizeof(chosen), datadir, 1)
+           ? chosen : NULL;
 }
 
 /* Written where the language stands complete; defined below, beside the
    step that reaches that point. */
-static void _write_image(Xpost_Context *ctx);
+static void _write_image(Xpost_Context *ctx, const char *datadir);
 
 /* How many contexts this process has created. An image is written from
    the first and only from the first: the file describes the language
@@ -3550,7 +3575,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
     ctx->skip_graphics =
         (xpost_vm_image_config() & XPOST_VM_IMAGE_CONFIG_NO_GRAPHICS) ? 1 : 0;
 
-    image_path = _image_read_path(quiet);
+    image_path = _image_read_path(quiet, datadir);
     built = !(image_path && xpost_vm_image_load(ctx, image_path));
     if (built)
         loadinitps(ctx, datadir);
@@ -3618,7 +3643,7 @@ XPAPI Xpost_Context *xpost_create(const char *device,
         return NULL;
     }
 
-    _write_image(ctx);
+    _write_image(ctx, datadir);
 
     return ctx;
 }
@@ -3899,17 +3924,66 @@ XPOST_TEST_VISIBLE void xpost_interpreter_load_language(Xpost_Context *ctx)
    read into; and a context that is not the first this process made does
    not reach the memory a first one does. Each of those leaves the file
    alone rather than writing something no reader would expect. */
-static void _write_image(Xpost_Context *ctx)
+static void _write_image(Xpost_Context *ctx, const char *datadir)
 {
-    const char *path = _image_write_path();
+    const char *path = _image_write_path(datadir);
+    /* Whether anybody asked for this file, which decides how loudly a
+       failure to write it is reported. A run that named the file is
+       owed the reason it did not appear; a run that merely stood to
+       gain by one is owed nothing, and a cache that cannot be written
+       -- a read-only home, a full disk -- must not turn every such run
+       into an error. */
+    int asked = getenv("XPOST_VM_IMAGE_WRITE") != NULL;
+    char tmp[XPOST_PATH_MAX];
+    int n;
 
     if (!path || xpost_vm_image_refused() || !ctx->quiet ||
         _contexts_created != 1)
         return;
 
     xpost_interpreter_load_language(ctx);
-    if (!xpost_vm_image_write(ctx, path, 0))
-        XPOST_LOG_ERR("cannot write an image of virtual memory to %s", path);
+
+    /* Written beside where it belongs and moved onto it, so that what
+       another run finds at the name is either the whole of an image or
+       nothing. A run reads this file as the language it is about to
+       execute; one that met half of it would be reading whatever the
+       writer had reached, and the digest that catches a partial file is
+       the last thing written. The name carries the writer's process, so
+       that two runs racing to fill an empty cache write two files and
+       each moves its own. */
+    n = snprintf(tmp, sizeof(tmp), "%s.%ld.tmp", path,
+                 (long)_xpost_getpid());
+    if (n < 0 || (size_t)n >= sizeof(tmp))
+    {
+        if (asked)
+            XPOST_LOG_ERR("no room to name a file to write the image %s"
+                          " through", path);
+        return;
+    }
+
+    if (!xpost_vm_image_write(ctx, tmp, 0))
+    {
+        remove(tmp);
+        if (asked)
+            XPOST_LOG_ERR("cannot write an image of virtual memory to %s",
+                          path);
+        return;
+    }
+
+    /* A destination that already exists is replaced. POSIX rename does
+       that; the Windows one refuses, so there the old file goes first.
+       The gap that leaves is a run finding no image and building the
+       language, which is what it would have done before there was one. */
+#ifdef _WIN32
+    remove(path);
+#endif
+    if (rename(tmp, path) != 0)
+    {
+        remove(tmp);
+        if (asked)
+            XPOST_LOG_ERR("cannot move the image of virtual memory onto %s",
+                          path);
+    }
 }
 
 /* Make the device this run was started with, for the same reason the

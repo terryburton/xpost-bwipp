@@ -40,8 +40,17 @@ fail=0
 
 # One boot, with the environment saying where to read an image from.
 # Answers the output, so a caller can read which way the language came.
+# A run with no image named reads the one in the user's cache if there is
+# one, which is what the image is for and is not what this asks about:
+# each boot here is given the image it is to read, or told there is none.
 boot() {                # <image to read, or empty> <image to write, or empty>
-    XPOST_VM_IMAGE=${1:-} XPOST_VM_IMAGE_WRITE=${2:-} "$exe" boot 2>&1
+    if [ -z "${1:-}" ]; then
+        ( unset XPOST_VM_IMAGE
+          XPOST_NO_VM_IMAGE=1 XPOST_VM_IMAGE_WRITE=${2:-} "$exe" boot 2>&1 )
+    else
+        ( unset XPOST_NO_VM_IMAGE
+          XPOST_VM_IMAGE=$1 XPOST_VM_IMAGE_WRITE=${2:-} "$exe" boot 2>&1 )
+    fi
 }
 
 # The long way, and the image it produces.
@@ -123,5 +132,80 @@ while [ "$n" -lt "$count" ]; do
     n=$((n + 1))
 done
 
+# ---- the image a run finds for itself
+#
+# The two halves above are about an image somebody named. This is about
+# the one nobody did: a run told nothing looks in the user's cache, and
+# writes there when it finds none. That is what makes the image worth
+# having -- the saving goes to whoever runs the interpreter rather than
+# to whoever knew to arrange it -- so it is held to the same two things
+# as a named image. A first run builds the language and leaves a file; a
+# second finds that file and reads it.
+#
+# HOME and the cache variable are moved into the scratch directory, so
+# this reads and writes the test's own cache and never the user's.
+cache=$work/home
+mkdir -p "$cache" || { echo "FAILURES: could not make a cache directory"; exit 1; }
+
+found() {               # -  .  what the boot said
+    ( unset XPOST_VM_IMAGE XPOST_VM_IMAGE_WRITE XPOST_NO_VM_IMAGE
+      HOME=$cache XDG_CACHE_HOME=$cache LOCALAPPDATA=$cache \
+          "$exe" boot 2>&1 )
+}
+
+out=$(found)
+status=$?
+verdict_run "$status" "$out" "the first boot with an empty cache" || exit 1
+case $out in
+    *"the language was built from the boot files"*) ;;
+    *) echo "FAILURES: a boot with an empty cache did not build the language:"
+       echo "      $out"
+       fail=1 ;;
+esac
+
+left=$(find "$cache" -name '*.vmimg' 2>/dev/null | sed -n 1p)
+if [ -z "$left" ]; then
+    echo "FAILURES: a boot that built the language wrote no image into the"
+    echo "      cache, so no run after it can save anything"
+    fail=1
+else
+    # Nothing part-written is left where another run would read it.
+    stray=$(find "$cache" -name '*.tmp' 2>/dev/null | sed -n 1p)
+    if [ -n "$stray" ]; then
+        echo "FAILURES: a file the write goes through was left behind: $stray"
+        fail=1
+    fi
+
+    out=$(found)
+    status=$?
+    verdict_run "$status" "$out" "the second boot with a filled cache" || exit 1
+    case $out in
+        *"the language was read from an image"*)
+            echo "found: a run told nothing about an image writes one and the"
+            echo "       next run reads it" ;;
+        *) echo "FAILURES: a boot did not read the image the boot before it"
+           echo "      left in the cache: $out"
+           fail=1 ;;
+    esac
+fi
+
+# Told there is to be no image, a run neither reads nor writes one.
+rm -rf "$cache"
+mkdir -p "$cache" || { echo "FAILURES: could not remake the cache directory"; exit 1; }
+out=$( unset XPOST_VM_IMAGE XPOST_VM_IMAGE_WRITE
+       XPOST_NO_VM_IMAGE=1 HOME=$cache XDG_CACHE_HOME=$cache \
+           LOCALAPPDATA=$cache "$exe" boot 2>&1 )
+case $out in
+    *"the language was built from the boot files"*) ;;
+    *) echo "FAILURES: a run refusing images did not build the language: $out"
+       fail=1 ;;
+esac
+left=$(find "$cache" -name '*.vmimg' 2>/dev/null | sed -n 1p)
+if [ -n "$left" ]; then
+    echo "FAILURES: a run refusing images wrote one anyway: $left"
+    fail=1
+fi
+
 [ "$fail" = 0 ] || { echo "FAILURES: an image of virtual memory is not safe to read"; exit 1; }
-echo "SUCCESS (idempotent, and $count ways of being unusable each refused)"
+echo "SUCCESS (idempotent, found without being named, and $count ways of" \
+     "being unusable each refused)"

@@ -256,6 +256,9 @@ echo "== a budget belongs to the run and not to the language =="
 # has to get its own, and the one that names none has to get the default
 # rather than whatever the run that wrote the file was given.
 img=$work/vm.img
+# The suite builds the language rather than reading a cached image; this
+# block is the one place that wants the reading, and says so.
+unset XPOST_NO_VM_IMAGE
 XPOST_VM_IMAGE_WRITE=$img XPOST_VM_IMAGE=$img \
     "$xpost" -q --no-sandbox -DMARKS=5 -d pgm --band-bytes=6120 \
     -o "$work/img0.pgm" "$script" </dev/null >/dev/null 2>&1

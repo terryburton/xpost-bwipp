@@ -824,15 +824,22 @@ endif
 # them from the default's thirty seconds to sixty. Twenty times is above
 # the worst slowdown measured here by a factor of five, and above the one
 # that produced the timeout this answers by a factor of four.
+# A test builds the language rather than reading an image of it. An image
+# is a cache: which of the two ways a run comes up is decided by whether
+# a file happens to be sitting in the user's cache directory, and a suite
+# whose subject is the language must not answer differently depending on
+# that. The image has its own tests, which say where their image is and
+# do not depend on one being there.
 san = '@0@'.format(get_option('b_sanitize'))
 if not san.contains('none')
   add_test_setup('sanitized',
     timeout_multiplier: 10,
-    env: [ 'RENDER_TIMEOUT=2400' ],
+    env: [ 'RENDER_TIMEOUT=2400', 'XPOST_NO_VM_IMAGE=1' ],
     is_default: true)
 else
   add_test_setup('loaded',
     timeout_multiplier: 2,
+    env: [ 'XPOST_NO_VM_IMAGE=1' ],
     is_default: true)
 endif
 
