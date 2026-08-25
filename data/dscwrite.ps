@@ -37,6 +37,7 @@
 %  included (.indict, graphics.ps).
 %
 /.xpost_DSCWRITE .xpost_PDFWRITE dup length 2 add dict copy def
+
 %
 %  The output plumbing is inherited from that base: .vw (pdfwrite.ps)
 %  appends a string to the shared vector output and carries the byte count.
@@ -155,6 +156,7 @@
     (%%PageBoundingBox: 0 0 ) .vw
     width sx div ceiling cvi 20 string cvs .vw ( ) .vw
     height sy div ceiling cvi 20 string cvs .vw (\n) .vw
+
     % the marks position themselves: the accumulator opens with the matrix
     % taking its y-down device units to the page. A device resolution above
     % one-to-one unscales first, so the output page stays in points
@@ -162,6 +164,7 @@
         1 sx div .vwnum ( ) .vw 1 sy div .vwnum ( scale\n) .vw
     } if
     currentdict //.internaldict /.pdfchunks get exec { .vw } forall
+
     (showpage\n) .vw
     (%%PageTrailer\n) .vw
 

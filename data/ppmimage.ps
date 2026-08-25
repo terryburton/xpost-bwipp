@@ -54,14 +54,18 @@
     /BandedPage true
     /.pnmmagic (P6\n)
 
-    % three component planes per scanline, red green blue in that order;
+    % Three component planes per scanline, red green blue in that order;
     % a fresh string is already zero. The empty row a page held in part
     % stands the rows it does not hold on is the same shape carrying no
     % pixel.
-    /.rowalloc { [ width string width string width string ] } bind
-    /.rowempty { [ 0 string 0 string 0 string ] } bind
+    /.rowalloc {  % -  .  row
+        [ width string width string width string ]
+    } bind
+    /.rowempty {  % -  .  row
+        [ 0 string 0 string 0 string ]
+    } bind
 
-    % whether a row of the raster is one the page holds. A row of either
+    % Whether a row of the raster is one the page holds. A row of either
     % kind names three planes, so what tells them apart is the plane: a
     % held row's is as long as the page is wide and an empty row's holds
     % no pixel.

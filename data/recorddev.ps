@@ -101,7 +101,6 @@
 currentglobal true setglobal
 
 %
-%  dict  .rowbytes  cost
 %  What one row of the raster a device's page is painted in costs, asked
 %  of the class that makes it: the class prices a row for Create and it is
 %  the same row here. The elements a row takes are left out of the answer
@@ -151,7 +150,6 @@ end } bind put
 end } bind put
 
 %
-%  dict  .bandsaving  bytes
 %  What holding this device's page a band at a time saves over holding it
 %  whole: the raster of the run it paints, less the raster of one band of
 %  that run. Zero for a page held whole, which saves nothing.
@@ -177,7 +175,6 @@ end } bind put
 end } bind put
 
 %
-%  /target w rows  .bandsatpage  bool
 %  Whether a run of this many rows, at this width, painted by the named
 %  device, is one the recording class would hold in more than one band.
 %
@@ -229,7 +226,6 @@ end } bind put
 end } bind put
 
 %
-%  /name w h  .devicefor  /name'
 %  Which device a selection is made through at a page of this extent.
 %
 %  A run selecting a device whose page may arrive a band at a time has
@@ -327,7 +323,6 @@ end } bind put
 end } bind put
 
 %
-%  dict  .playdrop  -
 %  Give up the device a record paints through.
 %
 %  The record makes that device and is the only thing that names it, so a
@@ -352,7 +347,6 @@ end } bind put
 } //.xpostsys /.indict get exec } bind put
 
 %
-%  rec page  .playparams  -
 %  The page-device parameters a program asked of a record, put onto the
 %  device that paints for it.
 %
@@ -474,7 +468,6 @@ setglobal
 
     /.copydict //.xpostsys /.classcopydict get
 
-    % c1..cN  Ground  -
     % Take up the colour the page is being cleared to. A record holds no
     % pixel to read back, so this is the only statement of what a read
     % off this device answers, and the driver's GetPix reads it here
@@ -568,7 +561,6 @@ setglobal
     % in, and there is no way to write either back.
     /.bandbytes 4000000
 
-    % IMAGE  Flush  -
     % Put out what the device is holding, without ending its page.
     %
     % A record holds marks and no pixels, so it is holding nothing this
@@ -584,7 +576,6 @@ setglobal
         } if
     } //.xpostsys /.indict get exec } bind
 
-    % IMAGE  .playmake  -
     % The device this record's page is painted in: built, or the one
     % built before kept, and carrying what this record was asked of.
     %
@@ -800,7 +791,6 @@ setglobal
         //.internaldict /.playsaving get exec
     } //.xpostsys /.indict get exec } bind
 
-    % IMAGE  .playpage  -
     % The page a record holds, painted.
     %
     % Reached from the driver's Emit, which is where a device puts out

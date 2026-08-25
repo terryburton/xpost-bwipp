@@ -65,7 +65,7 @@
 .xpost_TIFFIMAGE /.pnmmaxval undef
 
 %
-%  what one row of this class's raster costs, as the elements and the
+%  What one row of this class's raster costs, as the elements and the
 %  string bytes it takes. The rows are the rgb class's rows -- a page
 %  renders through the machinery this class inherits and only the
 %  emission is this format's -- so a row is the three elements naming its
@@ -79,8 +79,7 @@
 } bind put
 
 %
-%  file  .writehead  -
-%  what precedes the strip: the byte order, the format's own number, and
+%  What precedes the strip: the byte order, the format's own number, and
 %  where the directory begins. A seekable file writes a placeholder there
 %  and .writetail patches in the answer; the standard output states the
 %  answer up front, an uncompressed strip of the page's extent being the
@@ -88,23 +87,32 @@
 %
 .xpost_TIFFIMAGE /.writehead {  % file  .  -
     8 dict {
-    /f exch def
-    /hdr 8 string def
-    /hp 0 def
-    /b1 { hdr hp 3 -1 roll put /hp hp 1 add def } def
-    /b2 { dup 256 mod b1 256 idiv b1 } def
-    /b4 { dup 65536 mod b2 65536 idiv b2 } def
-    16#49 b1 16#49 b1 42 b2
-    f (%stdout)(w) file ne
-        { 0 b4 }
-        { 8 width height mul 3 mul add b4 } ifelse
-    f hdr 0 8 getinterval writestring
+        /f exch def
+        /hdr 8 string def
+        /hp 0 def
+
+        % The bytes are appended into hdr and written out in one go. TIFF
+        % is little-endian here -- the file says so in its first two
+        % bytes -- so a wider value goes out low half first.
+        /b1 {  % byte  .  -
+            hdr hp 3 -1 roll put /hp hp 1 add def
+        } def
+        /b2 {  % n  .  -
+            dup 256 mod b1 256 idiv b1
+        } def
+        /b4 {  % n  .  -
+            dup 65536 mod b2 65536 idiv b2
+        } def
+        16#49 b1 16#49 b1 42 b2
+        f (%stdout)(w) file ne
+            { 0 b4 }
+            { 8 width height mul 3 mul add b4 } ifelse
+        f hdr 0 8 getinterval writestring
     } //.xpostsys /.indict get exec
 } put
 
 %
-%  file  .bandsink  sink
-%  where the rows of the strip go: through the compressor on a seekable
+%  Where the rows of the strip go: through the compressor on a seekable
 %  file, whose strip is written before its length is stated, and into the
 %  file itself on the standard output, whose strip is stated before it is
 %  written and so cannot be compressed.
@@ -114,8 +122,7 @@
 } put
 
 %
-%  sink file  .writetail  -
-%  what follows the strip: the image file directory, and on a seekable
+%  What follows the strip: the image file directory, and on a seekable
 %  file the pointer to it patched into the header the rows were written
 %  over. The strip has ended by now, so its length is known however it
 %  was written, and the entries take the page's own extent rather than
@@ -123,51 +130,65 @@
 %
 .xpost_TIFFIMAGE /.writetail {  % sink file  .  -
     16 dict {
-    {/f /snk}{exch def}forall
-    /hdr 200 string def
-    /hp 0 def
-    /b1 { hdr hp 3 -1 roll put /hp hp 1 add def } def
-    /b2 { dup 256 mod b1 256 idiv b1 } def
-    /b4 { dup 65536 mod b2 65536 idiv b2 } def
-    /tg {  % tag type count value
-        4 -1 roll b2 3 -1 roll b2 exch b4 b4
-    } def
-    % the directory: 12 entries (2 + 144 + 4 bytes), then the
-    % bits-per-sample triple and the two resolution rationals,
-    % 172 bytes in all at the given offset; the strip sits at 8
-    /ifdbuild {  % ifd-offset compression strip-length
-        /sl exch def /cmp exch def /ifd exch def
+        {/f /snk}{exch def}forall
+        /hdr 200 string def
         /hp 0 def
-        12 b2
-        256 3 1 width tg            % ImageWidth
-        257 3 1 height tg           % ImageLength
-        258 3 3 ifd 150 add tg      % BitsPerSample, offset
-        259 3 1 cmp tg              % Compression
-        262 3 1 2 tg                % PhotometricInterpretation: RGB
-        273 4 1 8 tg                % StripOffsets
-        277 3 1 3 tg                % SamplesPerPixel
-        278 3 1 height tg           % RowsPerStrip
-        279 4 1 sl tg               % StripByteCounts
-        282 5 1 ifd 156 add tg      % XResolution, offset
-        283 5 1 ifd 164 add tg      % YResolution, offset
-        296 3 1 2 tg                % ResolutionUnit: inches
-        0 b4                        % No further directory
-        8 b2 8 b2 8 b2              % 8 bits per sample
-        72 b4 1 b4                  % 72/1 dpi
-        72 b4 1 b4
-        f hdr 0 hp getinterval writestring
-    } def
-    f (%stdout)(w) file ne {
-        snk closefile
-        /sl f fileposition 8 sub def
-        8 sl add 5 sl ifdbuild
-        f 4 setfileposition
-        /hp 0 def 8 sl add b4
-        f hdr 0 4 getinterval writestring
-    }{
-        /sl width height mul 3 mul def
-        8 sl add 1 sl ifdbuild
-    } ifelse
+
+        % The bytes are appended into hdr and written out in one go. TIFF
+        % is little-endian here -- the file says so in its first two
+        % bytes -- so a wider value goes out low half first.
+        /b1 {  % byte  .  -
+            hdr hp 3 -1 roll put /hp hp 1 add def
+        } def
+        /b2 {  % n  .  -
+            dup 256 mod b1 256 idiv b1
+        } def
+        /b4 {  % n  .  -
+            dup 65536 mod b2 65536 idiv b2
+        } def
+
+        % One directory entry: a tag, the type of its value, how many
+        % of them, and the value itself, in the order TIFF lays them.
+        /tg {  % tag type count value  .  -
+            4 -1 roll b2 3 -1 roll b2 exch b4 b4
+        } def
+
+        % The directory: 12 entries (2 + 144 + 4 bytes), then the
+        % bits-per-sample triple and the two resolution rationals,
+        % 172 bytes in all at the given offset; the strip sits at 8
+        /ifdbuild {  % ifd-offset compression strip-length  .  -
+            /sl exch def /cmp exch def /ifd exch def
+            /hp 0 def
+            12 b2
+            256 3 1 width tg            % ImageWidth
+            257 3 1 height tg           % ImageLength
+            258 3 3 ifd 150 add tg      % BitsPerSample, offset
+            259 3 1 cmp tg              % Compression
+            262 3 1 2 tg                % PhotometricInterpretation: RGB
+            273 4 1 8 tg                % StripOffsets
+            277 3 1 3 tg                % SamplesPerPixel
+            278 3 1 height tg           % RowsPerStrip
+            279 4 1 sl tg               % StripByteCounts
+            282 5 1 ifd 156 add tg      % XResolution, offset
+            283 5 1 ifd 164 add tg      % YResolution, offset
+            296 3 1 2 tg                % ResolutionUnit: inches
+            0 b4                        % No further directory
+            8 b2 8 b2 8 b2              % 8 bits per sample
+            72 b4 1 b4                  % 72/1 dpi
+            72 b4 1 b4
+            f hdr 0 hp getinterval writestring
+        } def
+        f (%stdout)(w) file ne {
+            snk closefile
+            /sl f fileposition 8 sub def
+            8 sl add 5 sl ifdbuild
+            f 4 setfileposition
+            /hp 0 def 8 sl add b4
+            f hdr 0 4 getinterval writestring
+        }{
+            /sl width height mul 3 mul def
+            8 sl add 1 sl ifdbuild
+        } ifelse
     } //.xpostsys /.indict get exec
 } put
 

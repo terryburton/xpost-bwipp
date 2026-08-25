@@ -131,11 +131,13 @@
         (" height=") .put h 1 add .svgnum ("/>\n) .put
     } //.xpostsys /.indict get exec }
 
-    % r g b polygon IMAGE . -  ; append one path element: the fill colour,
-    % the subpaths as M/L commands each closed with Z, and a nonzero
-    % fill rule. The per-coordinate formatting is the hot loop, so it is
-    % done in C (.svgfillpoly), appending to the accumulator.
-    /FillPoly { //.internaldict /.svgfillpoly get exec } bind
+    % Append one path element: the fill colour, the subpaths as M/L
+    % commands each closed with Z, and a nonzero fill rule. The
+    % per-coordinate formatting is the hot loop, so it is done in C
+    % (.svgfillpoly), appending to the accumulator.
+    /FillPoly {  % r g b polygon IMAGE  .  -
+        //.internaldict /.svgfillpoly get exec
+    } bind
 
     % append collected path elements (coordinates then a /m /l /c /h
     % name each, from the .devpathforall walker) as SVG path commands
@@ -191,11 +193,10 @@
         .pcn
     } bind
 
-    % w h ncomp mat rows decode interp IMAGE . -  ; take a whole sampled
-    % image as an embedded bitmap: the samples decode to rgb, pack as
-    % a bottom-up 24-bit BMP, and ride a base64 data URI under the
-    % image-to-device matrix
-    /PaintImage {
+    % Take a whole sampled image as an embedded bitmap: the samples
+    % decode to rgb, pack as a bottom-up 24-bit BMP, and ride a base64
+    % data URI under the image-to-device matrix.
+    /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
     { {siint sidec sirows sim sinc sih siw}{exch def}forall
         % per-component decode tables to bytes
         /siluts [ 0 1 sinc 1 sub { /c exch def
@@ -224,9 +225,15 @@
         % header: BITMAPFILEHEADER + BITMAPINFOHEADER, little-endian
         /sihdr 54 string def
         /sip 0 def
-        /sb1 { sihdr sip 3 -1 roll put /sip sip 1 add def } def
-        /sb2 { dup 256 mod sb1 256 idiv sb1 } def
-        /sb4 { dup 65536 mod sb2 65536 idiv sb2 } def
+        /sb1 {  % byte  .  -
+            sihdr sip 3 -1 roll put /sip sip 1 add def
+        } def
+        /sb2 {  % n  .  -
+            dup 256 mod sb1 256 idiv sb1
+        } def
+        /sb4 {  % n  .  -
+            dup 65536 mod sb2 65536 idiv sb2
+        } def
         66 sb1 77 sb1 sisz sb4 0 sb4 54 sb4
         40 sb4 siw sb4 sih sb4 1 sb2 24 sb2 0 sb4
         sirowb sih mul sb4 2835 sb4 2835 sb4 0 sb4 0 sb4
@@ -235,7 +242,7 @@
         % appears only at the very end
         /sibuf 48000 string def
         /sibp 0 def
-        /siflush {
+        /siflush {  % -  .  -
             /sic sibp 3 idiv 3 mul def
             sic 0 gt {
                 sibuf 0 sic getinterval //.internaldict /.base64 get exec .put
@@ -243,7 +250,7 @@
                 /sibp sibp sic sub def
             } if
         } def
-        /siput {  % str
+        /siput {  % str  .  -
             dup length sibp add 48000 gt { siflush } if
             sibuf sibp 2 index putinterval
             length sibp add /sibp exch def
@@ -356,7 +363,9 @@
         % page number where the output name has a %d, and without one
         % every page rewrites the same file
         /F .outputfile (w) file def
-        /.w { F exch writestring } def
+        /.w {  % str  .  -
+            F exch writestring
+        } def
 
         % page size in points: unscale the device resolution carried in
         % the defaultmatrix fixup; a raw 1:1 device is unaffected
@@ -365,7 +374,9 @@
 
         (<?xml version="1.0" encoding="UTF-8"?>\n) .w
         (<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width=") .w
-        /.wnum { //.xpostsys /.num2str get exec .w } def
+        /.wnum {  % num  .  -
+            //.xpostsys /.num2str get exec .w
+        } def
         width sx div .wnum (pt" height=") .w
         height sy div .wnum (pt" viewBox="0 0 ) .w
         width .wnum ( ) .w height .wnum (">\n) .w

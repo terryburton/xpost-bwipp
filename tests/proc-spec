@@ -1,0 +1,57 @@
+# Which data files have had their procedures written up, and which have
+# not yet.
+#
+# doc/CONTRIBUTING.md asks every procedure in the interpreter's own
+# PostScript for a header: the stack effect on its definition line, and
+# prose above saying which dictionary is current when it runs, which VM
+# bank its definitions land in, whether it runs once as the file loads
+# or waits for a caller, who calls it, and what a change would trip.
+# Most of these files were written before that was asked of them, so the
+# work is being done a file at a time and this says how far it has got.
+#
+# The register exists so the check can enforce forwards rather than wait
+# for the last file. tests/check-proc-spec.sh holds an annotated file to
+# the rule and leaves a pending one alone, so a file written up today
+# cannot quietly lose an effect tomorrow, and the pending lines are a
+# work list rather than a standing excuse. A pending file that has come
+# to satisfy the rule is reported by the check, not accepted, because a
+# line that has stopped being true is the line nobody rereads.
+#
+# What annotated means is only what a line scan can see: every procedure
+# the scan recognises states a stack effect, in the dot form, once. The
+# prose is the part that carries the orientation and no check reads it,
+# so annotated is a floor and review is what puts a file over it.
+#
+#   file <name>  annotated  its procedures state their effects
+#   file <name>  pending    some do not, yet
+#
+file bboxdev.ps       annotated
+file cid.ps           pending
+file clip.ps          annotated
+file color.ps         pending
+file device.ps        annotated
+file dscwrite.ps      annotated
+file err.ps           annotated
+file font.ps          pending
+file graphics.ps      annotated
+file gstate.ps        pending
+file image.ps         annotated
+file init.ps          pending
+file nulldev.ps       annotated
+file paint.ps         pending
+file path.ps          pending
+file pattern.ps       annotated
+file pbmimage.ps      annotated
+file pdfwrite.ps      annotated
+file pgmimage.ps      annotated
+file ppmimage.ps      annotated
+file prepr.ps         annotated
+file qsort.ps         annotated
+file recorddev.ps     annotated
+file resource.ps      annotated
+file shade.ps         pending
+file svgwrite.ps      annotated
+file tiffimage.ps     annotated
+
+annotated 19
+pending 8

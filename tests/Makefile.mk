@@ -78,6 +78,8 @@ tests/check-filter-base.sh \
 tests/check-fopen-funnel.sh \
 tests/check-fused-ops.sh \
 tests/check-gate-map.sh \
+tests/check-proc-spec.sh \
+tests/proc-spec \
 tests/check-global-local-anchors.sh \
 tests/global_local_anchors.register \
 tests/check-glyph-render-route.sh \

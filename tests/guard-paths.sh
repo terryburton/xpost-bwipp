@@ -66,8 +66,14 @@ guard_require_srcroot() {
     # passes, and the interpreter then finds the real tree by its own
     # search and answers about that instead -- a true report about a tree
     # nobody asked for. Name a file that only the tree being checked has.
-    if [ ! -r "$1/data/init.ps" ] || [ ! -r "$1/tests/guard-paths.sh" ]; then
-        echo "FAILURES: not a source root (data/init.ps and tests/guard-paths.sh must be readable under it): $1"
+    #
+    # Asked for with content, not merely readable: a tree of empty files
+    # of the right names is readable throughout, and a guard handed one
+    # scans it, finds nothing wrong in it and says so. That is the shape
+    # a guard reports agreement in while measuring nothing, and it is
+    # what the emptied decoy in check-guard-paths.sh is built to catch.
+    if [ ! -s "$1/data/init.ps" ] || [ ! -s "$1/tests/guard-paths.sh" ]; then
+        echo "FAILURES: not a source root (data/init.ps and tests/guard-paths.sh must be readable and not empty under it): $1"
         exit 1
     fi
 }

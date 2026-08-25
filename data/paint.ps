@@ -16,7 +16,6 @@
 true setglobal
 
 %
-%  v  .cunit  v'
 %  A colour component folded into the unit range, the nearest valid value
 %  standing in for one outside it as setgray and its siblings substitute
 %  (PLRM 8.2). This is the fold every component crosses on its way to a
@@ -24,12 +23,11 @@ true setglobal
 %  component to a channel and an unclamped one wraps the byte, while a
 %  vector writer prints it, and prints whatever it was handed.
 %
-.xpostsys /.cunit {
+.xpostsys /.cunit {  % v  .  v'
     dup 0 lt { pop 0 }{ dup 1 gt { pop 1 } if } ifelse
 } put
 
 %
-%  mark c1..cn  .applytransfer  mark c1'..cn'
 %  apply the transfer functions to the marked colour components: three
 %  components pass through the red, green and blue transfers, four to
 %  red, green, blue and grey in the CMYK order, anything else through
@@ -42,7 +40,7 @@ true setglobal
 %  returns whatever it computes; the same is true of a Separation or
 %  DeviceN tint transform feeding the components in.
 %
-.xpostsys /.applytransfer {
+.xpostsys /.applytransfer {  % mark c1..cn  .  mark c1'..cn'
     //.xpostsys /.refreshscreencell get exec
     counttomark 3 eq {
         /bluetransfer //.xpostsys /.marktransfer get exec exec
@@ -71,11 +69,9 @@ true setglobal
 %
 
 %
-%  -  erasepage  -
-%
 %  paint current page white
 %
-/erasepage [ ] {
+/erasepage [ ] {  % -  .  -
     % the page is being cleared, so whatever had been painted on it is
     % no longer there to end a job with
     false //.xpostsys /.setpagemarked get exec
@@ -146,14 +142,13 @@ true setglobal
 } bind put
 
 %
-%  poly  .polybounds  xlo ylo xhi yhi true
 %                     false
 %  The device-space box a polygon's own vertices reach, or false when it
 %  has none. This is where an answer about the polygon can lie, so it is
 %  what the tiling walks cut their tiles out of: a tile stretched past it
 %  would be halved over rows that could hold nothing.
 %
-.xpostsys /.polybounds {
+.xpostsys /.polybounds {  % poly  .  xlo ylo xhi yhi true
     8 dict begin
     /any false def
     {
@@ -174,7 +169,6 @@ true setglobal
 } bind put
 
 %
-%  subject y0 y1  .eospantile  spans ...
 %  The even-odd interior of the subject within the rows from y0 up to y1,
 %  in the pixel-band rectangles .eospanpoly answers in: one array, or
 %  several over shallower windows when what is left holds more bands than
@@ -189,7 +183,7 @@ true setglobal
 %  a pixel two windows both described would be painted twice, and blended
 %  twice as dark.
 %
-.xpostsys /.eospantile {
+.xpostsys /.eospantile {  % subject y0 y1  .  spans ...
     8 dict begin
     /ty1 exch def /ty0 exch def /subj exch def
     count /n0 exch def
@@ -207,7 +201,6 @@ true setglobal
 } put
 
 %
-%  subjectpoly  .eospanparts  [ spans ... ]
 %  The even-odd interior of the subject, in the parts a painter marks one
 %  after another. Normally the one array .eospanpoly answers with;
 %  several, over disjoint bands of rows, when the interior holds more
@@ -223,7 +216,7 @@ true setglobal
 %  same pixels between them, so what is painted is what one array would
 %  have given.
 %
-.xpostsys /.eospanparts {
+.xpostsys /.eospanparts {  % subjectpoly  .  [ spans ... ]
     16 dict begin
     /subj exch def
     count /n0 exch def
@@ -271,7 +264,6 @@ true setglobal
 } put
 
 %
-%  evenodd  .fillsubjparts  [ spans ... ]
 %  The region the current path encloses under the named rule, in the
 %  parts a painter marks one after another. This is the one way the
 %  current path becomes a subject: what fill and eofill paint, what clip
@@ -296,7 +288,7 @@ true setglobal
 %  of it -- so a polyline outruns one polygon at a few thousand segments,
 %  well before the path itself grows large.
 %
-.xpostsys /.fillsubjparts {
+.xpostsys /.fillsubjparts {  % evenodd  .  [ spans ... ]
     4 dict begin
     /eo exch def
     count /n0 exch def
@@ -322,13 +314,12 @@ true setglobal
 } put
 
 %
-%  [ spans ... ]  .fillparts  -
 %  Paint the parts of a region in the current colour, through the
 %  device's polygon fill. A region that no single array describes
 %  arrives in several, over disjoint bands of rows; each is painted in
 %  turn, and a part holding no band is nothing to paint.
 %
-.xpostsys /.fillparts {
+.xpostsys /.fillparts {  % [ spans ... ]  .  -
     {
         dup length 2 gt {
             [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
@@ -395,8 +386,6 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  -  eofill  -
-%
 %  fill using the even-odd rule
 %  The even-odd interior resolves to pixel-band rectangles through the
 %  same scan-conversion as the nonzero fill, and the rectangles --
@@ -404,7 +393,7 @@ true setglobal
 %  intersection and the device FillPoly. A vector device consuming
 %  whole paths through FillPath carries the rule to its consumer.
 %
-/eofill [ ] {
+/eofill [ ] {  % -  .  -
     //.xpostsys /.colorroute get exec
     dup /pattern eq { pop //.xpostsys /.patterneofill get exec }{
     /nomarks eq { newpath }{
@@ -504,7 +493,6 @@ true setglobal
      //.xpostsys /.defop get exec
 
 %
-%  x1 y1 x2 y2 rect  .hairsegclip  x1' y1' x2' y2' true
 %                                  false
 %  the portion of the segment within the rectangle [x0 y0 x1 y1],
 %  found by walking the parameter range against each edge; an
@@ -512,7 +500,7 @@ true setglobal
 %  tile edge still marks the boundary pixel, as the unclipped walk
 %  would
 %
-.xpostsys /.hairsegclip {
+.xpostsys /.hairsegclip {  % x1 y1 x2 y2 rect  .  x1' y1' x2' y2' true
     12 dict begin
     aload pop
     /ey exch def
@@ -544,8 +532,6 @@ true setglobal
 } put
 
 %
-%  -  stroke  -
-%
 %  draw line along current path
 %  A device with a StrokePath method consumes the whole path itself
 %  (vector devices stroke with true joins, caps and width); a raster
@@ -566,7 +552,7 @@ true setglobal
 %  thinnest line the device can draw -- and the outline it would fill
 %  encloses no area at all.
 %
-/stroke [ ] {
+/stroke [ ] {  % -  .  -
     //.xpostsys /.colorroute get exec
     dup /pattern eq {
         pop strokepath //.xpostsys /.patternfill get exec
@@ -658,12 +644,10 @@ true setglobal
 %
 
 %
-%  -  .fill  -
-%
 %  assemble the next raw row into rawrow from the source's chunks,
 %  carrying any surplus in pend; a dry source leaves the tail zeroed
 %
-.xpostsys /.fill {
+.xpostsys /.fill {  % -  .  -
     /got 0 def
     {
         got rawrow length ge { exit } if
@@ -744,12 +728,11 @@ true setglobal
 } put
 
 %
-%  src  .imgsource  proc
 %  normalize an image data source: a file becomes a chunk-reading
 %  procedure, a string a procedure delivering it, a procedure passes
 %  through unchanged
 %
-.xpostsys /.imgsource {
+.xpostsys /.imgsource {  % src  .  proc
     dup type /arraytype eq 1 index xcheck not and {
         % a literal array carries one source per component
         [ exch { //.xpostsys /.imgsource get exec } forall ]
@@ -764,13 +747,12 @@ true setglobal
 } put
 
 %
-%  -  .clipspans  array
 %  the clip region resolved to rectangle spans, as flat device-space
 %  quads (x0 y0 x1 y1 each): the region path -- a stored user path or
 %  already-resolved spans -- runs through the fill machinery's
 %  scan-conversion either way
 %
-.xpostsys /.clipspans {
+.xpostsys /.clipspans {  % -  .  array
     % the page met against the region is the region resolved: the
     % rectangle covers every pixel the device has, and the meeting
     % scan-converts the region as the fills themselves do -- by the
@@ -814,27 +796,24 @@ true setglobal
 } put
 
 %
-%  v  .c255  byte
 %  .cunit's fold scaled to a byte, rounded. The clamp is written out
 %  rather than reached through .cunit because this runs once per
 %  component per pixel of an image.
 %
-.xpostsys /.c255 {
+.xpostsys /.c255 {  % v  .  byte
     dup 0 lt { pop 0 } if dup 1 gt { pop 1 } if
     255 mul round cvi
 } put
 
 %
-%  c  .sampleat  value
 %  one normalized component of the pixel in hand, from its plane's
 %  row buffer or the interleaved one
 %
-.xpostsys /.sampleat {
+.xpostsys /.sampleat {  % c  .  value
     multi { bufs exch get x get }{ base add buf exch get } ifelse
 } put
 
 %
-%  width height bits mat datasrc decode ncomp mbits mranges  .imagepaintm  -
 %  the shared image painter: the collectors normalize every sample
 %  depth to one byte, so each pixel reads ncomp bytes, maps each
 %  through its Decode range, and delivers the components to setcolor
@@ -844,7 +823,7 @@ true setglobal
 %  of min,max pairs of normalized sample values (a pixel whose every
 %  raw component falls within its pair is left unpainted)
 %
-.xpostsys /.imagepaintm {
+.xpostsys /.imagepaintm {  % width height bits mat datasrc decode ncomp mbits mranges  .  -
     % the data source is the program's procedure: the whole painting
     % goes through the bracket, so a source that raises cannot leave
     % this graphics state open or this dictionary current
@@ -1250,10 +1229,9 @@ true setglobal
 } put
 
 %
-%  raw bits  .mcscale  normalized
 %  scale a raw sample value as the collectors scale samples to bytes
 %
-.xpostsys /.mcscale {
+.xpostsys /.mcscale {  % raw bits  .  normalized
     dup 12 eq { pop -4 bitshift }{
     dup 8 eq { pop }{
     dup 4 eq { pop 17 mul }{
@@ -1261,12 +1239,11 @@ true setglobal
 } put
 
 %
-%  imagedict  .imagetype4  -
 %  colour-key masking: a pixel whose every raw component falls within
 %  the MaskColor ranges leaves the page untouched. MaskColor holds one
 %  value per component (an exact colour) or min,max pairs.
 %
-.xpostsys /.imagetype4 {
+.xpostsys /.imagetype4 {  % imagedict  .  -
     6 dict begin
     /d exch def
     d /Interpolate 2 copy known { get }{ pop pop false } ifelse
@@ -1543,9 +1520,7 @@ currentglobal false setglobal
 setglobal
 
 %
-%  buf width height ink  .stencilruns  rects
-%
-.xpostsys /.stencilruns {
+.xpostsys /.stencilruns {  % buf width height ink  .  rects
     10 dict begin
     /kink exch def /kh exch def /kw exch def /kbuf exch def
     /hh kw 31 mul kh add 33 mul kink add def

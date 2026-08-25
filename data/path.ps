@@ -32,7 +32,6 @@ true setglobal
 .xpostsys /cpath { graphicsdict /currgstate get /currpath get } bind put
 
 %
-%  move line curve close  .devpathforall  -
 %  enumerate current path in device coordinates: each element's points
 %  are pushed for the matching procedure (nothing for close)
 %
@@ -41,7 +40,7 @@ true setglobal
 %  (.indict, graphics.ps): a device method that walks a path is left the
 %  dictionary stack it was handed whether the walk finished or stopped.
 %
-.xpostsys /.devpathforall {
+.xpostsys /.devpathforall {  % move line curve close  .  -
 10 dict
 {
     4 array astore /procs exch def
@@ -435,7 +434,6 @@ end
 } put
 
 %
-%  x y ang  .docap  -
 %  append the line-cap shape at one end of an open subpath: the
 %  endpoint in device space and the outward direction along the
 %  segment. A butt cap adds nothing; a round cap is the half-disc
@@ -443,7 +441,7 @@ end
 %  Each shape meets the stroke body only along the end's chord, so its
 %  winding cannot cancel the body's under the nonzero rule.
 %
-.xpostsys /.docap {
+.xpostsys /.docap {  % x y ang  .  -
     currentlinecap 0 eq {
         pop pop pop
     }{
@@ -730,8 +728,6 @@ setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  -  .clipregionpath  -
-%
 %  Replace the current path with the clip region as the machinery holds
 %  it, which for a region covering no pixels is a path with no elements.
 %  This is what the region walkers -- the half-plane clipper, the tiling
@@ -746,14 +742,12 @@ setglobal
 %  here reach into the clip in force, or not, according to how much spare
 %  room the region's storage happened to have.
 %
-.xpostsys /.clipregionpath {
+.xpostsys /.clipregionpath {  % -  .  -
     graphicsdict /currgstate get
         dup /clipregion get .copypath
         /currpath exch put
 } bind put
 
-%
-%  -  clippath  -
 %
 %  Replace the current path with the clip region's boundary (PLRM 8.2).
 %
@@ -766,7 +760,7 @@ setglobal
 %  rather than failing. The point carries no area into any arithmetic done
 %  on that box, and the region the painters enforce is not changed by it.
 %
-/clippath [ ] {
+/clippath [ ] {  % -  .  -
     //.xpostsys /.clipregionpath get exec
     .pathempty {
         DEVICE /dimensions get aload pop

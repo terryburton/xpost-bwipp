@@ -30,14 +30,13 @@ true setglobal
 %
 .xpostsys begin
 %
-%  v {proc}  .decode  v'
-%  run one of a colour space's decode procedures. Each family reduces a
+%  Run one of a colour space's decode procedures. Each family reduces a
 %  colour under a dictionary of its own, and the decode procedures are
 %  the program's, so they go through the bracket: the names this
 %  reduction works under are not theirs to inherit, and what they define
 %  belongs where the program's other definitions go.
 %
-/.decode {
+/.decode {  % v {proc}  .  v'
     null 1 //.xpostsys /.pcallout get exec
 } bind def
 /.cieclamp {
@@ -49,9 +48,7 @@ true setglobal
 } bind def
 
 %
-%  X Y Z whitepoint  .ciexyzrgb  r g b
-%
-/.ciexyzrgb {
+/.ciexyzrgb {  % X Y Z whitepoint  .  r g b
     5 dict begin
     /wp exch def /Z exch def /Y exch def /X exch def
     /X X 0.9505 wp 0 get div mul def
@@ -70,9 +67,7 @@ true setglobal
 } bind def
 
 %
-%  L M N ciedict  .cielmnxyzrgb  r g b
-%
-/.cielmnxyzrgb {
+/.cielmnxyzrgb {  % L M N ciedict  .  r g b
     8 dict begin
     /cd exch def /NN exch def /MM exch def /LL exch def
     /rl cd /RangeLMN 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
@@ -96,9 +91,7 @@ true setglobal
 } bind def
 
 %
-%  A B C ciedict  .cieabcrgb  r g b
-%
-/.cieabcrgb {
+/.cieabcrgb {  % A B C ciedict  .  r g b
     8 dict begin
     /cd exch def /CC exch def /BB exch def /AA exch def
     /ra cd /RangeABC 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
@@ -121,9 +114,7 @@ true setglobal
 } bind def
 
 %
-%  A ciedict  .ciearpgb  r g b
-%
-/.ciearpgb {
+/.ciearpgb {  % A ciedict  .  r g b
     6 dict begin
     /cd exch def /AA exch def
     /ra cd /RangeA 2 copy known { get }{ pop pop [0 1] } ifelse def
@@ -139,11 +130,10 @@ true setglobal
 } bind def
 
 %
-%  v lo hi n  .cietblpos  i0 i1 f
-%  a value within its range, over a table of n steps: the bracketing
+%  A value within its range, over a table of n steps: the bracketing
 %  indices and the fraction between them
 %
-/.cietblpos {
+/.cietblpos {  % v lo hi n  .  i0 i1 f
     5 dict begin
     /n exch def /hi exch def /lo exch def
     lo hi //.cieclamp exec
@@ -159,16 +149,12 @@ true setglobal
 } bind def
 
 %
-%  byte-fraction lo hi  .cietblval  v
-%
-/.cietblval {
+/.cietblval {  % byte-fraction lo hi  .  v
     1 index sub mul add
 } bind def
 
 %
-%  D E F ciedict  .ciedefrgb  r g b
-%
-/.ciedefrgb {
+/.ciedefrgb {  % D E F ciedict  .  r g b
     24 dict begin
     /cd exch def /FF exch def /EE exch def /DD exch def
     /rd cd /RangeDEF 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
@@ -213,9 +199,7 @@ true setglobal
 } bind def
 
 %
-%  D E F G ciedict  .ciedefgrgb  r g b
-%
-/.ciedefgrgb {
+/.ciedefgrgb {  % D E F G ciedict  .  r g b
     28 dict begin
     /cd exch def /GG exch def /FF exch def /EE exch def /DD exch def
     /rd cd /RangeDEFG 2 copy known { get }{ pop pop [0 1 0 1 0 1 0 1] } ifelse def
@@ -264,7 +248,7 @@ true setglobal
 } bind def
 
 %
-%  the family dispatch: comps [ /Family dict ]  .ciergb  r g b
+%  The family dispatch: comps [ /Family dict ]  .ciergb  r g b
 %
 /.ciefams <<
     /CIEBasedA //.ciearpgb
@@ -279,6 +263,7 @@ true setglobal
 
 %
 %  space  .cierange  range
+%
 %  The range a CIE-based space declares its components over. Each family
 %  names the entry that carries it and has its own default for a
 %  dictionary that leaves the entry out (PLRM 4.8.3).
@@ -298,12 +283,11 @@ true setglobal
 } bind def
 
 %
-%  space comps  .cieclampcomps  comps
 %  Each component of a CIE-based colour brought inside the range its space
 %  declares: a value outside it is the nearest one inside, and no error
 %  (PLRM 4.8.3).
 %
-/.cieclampcomps {
+/.cieclampcomps {  % space comps  .  comps
     3 dict begin
     /cc exch def
     /rg exch //.cierange exec def
@@ -338,10 +322,9 @@ end
 .xpostsys /.cskeys [ /.csspace /.csstash /.convdepth ] put
 
 %
-%  space comps {conv}  .withspace  -
 %  comps is the components as the program gave them.
 %
-.xpostsys /.withspace {
+.xpostsys /.withspace {  % space comps {conv}  .  -
     //.xpostsys /.withspacebody get
     //.xpostsys /.cskeys get 0
     //.xpostsys /.callout get exec
@@ -370,21 +353,19 @@ end
 } bind put
 
 %
-%  -  .csalt  -
-%
 %  Enter the space the conversion's result belongs in, if the procedure
 %  left another one in force. The procedure is the program's and may set
 %  a colour of its own; the components it returned are in the space
 %  stated, and that is the space the setcolor consuming them has to run
 %  in.
 %
-.xpostsys /.csalt {
+.xpostsys /.csalt {  % -  .  -
     dup graphicsdict /currgstate get /setspace get eq
         { pop }{ setcolorspace } ifelse
 } bind put
 
 %
-%  the palette entry an Indexed index names, in the base space
+%  The palette entry an Indexed index names, in the base space
 %
 .xpostsys /.idxconv {
     3 dict begin
@@ -406,13 +387,12 @@ end
 } bind put
 
 %
-%  comps  .tintsclamp  comps
 %  Each tint of a Separation or DeviceN colour brought inside 0.0 to 1.0,
 %  the range PLRM 4.8.4 states a tint lies in. The transform is called
 %  with what comes out: its domain is that range, and the tint the
 %  graphics state ends up holding is the one it was called with.
 %
-.xpostsys /.tintsclamp {
+.xpostsys /.tintsclamp {  % comps  .  comps
     1 dict begin
     /tc exch def
     0 1 tc length 1 sub {
@@ -555,7 +535,8 @@ end
 %
 %    pattern  setpattern  -
 %    comp1..compn pattern  setpattern  -
-%  shorthand for entering the pattern colour space and setting the
+%
+%  Shorthand for entering the pattern colour space and setting the
 %  pattern as the colour; an uncoloured pattern takes the current
 %  colour space as its underlying space, with the components beneath
 %  The components beneath vary with the underlying space, so the
@@ -585,7 +566,8 @@ end
 
 %
 %  -  .ncomponents  n
-%  the number of colour components the current colour space takes: an
+%
+%  The number of colour components the current colour space takes: an
 %  Indexed colour is one index, a Separation one tint, a DeviceN one
 %  tint per named colorant.
 %
@@ -629,12 +611,11 @@ end
 >> put
 
 %
-%  space  .spacekind  /device|/cie|/indexed|/tint|/pattern|null
 %  The kind of a colour space, given as a bare family name or as an array
 %  carrying the family and its parameters. A space naming no known family
 %  answers null, which is what the validator refuses on.
 %
-.xpostsys /.spacekind {
+.xpostsys /.spacekind {  % space  .  /device|/cie|/indexed|/tint|/pattern|null
     dup type /arraytype eq { 0 get } if
     dup type /nametype eq {
         //.xpostsys /.spacekinds get 1 index known {
@@ -659,7 +640,6 @@ end
 } put
 
 %
-%  space  .spacecomponents  n
 %  How many components a colour in this space carries. An Indexed colour
 %  is one index and a Separation one tint whatever they reduce to; a
 %  DeviceN carries one per name; a CIE-based family and a device space
@@ -671,7 +651,7 @@ end
 %  and how many are handed to a device, so two callers counting
 %  differently is a colour read at one width and written at another.
 %
-.xpostsys /.spacecomponents {
+.xpostsys /.spacecomponents {  % space  .  n
     dup type /arraytype eq {
         dup 0 get /Indexed eq { pop 1 }{
         dup 0 get /Separation eq { pop 1 }{
@@ -686,20 +666,18 @@ end
 } put
 
 %
-%  space  .spaceispattern  bool
 %  Whether a colour space is a pattern space, asked of the space as the
 %  program gave it: a family name on its own, or an array carrying the
 %  family and its parameters. Both forms reach setcolorspace, so both
 %  have to be understood wherever the question is asked, and asking it
 %  two ways is how one site comes to understand a form another does not.
 %
-.xpostsys /.spaceispattern {
+.xpostsys /.spaceispattern {  % space  .  bool
     dup type /arraytype eq { 0 get } if
     /Pattern eq
 } put
 
 %
-%  space  .spacenomarks  bool
 %  Whether a colour set in this space can produce visible output at all.
 %
 %  PLRM 4.8.5 gives the colorant name None exactly this meaning: painting
@@ -713,7 +691,7 @@ end
 %  The sibling special name All is NOT this: it paints in every available
 %  colorant, which is the opposite of painting in none.
 %
-.xpostsys /.spacenomarks {
+.xpostsys /.spacenomarks {  % space  .  bool
     dup type /arraytype eq {
         dup length 2 ge {
             dup 0 get /Separation eq {
@@ -726,7 +704,6 @@ end
 } put
 
 %
-%  space  .spacereduce  space
 %  Walk a colour space down to the one a colour in it is finally recorded
 %  in: an Indexed space through its base, a Separation or DeviceN through
 %  its alternative, a CIE-based family to device RGB. A space that reduces
@@ -739,7 +716,7 @@ end
 %  space accepted as one thing and recorded as another, which no program
 %  could see until it used that space.
 %
-.xpostsys /.spacereduce {
+.xpostsys /.spacereduce {  % space  .  space
     % A colour space reaches its device space in as many steps as it
     % nests, which is a handful; a space that reaches itself would reduce
     % forever. Count the steps and refuse a space that has not reduced in
@@ -766,14 +743,13 @@ end
 } put
 
 %
-%  space  .csvalidate  -
 %  walk a colour space down to the device space a colour in it is finally
 %  recorded in, without touching the graphics state: an Indexed space
 %  reduces through its base, a Separation or DeviceN through its
 %  alternative, and a CIE-based family to device RGB. A family none of
 %  those knows is undefined
 %
-.xpostsys /.csvalidate {
+.xpostsys /.csvalidate {  % space  .  -
     1 dict begin
     /sp exch def
     sp //.xpostsys /.spaceispattern get exec {
@@ -875,8 +851,6 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  .csinitcolor  -
-%
 %  Set the colour the current colour space is entered holding. Every
 %  space has one and setcolorspace installs it (PLRM 8.2): black in a
 %  device space, which in DeviceCMYK is three zeros and a one; a tint of
@@ -897,7 +871,7 @@ end
 %  its way in, and a procedure of the program's runs against the
 %  program's dictionaries and defines into them.
 %
-.xpostsys /.csinitcolor {
+.xpostsys /.csinitcolor {  % -  .  -
     currentcolorspace
     dup //.xpostsys /.spacekind get exec
     dup /pattern eq {
@@ -964,12 +938,11 @@ end
     2 copy gt{exch}if pop
 } bind put
 %
-%  component  .c01  real in [0,1]
 %  a colour component is clamped to the unit range (PLRM: values outside
 %  0 to 1 are adjusted to the nearest valid value). A pure global helper, so it
 %  lives in .xpostsys beside .min and the colour conversions that freeze it in.
 %
-.xpostsys /.c01 {
+.xpostsys /.c01 {  % component  .  real in [0,1]
     cvr dup 0.0 lt { pop 0.0 } if dup 1.0 gt { pop 1.0 } if
 } bind put
 
@@ -1080,14 +1053,13 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  hue saturation brightness  sethsbcolor  -
 %  the components are recorded in RGB, converted with the usual
 %  hexcone model (hue scaled to a sector 0-5; the sector's fractional
 %  part blends between the derived p, q and t values). Each component is
 %  clamped to [0,1] first, as the reference interpreters clamp hue rather
 %  than wrap it.
 %
-/sethsbcolor [ /numbertype /numbertype /numbertype ] {
+/sethsbcolor [ /numbertype /numbertype /numbertype ] {  % hue saturation brightness  .  -
     3 { //.xpostsys /.c01 get exec 3 1 roll } repeat
     7 dict begin
     {/b /s /h}{exch def}forall
@@ -1157,11 +1129,11 @@ end
 %
 
 %
-%  obj  .customcolorspace  [/Separation name alt {transform}] : the Separation
-%  space a custom-colour object is shorthand for. setcustomcolor and
-%  customcolorimage share it so the object is unpacked one way only.
+%  The Separation space a custom-colour object is shorthand for.
+%  setcustomcolor and customcolorimage share it so the object is unpacked
+%  one way only.
 %
-.xpostsys /.customcolorspace {
+.xpostsys /.customcolorspace {  % obj  .  [/Separation name alt {transform}]
     dup length 5 eq {
         aload pop                               % C m y k name
         6 dict begin

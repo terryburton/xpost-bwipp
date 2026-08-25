@@ -16,18 +16,20 @@
 #               recorded it in the register of wrapped procedures.
 #
 #   c           the C operator is in force and the PostScript body is
-#               unreachable. breakhere is the one such pair: the C
-#               operator is installed and then moved into .internaldict
-#               during init, while the PostScript body sits in the
-#               fallback block graphics.ps runs only when it is loaded
-#               standalone, which the normal flow never takes.
+#               unreachable. No name is in this state now. The category
+#               stands because the state is reachable and silent: a boot
+#               file defining a name the C side already installs, on a
+#               path the normal flow does not take, is a body nothing
+#               runs and nothing reports. breakhere was the one such
+#               pair until its PostScript body -- a shim in the fallback
+#               block graphics.ps takes only when loaded standalone --
+#               was removed as unreachable.
 #
 # A name implemented twice and not listed here fails the check: it is a
 # choice nobody made on purpose.
 
 ashow       postscript
 awidthshow  postscript
-breakhere   c
 findfont    postscript
 setfont     postscript
 show        postscript

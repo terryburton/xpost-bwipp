@@ -15,8 +15,6 @@
 true setglobal
 
 %
-%  region source  .setclipregion  -
-%
 %  The one writer of the clip.
 %
 %  The clip is a single value wearing three faces. /clipregion is the
@@ -52,7 +50,6 @@ true setglobal
 } bind put
 
 %
-%  -  .clipregionpoly  poly
 %  The clip region in the device FillPoly argument format, for a consumer
 %  that wants the region's vertices in an array. .fillpolyargs reads the
 %  current path, so the region stands in for it briefly.
@@ -69,7 +66,7 @@ true setglobal
 %  A holder of serial zero is the one every graphics state is built with
 %  and shares until its first clip, so nothing is kept there.
 %
-.xpostsys /.clipregionpoly {
+.xpostsys /.clipregionpoly {  % -  .  poly
     graphicsdict /currgstate get /clipcache get
     dup /poly known {
         /poly get
@@ -85,7 +82,6 @@ true setglobal
 } bind put
 
 %
-%  subjectpoly  .clipmeet  spanpoly
 %  What the clip in force leaves of a region about to be painted. The one
 %  way a painter asks that question; the rule it is answered by is stated
 %  at .regionmeet.
@@ -99,7 +95,7 @@ true setglobal
 %  is an array: an intersection too finely divided for one refuses here,
 %  and .clipmeetparts below is what asks again in parts.
 %
-.xpostsys /.clipmeet {
+.xpostsys /.clipmeet {  % subjectpoly  .  spanpoly
     graphicsdict /currgstate get
     dup /clipregion get
     exch dup /clipcache get /serial get
@@ -115,7 +111,6 @@ true setglobal
 .xpostsys /.cliptilerows 2048 put
 
 %
-%  subject x0 y0 x1 y1  .cliptile  spans ...
 %  What the clip in force leaves of the subject region inside the tile,
 %  in the pixel-band rectangles .clipmeet answers in: one array, or
 %  several over shallower tiles when what is left holds more bands than
@@ -133,7 +128,7 @@ true setglobal
 %  another: a pixel two tiles both described would be painted twice, and
 %  blended twice as dark.
 %
-.xpostsys /.cliptile {
+.xpostsys /.cliptile {  % subject x0 y0 x1 y1  .  spans ...
     5 dict begin
     /ty1 exch def /tx1 exch def /ty0 exch def /tx0 exch def
     /subj exch def
@@ -157,7 +152,6 @@ true setglobal
 } put
 
 %
-%  subjectpoly  .clipmeetparts  [ spans ... ]
 %  What the clip in force leaves of the subject region, in the parts a
 %  painter marks one after another. Normally the one array .clipmeet
 %  answers with; several, over disjoint bands of rows, when the answer
@@ -175,7 +169,7 @@ true setglobal
 %  which is where the answer can lie: a tile stretched past the subject
 %  would be halved over rows that could hold nothing.
 %
-.xpostsys /.clipmeetparts {
+.xpostsys /.clipmeetparts {  % subjectpoly  .  [ spans ... ]
     16 dict begin
     /subj exch def
     count /n0 exch def
@@ -212,18 +206,16 @@ true setglobal
 } put
 
 %
-%  [ spans ... ]  .clippartsmeet  [ spans ... ]
 %  What the clip in force leaves of a subject already stated in parts.
 %  Each part is met on its own and the answers stand together: the parts
 %  describe disjoint bands of rows, so the answers do too, and a painter
 %  marking them one after another marks no pixel twice.
 %
-.xpostsys /.clippartsmeet {
+.xpostsys /.clippartsmeet {  % [ spans ... ]  .  [ spans ... ]
     [ exch { //.xpostsys /.clipmeetparts get exec aload pop } forall ]
 } bind put
 
 %
-%  [ spans ... ]  .clipstoreparts  -
 %  Make the parts the clip region: they become one path, which is what a
 %  graphics state holds a region in and what the region intersection
 %  reads. A region of more bands than one array describes is still one
@@ -232,13 +224,11 @@ true setglobal
 %  The caller is left with the region as its current path, which is where
 %  the clip writers each want it.
 %
-.xpostsys /.clipstoreparts {
+.xpostsys /.clipstoreparts {  % [ spans ... ]  .  -
     newpath
     { //.xpostsys /.polytopath get exec } forall
 } bind put
 
-%
-%  -  initclip  -
 %
 %  Replace the clip region with the whole page (PLRM 8.2). The device
 %  reports its dimensions in device pixels, so the rectangle is built with
@@ -247,7 +237,7 @@ true setglobal
 %  initclip changes the clip and nothing else. The corners are walked
 %  counter-clockwise so the region has the winding the painters expect.
 %
-/initclip [ ] {
+/initclip [ ] {  % -  .  -
     graphicsdict /currgstate get /currpath get
     matrix currentmatrix
 
@@ -262,15 +252,16 @@ true setglobal
     closepath
 
     setmatrix
-    % the region is the whole page, which constrains nothing a device has
+
+    % The region is the whole page, which constrains nothing a device has
     % to be told about, so there is no shape to hand one
     graphicsdict /currgstate get /currpath get
     null //.xpostsys /.setclipregion get exec
     graphicsdict /currgstate get /currpath 3 -1 roll put
 } //.xpostsys /.defop get exec
 
-/clip [ ] {
-    % the clip machinery consumes line segments, so the region is cut
+/clip [ ] {  % -  .  -
+    % The clip machinery consumes line segments, so the region is cut
     % from a flattened working copy; the caller's path is kept aside
     % and put back, undisturbed by flattening or the intersection
     % remember the clip's shape as a path before flattening: a device
@@ -286,12 +277,12 @@ true setglobal
     graphicsdict /currgstate get /currpath get .copypath
     flattenpath
     .cliptrivial {
-        % the region is a rectangle containing the whole path, so the
+        % The region is a rectangle containing the whole path, so the
         % intersection is the flattened path already in hand: nothing to
         % cut, and the region stays a path so a vector device's
         % whole-path output stays exact
     }{
-    % two overlapping rectangles intersect to a rectangle: build it
+    % Two overlapping rectangles intersect to a rectangle: build it
     % directly, so the region stays recognizable as one -- the
     % hairline walk and the raster painters read its bounds -- rather
     % than dissolving into pixel-band spans
@@ -313,7 +304,7 @@ true setglobal
         } if
         end
     }{
-        % otherwise intersect span by span, as eoclip does: the
+        % Otherwise intersect span by span, as eoclip does: the
         % resulting pixel-band rectangles are winding-uniform, so
         % stacked regions of any shape combine exactly. The answer
         % arrives in parts where no single array states it, and the
@@ -322,7 +313,8 @@ true setglobal
         //.xpostsys /.clippartsmeet get exec
         //.xpostsys /.clipstoreparts get exec
     } ifelse } ifelse
-    % each branch above left the new region as the current path: put the
+
+    % Each branch above left the new region as the current path: put the
     % caller's path back and install the clip, both faces at once
     graphicsdict /currgstate get /currpath get      % Source saved region
     graphicsdict /currgstate get /currpath 3 index put
@@ -330,31 +322,31 @@ true setglobal
     exch //.xpostsys /.setclipregion get exec
 } //.xpostsys /.defop get exec
 
-.xpostsys /p2abc {  % x0 y0 x1 y1
+.xpostsys /p2abc {  % x0 y0 x1 y1  .  A B C
     exch 3 index sub
     exch 2 index sub  % X0 y0 dx dy
-    exch         % X0 y0 A B
+    exch              % X0 y0 A B
     neg
-    2 copy 6 2 roll  % A B x0 y0 A B
-    3 -1 roll mul    % A B x0 A By0
-    3 1 roll mul     % A B By0 Ax0
-    add neg          % A B C
+    2 copy 6 2 roll   % A B x0 y0 A B
+    3 -1 roll mul     % A B x0 A By0
+    3 1 roll mul      % A B By0 Ax0
+    add neg           % A B C
 } bind put
 
 %
 %  evaluate and hodgman-sutherland
 %  from Bill Casselman's Mathematical Illustrations, ch. 5.
 %
-.xpostsys /evaluate {  %    x y [A B C]
-    aload pop    % X y A B C
-    5 1 roll     % C x y A B
-    3 2 roll mul  % C x A By
-    3 1 roll mul  % C By Ax
+.xpostsys /evaluate {  % x y [A B C]  .  v
+    aload pop          % X y A B C
+    5 1 roll           % C x y A B
+    3 2 roll mul       % C x A By
+    3 1 roll mul       % C By Ax
     add add
 } bind put
 
 %
-%  hodgman-sutherland keeps the half-plane to the left of each directed
+%  Hodgman-Sutherland keeps the half-plane to the left of each directed
 %  clip edge, so a clip polygon's interior must lie to the left of its
 %  edges: a positive signed area, the winding initclip produces. A user
 %  clip path can arrive in the opposite device-space winding (e.g. after
@@ -388,6 +380,7 @@ true setglobal
 
 %
 %  polygon [A B C]  .  new-polygon
+%
 %  Canonical Sutherland-Hodgman: clip the closed polygon (points array,
 %  first point repeated at the end) against the half-plane where the clip
 %  line evaluates <= 0. For each edge P->Q emit Q when it lies inside, and
@@ -395,8 +388,8 @@ true setglobal
 %  half-plane. Correct for any convex clip window and any edge orientation.
 %
 .xpostsys /hodgman-sutherland {
-	16 dict
-	begin
+    16 dict
+    begin
     /f exch def
     /p exch def
     /n p length 1 sub def   % Edge count (p carries a duplicated closing point)
@@ -437,9 +430,8 @@ true setglobal
     }{
         p
     } ifelse
-end }
-bind
-put
+    end
+} bind put
 
 %
 %  A subpath split off at a closepath enters through the bridge the
@@ -460,8 +452,6 @@ put
     end
 } bind put
 
-%
-%  -  doclip  -
 %
 %  Cut the current path to the shape of the clip region, in reals, by the
 %  half-plane clipper above: the path becomes a path describing the part
@@ -491,208 +481,199 @@ put
 %        receiving new polygon.
 %  convert polygon array back to path structure
 %
-.xpostsys /doclip {
-    % when the clip region is an axis-aligned rectangle that already
+.xpostsys /doclip {  % -  .  -
+    % When the clip region is an axis-aligned rectangle that already
     % contains the whole path, clipping passes every point through
     % unchanged: skip the polygon-clipping machinery
     .cliptrivial not {
-	%DICT
-	20 dict
-	begin
+        %DICT
+        20 dict
+        begin
 
-    %/isclosed
-    %    cpath dup length 1 sub get
-    %    dup length 1 sub get /cmd /close eq
-    %def
-    %closepath
+        flattenpath
+        /PA [                           % PAth    polygon array
+            [  % Mark
+            {
+                2 array astore  % ... mark ... [x0 y0]
+                counttomark 1 ne {
+                    counttomark 1 add 1 roll  % ... [x0 y0] mark ...
+                    ] exch  % ... [ ... ] [x0 y0]
+                    [ exch  % ... [ ... ] [ [x0 y0]
+                } if  % ... mark [x0 y0]
+                %pstack()=
+            }
+            { 2 array astore }  % ... mark [x0 y0] ... [xN yN]
+            {}
+            { counttomark 1 sub index }  % ... mark [x0 y0] ... [x0 y0]
+            //.xpostsys /.devpathforall get exec
+            ]  % /PA mark [...] [...] [...]
+        ] def
 
-    flattenpath
-    /PA [                           % PAth    polygon array
-        [  % Mark
-        {
-            2 array astore  % ... mark ... [x0 y0]
-            counttomark 1 ne {
-                counttomark 1 add 1 roll  % ... [x0 y0] mark ...
-                ] exch  % ... [ ... ] [x0 y0]
-                [ exch  % ... [ ... ] [ [x0 y0]
-            } if  % ... mark [x0 y0]
-            %pstack()=
-        }
-        { 2 array astore }  % ... mark [x0 y0] ... [xN yN]
-        {}
-        { counttomark 1 sub index }  % ... mark [x0 y0] ... [x0 y0]
-        //.xpostsys /.devpathforall get exec
-        ]  % /PA mark [...] [...] [...]
-    ] def
-
-    % A closepath ends a clip subpath, but need not be followed by a
-    % moveto: a segment operator may continue from the closing point
-    % (the straight line arc appends is the common case, building a
-    % ring as one keyhole path). Split polygons at the close as well
-    % as at movetos, so each ring boundary classifies separately.
-    /CR                         % Clip Region   region array
-    //.xpostsys /.clipregionpath get exec [
-        %{ 2 array astore [ exch } { 2 array astore } {} {]} .devpathforall
-        [
-        { 2 array astore
-            counttomark 1 ne {
-                counttomark 1 add 1 roll
-                ] exch
-                [ exch
-            } if
-        }
-        { 2 array astore }
-        {}
-        { counttomark 1 sub index ] [ }
-        //.xpostsys /.devpathforall get exec
+        % A closepath ends a clip subpath, but need not be followed by a
+        % moveto: a segment operator may continue from the closing point
+        % (the straight line arc appends is the common case, building a
+        % ring as one keyhole path). Split polygons at the close as well
+        % as at movetos, so each ring boundary classifies separately.
+        /CR                         % Clip Region   region array
+        //.xpostsys /.clipregionpath get exec [
+            %{ 2 array astore [ exch } { 2 array astore } {} {]} .devpathforall
+            [
+            { 2 array astore
+                counttomark 1 ne {
+                    counttomark 1 add 1 roll
+                    ] exch
+                    [ exch
+                } if
+            }
+            { 2 array astore }
+            {}
+            { counttomark 1 sub index ] [ }
+            //.xpostsys /.devpathforall get exec
+            ]
         ]
-    ]
-    %pstack()=
-    def
+        def
 
-    /DEBUGCLIP where { pop
-        (//.xpostsys /doclip get exec)=
-        (PA: )print PA ==
-        (CR: )print CR ==
-        %hook
+        /DEBUGCLIP where { pop
+            (//.xpostsys /doclip get exec)=
+            (PA: )print PA ==
+            (CR: )print CR ==
+            %hook
+        } if
+
+        % A clip path may carry several subpaths: the first is the clip
+        % window, and any later subpath wound the opposite way is a hole
+        % cut out of it (the nonzero-rule idiom for clipping around a
+        % reserved area). Later subpaths with the window's winding are
+        % treated as further windows to intersect, as before.
+        /wsign 0 def
+
+        % Subtracting a hole meets the subject against each of the hole's
+        % edges limited by the edges before it, so the passes rise with the
+        % square of the hole's edge count -- and each such pass builds a
+        % polygon, dear where meeting a window's edge is cheap. A hole of a
+        % few hundred edges already costs what a real hole never does, whose
+        % windows are rectangles and glyph outlines and whose holes are the
+        % odd reserved rectangle, so a hole past that many edges is refused
+        % below rather than squared. Meeting a window's edges stays bounded
+        % by the product of the window's edge count and the subject's, cheap
+        % per pass but a product a program still sizes, so a running count of
+        % all the passes stops the rare enormous one past a number far above
+        % any real clip.
+        /shn 0 def
+        /shnmax 4000000 def
+        /holemax 200 def
+        CR {  % one clipping polygon
+            //.xpostsys /despike get exec
+
+            % Fewer than three points bound no area (e.g. the bare pen
+            % moveto charpath leaves after its outlines)
+            dup length 3 lt {
+                pop
+            }{
+                dup //.xpostsys /polyarea2 get exec 0 lt { -1 }{ 1 } ifelse /psign exch def
+                wsign 0 eq { /wsign psign def } if
+                psign wsign eq {
+
+                % Intersect the subject polygons with the (convex) window
+                //.xpostsys /normclipwind get exec
+                dup 0 get
+                /U exch def
+                1 1 index length 1 sub getinterval
+                {
+                    /V exch def
+                    U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 lt {
+                        % A degenerate edge (a contour closing on its own start,
+                        % exactly or within float noise) has no usable half-plane
+                    }{
+                        [ U aload pop V aload pop //.xpostsys /p2abc get exec ]  % Clip-line
+                        /CL exch def
+                        /DEBUGCLIP where { pop
+                            CL ==
+                        } if
+
+                        /PA [ PA {  % one subject polygon
+                            CL //.xpostsys /hodgman-sutherland get exec
+                            /shn shn 1 add def
+                            shn shnmax gt { /clip cvx /limitcheck signalerror } if
+                        } forall ] def
+                    } ifelse
+
+                    /U V def
+                } forall
+
+                }{
+
+                % Subtract the (convex) hole: the difference decomposes into
+                % one piece per hole edge - the part beyond that edge,
+                % limited by the edges before it
+                //.xpostsys /normclipwind get exec
+                /HP exch def
+                /HL [
+                    HP 0 get /U exch def
+                    HP 1 HP length 1 sub getinterval {
+                        /V exch def
+                        U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 ge {
+                            [ U aload pop V aload pop //.xpostsys /p2abc get exec ]
+                        } if
+                        /U V def
+                    } forall
+                ] def
+                HL length holemax gt { /clip cvx /limitcheck signalerror } if
+                /PA [
+                    PA {
+                        /SP exch def
+                        0 1 HL length 1 sub {
+                            /hi exch def
+                            /piece SP [ HL hi get { neg } forall ] //.xpostsys /hodgman-sutherland get exec def
+                            /shn shn 1 add def
+                            shn shnmax gt { /clip cvx /limitcheck signalerror } if
+                            0 1 hi 1 sub {
+                                /piece piece 3 -1 roll HL exch get //.xpostsys /hodgman-sutherland get exec def
+                                /shn shn 1 add def
+                                shn shnmax gt { /clip cvx /limitcheck signalerror } if
+                            } for
+                            piece length 3 gt { piece } if
+                        } for
+                    } forall
+                ] def
+
+            } ifelse } ifelse
+        } forall
+        newpath
+
+        /DEBUGCLIP where { pop
+            PA ==
+        } if
+
+        PA {
+            dup length 0 gt {
+                dup 0 get aload pop .devmoveto
+                dup 1 1 index length 1 sub getinterval {
+                    aload pop .devlineto
+                } forall
+
+                dup dup length 1 sub get aload pop  % P xN yN
+                2 index 0 get aload pop  % P xN yN x0 y0
+                exch 4 1 roll  % P x0 xN yN y0
+                eq 3 1 roll eq and {
+                    .retagclose
+                } if
+                pop
+            }{
+                pop
+            } ifelse
+        } forall
+
+        end
     } if
 
-    % A clip path may carry several subpaths: the first is the clip
-    % window, and any later subpath wound the opposite way is a hole
-    % cut out of it (the nonzero-rule idiom for clipping around a
-    % reserved area). Later subpaths with the window's winding are
-    % treated as further windows to intersect, as before.
-    /wsign 0 def
-    % Subtracting a hole meets the subject against each of the hole's
-    % edges limited by the edges before it, so the passes rise with the
-    % square of the hole's edge count -- and each such pass builds a
-    % polygon, dear where meeting a window's edge is cheap. A hole of a
-    % few hundred edges already costs what a real hole never does, whose
-    % windows are rectangles and glyph outlines and whose holes are the
-    % odd reserved rectangle, so a hole past that many edges is refused
-    % below rather than squared. Meeting a window's edges stays bounded
-    % by the product of the window's edge count and the subject's, cheap
-    % per pass but a product a program still sizes, so a running count of
-    % all the passes stops the rare enormous one past a number far above
-    % any real clip.
-    /shn 0 def
-    /shnmax 4000000 def
-    /holemax 200 def
-    CR {  % one clipping polygon
-	//.xpostsys /despike get exec
-	% fewer than three points bound no area (e.g. the bare pen
-	% moveto charpath leaves after its outlines)
-	dup length 3 lt {
-	    pop
-	}{
-	    dup //.xpostsys /polyarea2 get exec 0 lt { -1 }{ 1 } ifelse /psign exch def
-	    wsign 0 eq { /wsign psign def } if
-	    psign wsign eq {
-
-	    % intersect the subject polygons with the (convex) window
-	    //.xpostsys /normclipwind get exec
-	    dup 0 get
-	    /U exch def
-	    1 1 index length 1 sub getinterval
-	    {
-		/V exch def
-		U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 lt {
-		    % a degenerate edge (a contour closing on its own start,
-		    % exactly or within float noise) has no usable half-plane
-		}{
-		    [ U aload pop V aload pop //.xpostsys /p2abc get exec ]  % Clip-line
-		    /CL exch def
-		    /DEBUGCLIP where { pop
-			CL ==
-		    } if
-
-		    /PA [ PA {  % one subject polygon
-			CL //.xpostsys /hodgman-sutherland get exec
-			/shn shn 1 add def
-			shn shnmax gt { /clip cvx /limitcheck signalerror } if
-		    } forall ] def
-		} ifelse
-
-		/U V def
-	    } forall
-
-	    }{
-
-	    % subtract the (convex) hole: the difference decomposes into
-	    % one piece per hole edge - the part beyond that edge,
-	    % limited by the edges before it
-	    //.xpostsys /normclipwind get exec
-	    /HP exch def
-	    /HL [
-		HP 0 get /U exch def
-		HP 1 HP length 1 sub getinterval {
-		    /V exch def
-		    U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 ge {
-			[ U aload pop V aload pop //.xpostsys /p2abc get exec ]
-		    } if
-		    /U V def
-		} forall
-	    ] def
-	    HL length holemax gt { /clip cvx /limitcheck signalerror } if
-	    /PA [
-		PA {
-		    /SP exch def
-		    0 1 HL length 1 sub {
-			/hi exch def
-			/piece SP [ HL hi get { neg } forall ] //.xpostsys /hodgman-sutherland get exec def
-			/shn shn 1 add def
-			shn shnmax gt { /clip cvx /limitcheck signalerror } if
-			0 1 hi 1 sub {
-			    /piece piece 3 -1 roll HL exch get //.xpostsys /hodgman-sutherland get exec def
-			    /shn shn 1 add def
-			    shn shnmax gt { /clip cvx /limitcheck signalerror } if
-			} for
-			piece length 3 gt { piece } if
-		    } for
-		} forall
-	    ] def
-
-	} ifelse } ifelse
-    } forall
-    newpath
-
-    /DEBUGCLIP where { pop
-        PA ==
-    } if
-
-    PA {
-        dup length 0 gt {
-            dup 0 get aload pop .devmoveto
-            dup 1 1 index length 1 sub getinterval {
-                aload pop .devlineto
-            } forall
-
-            dup dup length 1 sub get aload pop  % P xN yN
-            2 index 0 get aload pop  % P xN yN x0 y0
-            exch 4 1 roll  % P x0 xN yN y0
-            eq 3 1 roll eq and {
-                .retagclose
-            } if
-            pop
-        }{
-            pop
-        } ifelse
-    } forall
-
-end
-    } if }
-%
-% dup 0 10 dict put
-%
-bind
-put
+} bind put
 
 %
-%  poly  .polytopath  -
 %  append a null-separated polygon array (device-space point pairs) to
 %  the current path
 %
-.xpostsys /.polytopath {
+.xpostsys /.polytopath {  % poly  .  -
     1 dict begin
     /first true def
     {
@@ -709,8 +690,6 @@ put
 } bind put
 
 %
-%  -  eoclip  -
-%
 %  intersect the clip region with the even-odd interior of the current
 %  path. The interior resolves to pixel-band rectangles through the
 %  fill pipeline's scan-conversion; the rectangles, being
@@ -718,7 +697,7 @@ put
 %  span machinery and serve every later paint the same way. The
 %  caller's path survives untouched, as with clip.
 %
-/eoclip [ ] {
+/eoclip [ ] {  % -  .  -
     graphicsdict /currgstate get /currpath get .copypath
     flattenpath
     true //.xpostsys /.fillsubjparts get exec
@@ -745,12 +724,13 @@ put
 %  and has to come back with it, or the restored clip would be enforced as
 %  one shape and written out as another.
 %
-/clipsave [ ] {
+/clipsave [ ] {  % -  .  -
     graphicsdict /clipstack 2 copy known { get }{
         2 copy 32 array put get
     } ifelse
     graphicsdict /clipptr 2 copy known { get }{ 2 copy 0 put get } ifelse
-    % the stack is a fixed depth, and running out of it is the exhaustion
+
+    % The stack is a fixed depth, and running out of it is the exhaustion
     % PLRM 8.2 names for this operator; writing past the end would report
     % the index as the fault instead. The stack and the pointer are dropped
     % before signalling: an operator leaves nothing behind when it fails,
@@ -766,7 +746,8 @@ put
     pop pop
     graphicsdict /clipptr 2 copy get 1 add put
 } //.xpostsys /.defop get exec
-/cliprestore [ ] {
+
+/cliprestore [ ] {  % -  .  -
     graphicsdict /clipptr get 0 gt {
         graphicsdict /clipptr 2 copy get 1 sub put
         graphicsdict /clipstack get graphicsdict /clipptr get get

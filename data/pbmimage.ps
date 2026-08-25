@@ -22,7 +22,7 @@
 /.xpost_PBMIMAGE .xpost_PGMIMAGE dup length 2 add dict copy def
 
 %
-%  a bilevel page keeps its glyphs bilevel
+%  A bilevel page keeps its glyphs bilevel
 %
 .xpost_PBMIMAGE /TextAlphaBits 1 put
 
@@ -42,7 +42,7 @@
 .xpost_PBMIMAGE /.pnmmaxval () put
 
 %
-%  what one row of this class's raster costs, as the elements and the
+%  What one row of this class's raster costs, as the elements and the
 %  string bytes it takes. The rows are the grayscale class's rows -- a
 %  page renders through the machinery this class inherits and the packing
 %  into bits happens at emission, over a run of finished rows -- so a row
@@ -70,7 +70,7 @@
 .xpost_PBMIMAGE /nativecolorspace /DeviceGray put
 
 %
-%  every grey painted screens through the halftone in force
+%  Every grey painted screens through the halftone in force
 %
 .xpost_PBMIMAGE /ScreenPaint true put
 
@@ -116,7 +116,7 @@
 } put
 
 %
-%  emission thresholds and packs through the compiled row writer, a run
+%  Emission thresholds and packs through the compiled row writer, a run
 %  of the page's rows at a time; the header ahead of them and the Emit
 %  dispatch that calls both are inherited
 %

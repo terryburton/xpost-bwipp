@@ -79,7 +79,6 @@ true setglobal
 } put
 
 %
-%  font  .fontroute  /composite | /build | /face
 %  Which machinery paints a glyph from this font, and the only place that
 %  decides. Thirteen sites read the type for themselves and between them
 %  asked three questions -- is it composite, is it procedural, does a face
@@ -92,7 +91,7 @@ true setglobal
 %  wanting the face route asks for it, and a font that is neither
 %  composite nor procedural is the only thing that answers.
 %
-.xpostsys /.fontroute {
+.xpostsys /.fontroute {  % font  .  /composite | /build | /face
     /FontType 2 copy known { get }{ pop pop -1 } ifelse
     dup 0 eq { pop /composite }{ 3 eq { /build }{ /face } ifelse } ifelse
 } put
@@ -108,7 +107,6 @@ true setglobal
 .xpostsys /.cidtypemap << 0 9 1 10 2 11 4 32 >> put
 
 %
-%  dict /operator  .cidstamp  dict
 %  Stamp a CIDFont dictionary with the FontType its CIDFontType calls for.
 %  PLRM 5.9 requires the entry of both definefont and defineresource, so
 %  the correspondence and the refusal of a CIDFontType nobody defined live
@@ -120,7 +118,7 @@ true setglobal
 %  it, so a program that wrote one itself wrote a value this can only
 %  agree with or correct.
 %
-.xpostsys /.cidstamp {
+.xpostsys /.cidstamp {  % dict /operator  .  dict
     exch dup
     /CIDFontType 2 copy known not
         { pop pop pop cvx /invalidfont signalerror } if
@@ -332,7 +330,6 @@ true setglobal
 %
 
 %
-%  -  .glyphkey  [serial name] true
 %                                 false
 %  What the mask cache is asked to remember a glyph by. PLRM 5.5 says
 %  what identifies a cached glyph: the font dictionary the description
@@ -376,7 +373,7 @@ true setglobal
 %  carry an identity across that kind of change, and a program that does
 %  has said two different glyphs are the same glyph.
 %
-.xpostsys /.glyphkey {
+.xpostsys /.glyphkey {  % -  .  [serial name] true
     font /.fontid known {
         font /.fontid get
         dup type /integertype eq {
@@ -395,12 +392,11 @@ true setglobal
 } bind put
 
 %
-%  wx wy llx lly urx ury  .maskcapture  -
 %  declare the glyph's metrics and turn the build's marks into a
 %  coverage mask: painting swaps to a raster sized from the glyph box
 %  under the transform in force, shifted onto it in device space
 %
-.xpostsys /.maskcapture {
+.xpostsys /.maskcapture {  % wx wy llx lly urx ury  .  -
     16 dict begin
     {ury urx lly llx wy wx}{exch def}forall
     wx wy setcharwidth
@@ -467,7 +463,6 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  font code  .t3build  -
 %  render a Type 3 glyph through the glyph cache: a hit replays the
 %  stored mask and its advances; a miss runs the build procedure,
 %  capturing its marks when it declares setcachedevice, and paints
@@ -479,7 +474,7 @@ true setglobal
 %  dictionary, are closed by the same bracket whichever way a build
 %  leaves.
 %
-.xpostsys /.t3build {
+.xpostsys /.t3build {  % font code  .  -
     {
     20 dict begin
     /code exch def /font exch def
@@ -594,29 +589,25 @@ true setglobal
 } put
 
 %
-%  /opname  .needpoint  -
 %  The showing operators place glyphs from the current point, so there
 %  has to be one.
 %
-.xpostsys /.needpoint {
+.xpostsys /.needpoint {  % /opname  .  -
     { currentpoint pop pop } stopped
         { cvx /nocurrentpoint signalerror }
         { pop } ifelse
 } put
 
 %
-%  /opname  .needfont  -
 %  The current font's initial value is an invalid font dictionary, so a
 %  program shows nothing until it selects one.
 %
-.xpostsys /.needfont {
+.xpostsys /.needfont {  % /opname  .  -
     graphicsdict /currgstate get /currfont 2 copy known
         { get /FontType known }{ pop pop false } ifelse
         { pop }{ cvx /invalidfont signalerror } ifelse
 } put
 
-%
-%  -  .showclip  -
 %
 %  Work out which device pixels the clip region in force covers and
 %  leave the answer in the clip's own cache holder, where the glyph
@@ -653,7 +644,7 @@ true setglobal
 %  graphics state is built with and shares until its first clip: nothing
 %  may be kept there, so that one is worked out afresh each time.
 %
-.xpostsys /.showclip {
+.xpostsys /.showclip {  % -  .  -
     20 dict begin
     /h graphicsdict /currgstate get /clipcache get def
     h /clipbox known h /serial get 0 ne and not {
@@ -747,7 +738,6 @@ true setglobal
 } put
 
 %
-%  subject hook stroked  .showoutline  -
 %  Paint the text by its glyph outlines. The raster route plots a
 %  glyph's coverage straight through the device's pixel methods, filled
 %  in one colour, so text the page cannot take that way comes here
@@ -778,7 +768,7 @@ true setglobal
 %  hands back the stroke's own outline instead, ready to be filled, and
 %  stroking that would draw the outline of the line.
 %
-.xpostsys /.showoutline {
+.xpostsys /.showoutline {  % subject hook stroked  .  -
     4 dict begin
     /pstroke exch def
     % a hook is a procedure, and a name holding one runs when it is
@@ -814,7 +804,6 @@ true setglobal
 } put
 
 %
-%  subject hook plain  .showroute  -
 %  Which route text takes to the page. Text the glyph raster cannot
 %  carry goes by the outlines: a pattern colour, which is a procedure
 %  tiled over the page rather than a colour a pixel can be set to, and
@@ -846,7 +835,7 @@ true setglobal
 %  Asking for "not the direct route" rather than for the pattern route is
 %  what keeps text from having to learn each such colour separately.
 %
-.xpostsys /.showroute {
+.xpostsys /.showroute {  % subject hook plain  .  -
     graphicsdict /currgstate get /currfont get
     /PaintType 2 copy known { get 2 eq }{ pop pop false } ifelse
     dup { true }{ //.xpostsys /.colorroute get exec /direct ne } ifelse
@@ -1114,7 +1103,6 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%    name  glyphshow  -
 %  Paint the glyph the name selects, independent of the character
 %  encoding, and advance the current point by the glyph's width. A
 %  Type 3 font renders through its BuildGlyph procedure; one defining
@@ -1122,7 +1110,7 @@ true setglobal
 %  assigns the name. Other font types resolve the name against the
 %  font program.
 %
-/glyphshow [ /nametype ] {
+/glyphshow [ /nametype ] {  % name  .  -
     /glyphshow //.xpostsys /.needfont get exec
     /glyphshow //.xpostsys /.needpoint get exec
     //.xpostsys /.showclip get exec
@@ -1278,7 +1266,6 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  outline  .outlinepath  -
 %  Append an outline to the current path. The segments arrive from
 %  .stringoutline or .glyphoutline in the face's y-up glyph space
 %  relative to the pen (device-magnitude pixels, oriented by the face
@@ -1286,7 +1273,7 @@ true setglobal
 %  user space about the current point. The pen is left wherever the last
 %  segment ended; what it should advance by is the caller's to say.
 %
-.xpostsys /.outlinepath {
+.xpostsys /.outlinepath {  % outline  .  -
     12 dict begin
     currentpoint /cy exch def /cx exch def
     % a glyph-space point on the stack becomes a user-space point
@@ -1311,14 +1298,13 @@ true setglobal
 } put
 
 %
-%  name|index  .glyphcharpath  -
 %  Append one glyph's outline to the current path and advance the pen by
 %  the glyph, as charpath does for a string. A glyph the caller names, as
 %  glyphshow selects one, or numbers, as a CMap walk resolves one, has no
 %  stringwidth, so its advance comes back from the outline operator in
 %  the glyph space the outline's points are in.
 %
-.xpostsys /.glyphcharpath {
+.xpostsys /.glyphcharpath {  % name|index  .  -
     2 dict begin
     dup type /nametype eq { .glyphoutline }{ .glyphoutlineidx } ifelse
     /gay exch def /gax exch def
@@ -1328,7 +1314,6 @@ true setglobal
 } put
 
 %
-%  font str  .charpathoutline  -
 %  Append the text's glyph outlines to the current path and leave the pen
 %  past the text.
 %
@@ -1339,7 +1324,7 @@ true setglobal
 %  composite mapped by bytes carries no such selector and only the pen
 %  moves.
 %
-.xpostsys /.charpathoutline {
+.xpostsys /.charpathoutline {  % font str  .  -
     2 dict begin
     /cpstr exch def
     /cpfont exch def
@@ -1359,7 +1344,6 @@ true setglobal
 } put
 
 %
-%  font str  .charpathstroked  -
 %  The same for an outline font, appending the stroke's own outline of
 %  the glyph outlines rather than the outlines themselves.
 %
@@ -1371,7 +1355,7 @@ true setglobal
 %  the path holds it in. The pen ends past the text, where the outlines
 %  left it.
 %
-.xpostsys /.charpathstroked {
+.xpostsys /.charpathstroked {  % font str  .  -
     12 dict begin
     /cpstr exch def
     /cpfont exch def
@@ -1413,7 +1397,6 @@ true setglobal
 } put
 
 %
-%    str bool  charpath  -
 %  Append the text's glyph outlines to the current path and advance the
 %  pen by the text's width.
 %
@@ -1429,7 +1412,7 @@ true setglobal
 %  takes. For every other font the two are one path and the boolean
 %  decides nothing.
 %
-/charpath [ /stringtype /booleantype ] {
+/charpath [ /stringtype /booleantype ] {  % str bool  .  -
     /charpath //.xpostsys /.needfont get exec
     3 dict begin
     /cpwant exch def
@@ -1516,9 +1499,7 @@ true setglobal
 ] readonly def
 
 %
-%  key  undefinefont  -
-%
-/undefinefont [ /anytype ] {
+/undefinefont [ /anytype ] {  % key  .  -
     % remove it from whichever directory holds it
     dup GlobalFontDirectory exch known
         { GlobalFontDirectory exch undef }
@@ -1532,13 +1513,12 @@ true setglobal
 %
 
 %
-%  file  eexec  -
 %  run the encrypted portion of a Type 1 font program: the decrypted
 %  stream executes with systemdict as the current dictionary, and the
 %  dictionary is popped when the stream is exhausted -- the program
 %  inside closes its own file with currentfile closefile
 %
-/eexec [ /filetype ] {
+/eexec [ /filetype ] {  % file  .  -
     .eexecdecode cvx
     systemdict begin
     exec
@@ -1586,14 +1566,13 @@ true setglobal
     .setcachelimit
 } //.xpostsys /.defop get exec
 %
-%  mark [size [lower]] upper  setcacheparams  -
 %  the interpreter takes the operands it knows from the top and
 %  ignores any deeper ones
 %  the operands are delimited by a mark rather than counted, so there is
 %  nothing to state: a statement about the top would answer typecheck
 %  where the absent mark must answer unmatchedmark
 %
-/setcacheparams [ ] {
+/setcacheparams [ ] {  % mark [size [lower]] upper  .  -
     counttomark 3 ge {
         3 dict begin
         /up exch cvi def /lo exch cvi def /sz exch cvi def

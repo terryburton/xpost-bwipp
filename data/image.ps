@@ -132,7 +132,6 @@ true setglobal
         pop
     } bind
 
-    % row  .rowclear  -
     % Leave a row as a row this device has just made. A string is
     % allocated zero, so a fresh row of the class's own shape is what a
     % row starts as, and one is kept to copy from: a raster standing for
@@ -157,7 +156,6 @@ true setglobal
         } ifelse
     } bind
 
-    % top rows IMAGE  .moveband  -
     % Move the run of the page's rows this device holds.
     %
     % The rows are the ones Create made: one raster the size of a band,
@@ -219,7 +217,9 @@ true setglobal
         } for
     } //.xpostsys /.indict get exec } bind
 
-    /.to-int { floor cvi } bind
+    /.to-int {  % num  .  int
+        floor cvi
+    } bind
 
     % c  .chan  byte
     % the one fold from a colour component to a stored 8-bit channel.
@@ -238,7 +238,6 @@ true setglobal
         .unitclamp 255 mul cvi
     } bind
 
-    % c1..cN x y  .screenpix  c1'..cN' x y
     % The colour this class stores for a colour painted at a pixel. A
     % class that stores the colour it is handed answers it unchanged; a
     % class that screens answers what its screen leaves at that pixel,
@@ -253,9 +252,9 @@ true setglobal
     % is stored is what a paint would have stored there, which is what an
     % emitted file carries there. A class states its screen once, in
     % here, rather than once for the paint and again for the read.
-    /.screenpix { } bind
+    /.screenpix {  % c1..cN x y  .  c1'..cN' x y
+    } bind
 
-    % x y  .onpage  bool
     % Whether a device coordinate names a pixel of the page: the four
     % edges a mark is dropped at, as one answer, for the read that has
     % to go on and produce a value where a write simply stops. The
@@ -269,7 +268,6 @@ true setglobal
         or not
     } bind
 
-    % x y  .groundpix  c1..cN
     % What the page shows at a pixel where this device holds no storage:
     % the colour erasepage last cleared the page to, as this class would
     % have stored it at that pixel, in the channel scale a stored pixel
@@ -415,9 +413,9 @@ true setglobal
         } if
     } //.xpostsys /.indict get exec } bind
 
-    % expand a running device-space box to include a point; FillPoly
-    % seeds minx/miny/maxx/maxy in the instance before the sweep
-    /.maxmin {  % x y
+    % Expand a running device-space box to include a point; FillPoly
+    % seeds minx/miny/maxx/maxy in the instance before the sweep.
+    /.maxmin {  % x y  .  -
         2 copy
         dup maxy gt { /maxy exch def }{ pop } ifelse
         dup maxx gt { /maxx exch def }{ pop } ifelse
@@ -596,7 +594,6 @@ true setglobal
 
     } //.xpostsys /.indict get exec } bind  %FillPoly
 
-    % c1..cN  Ground  -
     % Take up the colour the page is being cleared to; PLRM 8.2 erases
     % the entire page, so this is the colour every row of it carries. A
     % page held in part shows it over the rows that are not held, and the
@@ -647,7 +644,6 @@ true setglobal
     % not what it shows at the next.
     /.groundvaries false
 
-    % y  .groundrowat  row
     % The row the page shows at row y where this device holds no pixel
     % of it: the colour erasepage last cleared the page to, laid out as
     % a row of this class's own shape. A class showing one row answers
@@ -677,7 +673,6 @@ true setglobal
         .pnmmaxval writestring
     } bind
 
-    % file  .bandsink  sink
     % Where the rows of the page go. For a format whose rows are the
     % bytes it carries that is the file itself; a format that frames its
     % rows in something else answers whatever takes them -- a compressed
@@ -687,7 +682,6 @@ true setglobal
     /.bandsink {  % file  .  sink
     } bind
 
-    % sink file  .writetail  -
     % What the format carries after its rows: nothing, where the header
     % ahead of them said all there was to say. A format whose header
     % points at rows it has not written yet finishes here instead, which
@@ -697,7 +691,6 @@ true setglobal
         pop pop
     } bind
 
-    % img file  .writepage  -
     % The page whole: the header, the rows and whatever the format
     % carries after them, through the same three a page arriving in
     % bands goes out through. The two carry the same bytes because they
@@ -721,7 +714,6 @@ true setglobal
         } //.xpostsys /.indict get exec
     } bind
 
-    % lo hi  .bandwrite  -
     % Hand one run of the page's rows to the class's row writer. A row
     % the device does not hold is the page's ground, which is what a
     % whole page lays over such a row, so a writer is handed the same
@@ -781,7 +773,6 @@ true setglobal
         } loop
     } bind
 
-    % -  .emitband  -
     % Put out the rows this device holds, for a page arriving in bands.
     %
     % Emit is called once per band, with the rows the device holds at
@@ -890,7 +881,6 @@ true setglobal
 >> put
 
 %
-%  spec  .makerasterclass  class
 %  build a raster device class: the shared suite copied from
 %  .rasterproto, overlaid with the parameter dictionary, then completed
 %  with the colour take/push helpers its component count calls for.

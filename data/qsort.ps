@@ -8,15 +8,11 @@
 % SPDX-License-Identifier: BSD-3-Clause
 
 %
-%  array       qsort  -
-%  array proc  qsort  -
-%
-%  Sort an array in place, comparing adjacent elements with proc, or with
-%  `lt` when none is given. The swap is the C operator .swap, so this
-%  sorts arrays and not strings. qsort and its qsortdict helpers live in
-%  the private .xpostsys namespace in global VM; a call site reaches it as
-%  //.xpostsys /qsort get exec, and its array and comparison proc must be
-%  in global VM too, since the sort runs in the global qsortdict.
+%  The file exports one name into the private .xpostsys namespace, in
+%  global VM. Everything else it defines -- partition, quicksort, and the
+%  cmp slot they share -- lives in qsortdict, which qsort opens around the
+%  whole sort and closes after it, so none of it is reachable between
+%  sorts and none of it can be taken by a definition of the program's own.
 %
 .xpostsys /qsort known { currentfile flushfile } if
 
@@ -25,9 +21,21 @@ currentglobal true setglobal
 /qsortdict currentdict def
 
 %
-%  array left right pivotIndex  partition  storeIndex
+%  Move the elements that compare below the pivot to the front of the
+%  range and answer where the boundary fell.
 %
-/partition {  %4 args
+%  A helper of quicksort below and of nothing else. It reads cmp by name
+%  out of qsortdict, so it runs only while that dictionary is current --
+%  which is to say only inside a qsort, never on its own.
+%
+%  The exchange is .swap, a private C operator that bind freezes into
+%  this body as the file loads. That timing is the whole of why it works:
+%  the private operators are relocated out of systemdict into
+%  .internaldict near the end of graphics loading, after this file has
+%  been read, so the frozen operator goes on running once the name has
+%  stopped resolving.
+%
+/partition {  % array left right pivotIndex  .  storeIndex
     3 index 1 index get  % A l r pI p
     4 index 3 index 3 index  % A l r pI p  a r pI
     .swap
@@ -45,9 +53,14 @@ currentglobal true setglobal
 } bind def
 
 %
-%  array left right  quicksort  -
+%  Sort the range in place: partition it, then sort each side.
 %
-/quicksort {  %3 args
+%  A helper of qsort below, and of itself -- the two recursive calls are
+%  by name, resolved out of qsortdict every time, where partition above
+%  is baked in by immediate evaluation. So this too runs only while
+%  qsortdict is current. The range is consumed, array and all.
+%
+/quicksort {  % array left right  .  -
     2 copy ge { pop pop pop }{
         3 copy
             2 copy exch sub 2 idiv  % A l r arr left right pivotIndex
@@ -61,6 +74,28 @@ currentglobal true setglobal
     } ifelse
 } bind def
 
+%
+%  array       .  -
+%  array proc  .  -
+%
+%  Sort an array in place, comparing elements with proc, or with lt when
+%  none is given. The array is consumed: what has been sorted is the
+%  array object the caller still holds, and nothing is left behind.
+%
+%  The one name this file exports, reached as //.xpostsys /qsort get exec
+%  and called only by image.ps, to order a scanline's intersections. It
+%  opens qsortdict around the sort and closes it after, which is what
+%  gives partition and quicksort above the dictionary they need.
+%
+%  The array and the comparison procedure must both be in global VM. cmp
+%  is stored in qsortdict, which is global, and a global dictionary
+%  refuses a local value: a local comparison procedure raises
+%  invalidaccess here instead of sorting.
+%
+%  Not re-entrant. cmp is one slot in one shared dictionary, so a
+%  comparison procedure that starts a sort of its own replaces it, and
+%  the outer sort finishes comparing with the inner sort's procedure.
+%
 /qsort {
     //qsortdict begin
     dup xcheck not{ {lt} }if

@@ -57,26 +57,24 @@ true setglobal
 %
 
 %
-%  name  .catinstances  -
 %  Give a category the table its instances live in, if it has not one
 %  already. This is the half both routes into existence share: the
 %  standard categories below, and a program defining an instance of
 %  /Category, which is how PLRM 3.9.2 has a program register a category
 %  of its own.
 %
-.xpostsys /.catinstances {
+.xpostsys /.catinstances {  % name  .  -
     //.xpostsys /.resources get exch 2 copy known
         { pop pop }{ 32 dict put } ifelse
 } bind put
 
 %
-%  -  .genericresourcedir  string
 %  The primary resource directory a program reads through GenericResourceDir:
 %  the first entry of the host's resource search path, ended with the path
 %  separator as PLRM C.3.6 requires. When the path is empty the build holds no
 %  external resources, which PLRM writes as %null.
 %
-.xpostsys /.genericresourcedir {
+.xpostsys /.genericresourcedir {  % -  .  string
     /.resourcepath //.xpostsys /.hostvalue get exec
     dup length 0 gt {
         0 get
@@ -93,14 +91,13 @@ true setglobal
 } bind put
 
 %
-%  name scratch  .resourcefilename  substring
 %  The ResourceFileName every category carries: build GenericResourceDir, the
 %  category name, the path separator and the instance name into the scratch
 %  string and return the part used -- where the instance would be installed or
 %  found. Runs with the category implementation dictionary current, so Category
 %  resolves. The name is taken verbatim, as the reference interpreters take it.
 %
-.xpostsys /.resourcefilename {
+.xpostsys /.resourcefilename {  % name scratch  .  substring
     exch dup type /stringtype ne { 128 string cvs } if   % Scratch namestr
     exch 0                                                % Namestr scratch 0
     currentsystemparams /GenericResourceDir get      3 copy putinterval length add
@@ -111,14 +108,13 @@ true setglobal
 } bind put
 
 %
-%  name  .defcategory  -
 %  Bring a resource category into existence with an implementation
 %  dictionary that need only name the category it implements. A category
 %  that already exists is left alone, instances and all, which is what
 %  lets a module state the categories it keeps instances in without
 %  having to know whether another module has already asked for them.
 %
-.xpostsys /.defcategory {
+.xpostsys /.defcategory {  % name  .  -
     dup //.xpostsys /.resources get exch known { pop }{
         dup //.xpostsys /.catinstances get exec
         //.xpostsys /.resources get /Category get exch dup
@@ -164,20 +160,17 @@ true setglobal
 } forall
 
 %
-%  category  .instancetype  name|null
 %  The type a category holds its instances to, or null where it holds them
 %  to none.
 %
-.xpostsys /.instancetype {
+.xpostsys /.instancetype {  % category  .  name|null
     //.xpostsys /.resources get /Category get exch 2 copy known {
         get /InstanceType 2 copy known { get }{ pop pop null } ifelse
     }{ pop pop null } ifelse
 } bind put
 
 %
-%  category  .instof  instances
-%
-.xpostsys /.instof {
+.xpostsys /.instof {  % category  .  instances
     //.xpostsys /.resources get exch 2 copy known not {
         pop pop /findresource cvx /undefinedresource signalerror
     } if
@@ -193,10 +186,9 @@ currentglobal false setglobal
 setglobal
 
 %
-%  category  .linstof  instances
 %  the local table of a category, created on first use
 %
-.xpostsys /.linstof {
+.xpostsys /.linstof {  % category  .  instances
     .gscratch /.lresources get exch 2 copy known not {
         2 copy 8 dict put
     } if
@@ -204,9 +196,7 @@ setglobal
 } bind put
 
 %
-%  key instance category  defineresource  instance
-%
-/defineresource [ /anytype /anytype /nametype ] {
+/defineresource [ /anytype /anytype /nametype ] {  % key instance category  .  instance
     dup /Category eq {
         % defining an instance of /Category is defining a category, so it
         % gets the table its instances will live in; the implementation
@@ -254,23 +244,21 @@ setglobal
 .xpostsys /.resourcemissing 16 dict put
 
 %
-%  key category  .resourceknownmissing  bool
 %  The instance is identified by name; a key given as a string interns to the
 %  same name a name key would, so the memo keys on the name and matches either.
 %
-.xpostsys /.resourceknownmissing {
+.xpostsys /.resourceknownmissing {  % key category  .  bool
     exch dup type /stringtype eq { cvn } if exch
     //.xpostsys /.resourcemissing get exch 2 copy known
         { get exch known }{ pop pop pop false } ifelse
 } bind put
 
 %
-%  key category  .resourcemarkmissing  -
 %  .resourcemissing is global (it outlives restore, as the instance table does);
 %  create the per-category sub-dict and intern the name in global VM so the
 %  global memo never holds a local object.
 %
-.xpostsys /.resourcemarkmissing {
+.xpostsys /.resourcemarkmissing {  % key category  .  -
     currentglobal true setglobal
     3 1 roll exch dup type /stringtype eq { cvn } if exch
     //.xpostsys /.resourcemissing get exch 2 copy known not
@@ -280,7 +268,6 @@ setglobal
 } bind put
 
 %
-%  key category  .resourcefind  file true | false
 %  Walk the resource search path for the named instance and return the OPEN,
 %  confined file (not run) or false. This is the ONE place the path is walked
 %  and the confined open (.resourcefileopen) is reached: findresource's load
@@ -288,7 +275,7 @@ setglobal
 %  has a single site. The directories are what the run's host settled, in order
 %  (empty until it names one: xpost_add_resource_dir, -I).
 %
-.xpostsys /.resourcefind {
+.xpostsys /.resourcefind {  % key category  .  file true | false
     2 dict begin
     /category exch def
     /key exch def
@@ -305,13 +292,12 @@ setglobal
 } bind put
 
 %
-%  key category  .loadresource  bool
 %  On a findresource miss, load the named instance from the search path via
 %  .resourcefind and run it in global VM -- so its defineresource lands in the
 %  shared instance table and persists across restore. A miss is recorded so the
 %  path is not walked again for the same absent name.
 %
-.xpostsys /.loadresource {
+.xpostsys /.loadresource {  % key category  .  bool
     2 copy //.xpostsys /.resourceknownmissing get exec {
         pop pop false
     }{
@@ -327,9 +313,7 @@ setglobal
 } bind put
 
 %
-%  key category  findresource  instance
-%
-/findresource [ /anytype /nametype ] {
+/findresource [ /anytype /nametype ] {  % key category  .  instance
   {  % loop, so the local-shadow path can exit early
     2 dict begin
     /category exch def
@@ -364,9 +348,7 @@ setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  key category  resourcestatus  status size true | false
-%
-/resourcestatus [ /anytype /nametype ] {
+/resourcestatus [ /anytype /nametype ] {  % key category  .  status size true | false
     % querying a category that does not exist is an undefined error (PLRM);
     % only a present-but-absent instance yields false. Ensure the category is
     % defined the same way findresource does before reporting on an instance.
@@ -404,9 +386,7 @@ setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  key category  undefineresource  -
-%
-/undefineresource [ /anytype /nametype ] {
+/undefineresource [ /anytype /nametype ] {  % key category  .  -
     % Each arm reaches the same shape before it acts: the key and the
     % category, in that order, so that the instance dictionary the
     % category names is what the key is removed from. The three arms
@@ -427,12 +407,11 @@ setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  string template  .wcmatch  bool
 %  Match a name against a resourceforall template: ? matches any one
 %  character, * any run (backtracking iteratively over the most recent
 %  star), and \ makes the following character literal.
 %
-.xpostsys /.wcmatch {
+.xpostsys /.wcmatch {  % string template  .  bool
     8 dict begin
     /t exch def /s exch def
     /sl s length def /tl t length def
@@ -480,7 +459,6 @@ setglobal
 } bind put
 
 %
-%  template proc scratch category  resourceforall  -
 %  Enumerate the category's instances whose names match the template,
 %  copying each name into scratch and calling proc with the substring.
 %  The keys are snapshotted first, so the proc may define or undefine
@@ -490,7 +468,7 @@ setglobal
 %  failing, and the operand stack goes back to what the procedure
 %  found rather than to resourceforall's four operands.
 %
-/resourceforall [ /stringtype /proctype /stringtype /nametype ] {
+/resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
     % merge the global table with any local instances over it
     dup //.xpostsys /.instof get exec exch
     .gscratch /.lresources get exch 2 copy known {
@@ -525,23 +503,24 @@ currentglobal true setglobal
     % the cumulative trapping-parameter dictionary. The language prescribes no
     % default values (they are device-specific), so it starts empty.
     /.trapparams 15 dict
-    % dict  settrapparams  -
-    % merge a request dictionary's entries into the trapping parameters. The
-    % effect is cumulative across calls; a key given a null value is set to
-    % null (cancelled), an omitted key is left unchanged.
-    /settrapparams {
+
+    % Merge a request dictionary's entries into the trapping parameters.
+    % The effect is cumulative across calls; a key given a null value is
+    % set to null (cancelled), an omitted key is left unchanged.
+    /settrapparams {  % dict  .  -
         /settrapparams [ /dicttype ] //.xpostsys /.checkargs get exec
         { .trapparams 3 1 roll put } forall
     } bind
-    % -  currenttrapparams  dict
-    % return a dictionary reflecting the current trapping parameters
-    /currenttrapparams {
+
+    % Return a dictionary reflecting the current trapping parameters.
+    /currenttrapparams {  % -  .  dict
         .trapparams dup length 1 add dict copy
     } bind
-    % -  settrapzone  -
-    % establish a trapping zone from the current path with the current
-    % parameters; this device emits no traps, so nothing is produced
-    /settrapzone { } bind
+
+    % Establish a trapping zone from the current path with the current
+    % parameters. This device emits no traps, so nothing is produced.
+    /settrapzone {  % -  .  -
+    } bind
 >> /ProcSet defineresource pop
 setglobal
 
@@ -559,14 +538,13 @@ setglobal
 currentglobal true setglobal
 
 %
-%  a b depth  .idiommatch  bool
 %  Two procedures match when corresponding elements are equal in the sense
 %  of eq, or are both arrays whose corresponding elements match in turn, to
 %  a depth of ten. Attributes are disregarded, as eq disregards them, so the
 %  working copies are taken literal to compare their contents without running
 %  them. The depth bound also stops a procedure that refers to itself.
 %
-.xpostsys /.idiommatch {
+.xpostsys /.idiommatch {  % a b depth  .  bool
     6 dict begin
     /dep exch def /bb exch cvlit def /aa exch cvlit def
     aa bb eq {
@@ -591,14 +569,13 @@ currentglobal true setglobal
 } bind put
 
 %
-%  cand instances  .idiomsearch  substitute true | false
 %  Walk one IdiomSet instance dictionary, whose every value is a two-element
 %  array of a template and a substitute, and return the first substitute
 %  whose template matches the candidate. A substitute in local VM is not
 %  offered for a candidate in global VM (it would outlive its home), which is
 %  the one visibility rule bind applies beyond the allocation mode below.
 %
-.xpostsys /.idiomsearch {
+.xpostsys /.idiomsearch {  % cand instances  .  substitute true | false
     4 dict begin
     /instances exch def /cand exch def /repl null def /found false def
     instances {
@@ -617,13 +594,12 @@ currentglobal true setglobal
 } bind put
 
 %
-%  cand table  .idiomcat  substitute true | false
 %  Walk the instances held in one IdiomSet resource table -- each value an
 %  instance dictionary of template/substitute pairs -- and return the first
 %  substitute any instance offers for the candidate. Which instance wins when
 %  two hold the same template is not defined, so the first found is taken.
 %
-.xpostsys /.idiomcat {
+.xpostsys /.idiomcat {  % cand table  .  substitute true | false
     4 dict begin
     /table exch def /cand exch def /repl null def /found false def
     table {
@@ -637,14 +613,13 @@ currentglobal true setglobal
 } bind put
 
 %
-%  cand  .idiomsub  cand'
 %  bind's result passes through here. The global IdiomSet instances are always
 %  in view; the local ones are added when the allocation mode is local, as bind
 %  considers local resources only then. With no instances in either the
 %  candidate is returned untouched without even reading the user parameter, so
 %  the common bind pays only two dictionary lookups.
 %
-.xpostsys /.idiomsub {
+.xpostsys /.idiomsub {  % cand  .  cand'
     4 dict begin
     /cand exch def
     /g //.xpostsys /.resources get
@@ -670,11 +645,10 @@ currentglobal true setglobal
 } bind put
 
 %
-%  -  .bindwrap  -   (installed as the bind operator by .finalize)
 %  Run the plain bind kept in .internaldict, then offer its result to idiom
 %  substitution. The two steps are what a LanguageLevel 3 bind is.
 %
-.xpostsys /.bindwrap {
+.xpostsys /.bindwrap {  % -  .  -   (installed as the bind operator by .finalize)
     //.internaldict /.cbind get exec
     //.xpostsys /.idiomsub get exec
 } bind put

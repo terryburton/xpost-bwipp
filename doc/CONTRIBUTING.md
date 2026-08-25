@@ -243,27 +243,61 @@ definitions land in, and whether it is executed once as the file loads
 or defined and left for a later caller. So every top-level procedure
 carries a header that says them.
 
-The header opens with the stack effect -- operands in, name, results out
--- and continues in prose, in the same voice as a C comment: what the
-procedure does now, never what it replaced. Within that prose it makes
-the invisible things plain, and names a caller where the caller is not
-obvious, and states any constraint a change would trip -- a
-re-entrancy, an ordering, a setup a caller must have done:
+The stack effect sits on the definition line -- operands in, a dot,
+results out, as `/proc {  % before  .  after`. The dot stands where the
+operator's name sits in a PLRM signature; the name is on that line
+already and is not repeated in the effect (`% region source  .  -`,
+never `% region source  .setclipregion  -`). A procedure written on one
+line is opened out so the effect has somewhere to sit rather than being
+left without one. Only the polymorphic procedure states its effect in
+the header instead, listing the several forms that will not fit on the
+definition line.
+
+The header above the definition is prose, in the same voice as a C
+comment: what the procedure does now, never what it replaced. It does
+not repeat the stack effect. Within the prose it makes the invisible
+things plain, and names a caller where the caller is not obvious, and
+states any constraint a change would trip -- a re-entrancy, an ordering,
+a setup a caller must have done:
 
 ```
-% region source  .setclipregion  -
 %
-% The one writer of the clip, run in .xpostsys under the graphics
-% dictionary and called by clip, eoclip and the clip-stack operators.
-% The clip is a single value wearing three faces ...
+%  grestore until the graphics state stack stands at depth n, so that a
+%  gsave opened inside the bracket -- by the machinery or by the
+%  procedure -- is closed, and the state it saved is back in force.
+%
+%  A helper of .callout below, which is its only caller and bakes it in
+%  by immediate evaluation, so it stands above .callout here. It runs
+%  under whatever dictionary stack the caller of the bracket had, with
+%  .xpostsys nowhere on it: a bracket is fetched out of .xpostsys and
+%  executed, not called with that dictionary open.
+%
+/.gsunwind {  % n  .  -
 ```
+
+A comment describing a definition sits directly above it, no blank line
+between, so the two are never read apart.
+
+`check-proc-spec` holds the effects to that shape, and cannot yet ask it
+of the whole tree: most of these files were written before it was asked
+of them. `tests/proc-spec` says which have been written up and only
+those are held, so a file entered in the register can never quietly lose
+an effect again, while the rest stay a work list. A pending file that
+has come to satisfy the rule is reported rather than accepted, because a
+register that only ever excuses is one nobody notices has stopped being
+true. What the check reads is the effect alone; the prose is what
+carries the orientation, and review is what holds that.
 
 Two blank lines never separate procedures and no blank line runs them
 together: one blank line stands between them. A run of closing brackets
 that belongs to one expression is written on one line rather than
 stacked -- `} ifelse } ifelse } ifelse`, not four lines each holding
 one. An inline comment on a line of code is set off by two spaces:
-`x maxx gt { /maxx x def } if  % widen the box`.
+`x maxx gt { /maxx x def } if  % widen the box`. A comment's prose opens
+each paragraph -- the line after a bare `%`, or a block's first line --
+with a capital, and leaves a wrapped continuation line, a stack effect,
+and a sentence that opens on an operator's own name (which the language
+spells in lower case) as they are.
 
 Three idioms were measured on the release build and ruled on; apply them
 where a path is hot, not as a blanket rewrite:

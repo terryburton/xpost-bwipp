@@ -201,7 +201,10 @@ globaldict length 0 eq (globaldict starts empty) assert
 % other rather than left to drift.
 /WON.PS [ /ashow /awidthshow /findfont /setfont /show
           /stringwidth /widthshow ] def
-/WON.C  [ /breakhere ] def
+% WON.C is empty: no name is currently implemented both in C and in
+% PostScript with the C one in force. The list and the pass below stand
+% so that a name arriving in that state is held rather than discovered.
+/WON.C  [ ] def
 
 WON.PS {
     dup .privatedict /.wrappedprocs get exch known

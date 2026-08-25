@@ -253,6 +253,7 @@
         3 -1 roll add /bytepos exch put
         //.xpostsys /.vecout get /F get exch writestring
     } bind
+
     % write a byte offset as a 10-digit zero-padded field. How many zeros
     % the field wants is read from the number alone and settled before the
     % pad itself is on the stack, so no count of positions stands between
@@ -262,11 +263,13 @@
         //.xpostsys /.zeros get exch 0 exch getinterval .vw
         .vw
     } bind
+
     % take the next object number, advancing the shared counter
     /.nextobj {  % -  .  n
         //.xpostsys /.vecout get dup /nextobj get
         dup 1 add 3 -1 roll /nextobj 3 -1 roll put
     } bind
+
     % record the file's current byte offset as object n's position
     /.recordoff {  % n  .  -
         //.xpostsys /.vecout get /off get exch
@@ -662,12 +665,11 @@
         /.pdfclipopen true def
     } //.xpostsys /.indict get exec } bind
 
-    % w h ncomp mat rows decode interp IMAGE . -  ; take a whole sampled
-    % image: the rows (one interleaved 8-bit string per row) file as
-    % an image XObject Emit writes, and the content paints it through
-    % the unit square under the image-to-device matrix, the decode
-    % ranges carried in the object for the consumer to apply
-    /PaintImage {
+    % Take a whole sampled image: the rows (one interleaved 8-bit string
+    % per row) file as an image XObject Emit writes, and the content
+    % paints it through the unit square under the image-to-device matrix,
+    % the decode ranges carried in the object for the consumer to apply.
+    /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
     { {piint pidec pirows pim pinc pih piw}{exch def}forall
         /piidx .pdfimages length def
         /.pdfimages [ .pdfimages aload pop

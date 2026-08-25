@@ -38,7 +38,22 @@ end
 
 //.internaldict /QUIET known { }{ ($error installed...)print } ifelse
 
-/.error {
+%
+%  Record an error in $error, hand it to the handler, and stop.
+%
+%  The local error hook. It is anchored in privatedict, off the
+%  dictionary stack, and reached as .privatedict /.error get exec: by
+%  signalerror below, and by every name in the errordict table below
+%  that, each of which bakes it in by immediate evaluation as the table
+%  is built.
+%
+%  It runs in local VM and records into the local $error, which is why it
+%  lives here rather than with the language in systemdict.
+%
+%  It does not return. The last thing it does is stop, so what called it
+%  is unwound and the caller's own error handling sees the error.
+%
+/.error {  % command errorname  .  -
     false setglobal
     //$error exch /errorname exch put
     //$error exch /command exch put
@@ -88,11 +103,12 @@ end
     } if
     //$error /errorname get dup /stackoverflow eq { clear }{
         /dictstackoverflow eq {
-            end end  %End end end end end end end end
+            end end
         } if
     } ifelse
     stop
 } def
+
 %
 %  signalerror is the standard operator programs call to raise an error; it
 %  belongs in systemdict, so it is global and relocates there. The private
@@ -103,6 +119,7 @@ end
 %  finds it; .finalize drops the userdict anchor.
 %
 .privatedict /.error userdict /.error get put
+
 %
 %  signalerror is a global operator and belongs with the language, so the
 %  block the local error dictionaries need closes around it. errordict
@@ -110,7 +127,9 @@ end
 %
 end
 currentglobal true setglobal
-/signalerror { .privatedict /.error get exec } def
+/signalerror {  % any errorname  .  -
+    .privatedict /.error get exec
+} def
 setglobal
 userdict begin
 //.internaldict /QUIET known { }{ (.error installed...)print } ifelse
@@ -118,12 +137,21 @@ userdict begin
 /errordict 32 dict def
 errordict begin
     /signalerror /signalerror load def
-    /handleerror {
+
+    % Report the error $error is holding, in the way PLRM 3.11.1 asks:
+    % the message a program sees when nothing of its own caught the
+    % error. The systemdict operator of the same name, at the foot of
+    % this file, is what a program reaches; it fetches this one.
+    %
+    % It answers nothing and takes nothing: what it reports it reads out
+    % of $error, which .error filled before it stopped.
+    /handleerror {  % -  .  -
         %traceon
         //$error begin
             newerror {
                 /newerror false def
-                % a binary object sequence when one is asked for and
+
+                % A binary object sequence when one is asked for and
                 % binary encoding is enabled: a four element array under
                 % tag 250 carrying the class of error, its name, what
                 % was executing, and a boolean
@@ -139,7 +167,7 @@ errordict begin
                       dup /stringtype eq exch
                           /arraytype eq
                       or or or or or or not {
-                          % an operator, or anything else no sequence
+                          % An operator, or anything else no sequence
                           % can carry, stands in as its name
                           128 string cvs cvn
                       } if
@@ -153,16 +181,18 @@ errordict begin
                 (; OffendingCommand: ) print
                 /command load //=print exec
                 ( ]%%\n) print
-                % a program may raise an error by setting newerror,
+
+                % A program may raise an error by setting newerror,
                 % errorname and errorinfo in $error directly and then
                 % executing stop, without passing through .error: the
-                % stack snapshots are absent in that case
+                % stack snapshots are absent in that case.
                 currentdict /errorinfo known {
                     errorinfo null ne {
                         (Additional information: ) print
                         errorinfo ==
                     } if
                 } if
+
                 % A snapshot entry is present and null wherever the error
                 % recorded no stack: $error defines all three, .error
                 % skips the whole snapshot for VMerror (PLRM 8.2: the
@@ -186,12 +216,14 @@ errordict begin
                     } if
                 } if
                 flush
-                % the context belongs to the error just reported
+
+                % The context belongs to the error just reported
                 /errorinfo null def
                 } ifelse
             } if
         end
     } def
+
     % The errors a program can catch, each named once. The standard
     % handler is the same procedure for all of them -- name the error,
     % run .error, which records it in $error and stops -- so it is built
@@ -217,8 +249,12 @@ errordict begin
     % handler has an object below it to report as the command. interrupt
     % reports nothing and stops; timeout names itself in the command's
     % place. Anywhere else the doubled name would be a typo.
-    /interrupt { stop } def
-    /timeout {/timeout /timeout //.error exec} def
+    /interrupt {  % -  .  -
+        stop
+    } def
+    /timeout {  % -  .  -
+        /timeout /timeout //.error exec
+    } def
 end
 //.internaldict /QUIET known { }{ (errordict installed...)print } ifelse
 
@@ -231,7 +267,9 @@ setglobal
 %  inside the userdict block the local error dictionaries needed.
 %
 currentglobal true setglobal
-/handleerror { errordict /handleerror get exec } def
+/handleerror {  % -  .  -
+    errordict /handleerror get exec
+} def
 setglobal
 
 //.internaldict /QUIET known { }{ (\neof err.ps\n)print } ifelse

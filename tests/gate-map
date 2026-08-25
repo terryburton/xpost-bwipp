@@ -469,6 +469,8 @@ guards path tests/shared_helpers.exempt
 guards path tests/gate-map
 guards path tests/gate.sh
 guards path tests/check-gate-map.sh
+guards path tests/check-proc-spec.sh
+guards path tests/proc-spec
 guards path tests/testlib.ps
 guards path tests/testlib-prepend.sh
 guards path tests/testlib-facts
@@ -642,6 +644,8 @@ always test check-exported-symbols
 always test check-dist-lists
 always test check-awk-portability
 always test check-file-headers
+always test check-proc-spec
+always test check-ps-spacing
 always test check-memory-declarations
 always test check-name-interning
 always test check-userdict-reach

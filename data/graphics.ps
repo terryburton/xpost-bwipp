@@ -18,11 +18,10 @@
     currentglobal true setglobal
     .xpostsys /.hostdict get /DATA_DIR {} put
     setglobal
-    /strcat{1 1 index length 1 sub getinterval}def
-    /breakhere{}def
 } if
 
 true setglobal
+
 %
 %  The language is defined into systemdict, its final home, rather than
 %  staged in userdict and swept there afterwards. systemdict is open here
@@ -35,12 +34,14 @@ systemdict begin
     % local VM. Being local they cannot be anchored in systemdict, which is
     % global and refuses a local value; they take a userdict anchor instead,
     % which is the one the finalizer moves into privatedict.
+    %
     % The machinery reaches its state dictionary and its device
     % through operators, promoted here before any machinery file
     % loads: every procedure binding as it loads freezes these
     % references, and a program may take either name for itself.
     % The implementation procedures anchor under reserved names so
     % the collector keeps them.
+    %
     % Both the state dictionary and the procedures that reach it are local,
     % and privatedict is the local dictionary they belong in, so they are put
     % there outright rather than anchored in userdict for the finalizer to move.
@@ -65,7 +66,8 @@ systemdict begin
             { [ .privatedict /.graphicsdict get ] cvx } ifelse
         put
     setglobal
-    % the operator is not local, so it is defined here, in systemdict
+
+    % The operator is not local, so it is defined here, in systemdict
     /graphicsdict dup .privatedict /.graphicsdictproc get .wrapop def
 
     % .DEVICEproc is bound only now, with graphicsdict already an operator,
@@ -77,18 +79,16 @@ systemdict begin
     setglobal
     /DEVICE dup .privatedict /.DEVICEproc get .wrapop def
 
-    %breakhere
-    (/device.ps) //.xpostsys /.loadmodule get exec  %Loads and uses (/image.ps)
-    (/gstate.ps) //.xpostsys /.loadmodule get exec
-    %(/matrix.ps) //.xpostsys /.loadmodule get exec % moved to xpost_op_matrix.c
-    (/color.ps) //.xpostsys /.loadmodule get exec
-    (/path.ps) //.xpostsys /.loadmodule get exec
-    (/clip.ps) //.xpostsys /.loadmodule get exec
-    (/paint.ps) //.xpostsys /.loadmodule get exec
-    (/font.ps) //.xpostsys /.loadmodule get exec
-    (/cid.ps) //.xpostsys /.loadmodule get exec
+    (/device.ps)  //.xpostsys /.loadmodule get exec  % Loads and uses (/image.ps)
+    (/gstate.ps)  //.xpostsys /.loadmodule get exec
+    (/color.ps)   //.xpostsys /.loadmodule get exec
+    (/path.ps)    //.xpostsys /.loadmodule get exec
+    (/clip.ps)    //.xpostsys /.loadmodule get exec
+    (/paint.ps)   //.xpostsys /.loadmodule get exec
+    (/font.ps)    //.xpostsys /.loadmodule get exec
+    (/cid.ps)     //.xpostsys /.loadmodule get exec
     (/pattern.ps) //.xpostsys /.loadmodule get exec
-    (/shade.ps) //.xpostsys /.loadmodule get exec
+    (/shade.ps)   //.xpostsys /.loadmodule get exec
 
 %
 %  --- calling program code ------------------------------------------
@@ -114,60 +114,99 @@ systemdict begin
 %  because they belong to no one caller; the modules above reach them by
 %  fetching them at run time.
 %
+%  They are defined in global VM, the bank this file works in, and into
+%  .xpostsys rather than into systemdict: a caller fetches one out of
+%  there by name, so none of them stands on the dictionary stack and
+%  none can be captured by a definition of the program's own.
+%
 currentglobal true setglobal
 .xpostsys begin
 
 %
-%  the empty operand of a bracket that names no slots and hides no
-%  dictionary: shared, so that the common bracket allocates neither
+%  The empty operand of a bracket that names no slots and hides no
+%  dictionary: shared, so that the common bracket allocates neither.
+%
+%  A value, not a procedure. .callout below is its only reader and bakes
+%  it in by immediate evaluation, so it stands above .callout here.
 %
 /.conothing 0 array def
 
 %
-%  the re-raise, held as a program rather than a name so that a
-%  redefinition of stop cannot reach the tail of a bracket
+%  The re-raise, held as a program rather than a name so that a
+%  redefinition of stop cannot reach the tail of a bracket.
+%
+%  A value, not a procedure. .callout and .indict below are its only
+%  readers and both bake it in by immediate evaluation, so it stands
+%  above either of them here.
 %
 /.costop [ /stop load ] cvx def
 
 %
-%  what a bracket records for a slot that was not there on the way in.
+%  What a bracket records for a slot that was not there on the way in.
 %  Putting null back instead would leave the slot defined and holding a
 %  value its readers do not expect, so the slot is undefined again: an
 %  object of its own says so, because null is a value a slot may hold.
 %
+%  A value, not a procedure. .cosave and .corestore below are its only
+%  readers and both bake it in by immediate evaluation, so it stands
+%  above either of them here.
+%
 /.coabsent 1 dict def
 
 %
-%  n  .gsunwind  -
 %  grestore until the graphics state stack stands at depth n, so that a
 %  gsave opened inside the bracket -- by the machinery or by the
-%  procedure -- is closed, and the state it saved is back in force
+%  procedure -- is closed, and the state it saved is back in force.
 %
-/.gsunwind {
+%  A helper of .callout below, which is its only caller and bakes it in
+%  by immediate evaluation, so it stands above .callout here. It runs
+%  under whatever dictionary stack the caller of the bracket had, with
+%  .xpostsys nowhere on it: a bracket is fetched out of .xpostsys and
+%  executed, not called with that dictionary open.
+%
+/.gsunwind {  % n  .  -
     { graphicsdict /gptr get 1 index le { exit } if grestore } loop
     pop
 } bind def
 
 %
-%  n  .dsunwind  -
-%  end until the dictionary stack stands at depth n
+%  end until the dictionary stack stands at depth n.
 %
-/.dsunwind {
+%  A helper of .callout below, which is its only caller and bakes it in
+%  by immediate evaluation, so it stands above .callout here. The depth
+%  it is given is the one that stood while the program's procedure ran
+%  -- .callout reads it after taking the machinery's own dictionaries
+%  off -- so what this ends is what that procedure left open.
+%
+/.dsunwind {  % n  .  -
     { countdictstack 1 index le { exit } if end } loop
     pop
 } bind def
 
 %
-%  array  .cobeginall  -
-%  begin each dictionary of the array, outermost first
+%  begin each dictionary of the array, outermost first.
 %
-/.cobeginall { { begin } forall } bind def
+%  A helper of .callout below, which is its only caller and bakes it in
+%  by immediate evaluation, so it stands above .callout here. The array
+%  is the one .callout filled as it took those dictionaries off, so
+%  putting them back in that order is the caller's scope again.
+%
+/.cobeginall {  % array  .  -
+    { begin } forall
+} bind def
 
 %
-%  keys vals gd  .cosave  -
-%  take down what each named slot holds on the way in
+%  Take down what each named slot holds on the way in: for each key in
+%  keys, what gd holds under it goes into the matching element of vals,
+%  and a key gd does not hold records //.coabsent there instead.
 %
-/.cosave {
+%  A helper of .callout below, which is its only caller and bakes it in
+%  by immediate evaluation, so it stands above .callout here. vals must
+%  be as long as keys, which is how .callout allocates it. It neither
+%  reads nor writes the dictionary stack, so the one it runs under is
+%  no business of its own.
+%
+/.cosave {  % keys vals gd  .  -
     2 index length 1 sub
     0 1 3 2 roll
     {
@@ -181,12 +220,17 @@ currentglobal true setglobal
 } bind def
 
 %
-%  keys vals gd  .corestore  -
-%  put each saved value back in the slot it came from. A slot that was
+%  Put each saved value back in the slot it came from. A slot that was
 %  not there on the way in is undefined again rather than left holding a
 %  value its readers do not expect.
 %
-/.corestore {
+%  The undo of .cosave above and takes the same three operands back.
+%  .callout below is its only caller and bakes it in by immediate
+%  evaluation, so it stands above .callout here. It neither reads nor
+%  writes the dictionary stack, so the one it runs under is no business
+%  of its own.
+%
+/.corestore {  % keys vals gd  .  -
     2 index length 1 sub
     0 1 3 2 roll
     {
@@ -201,10 +245,17 @@ currentglobal true setglobal
 } bind def
 
 %
-%  {proc} keys ndict  .callout  -
-%
 %  Run the program's procedure so that what the caller was mid-use of is
 %  the caller's again when it returns, however it returns.
+%
+%  A helper, reached when a caller hands control back and never as this
+%  file loads. paint.ps, color.ps, font.ps, gstate.ps and pattern.ps
+%  fetch it out of .xpostsys by name, and .pcallout below bakes it in,
+%  so it runs under the dictionary stack its caller had rather than
+%  under .xpostsys. That is why every part of the bracket is baked in by
+%  immediate evaluation rather than named: .conothing, .cosave,
+%  .gsunwind, .dsunwind, .cobeginall, .corestore and .costop all stand
+%  above it here for that reason, and it must stay below them.
 %
 %  keys names the graphicsdict slots the caller has parked something in;
 %  their outgoing values are put back afterwards, so a procedure that
@@ -239,12 +290,14 @@ currentglobal true setglobal
 %  They are discarded once the program holds them, leaving the program
 %  itself to run.
 %
-/.callout {
+/.callout {  % {proc} keys ndict  .  -
     % pr ks nd
     exch dup null eq { pop //.conothing } if exch
+
     % ov: what the named slots hold on the way in
     1 index length dup 0 gt { array }{ pop //.conothing } ifelse
     2 index 1 index graphicsdict //.cosave exec
+
     % ds: the machinery's own dictionaries, taken off here and held
     % outermost first for the program below to put back
     1 index dup 0 gt { array }{ pop //.conothing } ifelse
@@ -252,7 +305,8 @@ currentglobal true setglobal
         1 index exch currentdict put
         end
     } for
-    % the depths to come back to
+
+    % The depths to come back to
     graphicsdict /gptr get
     countdictstack
     % pr ks nd ov ds gp dd
@@ -270,11 +324,14 @@ currentglobal true setglobal
 } bind def
 
 %
-%  {proc} keys ndict  .pcallout  -
-%
 %  The same bracket for a procedure of the program's, which is what the
 %  caller reaches for when it hands control back to the job: a pattern's
 %  paint procedure, an image's data source, a colour space's decoding.
+%
+%  A helper, fetched out of .xpostsys by color.ps, paint.ps and
+%  pattern.ps at the point each hands control to the job, and running
+%  under the dictionary stack its caller had. .callout above is baked in
+%  and so is the .coexec operator, so this stands below .callout here.
 %
 %  What fails inside such a procedure is the program's own object
 %  failing, so the operand stack goes back to what the procedure found
@@ -288,10 +345,10 @@ currentglobal true setglobal
 %  fails in there is the caller's own failure, and the caller's operands
 %  come back as they would from anywhere else in its body.
 %
-/.pcallout { { //.callout exec } //.coexec } bind def
+/.pcallout {  % {proc} keys ndict  .  -
+    { //.callout exec } //.coexec
+} bind def
 
-%
-%  obj  .pexec  -
 %
 %  The boundary alone, for a caller that hands control to the program
 %  part-way through a body of its own: a Type 3 glyph's build procedure,
@@ -309,7 +366,15 @@ currentglobal true setglobal
 %  The object runs exactly as exec would run it, and nothing of this sits
 %  on the operand stack while it does.
 %
-/.pexec { { exec } //.coexec } bind def
+%  A helper, fetched out of .xpostsys by cid.ps, color.ps, font.ps,
+%  gstate.ps, init.ps, path.ps and resource.ps, and running under the
+%  dictionary stack its caller had: it opens no dictionary and closes
+%  none. Only the .coexec operator is baked in, so where it stands in
+%  this file is free.
+%
+/.pexec {  % obj  .  -
+    { exec } //.coexec
+} bind def
 
 %
 %  --- running a body with a dictionary current ------------------------
@@ -321,13 +386,20 @@ currentglobal true setglobal
 %  where a name reads what it was never meant to read and a definition
 %  lands where nobody will look for it.
 %
-%  dict {body}  .indict  -
+
 %
 %  Run the body with the dictionary current and take that dictionary off
 %  again however the body ends -- exactly the one this opened, so a body
 %  that opens more of its own closes those itself. What stopped the body
 %  is raised again once the dictionary is off, so the caller's error
 %  handling sees the error the body raised.
+%
+%  A helper, and the most called of the four brackets: device.ps, the
+%  device files it loads, image.ps, path.ps and init.ps fetch it out of
+%  .xpostsys wherever one of them opens a dictionary around a body. It
+%  runs under the dictionary stack its caller had and gives it back
+%  exactly as it found it. .costop above is baked in, so this stands
+%  below .costop here.
 %
 %  The body's operands are whatever is already on the operand stack and
 %  what it leaves there is left there: nothing of the bracket lies between
@@ -336,7 +408,7 @@ currentglobal true setglobal
 %  procedure of the program's goes through .pcallout above, which says
 %  otherwise.
 %
-/.indict {
+/.indict {  % dict {body}  .  -
     exch begin stopped { end //.costop exec }{ end } ifelse
 } bind def
 
@@ -373,6 +445,6 @@ false setglobal
 %  to another can be frozen. It runs immediately after this file is
 %  loaded, so nothing executes in between.
 %
-end  %Systemdict
+end  % systemdict
 
 //.internaldict /QUIET known { }{ (eof graphics.ps\n)print } ifelse

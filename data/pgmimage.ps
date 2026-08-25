@@ -48,20 +48,24 @@
     /BandedPage true
     /.pnmmagic (P5\n)
 
-    % a string row per scanline; a fresh string is already zero. The
+    % A string row per scanline; a fresh string is already zero. The
     % empty row a page held in part stands the rows it does not hold on
     % is the same shape carrying no pixel.
-    /.rowalloc { width string } bind
-    /.rowempty { 0 string } bind
+    /.rowalloc {  % -  .  row
+        width string
+    } bind
+    /.rowempty {  % -  .  row
+        0 string
+    } bind
 
-    % whether a row of the raster is one the page holds. A grayscale row
+    % Whether a row of the raster is one the page holds. A grayscale row
     % is the pixels itself, so a held row is as long as the page is wide
     % and the empty row is as long as it holds pixels.
     /.rowheld {  % row  .  bool
         length 0 ne
     } bind
 
-    % what one .rowalloc costs the memory it allocates from, as the
+    % What one .rowalloc costs the memory it allocates from, as the
     % elements and the string bytes it takes: a string row is one byte
     % per pixel and no elements. Create prices the whole raster from this
     % before it builds any of it.
@@ -69,7 +73,7 @@
         0 width
     } bind
 
-    % scale a grey in [0,1] to the stored byte; a read is the byte
+    % Scale a grey in [0,1] to the stored byte; a read is the byte
     /.rowput {  % row x c1  .  -
         .chan put
     } bind
@@ -77,7 +81,7 @@
         get
     } bind
 
-    % raw (binary) format: each row string is already the raster bytes
+    % Raw (binary) format: each row string is already the raster bytes
     /.writeband {  % rows file  .  -
         exch { 1 index exch writestring } forall pop
     } bind

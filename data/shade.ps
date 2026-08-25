@@ -59,15 +59,13 @@ true setglobal
 /.fnsamplebits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> def
 
 %
-%  -  .fnsampled  -
-%
 %  What a sampled function needs, defined in the CALLER's dictionary from
 %  the f it holds: the sample width, the range and how many components
 %  that makes, and the source the samples come out of. It opens no
 %  dictionary of its own, because what it defines is what the caller
 %  reads -- and both evaluators read the same things.
 %
-/.fnsampled {
+/.fnsampled {  % -  .  -
     /bps f /BitsPerSample get def
     //.fnsamplebits bps known not { /shfill cvx /rangecheck signalerror } if
     /rng f /Range get def
@@ -78,13 +76,12 @@ true setglobal
 } def
 
 %
-%  index  .fnsample  value
 %  The sample at that index, as it stands in the stream. The samples are
 %  adjacent with nothing between them, so an index names a bit position
 %  and not a byte one. What scales it to its range is left to the caller,
 %  which interpolates between two samples first and divides once.
 %
-/.fnsample {
+/.fnsample {  % index  .  value
     bps mul /bp exch def
     bps //.mrdbits exec
 } def
@@ -147,12 +144,11 @@ true setglobal
 } def
 
 %
-%  x y fn  .fneval2  c0..cn-1 n
 %  evaluate a two-input function: a sampled function with a 2-D Size,
 %  bilinear between the four bracketing samples, or an array of
 %  two-input single-output functions, one per component
 %
-/.fneval2 {
+/.fneval2 {  % x y fn  .  c0..cn-1 n
     dup type /arraytype eq {
         4 dict begin
         /fa exch def /yy exch def /xx exch def
@@ -205,13 +201,12 @@ true setglobal
 } def
 
 %
-%  shdict  .fnsh  -
 %  function-based shading (type 1): the domain rectangle, taken
 %  through the optional Matrix, paints as a grid of cells a few
 %  device pixels across, each filled flat with the function's colour
 %  at its centre
 %
-/.fnsh {
+/.fnsh {  % shdict  .  -
     14 dict begin
     /sh exch def
     /fn sh /Function get def
@@ -242,11 +237,10 @@ true setglobal
 } def
 
 %
-%  t  .shcolor  -
 %  set the colour the current shading's function gives at t; a mesh
 %  shading passes components directly and skips the function
 %
-/.shcolor {
+/.shcolor {  % t  .  -
     shfn null eq {
         pop
     }{
@@ -255,12 +249,11 @@ true setglobal
 } def
 
 %
-%  x y  .clipbig  r
 %  a radius from the given point that covers the whole clip region:
 %  the farthest corner of the region's box, plus a margin. A region
 %  covering no pixels bounds nothing and is covered by a radius of zero
 %
-/.clipbig {
+/.clipbig {  % x y  .  r
     6 dict begin
     /py exch def /px exch def
     gsave //.xpostsys /.clipregionpath get exec flattenpath
@@ -280,12 +273,11 @@ true setglobal
 } def
 
 %
-%  shdict  .axialsh  -
 %  bands across the axis, each a strip of the plane perpendicular to
 %  it, painted with the function's colour at its midpoint; extended
 %  ends paint half-plane caps in the end colours
 %
-/.axialsh {
+/.axialsh {  % shdict  .  -
     20 dict begin
     /sh exch def
     /shfn sh /Function get def
@@ -343,13 +335,12 @@ true setglobal
 } def
 
 %
-%  shdict  .radialsh  -
 %  the circle family painted outside in: each step fills its whole
 %  circle, the next smaller covering the centre, so the last leaves
 %  the gradient; an extended outer end floods the clip first and an
 %  extended inner end is the innermost circle itself
 %
-/.radialsh {
+/.radialsh {  % shdict  .  -
     20 dict begin
     /sh exch def
     /shfn sh /Function get def
@@ -466,7 +457,6 @@ true setglobal
 } def
 
 %
-%  sh flagrequired  .mrdinit  -
 %  Set the reader up for a shading whose shape arrives as a DataSource.
 %  What it defines -- the shading, its Function, the source and the
 %  position in it, and for a packed source the Decode array, the field
@@ -479,7 +469,7 @@ true setglobal
 %  may be absent; a patch mesh must state one. flagmax is the largest
 %  value that flag may take for this painter's types.
 %
-/.mrdinit {
+/.mrdinit {  % sh flagrequired  .  -
     /flagmax exch def
     /flagreq exch def
     /sh exch def
@@ -515,12 +505,11 @@ true setglobal
 } def
 
 %
-%  [c0..cn-1]  .gsetcolor  -
 %  set a mesh colour: components directly, or -- when the shading
 %  carries a Function -- a single parametric value through it. The
 %  mesh painters bind /shfn before any triangle paints
 %
-/.gsetcolor {
+/.gsetcolor {  % [c0..cn-1]  .  -
     shfn null eq {
         aload pop setcolor
     }{
@@ -583,14 +572,13 @@ true setglobal
     end
 } def
 %
-%  -  .gtriclip  [uminx uminy umaxx umaxy] or null
 %  The page, in the user space a mesh states its triangles in: a box a
 %  triangle lying wholly past one edge of marks no pixel within. Two
 %  device units of margin absorb the inverse transform's rounding, and a
 %  rotated CTM only widens the box, so it never excludes a point the page
 %  holds. A device that states no size disables the test with a null.
 %
-/.gtriclip {
+/.gtriclip {  % -  .  [uminx uminy umaxx umaxy] or null
     8 dict begin
     graphicsdict /currgstate get /device get /d exch def
     d /width known d /height known and {
@@ -651,11 +639,10 @@ true setglobal
 } def
 
 %
-%  shdict  .meshsh  -
 %  free-form (type 4) and lattice-form (type 5) triangle meshes with
 %  per-vertex colours
 %
-/.meshsh {
+/.meshsh {  % shdict  .  -
     24 dict begin
     /gclipbox //.gtriclip exec def
     % a lattice (type 5) mesh carries no per-vertex flag, so BitsPerFlag
@@ -709,10 +696,9 @@ true setglobal
 } def
 
 %
-%  a0 a1 a2 a3 t  .bez1  v
 %  a cubic Bezier component at parameter t
 %
-/.bez1 {
+/.bez1 {  % a0 a1 a2 a3 t  .  v
     5 dict begin
     /t exch def /a3 exch def /a2 exch def /a1 exch def /a0 exch def
     /u 1 t sub def
@@ -732,11 +718,10 @@ true setglobal
 /.pgridmap [ 0 1 2 3 7 11 15 14 13 12 8 4 5 6 10 9 ] def
 
 %
-%  [w slot w slot ...]  .pmix  [x y]
 %  a weighted combination of grid points, divided by 9: the Coons
 %  interior points are ninths of boundary sums
 %
-/.pmix {
+/.pmix {  % [w slot w slot ...]  .  [x y]
     4 dict begin
     /spec exch def
     /sx 0 def /sy 0 def
@@ -751,14 +736,12 @@ true setglobal
 } def
 
 %
-%  -  .patchpaint  -
-%
 %  paint the current 4x4 grid g with corner colours cols: collapse
 %  the grid's columns at each u by .bez1, sweep the resulting curve
 %  in v, and hand the cells to the Gouraud triangles with corner
 %  colours blended bilinearly
 %
-/.patchpaint {
+/.patchpaint {  % -  .  -
     10 dict begin
     /gclipbox //.gtriclip exec def
     % subdivision from the device size of the boundary points
@@ -809,12 +792,11 @@ true setglobal
 } def
 
 %
-%  shdict  .patchsh  -
 %  Coons (type 6) and tensor-product (type 7) patch meshes. A Coons
 %  patch completes to a tensor patch by the standard interior points,
 %  so one surface serves both
 %
-/.patchsh {
+/.patchsh {  % shdict  .  -
     30 dict begin
     % both patch types carry a flag on every patch, so BitsPerFlag is
     % required of them

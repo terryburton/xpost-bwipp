@@ -56,7 +56,7 @@
         pop
     }
 
-    % does this colour mark the box? Pure white marks only when the
+    % Does this colour mark the box? Pure white marks only when the
     % device carries /WhiteIsOpaque true; the default is false (white
     % ignored), so crop-style boxes exclude painted white. Anything else
     % always marks.
@@ -66,7 +66,7 @@
         or
     }
 
-    % expand the box to include a device-space point
+    % Expand the box to include a device-space point
     /.maxmin {  % x y  .  -
         2 copy
         dup maxy gt { /maxy exch def }{ pop } ifelse
@@ -103,7 +103,7 @@
         } //.xpostsys /.indict get exec
     }
 
-    % the page clear (erasepage) is not a mark
+    % The page clear (erasepage) is not a mark
     /Erase {  % IMAGE  .  -
         pop
     }

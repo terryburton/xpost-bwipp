@@ -193,7 +193,6 @@ setglobal
 } put
 
 %
-%  -  .forkcontext  -   (runs in a freshly forked context, before its procedure)
 %  Give this context its own graphics state, copied from the one it still shares
 %  with its parent, so a change it makes to its graphics state does not reach the
 %  parent. PLRM 2nd ed 7.1: the graphics state is private to a context, and fork
@@ -207,7 +206,9 @@ setglobal
 %  dictionary each time; the template returns a shared dictionary, so it is not
 %  used here.
 %
-.xpostsys /.forkcontext {
+%  It runs in a freshly forked context, before that context's procedure.
+%
+.xpostsys /.forkcontext {  % -  .  -
     currentglobal false setglobal   % The graphics state is local
     10 dict begin
         /pgd //.privatedict /.graphicsdict get def   % The graphics dict shared with the parent
@@ -237,11 +238,9 @@ setglobal
 } put
 
 %
-%  -  gsave  -
-%
 %  push graphics state
 %
-/gsave [ ] {
+/gsave [ ] {  % -  .  -
 graphicsdict begin
     /gptr gptr 1 add def
     gptr gstackarray length ge { /gsave cvx /limitcheck signalerror } if
@@ -251,11 +250,9 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  grestore  -
-%
 %  pop graphics state
 %
-/grestore [ ] {
+/grestore [ ] {  % -  .  -
 graphicsdict begin
     gptr -1 gt {
         gstackarray gptr get
@@ -270,11 +267,9 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  grestoreall  -
-%
 %  pop to bottommost graphics state
 %
-/grestoreall [ ] {
+/grestoreall [ ] {  % -  .  -
 graphicsdict begin
     /gptr -1 def
     gstackarray 0 get
@@ -282,8 +277,6 @@ graphicsdict begin
 end
 } //.xpostsys /.defop get exec
 
-%
-%  -  initgraphics  -
 %
 %  Reset the eleven graphics state parameters PLRM 8.2 names -- the CTM,
 %  the current point, the path, the clipping path, the colour space, the
@@ -296,7 +289,7 @@ end
 %  The body is the equivalent code the specification gives, so the eleven
 %  are reset by the operators that own them and nothing reaches the rest.
 %
-/initgraphics [ ] {
+/initgraphics [ ] {  % -  .  -
     initmatrix
     newpath
     initclip
@@ -308,8 +301,6 @@ end
     [ ] 0 setdash
 } //.xpostsys /.defop get exec
 
-%
-%  -  .initdevicegstate  -
 %
 %  The graphics state a newly installed device starts from (PLRM 8.2
 %  setpagedevice). The defaults come from the template, because the live
@@ -325,7 +316,7 @@ end
 %  they describe the job and not the device: the font, flatness, black
 %  generation and undercolour removal.
 %
-.xpostsys /.initdevicegstate {
+.xpostsys /.initdevicegstate {  % -  .  -
     4 dict begin
     /d.held 4 dict def
     [ /currfont /flat /blackgen /ucr ] {
@@ -341,7 +332,6 @@ end
 } put
 
 %
-%  -  gstate  gstate
 %  A copy of the current graphics state, as a new gstate object (PLRM
 %  8.2). The template supplies the shape -- every slot the state has, and
 %  freshly allocated matrices -- and the current state supplies the
@@ -349,16 +339,15 @@ end
 %  carry a state by, so the object holds its own arrays rather than
 %  sharing the live state's.
 %
-/gstate [ ] {
+/gstate [ ] {  % -  .  gstate
     .privatedict /.gstatetemplate get exec dup length dict copy
     graphicsdict /currgstate get exch //.xpostsys /gstatecopy get exec
 } //.xpostsys /.defop get exec
 
 %
-%  gstate  setgstate  -
 %  set graphics state from gstate
 %
-/setgstate [ /dicttype ] {
+/setgstate [ /dicttype ] {  % gstate  .  -
     % the operand is examined before the current state is fetched
     dup /currmatrix known not
         { /setgstate cvx /typecheck signalerror } if
@@ -366,28 +355,25 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  gstate  currentgstate  gstate
 %  copy current graphics state into given gstate object
 %
-/currentgstate [ /dicttype ] {
+/currentgstate [ /dicttype ] {  % gstate  .  gstate
     dup /currmatrix known not
         { /currentgstate cvx /typecheck signalerror } if
     graphicsdict /currgstate get exch //.xpostsys /gstatecopy get exec
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentfont  dict
 %  return current font from the graphics state
 %
-/currentfont [ ] {
+/currentfont [ ] {  % -  .  dict
     graphicsdict /currgstate get /currfont get
 } //.xpostsys /.defop get exec
 
 %
-%  proc  settransfer  -
 %  install the transfer procedure for every component
 %
-/settransfer [ /proctype ] {
+/settransfer [ /proctype ] {  % proc  .  -
     /settransfer exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /transfer exch put
     graphicsdict /currgstate get
@@ -397,10 +383,9 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  currenttransfer  proc
 %  return the grey channel's transfer procedure
 %
-/currenttransfer [ ] {
+/currenttransfer [ ] {  % -  .  proc
     graphicsdict /currgstate get /transfer get
 } //.xpostsys /.defop get exec
 
@@ -473,23 +458,21 @@ end
 %  and a procedure in a resource instance is not.
 %
 /ColorRendering <<
-    % -  GetPageDeviceName  name
     % the device configuration part of a CRD name: the page device's own
     % PageDeviceName where it names one, and otherwise none. A null value
     % names nothing, which is the state of a device with a single
     % configuration, and is not distinguished here from the entry being
     % absent.
-    /GetPageDeviceName {
+    /GetPageDeviceName {  % -  .  name
         currentpagedevice /PageDeviceName 2 copy known
             { get dup null eq { pop /none } if }{ pop pop /none } ifelse
     } bind
-    % -  GetHalftoneName  name
     % the halftone part: the current halftone dictionary's HalftoneName
     % where it carries one, and otherwise none. PLRM allows a screen to
     % be analysed into a name instead; nothing here does, because a name
     % derived from the screen would have to agree with whatever a program
     % registered its dictionary under, and only the program knows that.
-    /GetHalftoneName {
+    /GetHalftoneName {  % -  .  name
         currenthalftone /HalftoneName 2 copy known
             { get dup null eq { pop /none } if }{ pop pop /none } ifelse
     } bind
@@ -501,13 +484,12 @@ end
 >> /ProcSet defineresource pop
 
 %
-%  redproc greenproc blueproc grayproc  setcolortransfer  -
 %  sample and record one transfer procedure per component; the grey
 %  channel shares its slot with settransfer, and is the one painting
 %  applies. Each procedure is called with a number in [0,1] and returns
 %  one in the same range (PLRM 8.2), and setting it is what calls it.
 %
-/setcolortransfer [ /proctype /proctype /proctype /proctype ] {
+/setcolortransfer [ /proctype /proctype /proctype /proctype ] {  % redproc greenproc blueproc grayproc  .  -
     4 array astore /setcolortransfer exch
     //.xpostsys /.samplecolortransfer get exec
     aload pop
@@ -518,10 +500,9 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentcolortransfer  redproc greenproc blueproc grayproc
 %  return every component's transfer procedure
 %
-/currentcolortransfer [ ] {
+/currentcolortransfer [ ] {  % -  .  redproc greenproc blueproc grayproc
     graphicsdict /currgstate get /redtransfer get
     graphicsdict /currgstate get /greentransfer get
     graphicsdict /currgstate get /bluetransfer get
@@ -637,11 +618,10 @@ end
 } put
 
 %
-%  i  .ctchannel  -
 %  sample the colour channel at i of the record, unless it holds the grey
 %  channel's procedure, which has been sampled already
 %
-.xpostsys /.ctchannel {
+.xpostsys /.ctchannel {  % i  .  -
     graphicsdict /.ctrec get exch get
     dup graphicsdict /.ctrec get 3 get eq
         { pop }
@@ -707,13 +687,12 @@ end
 } put
 
 %
-%  i  .csspot  -
 %  sample the spot function of the channel whose frequency, angle and
 %  procedure lie at i, i+1 and i+2 of the record. A channel with no cell
 %  to sample -- no frequency to give one, or a spot object that is not
 %  something to execute -- is recorded without being sampled
 %
-.xpostsys /.csspot {
+.xpostsys /.csspot {  % i  .  -
     dup graphicsdict /.csrec get exch get
     exch dup 1 add graphicsdict /.csrec get exch get
     exch 2 add graphicsdict /.csrec get exch get
@@ -723,12 +702,10 @@ end
 } put
 
 %
-%  -  .recordcolorscreen  -
-%
 %  write the record's twelve values into the graphics state, each
 %  component's screen into its own slots
 %
-.xpostsys /.recordcolorscreen {
+.xpostsys /.recordcolorscreen {  % -  .  -
     graphicsdict /.csrec get aload pop
     graphicsdict /currgstate get exch /screenproc exch put
     graphicsdict /currgstate get exch /screenangle exch put
@@ -868,7 +845,6 @@ end
 } put
 
 %
-%  W H W2 H2  .celldet  n
 %  the number of places in a cell that repeats along (W, H2) and
 %  (-W2, H): the determinant of those two vectors, W*H + W2*H2. Every
 %  cell shape the language describes is that one expression with sides
@@ -878,12 +854,11 @@ end
 %  chosen from a frequency and an angle repeats along (a, b) and (-b, a),
 %  so it is a*a + b*b. Writing them apart is how they come to disagree.
 %
-.xpostsys /.celldet {
+.xpostsys /.celldet {  % W H W2 H2  .  n
     mul 3 1 roll mul add
 } bind put
 
 %
-%  W H W2 H2  .cellside  n
 %  the side of the axis-aligned tile that repeats such a cell. The cell
 %  lattice always contains (d, 0) and (0, d) for d the determinant, so a
 %  tile of that side works, but it is not the smallest: sides that share
@@ -891,7 +866,7 @@ end
 %  that factor. Zero is answered for a cell with no places at all, which
 %  has no tile -- the caller refuses those rather than dividing by them.
 %
-.xpostsys /.cellside {
+.xpostsys /.cellside {  % W H W2 H2  .  n
     3 index 1 index //.xpostsys /.gcd get exec
     2 index 4 index //.xpostsys /.gcd get exec
     //.xpostsys /.gcd get exec
@@ -938,7 +913,6 @@ end
 } exec put
 
 %
-%  freq ang  .screenlattice  a b L q quad cand
 %  the rotated integer lattice the screen tiles the device plane with:
 %  the angle becomes the nearest rational tangent b/a whose cell
 %  diagonal sits near the requested frequency. (a,b) and (-b,a) are the
@@ -958,7 +932,7 @@ end
 %  rendered threshold cell both build from this, so they sample the
 %  same points.
 %
-.xpostsys /.screenlattice {
+.xpostsys /.screenlattice {  % freq ang  .  a b L q quad cand
     16 dict begin
     /ang exch def /freq exch def
     /n DEVICE /defaultmatrix get 0 get abs 72 mul freq div
@@ -1082,7 +1056,6 @@ end
 } put
 
 %
-%  cell w h src  .setscreencell  -
 %  The cell a screening device paints through, and what it was built
 %  from. This is the one place a cell is installed, so it is the one
 %  place a device can be told the screen has changed: a device that
@@ -1095,7 +1068,7 @@ end
 %  is told where the cell changes rather than per mark, because that is
 %  where a cell is built.
 %
-.xpostsys /.setscreencell {
+.xpostsys /.setscreencell {  % cell w h src  .  -
     DEVICE exch /.htsrc exch put
     DEVICE exch /.hth exch put
     DEVICE exch /.htw exch put
@@ -1106,13 +1079,11 @@ end
 } put
 
 %
-%  -  .refreshscreencell  -
-%
 %  bring a screening device's cell up to the screen in force: the
 %  installed halftone dictionary's thresholds or spot function, else
 %  the screen triple, rebuilt only when it has changed
 %
-.xpostsys /.refreshscreencell {
+.xpostsys /.refreshscreencell {  % -  .  -
     DEVICE /ScreenPaint known {
         4 dict begin
         /ht graphicsdict /currgstate get /halftone get //.xpostsys /.ht5component get exec def
@@ -1181,10 +1152,9 @@ end
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentscreen  freq angle proc
 %  return the grey channel's screen parameters
 %
-/currentscreen [ ] {
+/currentscreen [ ] {  % -  .  freq angle proc
     graphicsdict /currgstate get /screenfreq get
     graphicsdict /currgstate get /screenangle get
     graphicsdict /currgstate get /screenproc get
@@ -1209,7 +1179,6 @@ end
 %  ht  .ht5component  ht'
 %  a type 5 dictionary carries one halftone per colorant: grey
 %  rendering takes its grey component, or the required Default
-%  ht  .htgraytriple  ht'
 %  A type 2 or type 4 carries four screens, one per primary, spelled as
 %  entries prefixed Red, Green, Blue and Gray. This interpreter screens
 %  grey, so the grey screen is the one that reaches a device, and it is
@@ -1217,7 +1186,7 @@ end
 %  becomes a type 1 and a type 4 a type 3. Nothing downstream then knows
 %  there were four.
 %
-.xpostsys /.htgraytriple {
+.xpostsys /.htgraytriple {  % ht  .  ht'
     4 dict begin
     /src exch def
     src /HalftoneType get 2 eq {
@@ -1237,7 +1206,6 @@ end
 } put
 
 %
-%  ht  .htangledcell  ht'
 %  A type 10's cell sits at an angle, and the screens here take an
 %  axis-aligned tile. The two are reconcilable exactly: the cell lattice
 %  is generated by (X, Y) and (-Y, X), whose determinant is the sample
@@ -1251,7 +1219,7 @@ end
 %  (iX + jY) mod N and square Y's at ((X+i)X + jY) mod N, which together
 %  cover every residue once.
 %
-.xpostsys /.htangledcell {
+.xpostsys /.htangledcell {  % ht  .  ht'
     12 dict begin
     /src exch def
     % two squares of side Xsquare and Ysquare are the case where both
@@ -1348,14 +1316,13 @@ end
 } put
 
 %
-%  ht  .htreadthresholds  -
 %  a threshold-array halftone may deliver its thresholds through a
 %  file (a filter over the program stream): sethalftone consumes
 %  that data, so read it -- into a string put back in the
 %  dictionary, where a screening device's cell can find it, or
 %  drained when it exceeds a string
 %
-.xpostsys /.htreadthresholds {
+.xpostsys /.htreadthresholds {  % ht  .  -
     10 dict begin
     /ht exch def
     ht /Thresholds 2 copy known {
@@ -1420,10 +1387,9 @@ end
 } put
 
 %
-%  obj  .htnum  bool
 %  a halftone parameter that has to be a number
 %
-.xpostsys /.htnum {
+.xpostsys /.htnum {  % obj  .  bool
     type dup /integertype eq exch /realtype eq or
 } bind put
 
@@ -1455,7 +1421,6 @@ put
 .xpostsys /.htextentexempt [ (ActualFrequency) ] put
 
 %
-%  ht  .htextent  -
 %  Every entry stating an extent must state a positive one. A side of
 %  zero or less encloses no area and a frequency of zero or less names no
 %  screen, and a cell with no places in it cannot be screened with; PLRM
@@ -1469,7 +1434,7 @@ put
 %  .htvalidate reaches by calling itself. An entry whose value is not a
 %  number is left to the type's own check, which names it a typecheck.
 %
-.xpostsys /.htextent {
+.xpostsys /.htextent {  % ht  .  -
     4 dict begin
     /bad false def
     {
@@ -1513,7 +1478,6 @@ put
 >> put
 
 %
-%  ht  .htoptional  -
 %  Hold every optional entry the dictionary carries to the type PLRM gives
 %  it. Neither value is read by anything here -- there is one screening
 %  algorithm, so AccurateScreens leaves ordinary halftoning in force, and
@@ -1523,7 +1487,7 @@ put
 %  reader meets it, and a program that misspells the value has no other
 %  way of being told.
 %
-.xpostsys /.htoptional {
+.xpostsys /.htoptional {  % ht  .  -
     3 dict begin
     /ht exch def
     //.xpostsys /.htoptypes get {
@@ -1540,7 +1504,6 @@ put
 } bind put
 
 %
-%  name  .marktransfer  proc
 %  The function a colour component goes through on its way to a mark:
 %  the graphics state slot the name asks for, unless the halftone in
 %  force carries one of its own.
@@ -1556,7 +1519,7 @@ put
 %  there. It lasts exactly as long as the halftone that carried it;
 %  installing any other screen puts the graphics state's own back.
 %
-.xpostsys /.marktransfer {
+.xpostsys /.marktransfer {  % name  .  proc
     DEVICE /ScreenPaint known {
         graphicsdict /currgstate get /halftonetransfer 2 copy known
             { get }{ pop pop null } ifelse
@@ -1567,7 +1530,6 @@ put
 } bind put
 
 %
-%  ht eff  .htanswer  -
 %  Tell a dictionary what its screen came to.
 %
 %  PLRM Table 7.4 has sethalftone set ActualFrequency and ActualAngle,
@@ -1591,7 +1553,7 @@ put
 %  setscreen reaches no dictionary at all, which is the whole of why the
 %  specification says the feature is not available there.
 %
-.xpostsys /.htanswer {
+.xpostsys /.htanswer {  % ht eff  .  -
     6 dict begin
     /eff exch def
     /ht exch def
@@ -1613,17 +1575,15 @@ put
 } bind put
 
 %
-%  ht [ keys ]  .htrequire  -
 %  every key the declared type demands, or the missing one is undefined
 %
-.xpostsys /.htrequire {
+.xpostsys /.htrequire {  % ht [ keys ]  .  -
     { 1 index exch known not
         { /sethalftone cvx /undefined signalerror } if } forall
     pop
 } bind put
 
 %
-%  W H W2 H2  .htcelllimit  -
 %  An angled cell is screened by expanding it onto the axis-aligned tile
 %  that repeats it, so what has to fit is the tile and not the cell. A
 %  cell with no places has no tile, and is refused for its sides rather
@@ -1632,7 +1592,7 @@ put
 %  Both shapes that describe an angled cell come through here, so neither
 %  can acquire a limit the other does not have.
 %
-.xpostsys /.htcelllimit {
+.xpostsys /.htcelllimit {  % W H W2 H2  .  -
     //.xpostsys /.cellside get exec
     dup 0 eq
         { /sethalftone cvx /rangecheck signalerror } if
@@ -1641,13 +1601,12 @@ put
 } bind put
 
 %
-%  ht  .htvalidate  -
 %  check a halftone dictionary against the type it declares before any
 %  of it is recorded: a type this interpreter cannot screen with is a
 %  rangecheck, a required entry that is absent an undefined, and an
 %  entry of the wrong type a typecheck
 %
-.xpostsys /.htvalidate {
+.xpostsys /.htvalidate {  % ht  .  -
     1 dict begin
     /ht exch def
     ht /HalftoneType known not
@@ -1801,13 +1760,12 @@ put
 } put
 
 %
-%  halftonedict  sethalftone  -
 %  record the halftone dictionary. Every screen channel then answers
 %  the dictionary itself in the spot-function position: behind its own
 %  frequency and angle for a type 1 dictionary, behind 60 and 0 for
 %  any other type
 %
-/sethalftone [ /dicttype ] {
+/sethalftone [ /dicttype ] {  % halftonedict  .  -
     dup type /dicttype ne {
         /sethalftone cvx /typecheck signalerror
     } if
@@ -1850,11 +1808,10 @@ put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currenthalftone  halftonedict
 %  return the halftone: the installed dictionary, or a type 1
 %  dictionary over the grey screen when the screens were set directly
 %
-/currenthalftone [ ] {
+/currenthalftone [ ] {  % -  .  halftonedict
     graphicsdict /currgstate get /halftone get
     dup null eq {
         pop
@@ -1867,10 +1824,9 @@ put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentcolorscreen  rf ra rp gf ga gp bf ba bp kf ka kp
 %  return every component's screen parameters
 %
-/currentcolorscreen [ ] {
+/currentcolorscreen [ ] {  % -  .  rf ra rp gf ga gp bf ba bp kf ka kp
     graphicsdict /currgstate get /redscreenfreq get
     graphicsdict /currgstate get /redscreenangle get
     graphicsdict /currgstate get /redscreenproc get
@@ -1886,9 +1842,7 @@ put
 } //.xpostsys /.defop get exec
 
 %
-%  flag  setstrokeadjust  -   (recorded only)
-%
-/setstrokeadjust [ /booleantype ] {
+/setstrokeadjust [ /booleantype ] {  % flag  .  -   (recorded only)
     graphicsdict /currgstate get exch /strokeadjust exch put
 } //.xpostsys /.defop get exec
 /currentstrokeadjust [ ] {
@@ -1897,9 +1851,7 @@ put
 } //.xpostsys /.defop get exec
 
 %
-%  num  setsmoothness  -   (recorded only)
-%
-/setsmoothness [ /numbertype ] {
+/setsmoothness [ /numbertype ] {  % num  .  -   (recorded only)
     graphicsdict /currgstate get exch /smoothness exch put
 } //.xpostsys /.defop get exec
 /currentsmoothness [ ] {
@@ -1908,41 +1860,36 @@ put
 } //.xpostsys /.defop get exec
 
 %
-%  num  setlinewidth  -
 %  set line width
 %
-/setlinewidth [ /numbertype ] {
+/setlinewidth [ /numbertype ] {  % num  .  -
     graphicsdict /currgstate get exch cvr /linewidth exch put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentlinewidth  num
 %  return current line width
 %
-/currentlinewidth [ ] {
+/currentlinewidth [ ] {  % -  .  num
     graphicsdict /currgstate get /linewidth get
 } //.xpostsys /.defop get exec
 
 %
-%  int  setlinecap  -
 %  set shape of the ends for stroke (0=butt, 1=round, 2=square)
 %
-/setlinecap [ /integertype ] {
+/setlinecap [ /integertype ] {  % int  .  -
     dup 0 lt 1 index 2 gt or
     { pop /setlinecap cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch /linecap exch put } ifelse
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentlinecap  int
 %  return current line cap
 %
-/currentlinecap [ ] {
+/currentlinecap [ ] {  % -  .  int
     graphicsdict /currgstate get /linecap get
 } //.xpostsys /.defop get exec
 
 %
-%  array offset  setdash  -
 %  A non-empty dash array must hold no negative element and not be all
 %  zero. Its elements must also be finite and their sum -- the dash period
 %  -- must stay within range, and so must the offset: an infinite or NaN
@@ -1954,7 +1901,7 @@ put
 %  true, and would let it through. A value out of the range earns
 %  limitcheck; a negative element or an all-zero array keeps rangecheck.
 %
-/setdash [ /arraytype /numbertype ] {
+/setdash [ /arraytype /numbertype ] {  % array offset  .  -
     1 index dup length 0 gt {
         0.0 exch
         { dup 0 lt { pop pop /setdash cvx /rangecheck signalerror } if
@@ -1969,94 +1916,76 @@ put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentdash  array offset
-%
-/currentdash [ ] {
+/currentdash [ ] {  % -  .  array offset
     graphicsdict /currgstate get /dasharray get
     graphicsdict /currgstate get /dashoffset get
 } //.xpostsys /.defop get exec
 
 %
-%  int  setlinejoin  -
 %  set shape of corners for stroke (0=miter, 1=round, 2=bevel)
 %
-/setlinejoin [ /integertype ] {
+/setlinejoin [ /integertype ] {  % int  .  -
     dup 0 lt 1 index 2 gt or
     { pop /setlinejoin cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch /linejoin exch put } ifelse
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentlinejoin  int
 %  return current line join
 %
-/currentlinejoin [ ] {
+/currentlinejoin [ ] {  % -  .  int
     graphicsdict /currgstate get /linejoin get
 } //.xpostsys /.defop get exec
 
 %
-%  num  setmiterlimit  -
-%
-/setmiterlimit [ /numbertype ] {
+/setmiterlimit [ /numbertype ] {  % num  .  -
     dup 1 lt
     { pop /setmiterlimit cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch cvr /miterlimit exch put } ifelse
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentmiterlimit  num
-%
-/currentmiterlimit [ ] {
+/currentmiterlimit [ ] {  % -  .  num
     graphicsdict /currgstate get /miterlimit get
 } //.xpostsys /.defop get exec
 
 %
-%  bool  setoverprint  -
-%
-/setoverprint [ /booleantype ] {
+/setoverprint [ /booleantype ] {  % bool  .  -
     graphicsdict /currgstate get exch /overprint exch put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentoverprint  bool
-%
-/currentoverprint [ ] {
+/currentoverprint [ ] {  % -  .  bool
     graphicsdict /currgstate get /overprint get
 } //.xpostsys /.defop get exec
 
 %
-%  int  setoverprintmode  -
 %  The overprint mode refines overprint (0 the default, 1 the nonzero mode).
 %  It reaches a separation-producing device the way overprint does; a
 %  composite raster leaves it, like overprint, without effect.
 %
-/setoverprintmode [ /integertype ] {
+/setoverprintmode [ /integertype ] {  % int  .  -
     graphicsdict /currgstate get exch /overprintmode exch put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentoverprintmode  int
-%
-/currentoverprintmode [ ] {
+/currentoverprintmode [ ] {  % -  .  int
     graphicsdict /currgstate get /overprintmode get
 } //.xpostsys /.defop get exec
 
 %
-%  int  setrasteropcode  -      (NeWS) set the raster-operation code
 %  The code selects how a source pixel would combine with the destination
 %  (replace, xor, or, and, ...). It is recorded in the graphics state; a raster
 %  page replaces, so the default (copy) is honoured and other codes are kept but
 %  do not change how marks are composited. Any integer is accepted so a program
 %  can carry the code it means through the state as the operator promises.
 %
-/setrasteropcode [ /integertype ] {
+/setrasteropcode [ /integertype ] {  % int  .  -      (NeWS) set the raster-operation code
     graphicsdict /currgstate get exch /rasteropcode exch put
 } //.xpostsys /.defop get exec
 
 %
-%  -  currentrasteropcode  int  (NeWS) the current raster-operation code
-%
-/currentrasteropcode [ ] {
+/currentrasteropcode [ ] {  % -  .  int  (NeWS) the current raster-operation code
     graphicsdict /currgstate get /rasteropcode get
 } //.xpostsys /.defop get exec
 
@@ -2065,7 +1994,6 @@ put
 %
 
 %
-%  num  setflat  -
 %  The flatness parameter is an error tolerance in device pixels, and
 %  PLRM gives it an acceptable range of 0.2 to 100: a number outside
 %  that range is replaced by the nearest value inside it, with no error
@@ -2074,7 +2002,7 @@ put
 %  the parameter holds is the substituted value -- that is the number
 %  currentflat answers with.
 %
-/setflat [ /numbertype ] {
+/setflat [ /numbertype ] {  % num  .  -
     dup 0.2 lt { pop 0.2 }{ dup 100 gt { pop 100 } if } ifelse
     graphicsdict /currgstate get exch cvr /flat exch put
 } //.xpostsys /.defop get exec

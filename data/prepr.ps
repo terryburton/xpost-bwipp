@@ -8,17 +8,15 @@
 % SPDX-License-Identifier: BSD-3-Clause
 
 %
-%  prepr.ps
-%  preview-prompt
 %  If the stack is empty, it displays the standard, Adobe prompt
 %  PS>
+%
 %  But if the stack is not empty, the prompt will contain a digest
 %  of the stack contents, single letters for most types,
 %  t or f for booleans, 0-9 for the integers 0-9 respectively,
 %  + for integers 10 and above. - for integers below zero
 %  Capital Letters for Composite Objects
 %  lowercase letters for simple objects
-%
 %
 
 %
@@ -31,27 +29,31 @@
 currentglobal true setglobal
 1 dict begin
 /ti [
-    %simple
-    /nulltype     { pop (#) print }
-    /marktype     { pop ([) print }
-    /nametype     { xcheck { (\\) } { (/) } ifelse print }
-    /integertype  { dup 0 lt { pop (-) print }{
-            dup 10 lt { ( ) cvs print }{ pop (+) print } ifelse
-        } ifelse }
-    /realtype     { pop (r) print }
-    /booleantype  { { (t) }{ (f) } ifelse print }
-    /fonttype     { pop ($) print }
-    %composite
-    /arraytype    { xcheck { ( ) dup 0 16#7D put }{ (]) } ifelse print }
-    /stringtype   { pop (S) print }
-    /packedarraytype { pop (A) print }
-    /dicttype     { pop (D) print }
-    /filetype     { pop (F) print }
-    /operatortype { pop (O) print }
-    /savetype     { pop (V) print }
-    /default      { pop (?) print }
+    % Simple
+    /nulltype        { pop (#) print }  % null  .  -
+    /marktype        { pop ([) print }  % mark  .  -
+    /nametype        { xcheck { (\\) } { (/) } ifelse print }  % name  .  -
+    /integertype     {  % int  .  -
+                       dup 0 lt  { pop (-) print }{
+                       dup 10 lt { ( ) cvs print }
+                                 { pop (+) print }
+                     ifelse } ifelse }
+    /realtype        { pop (r) print }  % real  .  -
+    /booleantype     { { (t) }{ (f) } ifelse print }  % bool  .  -
+    /fonttype        { pop ($) print }  % font  .  -
+
+    % Composite
+    /arraytype       { xcheck { ( ) dup 0 16#7D put }{ (]) } ifelse print }  % array  .  -
+    /stringtype      { pop (S) print }  % string  .  -
+    /packedarraytype { pop (A) print }  % packedarray  .  -
+    /dicttype        { pop (D) print }  % dict  .  -
+    /filetype        { pop (F) print }  % file  .  -
+    /operatortype    { pop (O) print }  % operator  .  -
+    /savetype        { pop (V) print }  % save  .  -
+    /default         { pop (?) print }  % obj  .  -
+
 %
-% attempt to use the level-2 dict constructor >>
+% Attempt to use the level-2 dict constructor >>
 %
 { (>>) cvx cvn exec def } stopped { pop
     %level-1 workaround
@@ -59,7 +61,22 @@ currentglobal true setglobal
     cleartomark currentdict end def
 } if
 
-/prompt {
+%
+%  Write the interactive prompt: PS, then the depth of the operand stack
+%  and one character for the type of each entry, deepest first, then the
+%  closing bracket.
+%
+%  The digest is a shape, not a listing. Nothing is unstacked to build it
+%  -- each entry is copied, typed and dropped -- so a prompt cannot
+%  disturb what the next line will operate on, and a stack of any depth
+%  costs one line however large the objects on it are.
+%
+%  ti is reached through the reference frozen in here as this file loads.
+%  The scratch dictionary holding it is discarded by the end below, so
+%  after that this is the only way to it and a program cannot redefine
+%  the table out from under the prompt.
+%
+/prompt {  % -  .  -
     (PS) print
     count
     dup 0 eq {

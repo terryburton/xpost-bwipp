@@ -21,7 +21,6 @@ true setglobal
 %
 
 %
-%  dict /operator /absent  .patterntype  int
 %  The kind of pattern a dictionary describes. PLRM 4.9.1 defines two: 1 a
 %  tiling pattern, 2 a shading pattern, and nothing else.
 %
@@ -51,7 +50,7 @@ true setglobal
 %  specification leaves the name open; what it does not leave open is that
 %  only one place should know the vocabulary.
 %
-.xpostsys /.patterntype {
+.xpostsys /.patterntype {  % dict /operator /absent  .  int
     3 -1 roll
     dup /PatternType known not
         { pop exch cvx exch signalerror } if
@@ -64,22 +63,20 @@ true setglobal
 } put
 
 %
-%  dict /operator /entry  .patternneed  -
 %  A required entry is there, or the program is told which one is not.
 %
-.xpostsys /.patternneed {
+.xpostsys /.patternneed {  % dict /operator /entry  .  -
     3 -1 roll 1 index known not
         { exch cvx /undefined signalerror }{ pop pop } ifelse
 } put
 
 %
-%    dict matrix  makepattern  pattern
-%  instantiate a tiling pattern: a copy of the dictionary carrying the
+%  Instantiate a tiling pattern: a copy of the dictionary carrying the
 %  pattern space -- the matrix concatenated with the CTM in effect
 %  now, so later coordinate changes leave the tiling anchored -- under
-%  /Implementation
+%  /Implementation.
 %
-/makepattern [ /dicttype /arraytype ] {
+/makepattern [ /dicttype /arraytype ] {  % dict matrix  .  pattern
     exch
     dup /makepattern /undefined //.xpostsys /.patterntype get exec 2 eq {
         dup /makepattern /Shading //.xpostsys /.patternneed get exec
@@ -134,16 +131,14 @@ true setglobal
 } //.xpostsys /.defop get exec
 
 %
-%  -  .patternactive  bool
-%  the current colour is a pattern
+%  Whether the current colour is a pattern.
 %
 .xpostsys begin
-/.patternactive {
+/.patternactive {  % -  .  bool
     graphicsdict /currgstate get /colorspace get /Pattern eq
 } bind def
 
 %
-%  -  .colorroute  /pattern | /nomarks | /direct
 %  How the current colour reaches the page, and the only place that
 %  decides.
 %
@@ -159,7 +154,7 @@ true setglobal
 %  third: the null pattern paints nothing, and it does so inside the
 %  tiling walk, where a pattern space's own empty colour belongs.
 %
-/.colorroute {
+/.colorroute {  % -  .  /pattern | /nomarks | /direct
     graphicsdict /currgstate get /colorspace get /Pattern eq { /pattern }{
     graphicsdict /currgstate get /setspace get
     //.xpostsys /.spacenomarks get exec { /nomarks }{ /direct } ifelse
@@ -167,9 +162,7 @@ true setglobal
 } bind def
 
 %
-%  -  .patterntile  -
-%
-%  tile the current pattern colour over the current clip region: every
+%  Tile the current pattern colour over the current clip region: every
 %  cell whose pattern-space step position meets the region's box runs
 %  the pattern's paint procedure under the pattern space translated to
 %  its position, clipped to the cell's BBox. An uncoloured pattern's
@@ -180,7 +173,7 @@ true setglobal
 %  state and a paint procedure that raises would otherwise leave it open,
 %  with this procedure's own dictionary on the stack behind it.
 %
-/.patterntile {
+/.patterntile {  % -  .  -
     {
     16 dict begin
     /pat graphicsdict /currgstate get /patdict get def
@@ -264,15 +257,14 @@ true setglobal
 } bind def
 
 %
-%  -  .patternfill  -
+%  Cut the clip down to the region the pattern will tile across, and
+%  leave no current path behind.
 %
-%  paint the current path with the pattern colour: the path becomes
-%  the clip and the pattern tiles across it
-%  the region resolves to its spans unconditionally: the shading and
+%  The region resolves to its spans unconditionally: the shading and
 %  cell fills intersect against the resolved form, where a raw path
-%  stored by the trivial branch of clip would not combine
+%  stored by the trivial branch of clip would not combine.
 %
-/.patternclip {  % [ spans ... ] is the caller's
+/.patternclip {  % [spans]  .  -
     //.xpostsys /.clipstoreparts get exec
     % the region is pixel-band spans, which no single path under the
     % nonzero rule describes: a device that clips for itself has no
@@ -287,7 +279,11 @@ true setglobal
     newpath
 } bind def
 
-/.patternfill {
+%
+%  Paint the current path with the pattern colour: the path becomes the
+%  clip and the pattern tiles across it.
+%
+/.patternfill {  % -  .  -
     gsave
     flattenpath
     false //.xpostsys /.fillsubjparts get exec
@@ -298,7 +294,10 @@ true setglobal
     newpath
 } bind def
 
-/.patterneofill {
+%
+%  The same, under the even-odd rule.
+%
+/.patterneofill {  % -  .  -
     gsave
     flattenpath
     true //.xpostsys /.fillsubjparts get exec
