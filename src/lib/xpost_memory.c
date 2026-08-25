@@ -870,8 +870,19 @@ int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img)
         img->store = NULL;
         return 0;
     }
+    /* The copy reads the whole live extent in one go, reclaimed entities
+       and all, so it reaches storage the arena has closed -- the same
+       thing a grow does, and answered the same way: open the extent for
+       the copy, then lay the description over it again. Closing them
+       again from the free lists is what keeps a use-after-free inside
+       the arena reportable across a job boundary; reopening alone would
+       give that up from the first boundary onwards. */
+    XPOST_VG_REOPEN_RANGE(mem->base, 0, img->used);
     memcpy(img->store, mem->base, img->used);
     memcpy(img->tab, mem->table.tab, tabbytes);
+#ifdef XPOST_VALGRIND_ARENA
+    xpost_free_repoison(mem);
+#endif
 
     img->start = mem->start;
     img->free_substack = mem->free_substack;
@@ -897,6 +908,12 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
 
     /* the file only ever grows, so its store and table are at least as
        large as the image; the copies land in place with no allocation */
+    /* As in the capture, and for the same reason: the write lands over
+       whatever the job left, including the entities the job's own
+       collector reclaimed. The description is laid over the arena again
+       at the end of this function, once the table it is read from is the
+       baseline's rather than the finished job's. */
+    XPOST_VG_REOPEN_RANGE(mem->base, 0, img->used);
     memcpy(mem->base, img->store, img->used);
     memcpy(mem->table.tab, img->tab, (size_t)img->nextent * esz);
 
@@ -953,6 +970,17 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
                                               mem->max - mem->high_water);
     if (mem->max > img->max)
         mem->max = img->max;
+
+    /* What the arena knows about itself, laid over the restored contents:
+       everything above the live cursor is closed, and the entities the
+       baseline's own free lists chain are closed again. Read from the
+       restored table, so what closes is what the next job will find
+       reclaimed rather than what the job just discarded had. */
+    XPOST_VG_POISON_RANGE(mem->base, mem->high_water,
+                          mem->max - mem->high_water);
+#ifdef XPOST_VALGRIND_ARENA
+    xpost_free_repoison(mem);
+#endif
 }
 
 
