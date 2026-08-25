@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading bboxdev.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  Make an instance of the bounding-box device, which marks no pixels
 %  and records the extent of what would have been painted: the class
@@ -48,11 +50,11 @@
     /NoOutput true  % Accumulate coordinates only; never rasterize
     /GlyphExtents true  % Text marks contribute outline ink boxes, not bitmaps
 
-    /.copydict //.xpostsys /.classcopydict get
+    /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
         { {/height /width}{exch def}forall
-        currentdict } //.xpostsys /.indict get exec
+        currentdict } //.indict exec
         dup /.copydict get exec
         {
             /minx 1e30 def   % Empty box: min > max
@@ -60,7 +62,7 @@
             /maxx -1e30 def
             /maxy -1e30 def
         currentdict
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     /Destroy {  % IMAGE  .  -
@@ -89,7 +91,7 @@
     /PutPix {  % val x y IMAGE  .  -
         {
             3 -1 roll .opaque { .maxmin }{ pop pop } ifelse
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     /GetPix {  % x y IMAGE  .  val
@@ -102,7 +104,7 @@
                 x1 y1 .maxmin
                 x2 y2 .maxmin
             } if
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     /DrawRect {  % val x y w h IMAGE  .  -
@@ -111,7 +113,7 @@
                 x y .maxmin
                 x w add  y h add  .maxmin
             } if
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     % The page clear (erasepage) is not a mark
@@ -153,7 +155,7 @@
                     } if
                 } ifelse
             } if
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     /FillRect {  % val x y w h IMAGE  .  -
@@ -162,7 +164,7 @@
                 x y .maxmin
                 x w add  y h add  .maxmin
             } if
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     /FillPoly {  % val polygon IMAGE  .  -
@@ -176,7 +178,7 @@
             }{
                 pop
             } ifelse
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 
     /Emit {  % IMAGE  .  -
@@ -206,8 +208,10 @@
                 uxmax 30 string cvs print ( ) print
                 uymax 30 string cvs print (\n) print
             } ifelse
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     }
 >> def
+
+end end
 
 //.internaldict /QUIET known { }{ (eof bboxdev.ps\n)print } ifelse

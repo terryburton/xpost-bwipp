@@ -36,7 +36,16 @@ if [ "$(printf '%s\n' $proto | grep -c .)" != 1 ]; then
 fi
 
 # The files that call the generator, and the class each one defines.
-generated=$(cd "$data" && grep -lE '/\.makerasterclass[[:blank:]]+get[[:blank:]]+exec' *.ps || true)
+# Three spellings reach the generator: fetched by name, baked with //, and
+# -- at the top level of a file that has opened the namespace -- the bare
+# name. The prose names it too, so what is read is the code alone, and the
+# file that defines the generator is not one of its callers.
+gencall='(/\.makerasterclass[[:blank:]]+get[[:blank:]]+exec|//\.makerasterclass[[:blank:]]+exec|(^|[[:blank:]])\.makerasterclass([[:blank:]]|$))'
+gencode() { sed 's/%.*$//' "$1"; }
+generated=$(cd "$data" && for f in *.ps; do
+    [ "$f" = "$proto" ] && continue
+    sed 's/%.*$//' "$f" | grep -qE "$gencall" && echo "$f"
+done || true)
 if [ -z "$generated" ]; then
     echo "check-raster-classes: no file in data/ calls .makerasterclass;"
     echo "the roster is derived from that call. Fix the derivation."
@@ -52,7 +61,7 @@ fi
 # the generated classes are parameter files: one generator call each,
 # and no method definition of their own
 for f in $generated; do
-    n=$(grep -c '/\.makerasterclass get exec' "$data/$f" || true)
+    n=$(gencode "$data/$f" | grep -cE "$gencall" || true)
     if [ "$n" != 1 ]; then
         echo "check-raster-classes: $f calls .makerasterclass $n times, expected exactly 1"
         fail=1

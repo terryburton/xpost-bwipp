@@ -16,6 +16,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  The one writer of the clip.
 %
@@ -49,7 +51,7 @@ true setglobal
     dup 3 -1 roll /clipregion exch put
     1 dict dup /serial .newregionserial put
     /clipcache exch put
-} bind put
+} put
 
 %
 %  The clip region in the device FillPoly argument format, for a consumer
@@ -81,7 +83,7 @@ true setglobal
         1 index /serial get 0 ne { 2 copy /poly exch put } if
         exch pop
     } ifelse
-} bind put
+} put
 
 %
 %  What the clip in force leaves of a region about to be painted. The one
@@ -103,7 +105,7 @@ true setglobal
     exch dup /clipcache get /serial get
     exch /device get dup /height known { /height get }{ pop 0 } ifelse
     .regionmeet
-} bind put
+} put
 
 %
 %  How deep a tile of the page reaches before anything is asked of it.
@@ -139,7 +141,7 @@ true setglobal
       subj null ne { subj exch 0
         graphicsdict /currgstate get /device get
         dup /height known { /height get }{ pop 0 } ifelse .regionmeet } if
-      //.xpostsys /.clipmeet get exec
+      //.clipmeet exec
     } stopped {
         count n0 sub { pop } repeat
         ty1 ty0 sub 1 gt {
@@ -177,7 +179,7 @@ true setglobal
     count /n0 exch def
     /d0 countdictstack def
     {
-        { [ subj //.xpostsys /.clipmeet get exec ] } stopped {
+        { [ subj //.clipmeet exec ] } stopped {
             count n0 sub { pop } repeat
             subj //.xpostsys /.polybounds get exec {
                 /yhi exch def /xhi exch def /ylo exch def /xlo exch def
@@ -188,7 +190,7 @@ true setglobal
                 [ ylo floor cvi sl yhi ceiling cvi {
                       /yb exch def
                       subj tx0 yb tx1 yb sl add dup ylim gt { pop ylim } if
-                      //.xpostsys /.cliptile get exec
+                      //.cliptile exec
                   } for ]
             }{
                 % a subject with no vertices covers no pixel
@@ -214,8 +216,8 @@ true setglobal
 %  marking them one after another marks no pixel twice.
 %
 .xpostsys /.clippartsmeet {  % [ spans ... ]  .  [ spans ... ]
-    [ exch { //.xpostsys /.clipmeetparts get exec aload pop } forall ]
-} bind put
+    [ exch { //.clipmeetparts exec aload pop } forall ]
+} put
 
 %
 %  Make the parts the clip region: they become one path, which is what a
@@ -229,7 +231,7 @@ true setglobal
 .xpostsys /.clipstoreparts {  % [ spans ... ]  .  -
     newpath
     { //.xpostsys /.polytopath get exec } forall
-} bind put
+} put
 
 %
 %  Replace the clip region with the whole page (PLRM 8.2). The device
@@ -258,9 +260,9 @@ true setglobal
     % The region is the whole page, which constrains nothing a device has
     % to be told about, so there is no shape to hand one.
     graphicsdict /currgstate get /currpath get
-    null //.xpostsys /.setclipregion get exec
+    null //.setclipregion exec
     graphicsdict /currgstate get /currpath 3 -1 roll put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Cut the clip down to the current path under the nonzero rule (PLRM
@@ -317,8 +319,8 @@ true setglobal
         % arrives in parts where no single array states it, and the
         % parts become the one path the region is held in.
         false //.xpostsys /.fillsubjparts get exec
-        //.xpostsys /.clippartsmeet get exec
-        //.xpostsys /.clipstoreparts get exec
+        //.clippartsmeet exec
+        //.clipstoreparts exec
     } ifelse } ifelse
 
     % Each branch above left the new region as the current path: put the
@@ -326,8 +328,8 @@ true setglobal
     graphicsdict /currgstate get /currpath get      % Source saved region
     graphicsdict /currgstate get /currpath 3 index put
     exch pop                                        % Source region
-    exch //.xpostsys /.setclipregion get exec
-} //.xpostsys /.defop get exec
+    exch //.setclipregion exec
+} .defop
 
 %
 %  The line through two points, as the coefficients A, B and C of Ax +
@@ -345,7 +347,7 @@ true setglobal
     3 -1 roll mul     % A B x0 A By0
     3 1 roll mul      % A B By0 Ax0
     add neg           % A B C
-} bind put
+} put
 
 %
 %  evaluate and hodgman-sutherland
@@ -357,7 +359,7 @@ true setglobal
     3 2 roll mul       % C x A By
     3 1 roll mul       % C By Ax
     add add
-} bind put
+} put
 
 %
 %  Hodgman-Sutherland keeps the half-plane to the left of each directed
@@ -381,7 +383,7 @@ true setglobal
     } for
     a2
     end
-} bind put
+} put
 
 %
 %  A clip polygon wound the way the Sutherland-Hodgman walk expects.
@@ -394,13 +396,13 @@ true setglobal
 %  clip path that arrived in either winding is normalised once.
 %
 .xpostsys /normclipwind {  % poly  .  poly'
-    dup //.xpostsys /polyarea2 get exec 0 lt {
+    dup //polyarea2 exec 0 lt {
         4 dict begin
         /poly exch def
         [ poly length 1 sub -1 0 { poly exch get } for ]
         end
     } if
-} bind put
+} put
 
 %
 %  polygon [A B C]  .  new-polygon
@@ -424,8 +426,8 @@ true setglobal
                 /i exch def
                 /P p i get def
                 /Q p i 1 add get def
-                /fP P aload pop f //.xpostsys /evaluate get exec def
-                /fQ Q aload pop f //.xpostsys /evaluate get exec def
+                /fP P aload pop f //evaluate exec def
+                /fQ Q aload pop f //evaluate exec def
                 fQ 0 le {
                     fP 0 le not {          % P outside, Q inside: entering crossing
                         /QP fQ fP sub def
@@ -474,7 +476,7 @@ true setglobal
     } loop
     p
     end
-} bind put
+} put
 
 %
 %  Cut the current path to the shape of the clip region, in reals, by the
@@ -530,7 +532,7 @@ true setglobal
             { 2 array astore }  % ... mark [x0 y0] ... [xN yN]
             {}
             { counttomark 1 sub index }  % ... mark [x0 y0] ... [x0 y0]
-            //.xpostsys /.devpathforall get exec
+            //.devpathforall exec
             ]  % /PA mark [...] [...] [...]
         ] def
 
@@ -540,7 +542,7 @@ true setglobal
         % ring as one keyhole path). Split polygons at the close as well
         % as at movetos, so each ring boundary classifies separately.
         /CR                         % Clip Region   region array
-        //.xpostsys /.clipregionpath get exec [
+        //.clipregionpath exec [
             %{ 2 array astore [ exch } { 2 array astore } {} {]} .devpathforall
             [
             { 2 array astore
@@ -553,7 +555,7 @@ true setglobal
             { 2 array astore }
             {}
             { counttomark 1 sub index ] [ }
-            //.xpostsys /.devpathforall get exec
+            //.devpathforall exec
             ]
         ]
         def
@@ -589,19 +591,19 @@ true setglobal
         /shnmax 4000000 def
         /holemax 200 def
         CR {  % One clipping polygon
-            //.xpostsys /despike get exec
+            //despike exec
 
             % Fewer than three points bound no area (e.g. the bare pen
             % moveto charpath leaves after its outlines).
             dup length 3 lt {
                 pop
             }{
-                dup //.xpostsys /polyarea2 get exec 0 lt { -1 }{ 1 } ifelse /psign exch def
+                dup //polyarea2 exec 0 lt { -1 }{ 1 } ifelse /psign exch def
                 wsign 0 eq { /wsign psign def } if
                 psign wsign eq {
 
                 % Intersect the subject polygons with the (convex) window
-                //.xpostsys /normclipwind get exec
+                //normclipwind exec
                 dup 0 get
                 /U exch def
                 1 1 index length 1 sub getinterval
@@ -612,7 +614,7 @@ true setglobal
                         % exactly or within float noise) has no usable
                         % half-plane.
                     }{
-                        [ U aload pop V aload pop //.xpostsys /p2abc get exec ]  % Clip-line
+                        [ U aload pop V aload pop //p2abc exec ]  % Clip-line
                         /CL exch def
                         /DEBUGCLIP where { pop
                             CL ==
@@ -633,14 +635,14 @@ true setglobal
                 % Subtract the (convex) hole: the difference decomposes into
                 % one piece per hole edge - the part beyond that edge,
                 % limited by the edges before it.
-                //.xpostsys /normclipwind get exec
+                //normclipwind exec
                 /HP exch def
                 /HL [
                     HP 0 get /U exch def
                     HP 1 HP length 1 sub getinterval {
                         /V exch def
                         U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 ge {
-                            [ U aload pop V aload pop //.xpostsys /p2abc get exec ]
+                            [ U aload pop V aload pop //p2abc exec ]
                         } if
                         /U V def
                     } forall
@@ -694,7 +696,7 @@ true setglobal
         end
     } if
 
-} bind put
+} put
 
 %
 %  Append a null-separated polygon array (device-space point pairs) to
@@ -714,7 +716,7 @@ true setglobal
         } ifelse
     } forall
     end
-} bind put
+} put
 
 %
 %  Intersect the clip region with the even-odd interior of the current
@@ -729,17 +731,17 @@ true setglobal
     flattenpath
     true //.xpostsys /.fillsubjparts get exec
     .cliptrivial not {
-        //.xpostsys /.clippartsmeet get exec
+        //.clippartsmeet exec
     } if
-    //.xpostsys /.clipstoreparts get exec
+    //.clipstoreparts exec
 
     % The region is the even-odd interior resolved to pixel-band spans,
     % which no single path under the nonzero rule describes: a device
     % that clips for itself has no shape to be given.
     graphicsdict /currgstate get /currpath get
-    null //.xpostsys /.setclipregion get exec
+    null //.setclipregion exec
     graphicsdict /currgstate get /currpath 3 -1 roll put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  clipsave/cliprestore (LL3): push and pop the clip region alone,
@@ -773,7 +775,7 @@ true setglobal
     put
     pop pop
     graphicsdict /clipptr 2 copy get 1 add put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Put back the clip the matching clipsave took down (PLRM 8.2), and do
@@ -786,8 +788,10 @@ true setglobal
         graphicsdict /clipptr 2 copy get 1 sub put
         graphicsdict /clipstack get graphicsdict /clipptr get get
         aload pop                                   % Region source
-        //.xpostsys /.setclipregion get exec
+        //.setclipregion exec
     } if
-} //.xpostsys /.defop get exec
+} .defop
+
+end end
 
 //.internaldict /QUIET known { }{ (eof clip.ps\n)print } ifelse

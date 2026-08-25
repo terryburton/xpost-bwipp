@@ -5885,6 +5885,17 @@ test('vecbase',
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
+# How a private helper is frozen and how it is called: no helper is bound
+# where it is defined, because .finalize binds them once the standard
+# operators are promoted and a body bound earlier keeps the names it calls
+# for the whole run; and a helper a test redefines is reached by name,
+# because a baked reference never sees the redefinition.
+test('helper-bind',
+  find_program('tests/check-helper-bind.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ])
+
 # The filter base: what every filter shares is declared once, every filter
 # struct begins with one of the two bases, and what a filter is a filter
 # over is stated in the one call it is constructed through rather than

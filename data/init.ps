@@ -80,6 +80,17 @@
 %
 /QUIET where { pop }{ (loading init.ps...\n) print } ifelse
 
+%
+%  The namespace is made before the first begin, so the wrapper below can
+%  open at the depth this file starts from. Nothing it does afterwards pops
+%  past that depth, so one region covers the whole file.
+%
+currentglobal true setglobal
+userdict /.xpostsys 400 dict put
+setglobal
+
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys below
+
 systemdict begin  % Make these definitions in systemdict
 true setglobal   % Systemdict is global, so these allocations must be global
 
@@ -99,11 +110,31 @@ true setglobal   % Systemdict is global, so these allocations must be global
 %  The // freezes the dictionary (get form) or the helper object itself (baked
 %  form) into the caller at scan time, so a program cannot shadow it. The get form
 %  resolves h at run time, which mutual recursion and forward references need;
-%  baking costs no run-time lookup but cannot express them. Helpers that were the
-%  path/clip/image/graphics family use the get form; the colour/shading/pattern/
-%  halftone families bake.
+%  baking costs no run-time lookup but cannot express them.
 %
-userdict /.xpostsys 400 dict put
+%  A file bakes by opening this dictionary for the whole of its own reading:
+%      currentdict .xpostsys begin begin   ...   end end
+%  The current dictionary goes back on top of it because .defop defines into
+%  whatever is current, and a module's operators belong in systemdict rather than
+%  among the helpers; this dictionary is still searched one below, which is all
+%  the // needs. A file opening it says so in one line and points here.
+%
+%  What a file cannot bake it leaves in the get form. There are five such cases:
+%  a name a later module defines, a name defined only once every module has
+%  loaded, a helper's calls to itself -- the put that closes a body is what
+%  defines its name, so while that body is being read the name is not there yet
+%  -- a helper whose value is an operator rather than a procedure, since // puts
+%  the object in the body where an operator runs and a get hands it over as data,
+%  and a helper a test redefines by appending to the data tree, which a baked
+%  reference cannot see.
+%
+%  No helper is bound where it is defined. A body bound there is read-only before
+%  the standard operators are promoted, so every name it calls stays a name for
+%  the rest of the run, reachable by a program redefining it, and the lockdown
+%  sweep cannot come back for a read-only body. .finalize binds this dictionary
+%  once the promotion is done, which is the only point at which binding
+%  substitutes anything. tests/check-helper-bind.sh holds the tree to it.
+%
 
 %
 %  Recorded in the context as well, where the collector roots it and the C
@@ -148,11 +179,11 @@ userdict /.xpostsys get .setglobalprivatedict
 %  which is a value and reads as one.
 %
 .xpostsys /.hostvalue {  % /key  .  value
-    //.xpostsys /.hostdict get exch 2 copy known
+    //.hostdict exch 2 copy known
         { get }
         { exch pop cvx /undefined signalerror }
     ifelse
-} bind put
+} put
 
 %
 %  The operands each operator takes. The definitions fill this through
@@ -220,9 +251,9 @@ userdict /.xpostsys get .setglobalprivatedict
         d.sig dup length array copy /d.sig exch def
         setglobal
     } if
-    //.xpostsys /.opsigs get d.name d.sig put
+    //.opsigs d.name d.sig put
     /d.proc load wcheck not
-        { //.xpostsys /.boundatdef get d.name true put } if
+        { //.boundatdef d.name true put } if
     d.dict d.name /d.proc load put
     end
 } put
@@ -233,7 +264,7 @@ userdict /.xpostsys get .setglobalprivatedict
 %
 .xpostsys /.defop {  % /name [ specs ] { proc }  .  -
     currentdict 4 1 roll
-    //.xpostsys /.defopin get exec
+    //.defopin exec
 } put
 
 %
@@ -310,7 +341,7 @@ userdict /.internaldict 256 dict put
     1183615869 eq { //.internaldict }{
         /internaldict cvx /invalidaccess signalerror
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Debug aids and the internal context-state markers are C operators, not part of
@@ -434,7 +465,7 @@ setglobal
     length exch length exch 1 index add  % A b an bn+an
     string dup 0 6 -1 roll putinterval  % B an str
     dup 4 2 roll exch putinterval  % (ab)
-} bind put
+} put
 
 %
 %  The three parts of a colour rendering dictionary's name, joined with
@@ -448,13 +479,13 @@ setglobal
     /ht exch astext def
     /dc exch astext def
     astext
-    (.) //.xpostsys /.strcat get exec
-    dc //.xpostsys /.strcat get exec
-    (.) //.xpostsys /.strcat get exec
-    ht //.xpostsys /.strcat get exec
+    (.) //.strcat exec
+    dc //.strcat exec
+    (.) //.strcat exec
+    ht //.strcat exec
     cvn
     end
-} bind put
+} put
 
 %
 %  Take the page as the page device machinery measured it, where it has
@@ -475,7 +506,7 @@ setglobal
         dup 0 get /width exch def
         1 get /height exch def
     }{ pop pop } ifelse
-} bind put
+} put
 
 %
 %  .loadmodule -- pull in one of the interpreter's own .ps files by name,
@@ -484,9 +515,9 @@ setglobal
 %  helper, and global with it.
 %
 .xpostsys /.loadmodule {  % (/name.ps)  .  -
-    /DATA_DIR //.xpostsys /.hostvalue get exec
-    exch //.xpostsys /.strcat get exec run
-} bind put
+    /DATA_DIR //.hostvalue exec
+    exch //.strcat exec run
+} put
 
 %
 %  Whether a dictionary key names a device class. A class is defined
@@ -509,7 +540,7 @@ setglobal
             0 7 getinterval (.xpost_) eq
         }{ pop false } ifelse
     }{ pop false } ifelse
-} bind put
+} put
 
 %
 %  The bind sweep the module loaders and the lockdown share. .bindone freezes
@@ -525,7 +556,7 @@ setglobal
 %
 .xpostsys /.bindone {  % value  .  -
     dup type /arraytype eq 1 index xcheck and { bind } if pop
-} bind put
+} put
 
 %
 %  Bind every executable array a dictionary holds, and the ones the
@@ -542,11 +573,11 @@ setglobal
             { pop }
             ifelse
         }{
-            //.xpostsys /.bindone get exec
+            //.bindone exec
         } ifelse
     } forall
     pop
-} bind put
+} put
 
 %
 %  Bind a dictionary's procedures to a depth deep enough for the tables
@@ -555,8 +586,8 @@ setglobal
 %  dictionary it seals.
 %
 .xpostsys /.bindscope {  % dict  .  -
-    8 //.xpostsys /.bindscoped get exec
-} bind put
+    8 //.bindscoped exec
+} put
 
 %
 % Predefined in xpost_interpreter.c:setlocalconfig()
@@ -592,14 +623,14 @@ setglobal
 % (EXE_DIR =) print EXE_DIR print (\n) print
 %
 //.internaldict /QUIET known { }{ (DATA_DIR =) print
-    /DATA_DIR //.xpostsys /.hostvalue get exec print (\n) print } ifelse
+    /DATA_DIR //.hostvalue exec print (\n) print } ifelse
 
 %
 %  Read and execute a file by name (PLRM 8.2). The file is executed
 %  rather than merely read, so what it defines lands in whatever
 %  dictionary is current when run is called.
 %
-/run [ /stringtype ] { (r) file cvx exec } //.xpostsys /.defop get exec  % string  .  -
+/run [ /stringtype ] { (r) file cvx exec } .defop  % string  .  -
 
 %
 %  run, announcing the file first. A convenience for a person at the
@@ -641,7 +672,7 @@ setglobal
 /= [ /anytype ] {  % obj  .  -
     //=print exec
     (\n) print
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 % dumpnames dumpvm
@@ -661,12 +692,12 @@ setglobal
 %
 % (4\n)print
 %
-(/err.ps) //.xpostsys /.loadmodule get exec
+(/err.ps) //.loadmodule exec
 
 %
 % (5\n)print
 %
-/stack [ ] { count dup 1 add copy //= repeat pop } //.xpostsys /.defop get exec  % -  .  -
+/stack [ ] { count dup 1 add copy //= repeat pop } .defop  % -  .  -
 
 %
 % (6\n)print
@@ -798,7 +829,7 @@ systemdict begin
     % dict is anonymous, so the systemdict/userdict bind sweep never reaches
     % it: bind its procedures here, as =string already is, freezing every
     % operator name to the operator.
-    currentdict //.xpostsys /.bindscope get exec
+    currentdict .bindscope
 
 %
 %  Print an object in re-readable form without the newline -- strings
@@ -824,13 +855,13 @@ systemdict begin
 %
 %  Print an object in re-readable form and a newline (PLRM 8.2).
 %
-/== [ /anytype ] { ==only (\n) print } //.xpostsys /.defop get exec  % obj  .  -
+/== [ /anytype ] { ==only (\n) print } .defop  % obj  .  -
 
 %
 %  Print the whole operand stack in re-readable form, deepest first,
 %  leaving it as it was (PLRM 8.2).
 %
-/pstack [ ] { count dup 1 add copy //== repeat pop } //.xpostsys /.defop get exec  % -  .  -
+/pstack [ ] { count dup 1 add copy //== repeat pop } .defop  % -  .  -
 end  % Back to systemdict
 
 /execdict 6 dict def
@@ -886,11 +917,11 @@ end
         % through the recording class, and naming that back at a caller
         % would be reporting a choice made on its behalf.
         (: device ) print
-        /StartDeviceAsked //.xpostsys /.hostvalue get exec
-        dup null eq { pop /StartDevice //.xpostsys /.hostvalue get exec } if
+        /StartDeviceAsked //.hostvalue exec
+        dup null eq { pop /StartDevice //.hostvalue exec } if
         =print
         ( asked for a page of ) print
-        /StartPageSize //.xpostsys /.hostvalue get exec aload pop
+        /StartPageSize //.hostvalue exec aload pop
         exch =print ( by ) print =print ( pixels) print
         $error /newerror get $error /errorname known and {
             (: ) print $error /errorname get =print
@@ -912,7 +943,7 @@ end
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
-        //.xpostsys /.reportloadfailure get exec
+        //.reportloadfailure exec
         handleerror
         pstack
         quit
@@ -1020,18 +1051,18 @@ end
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
-        //.xpostsys /.reportloadfailure get exec
+        //.reportloadfailure exec
         quit
     } if
     {
         (%stdin) run
     } stopped {
-        //.xpostsys /.handlejoberror get exec
+        //.handlejoberror exec
     } if
 
     % A page the program painted and never asked for is ended here, and
     % the stacks the job used go back to the state a job begins with
-    //.xpostsys /.endjob get exec
+    //.endjob exec
     quit
 } def
 
@@ -1051,19 +1082,19 @@ end
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
-        //.xpostsys /.reportloadfailure get exec
+        //.reportloadfailure exec
         quit
     } if
     {
         (r) file cvx exec        % (filename) has stayed on the stack
-        /.interactive //.xpostsys /.hostvalue get exec { executive } if
+        /.interactive //.hostvalue exec { executive } if
     } stopped {
-        //.xpostsys /.handlejoberror get exec
+        //.handlejoberror exec
     } if
 
     % A page the program painted and never asked for is ended here, and
     % the stacks the job used go back to the state a job begins with.
-    //.xpostsys /.endjob get exec
+    //.endjob exec
     quit
 } def
 %
@@ -1081,19 +1112,19 @@ end
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
-        //.xpostsys /.reportloadfailure get exec
+        //.reportloadfailure exec
         quit
     } if
     {
         cvx exec        % The file object has stayed on the stack
     } stopped {
         //.internaldict /.rundied get exec
-        //.xpostsys /.handlejoberror get exec
+        //.handlejoberror exec
     } if
 
     % A page the program painted and never asked for is ended here, and
     % the stacks the job used go back to the state a job begins with.
-    //.xpostsys /.endjob get exec
+    //.endjob exec
     quit
 } def
 
@@ -1119,7 +1150,7 @@ end
     {
         (%stdin) run
     } stopped {
-        //.xpostsys /.handlejoberror get exec
+        //.handlejoberror exec
     } if
     quit
 } def
@@ -1132,9 +1163,9 @@ end
     } if
     {
         (r) file cvx exec        % (filename) has stayed on the stack
-        /.interactive //.xpostsys /.hostvalue get exec { executive } if
+        /.interactive //.hostvalue exec { executive } if
     } stopped {
-        //.xpostsys /.handlejoberror get exec
+        //.handlejoberror exec
     } if
     quit
 } def
@@ -1149,7 +1180,7 @@ end
         cvx exec        % The file object has stayed on the stack
     } stopped {
         //.internaldict /.rundied get exec
-        //.xpostsys /.handlejoberror get exec
+        //.handlejoberror exec
     } if
     quit
 } def
@@ -1211,7 +1242,7 @@ end
         (>) print
     } repeat
     flush
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  System and device parameters. The current* operators return a fresh
@@ -1226,8 +1257,8 @@ end
 %  interpreter carries no writable device parameters, so the device pair
 %  accepts what it is given and answers an empty dictionary.
 %
-/setdevparams [ /stringtype /dicttype ] { pop pop } //.xpostsys /.defop get exec  % string dict  .  -
-/currentdevparams [ /stringtype ] { pop 0 dict } //.xpostsys /.defop get exec  % string  .  dict
+/setdevparams [ /stringtype /dicttype ] { pop pop } .defop  % string dict  .  -
+/currentdevparams [ /stringtype ] { pop 0 dict } .defop  % string  .  dict
 
 %
 %  MaxBandBytes and CurBandHeight are the pair a program asks about
@@ -1275,8 +1306,8 @@ end
            { get exec }{ pop pop /auto /memory } ifelse
        exch /RecordSpill exch 3 -1 roll /CurRecordSpill exch
     >>
-} //.xpostsys /.defop get exec
-/setsystemparams [ /dicttype ] { pop } //.xpostsys /.defop get exec  % dict  .  -
+} .defop
+/setsystemparams [ /dicttype ] { pop } .defop  % dict  .  -
 
 %
 %  Display PostScript synchronisation (PLRM 2nd ed 7.1). lock and condition are
@@ -1292,15 +1323,15 @@ end
 %
 .dpsenabled {
     % A lock, free and unowned.
-    /lock [ ] { << /held false /owner null >> } //.xpostsys /.defop get exec  % -  .  lock
+    /lock [ ] { << /held false /owner null >> } //.defop exec  % -  .  lock
 
     % A condition.
-    /condition [ ] { << /gen 0 >> } //.xpostsys /.defop get exec  % -  .  condition
+    /condition [ ] { << /gen 0 >> } //.defop exec  % -  .  condition
 
     % Resume every context waiting on the condition.
     /notify [ /dicttype ] {  % condition  .  -
         dup /gen exch /gen get 1 add put
-    } //.xpostsys /.defop get exec
+    } //.defop exec
 
     % Acquire the lock, run proc, release it.
     /monitor [ /dicttype /arraytype ] {  % lock proc  .  -
@@ -1332,7 +1363,7 @@ end
               /ifelse load ] cvx
         end
         exec
-    } //.xpostsys /.defop get exec
+    } //.defop exec
 
     % Release the lock, await notify, reacquire it.
     /wait [ /dicttype /dicttype ] {  % lock condition  .  -
@@ -1356,7 +1387,7 @@ end
         .wlk /held true put
         .wlk /owner currentcontext put
         end
-    } //.xpostsys /.defop get exec
+    } //.defop exec
 } if
 
 %
@@ -1490,16 +1521,16 @@ currentglobal true setglobal
     end
     $error /doclose false put
     stop
-} //.xpostsys /.defop get exec
+} .defop
 setglobal
 
-(/qsort.ps) //.xpostsys /.loadmodule get exec
+(/qsort.ps) //.loadmodule exec
 
 %
 %  Named Resources: the Level 2 resource operators live in their own
 %  data file
 %
-(/resource.ps) //.xpostsys /.loadmodule get exec
+(/resource.ps) //.loadmodule exec
 
 %
 %  The font a name stands for (PLRM 8.2): from the font directory where
@@ -1536,7 +1567,7 @@ setglobal
             dup /Encoding StandardEncoding dup length array copy put
             dup /BuildChar {} put
         } stopped {  % Operator failed:
-            //.xpostsys /.fontsubstitutions get exch 2 copy known {  % Try substitution
+            //.fontsubstitutions exch 2 copy known {  % Try substitution
                 get
                 findfont  % Call proc (tail-)recursively
             }{
@@ -1547,7 +1578,7 @@ setglobal
             } ifelse
         } if
     } ifelse } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The user-object table lives in userdict, growing as indices demand.
@@ -1564,7 +1595,7 @@ setglobal
         userdict /UserObjects 3 -1 roll put
     } if
     UserObjects exch 3 -1 roll put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Execute the user object at an index (PLRM 8.2) -- the array a program
@@ -1573,7 +1604,7 @@ setglobal
 %
 /execuserobject [ /integertype ] {  % index  .  -
     UserObjects exch get exec
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Give up the user object at an index (PLRM 8.2). The slot stays,
@@ -1582,7 +1613,7 @@ setglobal
 %
 /undefineuserobject [ /integertype ] {  % index  .  -
     UserObjects exch null put
-} //.xpostsys /.defop get exec
+} .defop
 
 currentglobal true setglobal
 
@@ -1687,7 +1718,7 @@ currentglobal true setglobal
                 { /drawing get dup /Destroy get exec }{ pop } ifelse } forall
         graphicsdict /.formcache undef
     }{ pop pop } ifelse
-} bind put
+} put
 setglobal
 
 %
@@ -1729,7 +1760,7 @@ setglobal
     not { /execform cvx /rangecheck signalerror } if
     dup wcheck
     not {
-        //.xpostsys /.execformdirect get exec
+        //.execformdirect exec
     }{
         % The form's paint procedure is the program's, and runs inside
         % this dictionary: an error out of it is a way out of the body
@@ -1771,7 +1802,7 @@ setglobal
         fd /.formid known not {
             //.internaldict /.newformserial get exec
             graphicsdict /.formlast 2 copy known { get }{ pop pop 0 } ifelse
-            1 index le not { //.xpostsys /.formcachedrop get exec } if
+            1 index le not { //.formcachedrop exec } if
             graphicsdict /.formlast 2 index put
             fd /.formid 3 -1 roll put
         } if
@@ -1811,12 +1842,12 @@ setglobal
         /key fd /.formid get 20 string cvs
         [ cm 0 get cm 1 get cm 2 get cm 3 get ] {
             40 string cvs
-            exch (:) //.xpostsys /.strcat get exec exch //.xpostsys /.strcat get exec
+            exch (:) //.strcat exec exch //.strcat exec
         } forall def
         /fc graphicsdict /.formcache 2 copy known { get }{
             pop pop 32 dict graphicsdict /.formcache 2 index put
         } ifelse def
-        fd //.xpostsys /.execformbox get exec
+        fd //.execformbox exec
         /fh exch def /fw exch def /fby exch def /fbx exch def
 
         % Whether the clip holds the whole of the form's box. What
@@ -1914,7 +1945,7 @@ setglobal
                 % unusable, and the description is run again for every
                 % placement, so the form pays for a capture it never uses.
                 /cuts //.internaldict /.clipcuts get exec def
-                fd //.xpostsys /.execformcapture get exec
+                fd //.execformcapture exec
                 grestore
 
                 % Whether what it painted stays inside the box it
@@ -1971,11 +2002,11 @@ setglobal
                     //.internaldict /.replayplace get exec
             } ifelse
         }{
-            fd //.xpostsys /.execformdirect get exec
+            fd //.execformdirect exec
         } ifelse
         } //.xpostsys /.indict get exec
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  User paths: the self-describing form is an executable array of the
@@ -1985,14 +2016,14 @@ setglobal
 %  many fewer than its value times
 %
 % The box is advisory here.
-/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } //.xpostsys /.defop get exec  % llx lly urx ury  .  -
+/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } .defop  % llx lly urx ury  .  -
 
 %
 %  Ask that the user path being built be cached (PLRM 8.2). This
 %  interpreter caches no user paths, so the request is accepted and
 %  nothing is done with it.
 %
-/ucache [ ] {} //.xpostsys /.defop get exec  % -  .  -
+/ucache [ ] {} .defop  % -  .  -
 
 currentglobal true setglobal
 .xpostsys /.upathops [ /setbbox /moveto /rmoveto /lineto /rlineto /curveto
@@ -2029,7 +2060,7 @@ currentglobal true setglobal
         /a.i exch def
         a.t length 1 sub a.i sub index
         a.t a.i get
-        //.xpostsys /.argok get exec not
+        //.argok exec not
             { a.op cvx /typecheck signalerror } if
     } for
     end
@@ -2050,7 +2081,7 @@ currentglobal true setglobal
     /w.proc exch def /w.name exch def /w.dict exch def
     w.dict w.name
     w.name /w.proc load
-    //.xpostsys /.opsigs get w.name get .wrapopsig
+    //.opsigs w.name get .wrapopsig
     put
     end
 } put
@@ -2084,9 +2115,9 @@ currentglobal true setglobal
             }{
                 dup type /nametype eq not
                     { /uappend cvx /typecheck signalerror } if
-                //.xpostsys /.upathopset get 1 index known not
+                //.upathopset 1 index known not
                     { /uappend cvx /typecheck signalerror } if
-                //.xpostsys /.upathopset get exch get u.pend ne
+                //.upathopset exch get u.pend ne
                     { /uappend cvx /typecheck signalerror } if
                 /u.pend 0 def
             } ifelse
@@ -2115,7 +2146,7 @@ setglobal
 %  the current path through here.
 %
 /uappend [ /arraytype ] {  % userpath  .  -
-    //.xpostsys /.upathcheck get exec
+    //.upathcheck exec
     dup xcheck {
         exec
     }{
@@ -2141,19 +2172,19 @@ setglobal
                 % of a no-argument operator is refused; an out-of-range
                 % operator is refused by the .upathargs fetch below.
                 /op exch def
-                //.xpostsys /.upathargs get op get 0 eq  rep 1 gt  and {
+                //.upathargs op get 0 eq  rep 1 gt  and {
                     /uappend cvx /rangecheck signalerror
                 } if
                 rep {
-                    //.xpostsys /.upathargs get op get { args ai get /ai ai 1 add def } repeat
-                    //.xpostsys /.upathops get op get cvx exec
+                    //.upathargs op get { args ai get /ai ai 1 add def } repeat
+                    //.upathops op get cvx exec
                 } repeat
                 /rep 1 def
             } ifelse
         } for
         end
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 currentglobal true setglobal
 
@@ -2170,8 +2201,8 @@ currentglobal true setglobal
 } put
 setglobal
 
-/ufill [ /arraytype ] { gsave newpath uappend fill grestore } //.xpostsys /.defop get exec  % userpath  .  -
-/ueofill [ /arraytype ] { gsave newpath uappend eofill grestore } //.xpostsys /.defop get exec  % userpath  .  -
+/ufill [ /arraytype ] { gsave newpath uappend fill grestore } .defop  % userpath  .  -
+/ueofill [ /arraytype ] { gsave newpath uappend eofill grestore } .defop  % userpath  .  -
 
 %
 %       userpath  .  -
@@ -2183,12 +2214,12 @@ setglobal
 %  is how a program strokes a shape at one scale with a pen at another.
 %
 /ustroke [ /arraytype ] {
-    //.xpostsys /.isupmat get exec {
+    //.isupmat exec {
         gsave newpath exch uappend concat stroke grestore
     }{
         gsave newpath uappend stroke grestore
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %       userpath  .  -
@@ -2199,7 +2230,7 @@ setglobal
 %  so that a caller may fill or clip with it.
 %
 /ustrokepath [ /arraytype ] {
-    //.xpostsys /.isupmat get exec {
+    //.isupmat exec {
         matrix currentmatrix 3 1 roll
         exch newpath uappend
         concat strokepath
@@ -2207,7 +2238,7 @@ setglobal
     }{
         newpath uappend strokepath
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The current path, written as a user path in current user space.
@@ -2218,7 +2249,7 @@ setglobal
       { /moveto cvx }{ /lineto cvx }{ /curveto cvx }{ /closepath cvx }
       pathforall
     ] cvx
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Route document metadata to a device that can carry it (the pdfwrite
@@ -2267,19 +2298,19 @@ setglobal
 %  it implements and the rest are carried for the job's own sake.
 %
 /setdistillerparams [ /dicttype ] {  % dict  .  -
-    //.xpostsys /.distillerparams get /LockDistillerParams get {
+    //.distillerparams /LockDistillerParams get {
         pop
     }{
-        { //.xpostsys /.distillerparams get 3 1 roll put } forall
+        { //.distillerparams 3 1 roll put } forall
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The distiller parameters recorded, as a dictionary the job may read.
 %
 /currentdistillerparams [ ] {  % -  .  dict
-    //.xpostsys /.distillerparams get dup length dict copy
-} //.xpostsys /.defop get exec
+    //.distillerparams dup length dict copy
+} .defop
 
 %
 %  /fontname size  .  -
@@ -2303,7 +2334,7 @@ setglobal
         exch scalefont
         setfont
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  x y w h
@@ -2344,11 +2375,11 @@ currentglobal true setglobal   % Global .xpostsys helpers
     dup type /arraytype eq {
         1 dict begin /.a exch def
         0 4 .a length 1 sub {
-            .a exch 4 getinterval aload pop //.xpostsys /.rect1 get exec
+            .a exch 4 getinterval aload pop //.rect1 exec
         } for
         end
     }{
-        //.xpostsys /.rect1 get exec
+        //.rect1 exec
     } ifelse
 } put
 setglobal
@@ -2368,8 +2399,8 @@ setglobal
 /rectfill [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
     {  % x y w h | numarray | numstring  .  -
-      gsave newpath //.xpostsys /rect get exec fill grestore }
-    //.xpostsys /.defop get exec
+      gsave newpath //rect exec fill grestore }
+    .defop
 /rectstroke [ [ /numbertype /numbertype /numbertype /numbertype /arraytype ]
               [ /numbertype /numbertype /numbertype /numbertype ]
               [ /arraytype /arraytype ] [ /stringtype /arraytype ]
@@ -2379,16 +2410,16 @@ setglobal
     % A trailing matrix is a six-element array; a numarray always holds 4n
     % numbers, so length six is unambiguously the optional stroke matrix
     dup type /arraytype eq { dup length 6 eq }{ false } ifelse
-        { 1 dict begin /.m exch def //.xpostsys /rect get exec .m concat end }
-        { //.xpostsys /rect get exec }
+        { 1 dict begin /.m exch def //rect exec .m concat end }
+        { //rect exec }
     ifelse
     stroke grestore
-} //.xpostsys /.defop get exec
+} .defop
 /rectclip [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
     {  % x y w h | numarray | numstring  .  -
-      newpath //.xpostsys /rect get exec clip newpath }
-    //.xpostsys /.defop get exec
+      newpath //rect exec clip newpath }
+    .defop
 
 currentglobal true setglobal
 
@@ -2433,7 +2464,7 @@ currentglobal true setglobal
             % one-shot, so a program cannot reopen it.
             .sysdictunlock
 
-            (/graphics.ps) //.xpostsys /.loadmodule get exec
+            (/graphics.ps) //.loadmodule exec
 
             currentglobal true setglobal
 
@@ -2802,7 +2833,7 @@ currentglobal true setglobal
                 % what was held for the device being replaced, given up before
                 % anything can reach for it: a drawing carries the colour space
                 % of the device its marks were made for.
-                //.xpostsys /.formcachedrop get exec
+                //.formcachedrop exec
                 .privatedict /.gstatetemplate get exec /device newdev put
                 graphicsdict /currgstate get /device newdev put
 
@@ -2834,7 +2865,7 @@ currentglobal true setglobal
                 0 //.xpostsys /.setpageno get exec
                 //.xpostsys /.beginpage get exec
                 end
-            } //.xpostsys /.defop get exec
+            } //.defop exec
 
             /currentpagedevice [ ] {  % -  .  dict
                 graphicsdict /.pagedevice 2 copy known { get
@@ -2842,7 +2873,7 @@ currentglobal true setglobal
                 }{ pop pop
                     << /PageSize [ DEVICE /dimensions get aload pop ] >>
                 } ifelse
-            } //.xpostsys /.defop get exec
+            } //.defop exec
             end  % Systemdict
 
             % The language stands. Recorded by the load itself, as the last thing
@@ -2901,7 +2932,7 @@ currentglobal true setglobal
         (start-up ordering broken: ) print print (\n) print flush
         /.finalize cvx /undefined signalerror
     } ifelse
-} bind put
+} put
 
 %
 %  The lockdown: the last thing done to the language before a program
@@ -2956,7 +2987,7 @@ currentglobal true setglobal
             .sysdictunlock
             systemdict wcheck
             (systemdict must be open for the steps below to take names out of it)
-            //.xpostsys /.mustbe get exec
+            //.mustbe exec
             % Promote the procedure-implemented standard operators to real
             % operators: load answers operatortype for them and bind
             % substitutes them, so the classic self-redefinition idiom
@@ -2985,7 +3016,7 @@ currentglobal true setglobal
             % dictionary's rather than an author's. That is what the second pass
             % below is for: nothing is bound until every one of them is promoted,
             % so no outcome depends on the order they came out in.
-            //.xpostsys /.opsigs get {
+            //.opsigs {
                 pop                                  % The statement; the key is the name
                 dup where {
                     exch 2 copy get
@@ -2997,7 +3028,7 @@ currentglobal true setglobal
                         % It goes back into the dictionary it was found in: the
                         % language is read into systemdict, but the boot file
                         % defines a few of these into userdict first.
-                        //.xpostsys /.wrapwithsig get exec
+                        //.wrapwithsig exec
                     }{ pop pop pop } ifelse
                 }{ pop } ifelse
             } forall
@@ -3041,7 +3072,7 @@ currentglobal true setglobal
             n 0 eq
             end
             (every promoted name must be an operator before references are frozen)
-            //.xpostsys /.mustbe get exec
+            //.mustbe exec
 
             % The other half of the same post-condition. The gate above says every
             % name the promotion took is an operator; this says the promotion took
@@ -3053,7 +3084,7 @@ currentglobal true setglobal
             % been told about and the promotion passed over.
             1 dict begin
             /n 0 def
-            //.xpostsys /.opsigs get {
+            //.opsigs {
                 pop                                  % The statement; the key is the name
                 dup where {
                     1 index get type /operatortype ne { /n n 1 add store } if
@@ -3063,7 +3094,7 @@ currentglobal true setglobal
             n 0 eq
             end
             (every operator that states its operands must be one after the promotion)
-            //.xpostsys /.mustbe get exec
+            //.mustbe exec
 
             % The third post-condition, and the one that makes the binding below
             % worth doing. A body bound at its own definition is read-only before
@@ -3074,33 +3105,33 @@ currentglobal true setglobal
             % operator. .defop records any body that arrives read-only; holding
             % that register to empty is what stops a bind being put back at a
             % definition, where it reads like caution and costs the opposite.
-            //.xpostsys /.boundatdef get length 0 eq
+            //.boundatdef length 0 eq
             (no operator body may be bound before the promotion binds it)
-            //.xpostsys /.mustbe get exec
+            //.mustbe exec
 
-            systemdict //.xpostsys /.bindscope get exec
-            userdict //.xpostsys /.bindscope get exec
+            systemdict //.bindscope exec
+            userdict //.bindscope exec
 
             % graphicsdict exists only once graphics has loaded; without it there is
             % nothing to bind and this step is simply skipped
-            /graphicsdict where { pop graphicsdict //.xpostsys /.bindscope get exec } if
-            errordict //.xpostsys /.bindscope get exec
+            /graphicsdict where { pop graphicsdict //.bindscope exec } if
+            errordict //.bindscope exec
 
             % The private helper namespace too, so a helper's own operator references
             % (the get and exec of //.xpostsys /h get exec, and everything else) freeze
             % and survive a program shadowing an operator name
-            .xpostsys //.xpostsys /.bindscope get exec
+            .xpostsys //.bindscope exec
 
             % The mutable scratch holds procedure tables too (the stroke switch
             % handlers live inside strokedict); bind them so they survive a program
             % shadowing the operator names they call
-            .gscratch //.xpostsys /.bindscope get exec
+            .gscratch //.bindscope exec
 
             % privatedict holds machinery procedures too -- the gstate-template accessor,
             % the device class methods -- so bind them against a shadowed operator name
             % the same way. The anchor procedures moved here below were bound in userdict
             % before the move, so they carry their frozen references with them.
-            .privatedict //.xpostsys /.bindscope get exec
+            .privatedict //.bindscope exec
 
             % Install idiom recognition. The plain bind is kept in .internaldict and
             % /bind becomes an operator that runs it and then offers the result to
@@ -3171,7 +3202,7 @@ currentglobal true setglobal
             % added later does not reach. The keys are taken before any of them
             % is dropped, since what is walked here is what is being written to.
             [ systemdict { pop } forall ]
-            { dup //.xpostsys /.isclassname get exec
+            { dup //.isclassname exec
                 { dup systemdict 1 index get dup length 16 add dict copy  % Name name localcopy
                   .privatedict 3 1 roll put                              % Name (privatedict/name = localcopy)
                   systemdict exch undef }                                % Drop the load-time anchor
@@ -3286,7 +3317,7 @@ currentglobal true setglobal
 %  by hand. The same as doprompt above under the name a debugging
 %  convention reaches for.
 %
-.xpostsys /pause { //.xpostsys /doprompt get exec } put  % -  .  -
+.xpostsys /pause { //doprompt exec } put  % -  .  -
 setglobal
 
 currentglobal true setglobal
@@ -3311,8 +3342,10 @@ currentglobal true setglobal
 } put
 setglobal
 
-(/prepr.ps) //.xpostsys /.loadmodule get exec  % Use nifty preview prompt!
+(/prepr.ps) //.loadmodule exec  % Use nifty preview prompt!
 
 end  % systemdict
+
+end end
 
 //.internaldict /QUIET known { }{ (eof init.ps\n)print } ifelse

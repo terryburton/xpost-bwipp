@@ -11,6 +11,37 @@
 
 //.internaldict /QUIET known { }{ (loading pdfwrite.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+    % The zero pad for xref offsets is a shared read-only constant, kept in the
+    % global private dictionary rather than leaking a name into userdict. The
+    % paginated single-file path keeps its across-page bookkeeping (the open
+    % file, the name it was opened under, the running object number, each
+    % object's byte offset, the page list, and the ticket saying which device
+    % is writing it) beside it in a writable global dictionary, so it survives
+    % the save/restore a job wraps around each page; a slot in the local device
+    % dictionary would be rewound by restore. One output device paginates at a
+    % time, so a single shared record serves, and it outlives any one device:
+    % a page device change replaces the device without ending the document.
+    currentglobal true setglobal
+        .xpostsys /.zeros (0000000000) put
+        .xpostsys /.vecout 16 dict put
+        .xpostsys /.vecout get /single false put
+        .xpostsys /.vecout get /ready false put
+        .xpostsys /.vecout get /docid 0 put
+
+        % The maps a document fills in belong to the record rather than to any
+        % one document: each is keyed by a counter the document restarts from
+        % zero, so a document writes every entry it later reads and what an
+        % earlier one left above that count is never consulted. They are made
+        % with the record because the record outlives any one document and
+        % holds what is put in it: a container made per document would be
+        % held for as long as the record is, one for every document.
+        .xpostsys /.vecout get /off 256 dict put
+        .xpostsys /.vecout get /pobj 64 dict put
+        .xpostsys /.vecout get /sobj 16 dict put
+    setglobal
+
 %
 %  Make an instance of the PDF writer: the class copied, with the extent
 %  it is asked for written onto the copy.
@@ -69,15 +100,15 @@
     /NoOutput true  % Keep this device's own vector FillPoly (no rasterizing)
     /VectorGlyphs true  % Text operators emit glyph outlines, not bitmaps
 
-    /.copydict //.xpostsys /.classcopydict get
+    /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
 
     % The page dimensions are points and need not be integral; adopt the
     % exact values when the page device machinery published them.
-    //.xpostsys /.adoptexactpage get exec
-    currentdict } //.xpostsys /.indict get exec
+    //.adoptexactpage exec
+    currentdict } //.indict exec
     dup /.copydict get exec
     {
         /.docinfo 8 dict def    % Document metadata from DOCINFO pdfmarks
@@ -96,18 +127,18 @@
         % that restore).
         currentdict dup /.setupoutput get exec
     currentdict
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % Take the ticket on the open document. The record names one ticket and
     % the device holding it is the one that finishes the document, so a device
     % that hands the document on and is then retired leaves it alone.
     /.claimdoc {  % IMAGE  .  -
     {
-        //.xpostsys /.vecout get /docid get 1 add
-        //.xpostsys /.vecout get /docid 2 index put
-        //.xpostsys /.vecout get /owner 2 index put
+        //.vecout /docid get 1 add
+        //.vecout /docid 2 index put
+        //.vecout /owner 2 index put
         currentdict /.vecticket 3 -1 roll put
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % Decide the output form from the name and, for the single-file form, open
     % the file. Without a %d the pages accumulate into one file (finalised at
@@ -127,23 +158,23 @@
     % document, so the open one is finished off before this one starts.
     /.setupoutput {  % IMAGE  .  -
     {
-        //.xpostsys /.vecout get /ready get {
+        //.vecout /ready get {
             currentdict /OutputFileName known {
-                //.xpostsys /.vecout get /name get OutputFileName ne {
-                    //.xpostsys /.vecout get /single get {
+                //.vecout /name get OutputFileName ne {
+                    //.vecout /single get {
                         currentdict dup /.endfile get exec
                     } if
-                    //.xpostsys /.vecout get dup /single false put
+                    //.vecout dup /single false put
                         dup /ready false put /owner undef
                 } if
             } if
         } if
-        //.xpostsys /.vecout get /ready get {
+        //.vecout /ready get {
             % The document stays open across the change of device; this one
             % writes it from here on.
-            //.xpostsys /.vecout get /owner known
+            //.vecout /owner known
             currentdict /.vecticket known and {
-                //.xpostsys /.vecout get /owner get currentdict /.vecticket get ne {
+                //.vecout /owner get currentdict /.vecticket get ne {
                     currentdict dup /.claimdoc get exec
                 } if
             }{
@@ -162,7 +193,7 @@
                     % open aborting the page-device setup.
                     mark { OutputFileName (w) file } stopped {
                         cleartomark
-                        //.xpostsys /.vecout get /single false put
+                        //.vecout /single false put
                     }{
                         exch pop
 
@@ -174,7 +205,7 @@
                         % the collector roots as well, so a collection
                         % between two pieces of output still reaches it.
                         dup .privatedict exch /.vecoutfile exch put
-                        //.xpostsys /.vecout get dup /F 4 -1 roll put
+                        //.vecout dup /F 4 -1 roll put
                         dup /bytepos 0 put
                         dup /single true put
                         dup /nextobj 3 put
@@ -191,17 +222,17 @@
                 }{
                     % a %d selects the per-file writer, which opens each page's
                     % own file at Emit; this record stays idle.
-                    //.xpostsys /.vecout get dup /single false put
+                    //.vecout dup /single false put
                     dup /name OutputFileName dup length string copy put
                     /ready true put
                 } ifelse
                 setglobal
-                //.xpostsys /.vecout get /ready get {
+                //.vecout /ready get {
                     currentdict dup /.claimdoc get exec
                 } if
             } if
         } ifelse
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     /Destroy {  % IMAGE  .  -
         % Finalise the accumulating file (page tree, cross-reference and
@@ -211,49 +242,20 @@
         % longer the one writing it.
         % .endfile runs with the device current, so it needs its own copy (get
         % consumes one, the body the other) while leaving the device for .pdffree.
-        dup /.vecticket known //.xpostsys /.vecout get /owner known and {
-            dup /.vecticket get //.xpostsys /.vecout get /owner get eq
+        dup /.vecticket known //.vecout /owner known and {
+            dup /.vecticket get //.vecout /owner get eq
         }{ false } ifelse
         {
-            //.xpostsys /.vecout get /single get { dup dup /.endfile get exec } if
+            //.vecout /single get { dup dup /.endfile get exec } if
 
             % Stand the shared record down: the interpreter retires a device at
             % setpagedevice and again at job end, so a repeated Destroy must not
             % finalise the closed file a second time.
-            //.xpostsys /.vecout get dup /single false put
+            //.vecout dup /single false put
                 dup /ready false put /owner undef
         } if
         dup //.internaldict /.pdffree get exec pop
     } bind
-
-    % The zero pad for xref offsets is a shared read-only constant, kept in the
-    % global private dictionary rather than leaking a name into userdict. The
-    % paginated single-file path keeps its across-page bookkeeping (the open
-    % file, the name it was opened under, the running object number, each
-    % object's byte offset, the page list, and the ticket saying which device
-    % is writing it) beside it in a writable global dictionary, so it survives
-    % the save/restore a job wraps around each page; a slot in the local device
-    % dictionary would be rewound by restore. One output device paginates at a
-    % time, so a single shared record serves, and it outlives any one device:
-    % a page device change replaces the device without ending the document.
-    currentglobal true setglobal
-        .xpostsys /.zeros (0000000000) put
-        .xpostsys /.vecout 16 dict put
-        .xpostsys /.vecout get /single false put
-        .xpostsys /.vecout get /ready false put
-        .xpostsys /.vecout get /docid 0 put
-
-        % The maps a document fills in belong to the record rather than to any
-        % one document: each is keyed by a counter the document restarts from
-        % zero, so a document writes every entry it later reads and what an
-        % earlier one left above that count is never consulted. They are made
-        % with the record because the record outlives any one document and
-        % holds what is put in it: a container made per document would be
-        % held for as long as the record is, one for every document.
-        .xpostsys /.vecout get /off 256 dict put
-        .xpostsys /.vecout get /pobj 64 dict put
-        .xpostsys /.vecout get /sobj 16 dict put
-    setglobal
 
     % Append a string to the content accumulator (held outside VM via /Private)
     /.put {  % str  .  -
@@ -266,9 +268,9 @@
     % rather than asked of the file because a stream that cannot be positioned
     % answers no offset, and the document is the same either way.
     /.vw {  % str  .  -
-        dup length //.xpostsys /.vecout get dup /bytepos get
+        dup length //.vecout dup /bytepos get
         3 -1 roll add /bytepos exch put
-        //.xpostsys /.vecout get /F get exch writestring
+        //.vecout /F get exch writestring
     } bind
 
     % write a byte offset as a 10-digit zero-padded field. How many zeros
@@ -277,26 +279,26 @@
     % the length taken and the number it belongs to.
     /.vwoff {  % n  .  -
         20 string cvs dup length 10 exch sub    % S  padlen
-        //.xpostsys /.zeros get exch 0 exch getinterval .vw
+        //.zeros exch 0 exch getinterval .vw
         .vw
     } bind
 
     % take the next object number, advancing the shared counter
     /.nextobj {  % -  .  n
-        //.xpostsys /.vecout get dup /nextobj get
+        //.vecout dup /nextobj get
         dup 1 add 3 -1 roll /nextobj 3 -1 roll put
     } bind
 
     % record the file's current byte offset as object n's position
     /.recordoff {  % n  .  -
-        //.xpostsys /.vecout get /off get exch
-        //.xpostsys /.vecout get /bytepos get put
+        //.vecout /off get exch
+        //.vecout /bytepos get put
     } bind
 
     % Append a number in PDF syntax (integer, or two decimals; never
     % exponential), through the vector writers' shared formatter.
     /.pdfnum {  % num  .  -
-        //.xpostsys /.num2str get exec .put
+        //.num2str exec .put
     } bind
 
     % Format a number in PDF syntax to a fresh string at the accumulator's
@@ -344,7 +346,7 @@
     % PreserveOverprintSettings false (a distiller parameter) drops the
     % overprint state from the output; the default carries it.
     /.pdfoverprint {  % -  .  -
-        //.xpostsys /.distillerparams get /PreserveOverprintSettings get false eq { }{
+        //.distillerparams /PreserveOverprintSettings get false eq { }{
         graphicsdict /currgstate get /overprint get
         graphicsdict /currgstate get /overprintmode get        % Opv opm
         1 index { 1000 }{ 0 } ifelse 1 index add               % Opv opm statekey
@@ -406,7 +408,7 @@
     % Concatenate two strings into a new one: the interpreter's own,
     % under the name this file calls it by. Writing a second one here
     % cost two names in whatever dictionary was current at each call.
-    /.strcat //.xpostsys /.strcat get
+    /.strcat //.strcat
 
     % Escape a separation name into PDF name syntax: regular characters
     % pass, delimiters and characters outside 33..126 become #xx.
@@ -534,13 +536,13 @@
                 .sepname 3 1 roll currentdict //.internaldict /.pdfregsep get exec
                 true
         } ifelse } ifelse
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     /PutPix {  % c1..cN x y IMAGE  .  -
     { {y x}{exch def}forall
         .pdffillcolor
         x .pdfnum ( ) .put y .pdfnum ( 1 1 re\nf\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     /GetPix {  % x y IMAGE  .  r g b
         pop pop pop  0 0 0
@@ -551,14 +553,14 @@
         .pdfstrokecolor
         x1 .pdfnum ( ) .put y1 .pdfnum ( m\n) .put
         x2 .pdfnum ( ) .put y2 .pdfnum ( l\nS\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     /DrawRect {  % c1..cN x y w h IMAGE  .  -
     { {h w y x}{exch def}forall
         .pdfstrokecolor
         x .pdfnum ( ) .put y .pdfnum ( ) .put
         w .pdfnum ( ) .put h .pdfnum ( re\nS\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % The operands name an inclusive pixel span and a PDF rectangle is
     % half-open, so the rectangle that covers the pixels a raster device
@@ -573,7 +575,7 @@
         .pdffillcolor
         x .pdfnum ( ) .put y .pdfnum ( ) .put
         w 1 add .pdfnum ( ) .put h 1 add .pdfnum ( re\nf\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % Append the fill colour, the subpath moveto/lineto/closepath, and
     % a nonzero-winding fill. The per-coordinate
@@ -585,7 +587,7 @@
         /.polyarg exch def
         .pdffillcolor
         .polyarg currentdict //.internaldict /.pdffillpoly get exec
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % Walk the device path and append its construction operators to the
     % content stream as they are reached -- x y m, x y l, the six control
@@ -659,7 +661,7 @@
             (Q\n) .put
             /.pdfclipopen false def
         } if
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % clippath IMAGE . -  ; adopt a clip shape the interpreter could not
     % reduce to a rectangle, as a content-stream clip. Without this the
@@ -681,7 +683,7 @@
         (W n\n) .put
         graphicsdict /currgstate get exch /currpath exch put
         /.pdfclipopen true def
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % Take a whole sampled image: the rows (one interleaved 8-bit string
     % per row) file as an image XObject Emit writes, and the content
@@ -711,7 +713,7 @@
         dup 4 get .pdfnum ( ) .put
         5 get .pdfnum ( cm\n) .put
         (/Im) .put piidx 20 string cvs .put ( Do\nQ\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % r g b IMAGE . -  ; stroke the current path as one content-stream
     % path with the device-space line width and the graphics state's
@@ -734,7 +736,7 @@
             % An empty path strokes nothing: drop the unused colour
             .ncomps { pop } repeat
         } ifelse
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % A showpage emits the page, and one writer writes it either way.
     %
@@ -748,7 +750,7 @@
         % .setupoutput and the writer each run with the device current, so each
         % needs its own copy (get consumes one, the body the other).
         dup dup /.setupoutput get exec
-        //.xpostsys /.vecout get /single get {
+        //.vecout /single get {
             dup /.emitpage get exec
         }{
             dup dup /.begindoc get exec
@@ -778,14 +780,14 @@
         % a global dictionary is no root for local memory (PLRM 3.7.2), so it
         % is named from the local dictionary the collector roots as well.
         dup .privatedict exch /.vecoutfile exch put
-        //.xpostsys /.vecout get dup /F 4 -1 roll put
+        //.vecout dup /F 4 -1 roll put
         dup /bytepos 0 put
         dup /nextobj 3 put
         dup /sepsdone 0 put
         dup /headered false put
         /np 0 put
         setglobal
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % Append one page to the accumulating file: the content stream, any
     % separation function objects registered since the previous page, this
@@ -797,15 +799,15 @@
     % them need to outlive the page.
     /.emitpage {  % IMAGE  .  -
     {
-        //.xpostsys /.vecout get /headered get not {
+        //.vecout /headered get not {
             (%PDF-1.4\n) .vw
-            //.xpostsys /.vecout get /headered true put
+            //.vecout /headered true put
         } if
         /Chunks currentdict //.internaldict /.pdfchunks get exec def
 
         % CompressPages false (a distiller parameter) leaves the content stream
         % uncompressed, so the page is readable; the default compresses it.
-        //.xpostsys /.distillerparams get /CompressPages get false eq {
+        //.distillerparams /CompressPages get false eq {
             /flated false def
         }{
             Chunks //.internaldict /.flatecompress get exec /flated exch def /Chunks exch def
@@ -828,16 +830,16 @@
         % Separation function objects new since the previous page (the registry
         % is cumulative and deduped by name); map each index to its object so a
         % separation shared across pages is written once and referenced by all.
-        //.xpostsys /.vecout get /sepsdone get 1 nseps 1 sub {
+        //.vecout /sepsdone get 1 nseps 1 sub {
             /si exch def
             /so .nextobj def
             so .recordoff
             so 20 string cvs .vw ( 0 obj\n) .vw
             si currentdict //.internaldict /.pdfsepget get exec exch pop .vw
             (\nendobj\n) .vw
-            //.xpostsys /.vecout get /sobj get si so put
+            //.vecout /sobj get si so put
         } for
-        //.xpostsys /.vecout get /sepsdone nseps put
+        //.vecout /sepsdone nseps put
 
         % This page's image objects; remember their numbers for the resources
         /imgobjs nimg array def
@@ -882,7 +884,7 @@
                 /si exch def
                 ( /CS) .vw si 20 string cvs .vw ( [) .vw
                 si currentdict //.internaldict /.pdfsepget get exec pop .vw
-                ( ) .vw //.xpostsys /.vecout get /sobj get si get 20 string cvs .vw ( 0 R]) .vw
+                ( ) .vw //.vecout /sobj get si get 20 string cvs .vw ( 0 R]) .vw
             } for
             ( >>) .vw
         } if
@@ -910,8 +912,8 @@
         ( >> >>\nendobj\n) .vw
 
         % record the page in the tree's Kids list and bump the count
-        //.xpostsys /.vecout get /pobj get //.xpostsys /.vecout get /np get pgobj put
-        //.xpostsys /.vecout get dup /np get 1 add /np exch put
+        //.vecout /pobj get //.vecout /np get pgobj put
+        //.vecout dup /np get 1 add /np exch put
 
         % start the next page fresh
         currentdict //.internaldict /.pdfreset get exec
@@ -919,7 +921,7 @@
         /.opused 8 dict def
         /.oplast 0 def
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % Close the accumulating file: the page tree over every page (object 2),
     % the catalog (object 1), the document info if any DOCINFO arrived, then
@@ -927,17 +929,17 @@
     % current, for the document info.
     /.endfile {  % IMAGE  .  -
     {
-        //.xpostsys /.vecout get /headered get not {
-            (%PDF-1.4\n) .vw //.xpostsys /.vecout get /headered true put
+        //.vecout /headered get not {
+            (%PDF-1.4\n) .vw //.vecout /headered true put
         } if
 
         % Object 2: the page tree over every emitted page
         2 .recordoff
         (2 0 obj\n<< /Type /Pages /Kids [) .vw
-        0 1 //.xpostsys /.vecout get /np get 1 sub {
-            //.xpostsys /.vecout get /pobj get exch get 20 string cvs .vw ( 0 R ) .vw
+        0 1 //.vecout /np get 1 sub {
+            //.vecout /pobj get exch get 20 string cvs .vw ( 0 R ) .vw
         } for
-        (] /Count ) .vw //.xpostsys /.vecout get /np get 20 string cvs .vw ( >>\nendobj\n) .vw
+        (] /Count ) .vw //.vecout /np get 20 string cvs .vw ( >>\nendobj\n) .vw
 
         % Object 1: the catalog
         1 .recordoff
@@ -976,20 +978,22 @@
         } if
 
         % Cross-reference table and trailer
-        /maxobj //.xpostsys /.vecout get /nextobj get 1 sub def
-        /xoff //.xpostsys /.vecout get /bytepos get def
+        /maxobj //.vecout /nextobj get 1 sub def
+        /xoff //.vecout /bytepos get def
         (xref\n0 ) .vw maxobj 1 add 20 string cvs .vw (\n0000000000 65535 f \n) .vw
         1 1 maxobj {
-            //.xpostsys /.vecout get /off get exch get .vwoff ( 00000 n \n) .vw
+            //.vecout /off get exch get .vwoff ( 00000 n \n) .vw
         } for
         (trailer\n<< /Size ) .vw maxobj 1 add 20 string cvs .vw ( /Root 1 0 R) .vw
         haveinfo { ( /Info ) .vw infoobj 20 string cvs .vw ( 0 R) .vw } if
         ( >>\nstartxref\n) .vw xoff 20 string cvs .vw (\n%%EOF\n) .vw
 
         % Close the file unless it is stdout, and give up the local hold
-        //.xpostsys /.vecout get /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
+        //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
         .privatedict /.vecoutfile undef
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 >> def
+
+end end
 
 //.internaldict /QUIET known { }{ (eof pdfwrite.ps\n)print } ifelse

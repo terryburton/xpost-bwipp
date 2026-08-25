@@ -175,9 +175,17 @@ tr -d "$cr" < "$src/data/gstate.ps" | awk '
     !inrouter { next }
     {
         line = $0
-        if (match(line, /\/\.ht[A-Za-z0-9]+ get exec/)) {
+        # The call has two spellings: baked into the body with //, and
+        # fetched by name. Reading only one of them finds no helpers.
+        piece = ""
+        if (match(line, /\/\/\.ht[A-Za-z0-9]+[ \t]+exec/)) {
+            piece = substr(line, RSTART + 3, RLENGTH - 3)
+            sub(/[ \t]+exec$/, "", piece)
+        } else if (match(line, /\/\.ht[A-Za-z0-9]+[ \t]+get[ \t]+exec/)) {
             piece = substr(line, RSTART + 2, RLENGTH - 2)
-            sub(/ get exec/, "", piece)
+            sub(/[ \t]+get[ \t]+exec$/, "", piece)
+        }
+        if (piece != "") {
             for (i = 1; i <= np; i++) print substr(piece, 3), pend[i]
             np = 0
             next

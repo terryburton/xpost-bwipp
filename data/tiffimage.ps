@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading tiffimage.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  .xpost_TIFFIMAGE: the TIFF sibling of the 24-bit rgb device. The page
 %  renders through the machinery it inherits and emission frames the
@@ -110,7 +112,7 @@
             { 0 b4 }
             { 8 width height mul 3 mul add b4 } ifelse
         f hdr 0 8 getinterval writestring
-    } //.xpostsys /.indict get exec
+    } //.indict exec
 } put
 
 %
@@ -191,7 +193,9 @@
             /sl width height mul 3 mul def
             8 sl add 1 sl ifdbuild
         } ifelse
-    } //.xpostsys /.indict get exec
+    } //.indict exec
 } put
+
+end end
 
 //.internaldict /QUIET known { }{ (eof tiffimage.ps\n)print } ifelse

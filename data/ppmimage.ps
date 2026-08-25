@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading ppmimage.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  Make an instance of the 24-bit colour raster device: the class
 %  copied, with the extent it is asked for written onto the copy.
@@ -109,6 +111,8 @@
     /.writeband {  % rows file  .  -
         //.internaldict /.writergbrows get exec
     } bind
->> //.xpostsys /.makerasterclass get exec def
+>> .makerasterclass def
+
+end end
 
 //.internaldict /QUIET known { }{ (eof ppmimage.ps\n)print } ifelse

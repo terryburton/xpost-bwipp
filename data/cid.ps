@@ -26,6 +26,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  The resource categories the composite font machinery keeps its
 %  instances in. Stated here because this is the code that needs them,
@@ -33,7 +35,7 @@ true setglobal
 %  is already there, made with the rest of the standard categories when
 %  resource.ps loaded, and .defcategory leaves an existing one alone.
 %
-[ /CIDFont /CMap /ProcSet ] { //.xpostsys /.defcategory get exec } forall
+[ /CIDFont /CMap /ProcSet ] { //.defcategory exec } forall
 
 %
 %  The CIDInit procedure set: a program begins a dictionary, invokes
@@ -150,7 +152,7 @@ true setglobal
     % joined mappings enters as a single further block.
     /usecmap {  % name|cmap  .  -
         dup type /nametype eq { /CMap findresource } if
-        /usecmap [ /dicttype ] //.xpostsys /.checkargs get exec
+        /usecmap [ /dicttype ] //.checkargs exec
         currentdict exch
         3 dict begin
         /src exch def
@@ -400,11 +402,11 @@ true setglobal
     /curf 0 def
     {
         p str length ge { exit } if
-        str p fnt curf //.xpostsys /.fmapnext get exec
+        str p fnt curf //.fmapnext exec
         /w exch def /code exch def /curf exch def
         code 0 ge {
             dc curf get null eq {
-                dc curf fnt curf //.xpostsys /.fmapdesc get exec put
+                dc curf fnt curf //.fmapdesc exec put
             } if
             cs 0 code put
             graphicsdict /currgstate get /currfont dc curf get put
@@ -447,7 +449,7 @@ true setglobal
     desc /CIDFontType 2 copy known { get 2 eq }{ pop pop false } ifelse {
         desc /GlyphDirectory 2 copy known { get length }{ pop pop 0 } ifelse
         desc /.gdcount 2 copy known { get }{ pop pop -1 } ifelse
-        ne { desc //.xpostsys /.cidface get exec } if
+        ne { desc //.cidface exec } if
     } if
 
     % A CIDFontType 0 descendant carries its charstrings in the
@@ -467,7 +469,7 @@ true setglobal
     /p 0 def
     {
         p str length ge { exit } if
-        str p cm //.xpostsys /.cmapnext get exec
+        str p cm //.cmapnext exec
         /w exch def
         /cid exch def
         /gid cid def
@@ -515,10 +517,10 @@ true setglobal
 %
 /.showtype0 {  % font str  .  -
     1 index /FMapType get 9 ne {
-        //.xpostsys /.showfmap get exec
+        //.showfmap exec
     }{
-        { null { .glyphshowidx } //.xpostsys /.showroute get exec }
-        //.xpostsys /.cmapwalk get exec
+        { null { .glyphshowidx } //.showroute exec }
+        //.cmapwalk exec
     } ifelse
 } def
 
@@ -563,7 +565,7 @@ end
     /WMode CMap /WMode 2 copy known { get }{ pop pop 0 } ifelse def
     currentdict end
     definefont
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Call the procedure for each character with its code and width,
@@ -610,35 +612,35 @@ end
 %  exit to strand.
 %
 /cshow [ /proctype /stringtype ] {  % proc string  .  -
-    /cshow //.xpostsys /.needfont get exec
+    /cshow //.needfont exec
     graphicsdict /currgstate get /currfont get
-    dup //.xpostsys /.fontroute get exec /composite eq {
+    dup //.fontroute exec /composite eq {
     dup /FMapType get 9 ne {
         % a byte-mapped composite: the procedure runs with the
         % selected descendant current, as the mapping chose it.
         20 dict begin
         /fnt exch def /str exch def /proc exch def
         /exe /exec load def
-        /ppexec //.xpostsys /.pexec get def
+        /ppexec //.pexec def
         /dc fnt /Encoding get length array def
         /p 0 def
         /curf 0 def
         [
         {
             p str length ge { exit } if
-            str p fnt curf //.xpostsys /.fmapnext get exec
+            str p fnt curf //.fmapnext exec
             /w exch def /code exch def /curf exch def
             code 0 ge {
                 dc curf get null eq {
-                    dc curf fnt curf //.xpostsys /.fmapdesc get exec put
+                    dc curf fnt curf //.fmapdesc exec put
                 } if
                 code
                 dc curf get
                 1 string dup 0 code put
-                //.xpostsys /.cshmeasure get currentdict /exe get
-                dc curf get //.xpostsys /.cshsetfont get currentdict /exe get
+                //.cshmeasure currentdict /exe get
+                dc curf get //.cshsetfont currentdict /exe get
                 currentdict /proc get currentdict /ppexec get currentdict /exe get
-                currentdict /fnt get //.xpostsys /.cshsetfont get currentdict /exe get
+                currentdict /fnt get //.cshsetfont currentdict /exe get
             } if
             /p p w add def
         } loop
@@ -649,23 +651,23 @@ end
         20 dict begin
         /fnt exch def /str exch def /proc exch def
         /exe /exec load def
-        /ppexec //.xpostsys /.pexec get def
+        /ppexec //.pexec def
         /cm fnt /CMap get def
         /bw fnt dup length 1 add dict copy def
-        bw /CMap //.xpostsys /.bytecmap get put
+        bw /CMap //.bytecmap put
         /p 0 def
         [
         {
             p str length ge { exit } if
-            str p cm //.xpostsys /.cmapnext get exec
+            str p cm //.cmapnext exec
             /w exch def /cid exch def
             cid
             currentdict /bw get
             1 string dup 0 cid 255 and put
-            //.xpostsys /.cshmeasure get currentdict /exe get
-            currentdict /bw get //.xpostsys /.cshsetfont get currentdict /exe get
+            //.cshmeasure currentdict /exe get
+            currentdict /bw get //.cshsetfont currentdict /exe get
             currentdict /proc get currentdict /ppexec get currentdict /exe get
-            currentdict /fnt get //.xpostsys /.cshsetfont get currentdict /exe get
+            currentdict /fnt get //.cshsetfont currentdict /exe get
             /p p w add def
         } loop
         ] cvx
@@ -676,19 +678,21 @@ end
         10 dict begin
         /fnt exch def /str exch def /proc exch def
         /exe /exec load def
-        /ppexec //.xpostsys /.pexec get def
+        /ppexec //.pexec def
         [
         0 1 str length 1 sub { /p exch def
             str p get
             currentdict /fnt get
             str p 1 getinterval
-            //.xpostsys /.cshmeasure get currentdict /exe get
+            //.cshmeasure currentdict /exe get
             currentdict /proc get currentdict /ppexec get currentdict /exe get
         } for
         ] cvx
         end
         { exec exit } loop
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
+
+end end
 
 //.internaldict /QUIET known { }{ (eof cid.ps\n)print } ifelse

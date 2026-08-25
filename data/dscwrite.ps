@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading dscwrite.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  Make an instance of the DSC writer, which emits the page as
 %  conforming PostScript: the class copied, with the extent it is asked
@@ -108,7 +110,7 @@
 %  write a number to the accumulating file in two decimals at most
 %
 .xpost_DSCWRITE /.vwnum {  % num  .  -
-    //.xpostsys /.num2str get exec .vw
+    //.num2str exec .vw
 } put
 
 %
@@ -124,7 +126,7 @@
     /sy exch def /sx exch def
 
     % Header and prolog once, at the first page (the resolution fixup is ready)
-    //.xpostsys /.vecout get /headered get not {
+    //.vecout /headered get not {
         (%!PS-Adobe-3.0\n) .vw
         (%%Creator: Xpost\n) .vw
         (%%BoundingBox: 0 0 ) .vw
@@ -159,11 +161,11 @@
         (/G /g load def /RG /rg load def /K /k load def\n) .vw
         (/cm { 6 array astore concat } bind def\n) .vw
         (%%EndProlog\n) .vw
-        //.xpostsys /.vecout get /headered true put
+        //.vecout /headered true put
     } if
 
     % This page (label and ordinal both the running page number)
-    //.xpostsys /.vecout get /np get 1 add /pn exch def
+    //.vecout /np get 1 add /pn exch def
     (%%Page: ) .vw pn 20 string cvs .vw ( ) .vw pn 20 string cvs .vw (\n) .vw
     (%%PageBoundingBox: 0 0 ) .vw
     width sx div ceiling cvi 20 string cvs .vw ( ) .vw
@@ -181,9 +183,9 @@
     (%%PageTrailer\n) .vw
 
     % Advance the page count; start the next page fresh
-    //.xpostsys /.vecout get dup /np get 1 add /np exch put
+    //.vecout dup /np get 1 add /np exch put
     currentdict //.internaldict /.pdfreset get exec
-} //.xpostsys /.indict get exec } put
+} //.indict exec } put
 
 %
 %  Close the accumulating DSC program: the trailer carries the real page count
@@ -191,14 +193,16 @@
 %
 .xpost_DSCWRITE /.endfile {  % IMAGE  .  -
 {
-    //.xpostsys /.vecout get /headered get not {
+    //.vecout /headered get not {
         (%!PS-Adobe-3.0\n%%Creator: Xpost\n%%Pages: \(atend\)\n%%EndComments\n) .vw
-        //.xpostsys /.vecout get /headered true put
+        //.vecout /headered true put
     } if
     (%%Trailer\n) .vw
-    (%%Pages: ) .vw //.xpostsys /.vecout get /np get 20 string cvs .vw (\n) .vw
+    (%%Pages: ) .vw //.vecout /np get 20 string cvs .vw (\n) .vw
     (%%EOF\n) .vw
-    //.xpostsys /.vecout get /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
-} //.xpostsys /.indict get exec } put
+    //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
+} //.indict exec } put
+
+end end
 
 //.internaldict /QUIET known { }{ (eof dscwrite.ps\n)print } ifelse

@@ -25,6 +25,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  Evaluate a PostScript function dictionary at t: exponential
 %  interpolation (type 2), stitching (type 3), and one-input sampled
@@ -274,7 +276,7 @@ true setglobal
 /.clipbig {  % x y  .  r
     6 dict begin
     /py exch def /px exch def
-    gsave //.xpostsys /.clipregionpath get exec flattenpath
+    gsave //.clipregionpath exec flattenpath
     .pathempty { grestore 0 }{
     pathbbox grestore
     /y1 exch def /x1 exch def /y0 exch def /x0 exch def
@@ -976,7 +978,9 @@ systemdict /shfill [ /dicttype ] {  % dict  .  -
     }{ pop pop } ifelse
     exch exec
     grestore
-} //.xpostsys /.defopin get exec
+} .defopin
 end
+
+end end
 
 //.internaldict /QUIET known { }{ (eof shade.ps\n)print } ifelse

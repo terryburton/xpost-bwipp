@@ -16,6 +16,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  makepattern instantiates, setpattern
 %  (color.ps) selects, and the painting operators tile the cells over
@@ -80,18 +82,18 @@ true setglobal
 %
 /makepattern [ /dicttype /arraytype ] {  % dict matrix  .  pattern
     exch
-    dup /makepattern /undefined //.xpostsys /.patterntype get exec 2 eq {
-        dup /makepattern /Shading //.xpostsys /.patternneed get exec
+    dup /makepattern /undefined //.patterntype exec 2 eq {
+        dup /makepattern /Shading //.patternneed exec
     }{
         % PLRM Table 4.9 marks six entries required of a tiling pattern.
         % They are asked for one at a time so the program is told which
         % one it left out rather than that something among six is absent.
-        dup /makepattern /PaintProc   //.xpostsys /.patternneed get exec
-        dup /makepattern /BBox        //.xpostsys /.patternneed get exec
-        dup /makepattern /XStep       //.xpostsys /.patternneed get exec
-        dup /makepattern /YStep       //.xpostsys /.patternneed get exec
-        dup /makepattern /PaintType   //.xpostsys /.patternneed get exec
-        dup /makepattern /TilingType  //.xpostsys /.patternneed get exec
+        dup /makepattern /PaintProc   //.patternneed exec
+        dup /makepattern /BBox        //.patternneed exec
+        dup /makepattern /XStep       //.patternneed exec
+        dup /makepattern /YStep       //.patternneed exec
+        dup /makepattern /PaintType   //.patternneed exec
+        dup /makepattern /TilingType  //.patternneed exec
 
         % TilingType names one of three spacings (PLRM 4.9.2). Nothing
         % here goes on to read it, which is the reason to ask for it
@@ -134,7 +136,7 @@ true setglobal
     % afterwards would reach machinery chosen for the type it no longer
     % has.
     readonly
-} //.xpostsys /.defop get exec
+} .defop
 
 .xpostsys begin
 
@@ -143,7 +145,7 @@ true setglobal
 %
 /.patternactive {  % -  .  bool
     graphicsdict /currgstate get /colorspace get /Pattern eq
-} bind def
+} def
 
 %
 %  How the current colour reaches the page, and the only place that
@@ -164,9 +166,9 @@ true setglobal
 /.colorroute {  % -  .  /pattern | /nomarks | /direct
     graphicsdict /currgstate get /colorspace get /Pattern eq { /pattern }{
     graphicsdict /currgstate get /setspace get
-    //.xpostsys /.spacenomarks get exec { /nomarks }{ /direct } ifelse
+    //.spacenomarks exec { /nomarks }{ /direct } ifelse
     } ifelse
-} bind def
+} def
 
 %
 %  Tile the current pattern colour over the current clip region: every
@@ -186,7 +188,7 @@ true setglobal
     /pat graphicsdict /currgstate get /patdict get def
     pat null ne {
     /pm pat /Implementation get def
-    pat /setcolor /undefined //.xpostsys /.patterntype get exec 2 eq {
+    pat /setcolor /undefined //.patterntype exec 2 eq {
         % A shading pattern: the shading paints the whole clip under
         % the pattern space, no cells to step.
         gsave
@@ -202,7 +204,7 @@ true setglobal
         % corners through the CTM to the device, then back through
         % the pattern space. A region covering no pixels bounds
         % nothing, and there is no cell of it for a cell to meet.
-        gsave //.xpostsys /.clipregionpath get exec flattenpath
+        gsave //.clipregionpath exec flattenpath
         .pathempty { grestore }{
         pathbbox grestore
         /uy1 exch def /ux1 exch def /uy0 exch def /ux0 exch def
@@ -252,7 +254,7 @@ true setglobal
                     % The paint procedure runs on the caller's stacks:
                     % its defs are its own, out of this dict's names.
                     pat dup /PaintProc get
-                    null 1 //.xpostsys /.pcallout get exec
+                    null 1 //.pcallout exec
                     grestore
                 } for
             } for
@@ -262,8 +264,8 @@ true setglobal
     } ifelse
     } if
     end
-    } null 0 //.xpostsys /.callout get exec
-} bind def
+    } null 0 //.callout exec
+} def
 
 %
 %  Cut the clip down to the region the pattern will tile across, and
@@ -278,16 +280,16 @@ true setglobal
     % nonzero rule describes: a device that clips for itself has no
     % shape to be given, and the one the caller's own clip left behind
     % is not this one.
-    //.xpostsys /.clipstoreparts get exec
+    //.clipstoreparts exec
     graphicsdict /currgstate get /currpath get
-    null //.xpostsys /.setclipregion get exec
+    null //.setclipregion exec
 
     % And the region is not left standing in as the current path: a
     % segment appended to a path is written into the storage the path
     % already holds while there is room, so the cells about to be walked
     % would otherwise build on the very region they are being cut from.
     newpath
-} bind def
+} def
 
 %
 %  Paint the current path with the pattern colour: the path becomes the
@@ -296,13 +298,13 @@ true setglobal
 /.patternfill {  % -  .  -
     gsave
     flattenpath
-    false //.xpostsys /.fillsubjparts get exec
-    //.xpostsys /.clippartsmeet get exec
+    false //.fillsubjparts exec
+    //.clippartsmeet exec
     //.patternclip exec
     //.patterntile exec
     grestore
     newpath
-} bind def
+} def
 
 %
 %  The same, under the even-odd rule.
@@ -310,13 +312,15 @@ true setglobal
 /.patterneofill {  % -  .  -
     gsave
     flattenpath
-    true //.xpostsys /.fillsubjparts get exec
-    //.xpostsys /.clippartsmeet get exec
+    true //.fillsubjparts exec
+    //.clippartsmeet exec
     //.patternclip exec
     //.patterntile exec
     grestore
     newpath
-} bind def
+} def
 end
+
+end end
 
 //.internaldict /QUIET known { }{ (eof pattern.ps\n)print } ifelse

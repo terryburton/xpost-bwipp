@@ -275,7 +275,9 @@ END {
     # The machinery defines its operators through .defop; a file that
     # names it nowhere is a program that came with the tree rather than
     # part of the interpreter, and its top level is its own business.
-    for (i = 1; i <= nt; i++) if (TK[i] == "/.defop") MACH[TF[i]] = 1
+    for (i = 1; i <= nt; i++)
+        if (TK[i] == "/.defop" || TK[i] == "//.defop" || TK[i] == ".defop")
+            MACH[TF[i]] = 1
 
     # ---- the definitions ----
     nd = 0
@@ -309,7 +311,7 @@ END {
         # procedure; a helper is put or def-ed
         DOP[nd] = 0
         for (m = k + 1; m <= k + 8 && m <= nt; m++)
-            if (TK[m] == "/.defop") { DOP[nd] = 1; break }
+            if (TK[m] == "/.defop" || TK[m] == "//.defop" || TK[m] == ".defop") { DOP[nd] = 1; break }
         DEFINED[DNAME[nd]] = 1
     }
     if (nd == 0) { print "ERROR\tno PostScript definition was parsed"; exit }

@@ -129,6 +129,7 @@ tests/check-vm-host-state.sh \
 tests/span_window_test.c \
 tests/vm_host_state.register \
 tests/check-wrapped-bind.sh \
+tests/check-helper-bind.sh \
 tests/cid_show_test.ps \
 tests/clip_region_test.ps \
 tests/qsort_test.ps \

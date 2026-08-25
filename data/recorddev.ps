@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading recorddev.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  .xpost_RECORD writes down what it was asked to paint instead of
 %  painting it, and paints the page at Emit by playing what it wrote into
@@ -143,7 +145,7 @@ end } bind put
     /held dev /.playrun known { dev /.playrun get 1 get }{ ph } ifelse def
     dev /.playclass known ph 0 gt and {
         /cls .privatedict dev /.playclass get get def
-        /rowbytes dev //.xpostsys /.rowbytes get exec def
+        /rowbytes dev //.rowbytes exec def
 
         % A row whose bytes are past what an integer counts is a row no
         % band holds one of, so there is nothing to divide: the page is
@@ -179,9 +181,9 @@ end } bind put
     /dev exch def
     /ph dev /height known { dev /height get }{ 0 } ifelse def
     /held dev /.playrun known { dev /.playrun get 1 get }{ ph } ifelse def
-    /rows dev //.xpostsys /.bandheight get exec def
+    /rows dev //.bandheight exec def
     rows held lt
-        { held rows sub dev //.xpostsys /.rowbytes get exec mul }
+        { held rows sub dev //.rowbytes exec mul }
         { 0 } ifelse
 end } bind put
 
@@ -231,7 +233,7 @@ end } bind put
             << /width pw /height ph
                /.playclass cls
                /.bandbytes rec /.bandbytes get >>
-            //.xpostsys /.bandheight get exec ph lt
+            //.bandheight exec ph lt
         }{ true } ifelse
     }{ true } ifelse
 end } bind put
@@ -323,12 +325,12 @@ end } bind put
     dup type dup /arraytype eq exch /packedarraytype eq or
         { dup length 2 ge }{ false } ifelse
         { 1 get /held exch def }{ pop } ifelse
-    /StartDevice //.xpostsys /.hostvalue get exec /record eq
+    /StartDevice //.hostvalue exec /record eq
     nm /record ne and
-    nm /StartDeviceAsked //.xpostsys /.hostvalue get exec eq and {
-        /SUBDEVICE //.xpostsys /.hostvalue get exec (band) eq
+    nm /StartDeviceAsked //.hostvalue exec eq and {
+        /SUBDEVICE //.hostvalue exec (band) eq
             { /record }
-            { nm pw held //.xpostsys /.bandsatpage get exec
+            { nm pw held //.bandsatpage exec
                 { /record }{ nm } ifelse }
         ifelse
     }{ nm } ifelse
@@ -356,7 +358,7 @@ end } bind put
         pd.rec /.playrows undef
         dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
     } if
-} //.xpostsys /.indict get exec } bind put
+} //.indict exec } bind put
 
 %
 %  The page-device parameters a program asked of a record, put onto the
@@ -403,7 +405,7 @@ end } bind put
             ifelse
         } forall
     }{ pop pop } ifelse
-} //.xpostsys /.indict get exec } bind put
+} //.indict exec } bind put
 setglobal
 
 /.xpost_RECORD <<
@@ -478,7 +480,7 @@ setglobal
     % and would replay the page under whichever screen the target held by
     % then.
 
-    /.copydict //.xpostsys /.classcopydict get
+    /.copydict //.classcopydict
 
     % Take up the colour the page is being cleared to. A record holds no
     % pixel to read back, so this is the only statement of what a read
@@ -500,7 +502,7 @@ setglobal
             setglobal
         } if
         .ground astore pop
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % What the raster a page is played into may cost, in bytes.
     %
@@ -586,7 +588,7 @@ setglobal
             .playdev dup /Flush 2 copy known
                 { get exec }{ pop pop pop } ifelse
         } if
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % The device this record's page is painted in: built, or the one
     % built before kept, and carrying what this record was asked of.
@@ -680,7 +682,7 @@ setglobal
         % The rows this raster stands on at once, taken where every
         % reader of it takes it (.bandheight above), and the comparison
         % that says whether the run arrives in more than one of them.
-        /bandrows rec //.xpostsys /.bandheight get exec def
+        /bandrows rec //.bandheight exec def
         /banding bandrows imgrows lt def
 
         % ... and the rows it is built with, which is a band of the run
@@ -711,7 +713,7 @@ setglobal
         kept {
             /page rec /.playdev get def
         }{
-            rec //.xpostsys /.playdrop get exec
+            rec //.playdrop exec
 
             % The run of rows this raster holds is left where a page
             % device leaves one for the device it is about to build, and
@@ -769,7 +771,7 @@ setglobal
         % What the program asked of this record, on the device that
         % answers for it, and before the completion below reads any of
         % it.
-        rec page //.xpostsys /.playparams get exec
+        rec page //.playparams exec
 
         % and the pages the announcing semantics have counted, which they
         % count on the device they were asked of (data/device.ps) -- this
@@ -805,9 +807,15 @@ setglobal
         % Handed down here because this is where the band grid is
         % settled, and again whenever it is settled again, so that the
         % number stands for the grid the run asked for.
+        % Reached by name rather than baked in: the banding boundary is
+        % held by a negative control that redefines .bandsaving to an
+        % absurd saving and asks whether the boundary moves. A baked
+        % reference holds the procedure this file defined and would not
+        % see that redefinition, so the control would pass on a boundary
+        % that had stopped reading anything.
         rec dup //.xpostsys /.bandsaving get exec
         //.internaldict /.playsaving get exec
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % The page a record holds, painted.
     %
@@ -944,7 +952,9 @@ setglobal
             rec page //.internaldict /.replaypage get exec
         } ifelse
         page dup /Emit get exec
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 >> def
+
+end end
 
 //.internaldict /QUIET known { }{ (eof recorddev.ps\n)print } ifelse

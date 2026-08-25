@@ -435,6 +435,7 @@ language test stack-*
 language test tamper-dispatch
 language test token-sign
 language test wrapped-bind
+language test helper-bind
 language test wrapped-save
 language width witness
 
@@ -493,6 +494,7 @@ guards test opsigs-writer
 guards test op-references
 guards test private-refs
 guards test vecbase
+guards test helper-bind
 guards test host-settings
 guards test show-clip-routes
 guards test raster-classes-derivation

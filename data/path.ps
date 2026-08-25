@@ -17,6 +17,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  The current path is maintained by the operators
 %  in xpost_op_path.c (see the layout comment there). PostScript code
@@ -33,7 +35,7 @@ true setglobal
 %
 .xpostsys /cpath {  % -  .  path
     graphicsdict /currgstate get /currpath get
-} bind put
+} put
 
 %
 %  Enumerate current path in device coordinates: each element's points
@@ -48,14 +50,14 @@ true setglobal
 10 dict
 {
     4 array astore /procs exch def
-    /str //.xpostsys /cpath get exec def
+    /str //cpath exec def
     /off 0 def  % .pathnext starts at the first element
     {  % loop
         str off .pathnext not { exit } if  % Coords... cmd nextoff
         /off exch def                     % Coords... cmd
         procs exch get exec
     } loop
-} //.xpostsys /.indict get exec
+} //.indict exec
 }
 bind put
 
@@ -96,7 +98,7 @@ setglobal
 .gscratch /.pfdict get
 begin
     4 array astore /procs exch def
-    /str //.xpostsys /cpath get exec def
+    /str //cpath exec def
     /off 0 def
 end
 {  % loop
@@ -113,9 +115,9 @@ end
             } if
         } ifelse
         procs exch get
-    end //.xpostsys /.pexec get exec
+    end //.pexec exec
 } loop
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Emit the held-back element, drawn to the endpoint on the stack;
@@ -134,7 +136,7 @@ end
     }{
         pop pop
     } ifelse } ifelse } ifelse
-} bind put
+} put
 
 %
 %  Reverse the direction of every subpath of the current path (PLRM
@@ -148,7 +150,7 @@ end
 10 dict
 begin
     .pathempty not {
-        /str //.xpostsys /cpath get exec def
+        /str //cpath exec def
 
         % Collect elements: [ [x y 0] [x y 1] [x1 y1 x2 y2 x3 y3 2] [3] ... ]
         /elems [
@@ -180,20 +182,20 @@ begin
                 el dup length 1 sub get  % Cmd
                 dup 3 eq {  % close
                     pop
-                    spstart 0 get spstart 1 get //.xpostsys /dopending get exec
+                    spstart 0 get spstart 1 get //dopending exec
                     /pending /line def
                     /isclosed true def
                 }{
                 dup 2 eq {  % curve
                     pop
-                    el 4 get el 5 get //.xpostsys /dopending get exec
+                    el 4 get el 5 get //dopending exec
                     /pending /curve def
                     /pendingcurve el def
                 }{
                 0 eq {  % move
-                    isclosed { closepath }{ el 0 get el 1 get //.xpostsys /dopending get exec } ifelse
+                    isclosed { closepath }{ el 0 get el 1 get //dopending exec } ifelse
                 }{  % line
-                    el 0 get el 1 get //.xpostsys /dopending get exec
+                    el 0 get el 1 get //dopending exec
                     /pending /line def
                 } ifelse } ifelse } ifelse
             } for
@@ -201,7 +203,7 @@ begin
         } loop
     } if
 end
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  PLRM 3ed, 667:
@@ -307,7 +309,7 @@ end
                 aload pop .devlineto
             } if
         }{  % Cross a dash pattern boundary
-            //.xpostsys /crossdashbound get exec
+            //crossdashbound exec
         } ifelse
         pop pop pop
     }
@@ -357,7 +359,7 @@ end
             dasharray length 2 mod 0 ne { 2 mul } if def
         /pos pos dup period div dup truncate
             2 copy lt { 1 sub } if exch pop period mul sub def
-        //.xpostsys /initial_ipos get exec
+        //initial_ipos exec
 
         .pathempty not {
             % The dash pattern restarts and the offset is reapplied at
@@ -365,7 +367,7 @@ end
             /i_pos pos def
             /i_ipos ipos def
             /i_parity parity def
-            /str //.xpostsys /cpath get exec def
+            /str //cpath exec def
             newpath
             /off 0 def
             {  % loop
@@ -376,7 +378,7 @@ end
                     /ipos i_ipos def
                     /parity i_parity def
                 } if
-                //.xpostsys /dashdict get exch get exec
+                //dashdict exch get exec
             } loop
         } if
     } if
@@ -389,7 +391,7 @@ end
 .xpostsys /ptdiff {  % x0 y0 x1 y1  .  dx dy
     3 -1 roll sub
     3 1 roll exch sub exch  % Dx dy
-} bind put
+} put
 
 %
 %  Convert cartesian vector to polar
@@ -398,7 +400,7 @@ end
     2 copy
     dup mul exch dup mul add sqrt
     3 1 roll exch atan
-} bind put
+} put
 
 %
 %  Convert polar vector to cartesian
@@ -406,7 +408,7 @@ end
 .xpostsys /ravec {  % rad ang  .  dx dy
     dup cos 2 index mul  % Rad ang rad*cos(ang)
     3 1 roll sin mul     % Rad*cos(ang) rad*sin(ang)
-} bind put
+} put
 
 %
 %  The stroke outline is constructed in user coordinates and mapped to
@@ -421,7 +423,7 @@ end
 .xpostsys /minlinewidth {  % -  .  width
     currentlinewidth abs
     dup 0 eq { pop 1 0 idtransform dup mul exch dup mul add sqrt } if
-} bind put
+} put
 
 %
 %  The three points are the far outer point of the new segment, the near
@@ -459,7 +461,7 @@ end
             6 4 roll pop pop
             2 copy moveto  % X C
             2 copy 6 2 roll  % C X C
-            //.xpostsys /ptdiff get exec dup mul exch dup mul add sqrt  % C r
+            //ptdiff exec dup mul exch dup mul add sqrt  % C r
             0 360 arc
             closepath
         }  % Round join
@@ -481,17 +483,17 @@ end
     }{
         4 dict begin
         /ang exch def /y exch def /x exch def
-        /h //.xpostsys /minlinewidth get exec .5 mul def
+        /h //minlinewidth exec .5 mul def
         currentlinecap 1 eq {
             x y moveto
             x y h ang 90 sub ang 90 add arc
             closepath
         }{
             x y moveto
-            h ang 90 sub //.xpostsys /ravec get exec rmoveto
-            h ang //.xpostsys /ravec get exec rlineto
-            //.xpostsys /minlinewidth get exec ang 90 add //.xpostsys /ravec get exec rlineto
-            h ang 180 add //.xpostsys /ravec get exec rlineto
+            h ang 90 sub //ravec exec rmoveto
+            h ang //ravec exec rlineto
+            //minlinewidth exec ang 90 add //ravec exec rlineto
+            h ang 180 add //ravec exec rlineto
             closepath
         } ifelse
         end
@@ -545,8 +547,8 @@ currentglobal false setglobal
         .gscratch /strokedict get /needcap get {
             .gscratch /strokedict get /firstpt get aload pop
             .gscratch /strokedict get /firstang get 180 add
-            //.xpostsys /.docap get exec
-            .gscratch /strokedict get /cp get aload pop .gscratch /strokedict get /ang get //.xpostsys /.docap get exec
+            //.docap exec
+            .gscratch /strokedict get /cp get aload pop .gscratch /strokedict get /ang get //.docap exec
         } if
         .gscratch /strokedict get /needcap false put
     }
@@ -564,8 +566,8 @@ currentglobal false setglobal
         3 index 3 index .gscratch /strokedict get /cp get astore pop  % Cp=(x1 y1)
         4 2 roll                           % X0 y0 x1 y1
 
-        //.xpostsys /ptdiff get exec                             % Dx dy
-        //.xpostsys /magang get exec                             % Rad ang
+        //ptdiff exec                             % Dx dy
+        //magang exec                             % Rad ang
         .gscratch /strokedict get /oldang .gscratch /strokedict get /ang get put
         .gscratch /strokedict get /ang 2 index put                        % Ang=atan(dy/dx)
         .gscratch /strokedict get /justmoved get {
@@ -573,25 +575,25 @@ currentglobal false setglobal
         } if
         /DEBUGSTROKE where { pop (A)= pstack()= } if
 
-        //.xpostsys /minlinewidth get exec
+        //minlinewidth exec
         .5 mul 1 index 90 sub  % Rad ang .5lw ang_perp
-        //.xpostsys /ravec get exec
+        //ravec exec
         rmoveto              % Rad ang      %rmoveto 1
         currentpoint .gscratch /strokedict get /pointRR get astore pop  % PtRR
 
-        2 copy //.xpostsys /ravec get exec
+        2 copy //ravec exec
         rlineto              % Rad ang      %rlineto 2
         .gscratch /strokedict get /pointR get .gscratch /strokedict get /oldpointR get copy pop  % OldptR
         currentpoint .gscratch /strokedict get /pointR get astore pop  % PtR
 
-        //.xpostsys /minlinewidth get exec
+        //minlinewidth exec
         1 index 90 add       % Rad ang lw -ang_perp
-        //.xpostsys /ravec get exec
+        //ravec exec
         rlineto              % Rad ang      %rlineto 3
         .gscratch /strokedict get /pointL get .gscratch /strokedict get /oldpointL get copy pop  % OldptL
         currentpoint .gscratch /strokedict get /pointL get astore pop  % PtL
 
-        180 add //.xpostsys /ravec get exec
+        180 add //ravec exec
         rlineto              % Rad ang      %rlineto 4
         currentpoint .gscratch /strokedict get /pointLL get astore pop  % PtLL
 
@@ -616,7 +618,7 @@ currentglobal false setglobal
                 .gscratch /strokedict get /pointLL get aload pop
                 .gscratch /strokedict get /oldpointL get aload pop
                 .gscratch /strokedict get /oldcp get aload pop
-                //.xpostsys /dolinejoin get exec
+                //dolinejoin exec
 
                 /DEBUGSTROKE where { pop (D)= pstack()= } if
                 closepath
@@ -625,7 +627,7 @@ currentglobal false setglobal
                 .gscratch /strokedict get /pointRR get aload pop
                 .gscratch /strokedict get /oldpointR get aload pop
                 .gscratch /strokedict get /oldcp get aload pop
-                //.xpostsys /dolinejoin get exec
+                //dolinejoin exec
 
                 /DEBUGSTROKE where { pop (E)= pstack()= } if
                 closepath
@@ -646,31 +648,31 @@ currentglobal false setglobal
         3 index 3 index .gscratch /strokedict get /cp get astore pop  % Cp=(x1 y1)
         4 2 roll                           % X0 y0 x1 y1
 
-        //.xpostsys /ptdiff get exec                             % Dx dy
-        //.xpostsys /magang get exec                             % Rad ang
+        //ptdiff exec                             % Dx dy
+        //magang exec                             % Rad ang
         .gscratch /strokedict get /oldang .gscratch /strokedict get /ang get put
         .gscratch /strokedict get /ang 2 index put                        % Ang=atan(dy/dx)
         /DEBUGSTROKE where { pop (A)= pstack()= } if
 
-        //.xpostsys /minlinewidth get exec
+        //minlinewidth exec
         .5 mul 1 index 90 sub  % Rad ang .5lw ang_perp
-        //.xpostsys /ravec get exec
+        //ravec exec
         rmoveto              % Rad ang      %rmoveto 1
         currentpoint .gscratch /strokedict get /pointRR get astore pop  % PtRR
 
-        2 copy //.xpostsys /ravec get exec
+        2 copy //ravec exec
         rlineto              % Rad ang      %rlineto 2
         .gscratch /strokedict get /pointR get .gscratch /strokedict get /oldpointR get copy pop  % OldptR
         currentpoint .gscratch /strokedict get /pointR get astore pop  % PtR
 
-        //.xpostsys /minlinewidth get exec
+        //minlinewidth exec
         1 index 90 add       % Rad ang lw -ang_perp
-        //.xpostsys /ravec get exec
+        //ravec exec
         rlineto              % Rad ang      %rlineto 3
         .gscratch /strokedict get /pointL get .gscratch /strokedict get /oldpointL get copy pop  % OldptL
         currentpoint .gscratch /strokedict get /pointL get astore pop  % PtL
 
-        180 add //.xpostsys /ravec get exec
+        180 add //ravec exec
         rlineto              % Rad ang      %rlineto 4
         currentpoint .gscratch /strokedict get /pointLL get astore pop  % PtLL
 
@@ -690,7 +692,7 @@ currentglobal false setglobal
                 .gscratch /strokedict get /pointLL get aload pop
                 .gscratch /strokedict get /oldpointL get aload pop
                 .gscratch /strokedict get /oldcp get aload pop
-                //.xpostsys /dolinejoin get exec
+                //dolinejoin exec
 
                 /DEBUGSTROKE where { pop (D)= pstack()= } if
                 closepath
@@ -699,7 +701,7 @@ currentglobal false setglobal
                 .gscratch /strokedict get /pointRR get aload pop
                 .gscratch /strokedict get /oldpointR get aload pop
                 .gscratch /strokedict get /oldcp get aload pop
-                //.xpostsys /dolinejoin get exec
+                //dolinejoin exec
 
                 /DEBUGSTROKE where { pop (E)= pstack()= } if
                 closepath
@@ -717,7 +719,7 @@ currentglobal false setglobal
                 .gscratch /strokedict get /firstLL get aload pop
                 .gscratch /strokedict get /pointL get aload pop
                 .gscratch /strokedict get /cp get aload pop
-                //.xpostsys /dolinejoin get exec
+                //dolinejoin exec
 
                 closepath
             }{  % Left turn
@@ -725,7 +727,7 @@ currentglobal false setglobal
                 .gscratch /strokedict get /firstRR get aload pop
                 .gscratch /strokedict get /pointR get aload pop
                 .gscratch /strokedict get /cp get aload pop
-                //.xpostsys /dolinejoin get exec
+                //dolinejoin exec
 
                 closepath
             } ifelse
@@ -755,11 +757,11 @@ setglobal
 %
 /strokepath [ ] {  % -  .  -
     flattenpath          % Convert all curve segments to line approximations
-    //.xpostsys /dashpath get exec             % Apply dashing effect
+    //dashpath exec             % Apply dashing effect
     .gscratch /strokedict get /needcap false put
     .pathempty not {
         10 dict begin
-        /str //.xpostsys /cpath get exec def
+        /str //cpath exec def
         newpath
         /off 0 def
         {  % loop
@@ -777,7 +779,7 @@ setglobal
         .gscratch /strokedict get /docaps get exec
         end
     } if
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Replace the current path with the clip region as the machinery holds
@@ -798,7 +800,7 @@ setglobal
     graphicsdict /currgstate get
         dup /clipregion get .copypath
         /currpath exch put
-} bind put
+} put
 
 %
 %  Replace the current path with the clip region's boundary (PLRM 8.2).
@@ -813,16 +815,18 @@ setglobal
 %  on that box, and the region the painters enforce is not changed by it.
 %
 /clippath [ ] {  % -  .  -
-    //.xpostsys /.clipregionpath get exec
+    //.clipregionpath exec
     .pathempty {
         DEVICE /dimensions get aload pop
         2 div exch 2 div exch
         .devmoveto
         closepath
     } if
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  pathbbox is implemented in xpost_op_path.c
 %
+end end
+
 //.internaldict /QUIET known { }{ (eof path.ps\n)print } ifelse

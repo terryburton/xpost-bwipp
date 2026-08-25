@@ -13,7 +13,7 @@
 #   the bootstrap        init.ps builds .xpostsys and .internaldict in
 #                        userdict because nothing else exists yet, and
 #                        the lockdown seals and removes them (the /exch
-#                        and //.xpostsys rows are that relocation and
+#                        and //.bindscope rows are that relocation and
 #                        removal, and .gstatetemplate's move to the
 #                        private dictionary); DATA_DIR arrives as a
 #                        boot definition and is moved among the host's
@@ -48,4 +48,4 @@ init.ps /serverdict
 init.ps /statusdict
 init.ps /UserObjects
 init.ps /.xpostsys
-init.ps //.xpostsys
+init.ps //.bindscope

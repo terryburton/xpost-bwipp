@@ -263,7 +263,7 @@ for f in $classes; do
         echo "The copy is .xpostsys /.classcopydict; store that, do not restate it." >&2
         fail=1
     fi
-    grep -qE '/\.copydict[ \t]+//\.xpostsys[ \t]+/\.classcopydict[ \t]+get' "$p" &&
+    grep -qE '/\.copydict[ \t]+(//\.classcopydict|//\.xpostsys[ \t]+/\.classcopydict[ \t]+get)' "$p" &&
         copies=$((copies + 1))
 done
 if [ "$copies" -lt 5 ]; then

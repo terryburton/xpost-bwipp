@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading nulldev.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  Install the null device (PLRM 8.2). Its default transformation matrix
 %  is the identity: the device corresponds to no physical page, so there
@@ -23,7 +25,7 @@
     612 792 .privatedict /newnulldevice get exec
     dup /defaultmatrix [ 1.0 0.0 0.0 1.0 0.0 0.0 ] put
     put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Make an instance of the null device class. The size is the one
@@ -49,7 +51,7 @@
     /dimensions [0 0]
     /NoOutput true  % This device draws nothing: keep its no-op methods
 
-    /.copydict //.xpostsys /.classcopydict get
+    /.copydict //.classcopydict
     /Create {  % width height IMAGE  .  IMAGE'
         begin {/height /width}{exch def}forall
         currentdict end
@@ -88,5 +90,7 @@
         pop
     }
 >> def
+
+end end
 
 //.internaldict /QUIET known { }{ (eof nulldev.ps\n)print } ifelse

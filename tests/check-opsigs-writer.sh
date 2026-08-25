@@ -40,8 +40,9 @@ fi
 grep 'put' "$work/all" | grep -v 'opsigs 200 dict put' > "$work/writers"
 
 # the one legitimate writer records the statement inside .defopin
-allowed=$(grep -c 'opsigs get d\.name d\.sig put' "$work/writers" || true)
-others=$(grep -vc 'opsigs get d\.name d\.sig put' "$work/writers" || true)
+site='opsigs([[:blank:]]+get)?[[:blank:]]+d\.name[[:blank:]]+d\.sig[[:blank:]]+put'
+allowed=$(grep -cE "$site" "$work/writers" || true)
+others=$(grep -vcE "$site" "$work/writers" || true)
 
 if [ "$allowed" -ne 1 ]; then
     echo "FAILURES: expected exactly one recording site inside the mechanism, found $allowed"
@@ -51,7 +52,7 @@ fi
 
 if [ "$others" -ne 0 ]; then
     echo "FAIL: an operand statement is recorded outside the mechanism:"
-    grep -v 'opsigs get d\.name d\.sig put' "$work/writers" | sed 's/^/      /'
+    grep -vE "$site" "$work/writers" | sed 's/^/      /'
     echo "      state it at the definition through .defop or .defopin instead"
     exit 1
 fi

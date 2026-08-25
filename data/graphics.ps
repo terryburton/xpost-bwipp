@@ -24,6 +24,8 @@
 
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  The language is defined into systemdict, its final home, rather than
 %  staged in userdict and swept there afterwards. systemdict is open here
@@ -81,17 +83,6 @@ systemdict begin
         { graphicsdict /currgstate get /device get } bind put
     setglobal
     /DEVICE dup .privatedict /.DEVICEproc get .wrapop def
-
-    (/device.ps)  //.xpostsys /.loadmodule get exec  % Loads and uses (/image.ps)
-    (/gstate.ps)  //.xpostsys /.loadmodule get exec
-    (/color.ps)   //.xpostsys /.loadmodule get exec
-    (/path.ps)    //.xpostsys /.loadmodule get exec
-    (/clip.ps)    //.xpostsys /.loadmodule get exec
-    (/paint.ps)   //.xpostsys /.loadmodule get exec
-    (/font.ps)    //.xpostsys /.loadmodule get exec
-    (/cid.ps)     //.xpostsys /.loadmodule get exec
-    (/pattern.ps) //.xpostsys /.loadmodule get exec
-    (/shade.ps)   //.xpostsys /.loadmodule get exec
 
 %
 %  --- calling program code ------------------------------------------
@@ -169,7 +160,7 @@ systemdict begin
 /.gsunwind {  % n  .  -
     { graphicsdict /gptr get 1 index le { exit } if grestore } loop
     pop
-} bind def
+} def
 
 %
 %  end until the dictionary stack stands at depth n.
@@ -183,7 +174,7 @@ systemdict begin
 /.dsunwind {  % n  .  -
     { countdictstack 1 index le { exit } if end } loop
     pop
-} bind def
+} def
 
 %
 %  begin each dictionary of the array, outermost first.
@@ -195,7 +186,7 @@ systemdict begin
 %
 /.cobeginall {  % array  .  -
     { begin } forall
-} bind def
+} def
 
 %
 %  Take down what each named slot holds on the way in: for each key in
@@ -219,7 +210,7 @@ systemdict begin
         pop
     } for
     pop pop pop
-} bind def
+} def
 
 %
 %  Put each saved value back in the slot it came from. A slot that was
@@ -244,7 +235,7 @@ systemdict begin
         pop
     } for
     pop pop pop
-} bind def
+} def
 
 %
 %  Run the program's procedure so that what the caller was mid-use of is
@@ -324,7 +315,7 @@ systemdict begin
     ] cvx
     7 { exch pop } repeat
     exec
-} bind def
+} def
 
 %
 %  The same bracket for a procedure of the program's, which is what the
@@ -350,7 +341,7 @@ systemdict begin
 %
 /.pcallout {  % {proc} keys ndict  .  -
     { //.callout exec } //.coexec
-} bind def
+} def
 
 %
 %  The boundary alone, for a caller that hands control to the program
@@ -377,7 +368,7 @@ systemdict begin
 %
 /.pexec {  % obj  .  -
     { exec } //.coexec
-} bind def
+} def
 
 %
 %  --- running a body with a dictionary current ------------------------
@@ -413,9 +404,20 @@ systemdict begin
 %
 /.indict {  % dict {body}  .  -
     exch begin stopped { end //.costop exec }{ end } ifelse
-} bind def
+} def
 
 end
+
+    (/device.ps)  //.loadmodule exec  % Loads and uses (/image.ps)
+    (/gstate.ps)  //.loadmodule exec
+    (/color.ps)   //.loadmodule exec
+    (/path.ps)    //.loadmodule exec
+    (/clip.ps)    //.loadmodule exec
+    (/paint.ps)   //.loadmodule exec
+    (/font.ps)    //.loadmodule exec
+    (/cid.ps)     //.loadmodule exec
+    (/pattern.ps) .loadmodule
+    (/shade.ps)   .loadmodule
 
 %
 %  The binding pass below rebinds userdict and systemdict in place; it runs in
@@ -448,5 +450,7 @@ false setglobal
 %  loaded, so nothing executes in between.
 %
 end  % systemdict
+
+end end
 
 //.internaldict /QUIET known { }{ (eof graphics.ps\n)print } ifelse

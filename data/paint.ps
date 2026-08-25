@@ -17,6 +17,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  A colour component folded into the unit range, the nearest valid value
 %  standing in for one outside it as setgray and its siblings substitute
@@ -43,27 +45,27 @@ true setglobal
 %  DeviceN tint transform feeding the components in.
 %
 .xpostsys /.applytransfer {  % mark c1..cn  .  mark c1'..cn'
-    //.xpostsys /.refreshscreencell get exec
+    //.refreshscreencell exec
     counttomark 3 eq {
-        /bluetransfer //.xpostsys /.marktransfer get exec exec
+        /bluetransfer //.marktransfer exec exec
         3 1 roll
-        /greentransfer //.xpostsys /.marktransfer get exec exec
+        /greentransfer //.marktransfer exec exec
         3 1 roll
-        /redtransfer //.xpostsys /.marktransfer get exec exec
+        /redtransfer //.marktransfer exec exec
         3 1 roll
     }{
     counttomark 4 eq {
-        /transfer //.xpostsys /.marktransfer get exec exec 4 1 roll
-        /bluetransfer //.xpostsys /.marktransfer get exec exec 4 1 roll
-        /greentransfer //.xpostsys /.marktransfer get exec exec 4 1 roll
-        /redtransfer //.xpostsys /.marktransfer get exec exec 4 1 roll
+        /transfer //.marktransfer exec exec 4 1 roll
+        /bluetransfer //.marktransfer exec exec 4 1 roll
+        /greentransfer //.marktransfer exec exec 4 1 roll
+        /redtransfer //.marktransfer exec exec 4 1 roll
     }{
         counttomark {
-            /transfer //.xpostsys /.marktransfer get exec exec
+            /transfer //.marktransfer exec exec
             counttomark 1 roll
         } repeat
     } ifelse } ifelse
-    counttomark { //.xpostsys /.cunit get exec counttomark 1 roll } repeat
+    counttomark { //.cunit exec counttomark 1 roll } repeat
 } put
 
 %
@@ -76,7 +78,7 @@ true setglobal
 /erasepage [ ] {  % -  .  -
     % The page is being cleared, so whatever had been painted on it is
     % no longer there to end a job with.
-    false //.xpostsys /.setpagemarked get exec
+    false //.setpagemarked exec
 
     % A device with an Erase method resets the page itself (the alpha
     % device clears to transparent); otherwise paint the page white.
@@ -86,9 +88,9 @@ true setglobal
     }{
     gsave
         1 setgray
-        [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get
+        [ //currentcolordict DEVICE /nativecolorspace get
         get exec
-        //.xpostsys /.applytransfer get exec
+        //.applytransfer exec
 
         % The entire page is erased (PLRM 8.2). A device holding only
         % part of the page shows the ground over the rest of it, and the
@@ -109,7 +111,7 @@ true setglobal
         flushpage
     grestore
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Whether the device may take the whole path. A trivial clip needs
@@ -126,7 +128,7 @@ true setglobal
           graphicsdict /currgstate get /clipsource get null ne and }
         ifelse
     }{ false } ifelse
-} bind put
+} put
 
 %
 %  Give the device the clip shape when the fill is about to hand it a
@@ -137,7 +139,7 @@ true setglobal
         graphicsdict /currgstate get /clipsource get
         DEVICE dup /ClipPath get exec
     } if
-} bind put
+} put
 
 %
 %  poly  .  xlo ylo xhi yhi true
@@ -166,7 +168,7 @@ true setglobal
     } forall
     any { xlo ylo xhi yhi true }{ false } ifelse
     end
-} bind put
+} put
 
 %
 %  The even-odd interior of the subject within the rows from y0 up to y1,
@@ -232,7 +234,7 @@ true setglobal
     {
         { [ subj 0 ph .eospanpoly ] } stopped {
             count n0 sub { pop } repeat
-            subj //.xpostsys /.polybounds get exec {
+            subj //.polybounds exec {
                 /yhi exch def pop /ylo exch def pop
                 ylo 0 lt { /ylo 0 def } if
                 yhi ph gt { /yhi ph def } if
@@ -244,7 +246,7 @@ true setglobal
                     [ ylo floor cvi sl yhi ceiling cvi {
                         /yb exch def
                         subj yb yb sl add dup ylim gt { pop ylim } if
-                        //.xpostsys /.eospantile get exec
+                        //.eospantile exec
                     } for ]
                 } ifelse
             }{
@@ -296,7 +298,7 @@ true setglobal
     /d0 countdictstack def
     {
         {
-            eo { .fillpolyargs //.xpostsys /.eospanparts get exec }
+            eo { .fillpolyargs //.eospanparts exec }
                { [ .fillpolyargs ] } ifelse
         } stopped {
             count n0 sub { pop } repeat
@@ -323,17 +325,17 @@ true setglobal
 .xpostsys /.fillparts {  % [ spans ... ]  .  -
     {
         dup length 2 gt {
-            [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
-            //.xpostsys /.applytransfer get exec
+            [ //currentcolordict DEVICE /nativecolorspace get get exec
+            //.applytransfer exec
             counttomark 2 add -1 roll
             DEVICE dup /FillPoly get exec
-            true //.xpostsys /.setpagemarked get exec
+            true //.setpagemarked exec
             pop
         }{
             pop
         } ifelse
     } forall
-} bind put
+} put
 
 %
 %  Fill the current path with the current colour (PLRM 8.2).
@@ -351,12 +353,12 @@ true setglobal
     % consumed, as fill consumes it, and nothing is painted.
     /nomarks eq { newpath }{
     closepath
-    //.xpostsys /.devtakespath get exec {
-        //.xpostsys /.devsendclip get exec
-        [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
-        //.xpostsys /.applytransfer get exec
+    //.devtakespath exec {
+        //.devsendclip exec
+        [ //currentcolordict DEVICE /nativecolorspace get get exec
+        //.applytransfer exec
         DEVICE dup /FillPath get exec
-        true //.xpostsys /.setpagemarked get exec
+        true //.setpagemarked exec
         pop
         flushpage
         newpath
@@ -374,14 +376,14 @@ true setglobal
     % for any region the nonzero rule can describe.
     .cliptrivial not {
         .cliprect { pop pop pop pop true }{ false } ifelse {
-            //.xpostsys /doclip get exec
-            false //.xpostsys /.fillsubjparts get exec
+            //doclip exec
+            false //.fillsubjparts exec
         }{
-            false //.xpostsys /.fillsubjparts get exec
-            //.xpostsys /.clippartsmeet get exec
+            false //.fillsubjparts exec
+            //.clippartsmeet exec
         } ifelse
     }{
-        false //.xpostsys /.fillsubjparts get exec
+        false //.fillsubjparts exec
     } ifelse
     /DEBUGFILL where { pop
         (fill)=
@@ -389,12 +391,12 @@ true setglobal
         hook
     } if
 
-    //.xpostsys /.fillparts get exec
+    //.fillparts exec
 
     flushpage
     newpath
     } ifelse } ifelse } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  fill using the even-odd rule
@@ -408,7 +410,7 @@ true setglobal
     //.xpostsys /.colorroute get exec
     dup /pattern eq { pop //.xpostsys /.patterneofill get exec }{
     /nomarks eq { newpath }{
-    //.xpostsys /.devtakespath get exec {
+    //.devtakespath exec {
         graphicsdict /currgstate get /.eorule true put
 
         % This implementation's own fill, immune to a program's
@@ -418,17 +420,17 @@ true setglobal
     }{
         closepath
         flattenpath
-        true //.xpostsys /.fillsubjparts get exec
+        true //.fillsubjparts exec
         .cliptrivial not {
-            //.xpostsys /.clippartsmeet get exec
+            //.clippartsmeet exec
         } if
 
-        //.xpostsys /.fillparts get exec
+        //.fillparts exec
 
         flushpage
         newpath
     } ifelse } ifelse } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %   x y proc  .  bool
@@ -475,13 +477,13 @@ true setglobal
 %
 /infill [ [ /numbertype /numbertype ] [ /arraytype ] ]
     {  % x y | upath  .  bool
-      { flattenpath .fillpolyargs [ exch ] } //.xpostsys /.intest get exec }
-     //.xpostsys /.defop get exec
+      { flattenpath .fillpolyargs [ exch ] } //.intest exec }
+     .defop
 /ineofill [ [ /numbertype /numbertype ] [ /arraytype ] ]
     {  % x y | upath  .  bool
       { closepath flattenpath .fillpolyargs
-        //.xpostsys /.eospanparts get exec } //.xpostsys /.intest get exec }
-     //.xpostsys /.defop get exec
+        //.eospanparts exec } //.intest exec }
+     .defop
 
 %
 %  The stroke and user-path forms wrap the two above: the subject
@@ -498,22 +500,22 @@ true setglobal
 /instroke [ [ /numbertype /numbertype ] [ /arraytype ] ]
     {  % x y | upath  .  bool
       gsave strokepath infill grestore }
-     //.xpostsys /.defop get exec
+     .defop
 /inufill [ [ /numbertype /numbertype /arraytype ] [ /arraytype /arraytype ] ]
     {  % x y upath | upath' upath  .  bool
       gsave newpath uappend infill grestore }
-     //.xpostsys /.defop get exec
+     .defop
 /inueofill [ [ /numbertype /numbertype /arraytype ] [ /arraytype /arraytype ] ]
     {  % x y upath | upath' upath  .  bool
       gsave newpath uappend ineofill grestore }
-     //.xpostsys /.defop get exec
+     .defop
 /inustroke [ [ /numbertype /numbertype /arraytype /arraytype ]
              [ /numbertype /numbertype /arraytype ]
              [ /arraytype /arraytype /arraytype ]
              [ /arraytype /arraytype ] ]
     {  % x y upath [matrix] | upath' upath [matrix]  .  bool
       gsave ustrokepath infill grestore }
-     //.xpostsys /.defop get exec
+     .defop
 
 %
 %  x1 y1 x2 y2 rect  .  x1' y1' x2' y2' true
@@ -589,13 +591,13 @@ true setglobal
         % curves reach the device.
         currentdash pop length 0 eq .cliptrivial and not {
             flattenpath
-            //.xpostsys /dashpath get exec
-            //.xpostsys /doclip get exec
+            //dashpath exec
+            //doclip exec
         } if
-        [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
-        //.xpostsys /.applytransfer get exec
+        [ //currentcolordict DEVICE /nativecolorspace get get exec
+        //.applytransfer exec
         DEVICE dup /StrokePath get exec
-        true //.xpostsys /.setpagemarked get exec
+        true //.setpagemarked exec
         pop
         flushpage
         newpath
@@ -610,7 +612,7 @@ true setglobal
     .privatedict /.hairrect 3 -1 roll put
     .privatedict /.hairrect get null ne and {
         flattenpath
-        //.xpostsys /dashpath get exec
+        //dashpath exec
         mark
         {          % x0 y0
             2 copy  % X0 y0 x0 y0
@@ -619,15 +621,15 @@ true setglobal
         }
         {          % ... xN-1 yN-1 xN yN
             4 copy  % ... xN-1 yN-1 xN yN xN-1 yN-1 xN yN
-            .privatedict /.hairrect get //.xpostsys /.hairsegclip get exec {
-                [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
-                //.xpostsys /.applytransfer get exec
+            .privatedict /.hairrect get //.hairsegclip exec {
+                [ //currentcolordict DEVICE /nativecolorspace get get exec
+                //.applytransfer exec
                 counttomark 5 add -4 roll
 
                 %5 1 roll  % ... xN-1 yN-1 xN yN gray xN-1 yN-1 xN yN
                 %pstack(L)=
                 DEVICE dup /DrawLine get exec  % ... xN-1 yN-1 xN yN
-                true //.xpostsys /.setpagemarked get exec
+                true //.setpagemarked exec
                 pop
             } if
             4 2 roll pop pop  % ... xN yN
@@ -635,19 +637,19 @@ true setglobal
         {}
         {            % x0 y0 xN yN
             4 2 roll  % XN yN x0 y0
-            .privatedict /.hairrect get //.xpostsys /.hairsegclip get exec {
-                [ //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
-                //.xpostsys /.applytransfer get exec
+            .privatedict /.hairrect get //.hairsegclip exec {
+                [ //currentcolordict DEVICE /nativecolorspace get get exec
+                //.applytransfer exec
                 counttomark 5 add -4 roll
 
                 %5 1 roll % gray xN yN x0 y0
                 %pstack(C)=
                 DEVICE dup /DrawLine get exec  % -
-                true //.xpostsys /.setpagemarked get exec
+                true //.setpagemarked exec
                 pop
             } if
         }
-        //.xpostsys /.devpathforall get exec
+        //.devpathforall exec
         cleartomark
         flushpage
     }{
@@ -657,7 +659,7 @@ true setglobal
 
     newpath
     } ifelse } ifelse } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Row machinery: image data arrives from datasrc in arbitrary
@@ -683,7 +685,7 @@ true setglobal
             % run the source on the caller's stacks: its defs are the
             % program's own business, and the machinery's scratch names
             % stay out of its reach.
-            currentdict /datasrc get null 1 //.xpostsys /.pcallout get exec
+            currentdict /datasrc get null 1 //.pcallout exec
             /pend exch def
         } if
         pend length 0 eq {
@@ -803,7 +805,7 @@ true setglobal
       [DEVICE /dimensions get 0 get 0]
       [DEVICE /dimensions get 0 get DEVICE /dimensions get 1 get]
       [0 DEVICE /dimensions get 1 get] null ]
-    //.xpostsys /.clipmeetparts get exec
+    //.clipmeetparts exec
     8 dict begin
     /parts exch def
     [
@@ -870,14 +872,14 @@ true setglobal
     gsave
         newpath
         24 dict begin
-        //.xpostsys /.refreshscreencell get exec
+        //.refreshscreencell exec
         {mranges mbits ncomp decode datasrc mat bits height width}{exch def}forall
 
         % The width is refused here, where it is first known and before
         % any row is read, because every route into this painter -- the
         % dictionary forms, the five-operand form, colorimage and the two
         % masked types -- arrives through it.
-        //.xpostsys /.imgbits get bits known not {
+        //.imgbits bits known not {
             /image cvx /rangecheck signalerror
         } if
 
@@ -923,7 +925,7 @@ true setglobal
                         /pend pends c get def
                         /rawrow rawrows c get def
                         /buf bufs c get def
-                        //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+                        //.fill exec //.rownorm exec
                         pends c pend put
                     } for
                     /irow width ncomp mul string def
@@ -935,13 +937,13 @@ true setglobal
                     } for
                     allrows y irow put
                 }{
-                    //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+                    //.fill exec //.rownorm exec
                     allrows y buf dup length string copy put
                 } ifelse
             } for
             width height ncomp m allrows decode interp
             DEVICE dup /PaintImage get exec
-            true //.xpostsys /.setpagemarked get exec
+            true //.setpagemarked exec
         }{
 
         % Per-component decode as base + sample x scale over 0..255
@@ -1008,7 +1010,7 @@ true setglobal
                         /ccx0 0 def /ccy0 0 def
                         /ccx1 DEVICE /dimensions get 0 get def
                         /ccy1 DEVICE /dimensions get 1 get def
-                        /cspansv //.xpostsys /.clipspans get exec def
+                        /cspansv //.clipspans exec def
                     } ifelse
                     /csname currentcolorspace
                         dup type /arraytype eq { 0 get } if def
@@ -1024,7 +1026,7 @@ true setglobal
             /tlut 256 string def
             0 1 255 { /v exch def
                 tlut v
-                v 255 div currenttransfer exec //.xpostsys /.c255 get exec
+                v 255 div currenttransfer exec //.c255 exec
                 put
             } for
             nat 3 eq {
@@ -1034,27 +1036,27 @@ true setglobal
                 0 1 255 { /v exch def
                     tlutr v v 255 div
                         graphicsdict /currgstate get /redtransfer get exec
-                        //.xpostsys /.c255 get exec put
+                        //.c255 exec put
                     tlutg v v 255 div
                         graphicsdict /currgstate get /greentransfer get exec
-                        //.xpostsys /.c255 get exec put
+                        //.c255 exec put
                     tlutb v v 255 div
                         graphicsdict /currgstate get /bluetransfer get exec
-                        //.xpostsys /.c255 get exec put
+                        //.c255 exec put
                 } for
             } if
             ncomp 1 eq {
                 /lut 256 nat mul string def
                 0 1 255 { /v exch def
                     v dscale 0 get mul dbase 0 get add setcolor
-                    //.xpostsys /currentcolordict get DEVICE /nativecolorspace get get exec
+                    //currentcolordict DEVICE /nativecolorspace get get exec
                     nat 3 eq {
                         /bb exch def /gg exch def /rr exch def
-                        lut v 3 mul       tlutr rr //.xpostsys /.c255 get exec get put
-                        lut v 3 mul 1 add tlutg gg //.xpostsys /.c255 get exec get put
-                        lut v 3 mul 2 add tlutb bb //.xpostsys /.c255 get exec get put
+                        lut v 3 mul       tlutr rr //.c255 exec get put
+                        lut v 3 mul 1 add tlutg gg //.c255 exec get put
+                        lut v 3 mul 2 add tlutb bb //.c255 exec get put
                     }{
-                        lut v 3 -1 roll //.xpostsys /.c255 get exec tlut exch get put
+                        lut v 3 -1 roll //.c255 exec tlut exch get put
                     } ifelse
                 } for
             }{
@@ -1063,7 +1065,7 @@ true setglobal
                     /dl dluts c get def
                     0 1 255 { /v exch def
                         dl v
-                        v dscale c get mul dbase c get add //.xpostsys /.c255 get exec
+                        v dscale c get mul dbase c get add //.c255 exec
                         put
                     } for
                 } for
@@ -1156,11 +1158,11 @@ true setglobal
                         /pend pends c get def
                         /rawrow rawrows c get def
                         /buf bufs c get def
-                        //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+                        //.fill exec //.rownorm exec
                         pends c pend put
                     } for
                 }{
-                    //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+                    //.fill exec //.rownorm exec
                 } ifelse
                 blitrec {
                     multi {
@@ -1200,7 +1202,7 @@ true setglobal
             iby0 ccy0 lt { /iby0 ccy0 def } if
             iby1 ccy1 gt { /iby1 ccy1 def } if
             ibx1 ibx0 gt iby1 iby0 gt and
-            { true //.xpostsys /.setpagemarked get exec } if
+            { true //.setpagemarked exec } if
         }{
         % Invert into a fresh matrix: the operand matrix belongs to
         % the caller, who may reuse it (a Type 3 font mutating one
@@ -1221,11 +1223,11 @@ true setglobal
                     /pend pends c get def
                     /rawrow rawrows c get def
                     /buf bufs c get def
-                    //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+                    //.fill exec //.rownorm exec
                     pends c pend put
                 } for
             }{
-                //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+                //.fill exec //.rownorm exec
             } ifelse
             0 1 width 1 sub { /x exch def
                 /base x ncomp mul def
@@ -1238,7 +1240,7 @@ true setglobal
                 paintit mranges null ne and {
                     /inrange true def
                     0 1 ncomp 1 sub { /c exch def
-                        c //.xpostsys /.sampleat get exec
+                        c //.sampleat exec
                         dup mranges c 2 mul get lt
                         exch mranges c 2 mul 1 add get gt or
                         { /inrange false def } if
@@ -1248,7 +1250,7 @@ true setglobal
                 paintit {
                     /samesamp prevset def
                     0 1 ncomp 1 sub { /c exch def
-                        c //.xpostsys /.sampleat get exec
+                        c //.sampleat exec
                         dup prevsamp c get ne { /samesamp false def } if
                         prevsamp exch c exch put
                     } for
@@ -1267,7 +1269,7 @@ true setglobal
 
         end
     grestore
-    } null 0 //.xpostsys /.callout get exec
+    } null 0 //.callout exec
 } put
 
 %
@@ -1275,7 +1277,7 @@ true setglobal
 %  ranges, which is what an ImageType 1 image is.
 %
 .xpostsys /.imagepaint {  % width height bits mat datasrc decode ncomp  .  -
-    null null //.xpostsys /.imagepaintm get exec
+    null null //.imagepaintm exec
 } put
 
 %
@@ -1299,20 +1301,20 @@ true setglobal
     d /Interpolate 2 copy known { get }{ pop pop false } ifelse
     dup type /booleantype eq { .privatedict /.imginterp 3 -1 roll put }{ pop } ifelse
     /itbits d /BitsPerComponent get def
-    /itn //.xpostsys /.ncomponents get exec def
+    /itn //.ncomponents exec def
     /itrange [
         d /MaskColor get length itn eq {
-            d /MaskColor get { itbits //.xpostsys /.mcscale get exec dup } forall
+            d /MaskColor get { itbits //.mcscale exec dup } forall
         }{
-            d /MaskColor get { itbits //.xpostsys /.mcscale get exec } forall
+            d /MaskColor get { itbits //.mcscale exec } forall
         } ifelse
     ] def
     d /Width get d /Height get itbits d /ImageMatrix get
-    d /DataSource get //.xpostsys /.imgsource get exec
+    d /DataSource get //.imgsource exec
     d /Decode get
     itn null itrange
     end
-    //.xpostsys /.imagepaintm get exec
+    //.imagepaintm exec
 } put
 
 %
@@ -1325,7 +1327,7 @@ true setglobal
 %
 .xpostsys /.it1row {  % statedict  .  datarow
     begin
-    //.xpostsys /.fill get exec //.xpostsys /.rownorm get exec
+    //.fill exec //.rownorm exec
     0 1 iw 1 sub { /i exch def
         /mv buf i nc 1 add mul get def
         iminv { /mv 255 mv sub def } if
@@ -1350,7 +1352,7 @@ true setglobal
 %
 .xpostsys /.it2row {  % statedict  .  datarow
     begin
-    /rawrow mraw def //.xpostsys /.fill get exec
+    /rawrow mraw def //.fill exec
     iminv {
         0 1 mraw length 1 sub { /k exch def
             imbits iy imrow mul k add mraw k get 255 xor put
@@ -1358,7 +1360,7 @@ true setglobal
     }{
         imbits iy imrow mul mraw putinterval
     } ifelse
-    /rawrow draw def //.xpostsys /.fill get exec
+    /rawrow draw def //.fill exec
     /iy iy 1 add def
     draw
     end
@@ -1385,7 +1387,7 @@ true setglobal
     /w dd /Width get def
     /h dd /Height get def
     /bpc dd /BitsPerComponent get def
-    /n //.xpostsys /.ncomponents get exec def
+    /n //.ncomponents exec def
     /mw md /Width get def
     /mh md /Height get def
     /minv md /Decode 2 copy known { get }{ pop pop [0 1] } ifelse
@@ -1399,7 +1401,7 @@ true setglobal
         % row normalized (the painter reads it at eight bits).
         /st 16 dict def
         st begin
-            /datasrc dd /DataSource get //.xpostsys /.imgsource get exec def
+            /datasrc dd /DataSource get //.imgsource exec def
             /pend () def
             /bits bpc def
             /rowsamples w n 1 add mul def
@@ -1411,7 +1413,7 @@ true setglobal
             /iy 0 def
         end
         w h 8 dd /ImageMatrix get
-        [ st //.xpostsys /.it1row get /exec load ] cvx
+        [ st //.it1row /exec load ] cvx
         dd /Decode get n
         mbits null
     }{ il 2 eq {
@@ -1420,7 +1422,7 @@ true setglobal
         % row and yields the raw image row.
         /st 12 dict def
         st begin
-            /datasrc dd /DataSource get //.xpostsys /.imgsource get exec def
+            /datasrc dd /DataSource get //.imgsource exec def
             /pend () def
             /mraw mrow string def
             /draw w n mul bpc mul 7 add 8 idiv string def
@@ -1429,7 +1431,7 @@ true setglobal
             /iy 0 def
         end
         w h bpc dd /ImageMatrix get
-        [ st //.xpostsys /.it2row get /exec load ] cvx
+        [ st //.it2row /exec load ] cvx
         dd /Decode get n
         mbits null
     }{
@@ -1437,11 +1439,11 @@ true setglobal
         % then map its grid over the image's when the two differ.
         /mrb mw 7 add 8 idiv def
         /mall mrb mh mul string def
-        /datasrc md /DataSource get //.xpostsys /.imgsource get exec def
+        /datasrc md /DataSource get //.imgsource exec def
         /pend () def
         /rawrow mrb string def
         0 1 mh 1 sub { /my exch def
-            //.xpostsys /.fill get exec
+            //.fill exec
             mall my mrb mul rawrow putinterval
         } for
         mw w eq mh h eq and {
@@ -1467,12 +1469,12 @@ true setglobal
             } for
         } ifelse
         w h bpc dd /ImageMatrix get
-        dd /DataSource get //.xpostsys /.imgsource get exec
+        dd /DataSource get //.imgsource exec
         dd /Decode get n
         mbits null
     } ifelse } ifelse
     end
-    //.xpostsys /.imagepaintm get exec
+    //.imagepaintm exec
 } put
 
 %
@@ -1505,24 +1507,24 @@ true setglobal
             dup type /booleantype eq { .privatedict /.imginterp 3 -1 roll put }{ pop } ifelse
             d /Width get d /Height get
             d /BitsPerComponent get d /ImageMatrix get
-            d /DataSource get //.xpostsys /.imgsource get exec
+            d /DataSource get //.imgsource exec
             d /Decode get
             end
-            //.xpostsys /.ncomponents get exec //.xpostsys /.imagepaint get exec
+            //.ncomponents exec //.imagepaint exec
         }{ dup 3 eq {
-            pop //.xpostsys /.imagetype3 get exec
+            pop //.imagetype3 exec
         }{ 4 eq {
-            //.xpostsys /.imagetype4 get exec
+            //.imagetype4 exec
         }{
             pop /image cvx /rangecheck signalerror
         } ifelse } ifelse } ifelse
     }{
         gsave
         /DeviceGray setcolorspace
-        //.xpostsys /.imgsource get exec [ 0 1 ] 1 //.xpostsys /.imagepaint get exec
+        //.imgsource exec [ 0 1 ] 1 //.imagepaint exec
         grestore
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  paint samples in the device space matching the component count: one
@@ -1547,15 +1549,15 @@ true setglobal
     4 dict begin
     /nc exch def
     /msrc exch def
-    nc //.xpostsys /.identdecode get exch known not {
+    nc //.identdecode exch known not {
         end /colorimage cvx /rangecheck signalerror
     } if
     msrc {
         % Gather the per-component sources into one literal array
         /srcs nc array def
-        nc 1 sub -1 0 { srcs exch 3 -1 roll //.xpostsys /.imgsource get exec put } for
+        nc 1 sub -1 0 { srcs exch 3 -1 roll //.imgsource exec put } for
     }{
-        /srcs exch //.xpostsys /.imgsource get exec def
+        /srcs exch //.imgsource exec def
     } ifelse
     gsave
     nc 4 eq { /DeviceCMYK }{
@@ -1565,11 +1567,11 @@ true setglobal
     % The source loads through the dictionary, never by name: an
     % executable array is a procedure and a bare lookup would run it,
     % leaving its first chunk standing in for the whole image.
-    currentdict /srcs get //.xpostsys /.identdecode get nc get nc
+    currentdict /srcs get //.identdecode nc get nc
     end
-    null null //.xpostsys /.imagepaintm get exec
+    null null //.imagepaintm exec
     grestore
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  paint the current colour through a one-bit stencil: samples equal to
@@ -1705,7 +1707,7 @@ setglobal
             bp buf length ge {exit} if
 
             % The source runs on the caller's stacks (see .fill)
-            currentdict /datasrc get null 1 //.xpostsys /.pcallout get exec
+            currentdict /datasrc get null 1 //.pcallout exec
             dup length 0 eq {pop exit} if
             dup length bp add buf length gt {
                 0 buf length bp sub getinterval
@@ -1744,7 +1746,7 @@ setglobal
             % a small stencil's runs resolve once per distinct mask,
             % consecutive equal-extent rows merged into taller
             % rectangles, painted through fewer fills.
-            /rects buf width height ink //.xpostsys /.stencilruns get exec def
+            /rects buf width height ink //.stencilruns exec def
             paintpat { newpath } if
             0 4 rects length 1 sub { /i exch def
                 rects i get rects i 1 add get
@@ -1789,7 +1791,7 @@ setglobal
         } if
         end
     grestore
-    } null 0 //.xpostsys /.callout get exec
+    } null 0 //.callout exec
 } put
 
 %
@@ -1835,14 +1837,16 @@ setglobal
         d /Width get d /Height get
         d /Decode get 0 get 0 ne
         d /ImageMatrix get
-        d /DataSource get //.xpostsys /.imgsource get exec
+        d /DataSource get //.imgsource exec
         d /Interpolate 2 copy known { get }{ pop pop false } ifelse
         dup type /booleantype ne { pop false } if
         end
     }{
-        //.xpostsys /.imgsource get exec false
+        //.imgsource exec false
     } ifelse
-    //.xpostsys /.stencilmask get exec
-} //.xpostsys /.defop get exec
+    //.stencilmask exec
+} .defop
+
+end end
 
 //.internaldict /QUIET known { }{ (eof paint.ps\n)print } ifelse

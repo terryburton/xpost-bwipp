@@ -30,7 +30,7 @@ fi
 
 # every vector writer formats through the shared helper
 for f in pdfwrite.ps svgwrite.ps dscwrite.ps; do
-    if ! grep -q '/\.num2str get exec' "$data/$f"; then
+    if ! grep -qE '(//\.num2str[ \t]+exec|/\.num2str[ \t]+get[ \t]+exec)' "$data/$f"; then
         echo "check-vecbase: $f does not reach the shared .num2str formatter"
         fail=1
     fi

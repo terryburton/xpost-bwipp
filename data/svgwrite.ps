@@ -11,6 +11,8 @@
 
 //.internaldict /QUIET known { }{ (loading svgwrite.ps...)print } ifelse
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  Make an instance of the SVG writer: the class copied, with the extent
 %  it is asked for written onto the copy.
@@ -46,15 +48,15 @@
     /VectorGlyphs true   % Text operators emit glyph outlines, not bitmaps
     /VectorSyntax /svg   % ... spelled as SVG path data
 
-    /.copydict //.xpostsys /.classcopydict get
+    /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
     { {/height /width}{exch def}forall
 
     % The page dimensions are points and need not be integral; adopt the
     % exact values when the page device machinery published them.
-    //.xpostsys /.adoptexactpage get exec
-    currentdict } //.xpostsys /.indict get exec
+    //.adoptexactpage exec
+    currentdict } //.indict exec
     dup /.copydict get exec
     {
         currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
@@ -77,7 +79,7 @@
         setglobal
         .svgids /clipid 0 put
     currentdict
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     /Destroy {  % IMAGE  .  -
         dup //.internaldict /.pdffree get exec pop
@@ -91,7 +93,7 @@
     % Append a number in SVG syntax (integer, or two decimals; never
     % exponential), through the vector writers' shared formatter.
     /.svgnum {  % num  .  -
-        //.xpostsys /.num2str get exec .put
+        //.num2str exec .put
     } bind
 
     % Append a colour as an rgb() percentage triple, quoted
@@ -107,7 +109,7 @@
         (<rect fill=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width="1" height="1"/>\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     /GetPix {  % x y IMAGE  .  r g b
         pop pop pop  0 0 0
@@ -118,14 +120,14 @@
         (<path fill="none" stroke=) .put r g b .svgrgb
         ( d="M) .put x1 .svgnum ( ) .put y1 .svgnum
         (L) .put x2 .svgnum ( ) .put y2 .svgnum ("/>\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     /DrawRect {  % r g b x y w h IMAGE  .  -
     { {h w y x b g r}{exch def}forall
         (<rect fill="none" stroke=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width=") .put w .svgnum (" height=") .put h .svgnum ("/>\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % The operands name an inclusive pixel span and an SVG rect is
     % half-open, so the rect that covers the pixels a raster device
@@ -141,7 +143,7 @@
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width=") .put w 1 add .svgnum
         (" height=") .put h 1 add .svgnum ("/>\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % Append one path element: the fill colour, the subpaths as M/L
     % commands each closed with Z, and a nonzero fill rule. The
@@ -302,7 +304,7 @@
         sibp 0 gt { sibuf 0 sibp getinterval //.internaldict /.base64 get exec .put } if
         /sibp 0 def
         ("/>\n) .put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     % r g b IMAGE . -  ; fill the current path as one path element with
     % curves preserved (the flattening fill goes through FillPoly
@@ -320,7 +322,7 @@
                 (</g>\n) .put
                 /.svgclipopen false def
             } if
-        } //.xpostsys /.indict get exec
+        } //.indict exec
     } bind
 
     % clippath IMAGE . -  ; adopt a clip shape the interpreter could not
@@ -346,7 +348,7 @@
         (<g clip-path="url\(#xc) .put .svgcid 20 string cvs .put (\)">\n) .put
         graphicsdict /currgstate get exch /currpath exch put
         /.svgclipopen true def
-    } //.xpostsys /.indict get exec } bind
+    } //.indict exec } bind
 
     % r g b IMAGE . -  ; stroke the current path as one path element with
     % the device-space line width and the graphics state's cap, join and
@@ -371,7 +373,7 @@
             .emitdevpath pop
             ("/>\n) .put
         } if
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 
     /Emit {  % IMAGE  .  -
     {
@@ -392,7 +394,7 @@
         (<?xml version="1.0" encoding="UTF-8"?>\n) .w
         (<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width=") .w
         /.wnum {  % num  .  -
-            //.xpostsys /.num2str get exec .w
+            //.num2str exec .w
         } def
         width sx div .wnum (pt" height=") .w
         height sy div .wnum (pt" viewBox="0 0 ) .w
@@ -413,7 +415,9 @@
         % written into. Counting from the same place for each of them is
         % what keeps a page's output the same wherever it falls in a job.
         currentdict /.svgids get /clipid 0 put
-    } //.xpostsys /.indict get exec }
+    } //.indict exec }
 >> def
+
+end end
 
 //.internaldict /QUIET known { }{ (eof svgwrite.ps\n)print } ifelse

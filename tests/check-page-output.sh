@@ -173,14 +173,15 @@ fi
 awk -F'\t' -v f="$datadir/device.ps" -v a="$tstart" -v b="$tend" '
     {
         line = substr($0, length($1) + length($2) + 3)
-        if (line !~ /\/\.pagefilename[ \t]+get/) next
+        if (line !~ /\/\/\.pagefilename/ && line !~ /\/\.pagefilename[ \t]+get/) next
         if ($1 == f && $2 >= a && $2 <= b) next
         print $1 ":" $2
     }' "$work/ps" > "$work/pf-outside"
 npf=$(awk -F'\t' -v f="$datadir/device.ps" -v a="$tstart" -v b="$tend" '
     {
         line = substr($0, length($1) + length($2) + 3)
-        if ($1 == f && $2 >= a && $2 <= b && line ~ /\/\.pagefilename[ \t]+get/) n++
+        if ($1 == f && $2 >= a && $2 <= b &&
+            (line ~ /\/\/\.pagefilename/ || line ~ /\/\.pagefilename[ \t]+get/)) n++
     }
     END { print n + 0 }' "$work/ps")
 if [ -s "$work/pf-outside" ]; then

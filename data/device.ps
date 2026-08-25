@@ -22,6 +22,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  The one number formatter for the vector writers (the PDF, SVG and DSC
 %  devices format every coordinate and dimension through it): an integral
@@ -36,13 +38,13 @@ true setglobal
         100 mul round cvi
         dup 0 lt { (-) exch neg }{ () exch } ifelse
         dup 100 idiv 20 string cvs
-        3 -1 roll exch //.xpostsys /.strcat get exec
+        3 -1 roll exch //.strcat exec
         exch 100 mod
         dup 10 lt { (.0) }{ (.) } ifelse exch
-        20 string cvs //.xpostsys /.strcat get exec
-        //.xpostsys /.strcat get exec
+        20 string cvs //.strcat exec
+        //.strcat exec
     } ifelse
-} bind put
+} put
 
 %
 %  The device-resolution scale carried in the defaultmatrix fixup applied
@@ -98,14 +100,14 @@ true setglobal
 .xpostsys /.classcopydict {  % dict1  .  dict2
     dup length dict copy
     dup /width known {
-        dup { /dimensions [width height] def } //.xpostsys /.indict get exec
+        dup { /dimensions [width height] def } //.indict exec
     } if
 
     % The file name this run was started with. A request's own binding
     % is a device feature and arrives through the merge below, writing
     % over this; there is no third source, the output path being a
     % page-device parameter and not a name a program defines.
-    /OutputFileName //.xpostsys /.hostvalue get exec
+    /OutputFileName //.hostvalue exec
     dup null eq { pop }{ 1 index exch /OutputFileName exch put } ifelse
 
     % The request's features, taken, kept on the instance under
@@ -128,7 +130,7 @@ true setglobal
             ifelse
         } forall                            % Copy
     }{ pop pop } ifelse
-} bind put
+} put
 
 %
 %  Refuse a device whose band budget will not buy one row of its page.
@@ -179,7 +181,7 @@ true setglobal
         end
         /.completedevice cvx /rangecheck signalerror
     } if
-} //.xpostsys /.indict get exec } bind put
+} //.indict exec } bind put
 
 %
 %  Finish a freshly created device, on every path that creates one: the
@@ -201,7 +203,7 @@ true setglobal
     % them, asked before anything is written on the device and before
     % the scratch dictionary below is opened, so that a refusal leaves
     % nothing to be taken back.
-    2 index //.xpostsys /.bandfits get exec
+    2 index //.bandfits exec
 
     % The scratch dictionary and the matrix built below hold the device,
     % which is a local object, so they are made in local VM whatever the
@@ -338,7 +340,7 @@ true setglobal
         ifelse
     }{ null } ifelse
     end
-} bind put
+} put
 
 %
 %  Substitute the page number for a %d marker in an output file name,
@@ -365,15 +367,15 @@ true setglobal
 .xpostsys /.pagefilename {  % name  .  name'
     dup (%d) search {
         exch pop
-        //.xpostsys /.pagestate get /.pageno 2 copy known { get }{ pop pop 1 } ifelse
-        dup 1 add //.xpostsys /.pagestate get exch /.pageno exch put
+        //.pagestate /.pageno 2 copy known { get }{ pop pop 1 } ifelse
+        dup 1 add //.pagestate exch /.pageno exch put
         10 string cvs
-        //.xpostsys /.strcat get exec exch //.xpostsys /.strcat get exec
+        //.strcat exec exch //.strcat exec
         exch pop
     }{
         pop
     } ifelse
-} bind put
+} put
 
 %
 %  Transmit one page through a device: settle the name this page's output
@@ -397,25 +399,25 @@ true setglobal
 .xpostsys /.transmitpage {  % dict  .  -
     dup /OutputFileName 2 copy known
         { get }
-        { pop pop /OutputFileName //.xpostsys /.hostvalue get exec
+        { pop pop /OutputFileName //.hostvalue exec
           dup null eq { pop (%stdout) } if }
     ifelse
-    //.xpostsys /.pagefilename get exec
+    //.pagefilename exec
     1 index exch /.outputfile exch put
 
     % What became of this page, for a run that asked to be told
     //.internaldict /QUIET known
         { }{ dup //.xpostsys /.reportpage get exec } ifelse
     dup /Emit get exec
-} bind put
+} put
 
-(/image.ps) //.xpostsys /.loadmodule get exec  % Image.ps implements device base classes
-(/nulldev.ps) //.xpostsys /.loadmodule get exec  % Nulldevice
-(/bboxdev.ps) //.xpostsys /.loadmodule get exec  % Bounding-box device
-(/recorddev.ps) //.xpostsys /.loadmodule get exec  % Recording device
-(/pdfwrite.ps) //.xpostsys /.loadmodule get exec  % Pdf device
-(/svgwrite.ps) //.xpostsys /.loadmodule get exec  % Svg device
-(/dscwrite.ps) //.xpostsys /.loadmodule get exec  % Distilled-ps device
+(/image.ps) //.loadmodule exec  % Image.ps implements device base classes
+(/nulldev.ps) //.loadmodule exec  % Nulldevice
+(/bboxdev.ps) //.loadmodule exec  % Bounding-box device
+(/recorddev.ps) //.loadmodule exec  % Recording device
+(/pdfwrite.ps) //.loadmodule exec  % Pdf device
+(/svgwrite.ps) //.loadmodule exec  % Svg device
+(/dscwrite.ps) //.loadmodule exec  % Distilled-ps device
 
 %
 %  Mirror the device class dictionaries into privatedict, where the makers and
@@ -432,7 +434,7 @@ true setglobal
 %  undefined at the first page of the only run that selects it.
 %
 [ currentdict { pop } forall ]
-{ dup //.xpostsys /.isclassname get exec
+{ dup //.isclassname exec
     { dup currentdict exch get .privatedict 3 1 roll put }
     { pop } ifelse
 } forall
@@ -479,15 +481,15 @@ true setglobal
 .xpostsys /.settlebandbudget {  % -  .  -
     .privatedict /.xpost_RECORD known {
         currentglobal true setglobal
-        /MaxBandBytes //.xpostsys /.hostvalue get exec
+        /MaxBandBytes //.hostvalue exec
         dup type /integertype eq
             { .privatedict /.xpost_RECORD get exch /.bandbytes exch put }
-            { pop //.xpostsys /.hostdict get /MaxBandBytes
+            { pop //.hostdict /MaxBandBytes
               .privatedict /.xpost_RECORD get /.bandbytes get put }
         ifelse
         setglobal
     } if
-} bind put
+} put
 
 %
 %  What one band of a page may cost this run, in bytes of the raster a
@@ -506,7 +508,7 @@ true setglobal
     .privatedict /.xpost_RECORD 2 copy known
         { get /.bandbytes 2 copy known { get }{ pop pop 0 } ifelse }
         { pop pop 0 } ifelse
-} bind put
+} put
 
 %
 %  The rows the device now being painted into holds of its page at once,
@@ -530,7 +532,7 @@ true setglobal
         dup type /dicttype eq {
             /dev exch def
             dev /height known {
-                dev //.xpostsys /.bandheight get exec
+                dev //.bandheight exec
                 dup dev /height get lt { /rows exch def }{ pop } ifelse
             } if
         }{ pop } ifelse
@@ -566,7 +568,7 @@ end } bind put
     % What the run asked for, read from the run: it is the run's answer
     % whatever device happens to be in hand, and a page painted directly
     % carries no record to ask.
-    /asked /RecordSpill //.xpostsys /.hostvalue get exec def
+    /asked /RecordSpill //.hostvalue exec def
     asked type /nametype ne { /asked /auto def } if
 
     % Not /where: bind bakes the operator of that name into this body,
@@ -624,7 +626,7 @@ end } bind put
     /paints dev /.playclass known { dev /.playclass get }{ asked } ifelse def
     /pw dev /width known { dev /width get }{ 0 } ifelse def
     /ph dev /height known { dev /height get }{ 0 } ifelse def
-    /rows dev //.xpostsys /.bandheight get exec def
+    /rows dev //.bandheight exec def
     out (xpost: page ) writestring
     out //.xpostsys /.pageno get exec 1 add n cvs writestring
     out ( to ) writestring
@@ -674,7 +676,7 @@ end } bind put
     % The budget this run's pages are cut into bands by, brought into
     % line with what this run was started with before anything is weighed
     % against it (.settlebandbudget above).
-    //.xpostsys /.settlebandbudget get exec
+    //.settlebandbudget exec
     graphicsdict /currgstate get /device 2 copy known
         { get null ne }{ pop pop false } ifelse
     { }{
@@ -689,7 +691,7 @@ end } bind put
         % of it: a selection whose page may arrive a band at a time is
         % handed to the recording class before it gets here, and taking
         % that back is what the weighing below does.
-        /StartDeviceAsked //.xpostsys /.hostvalue get exec
+        /StartDeviceAsked //.hostvalue exec
 
         % A device the build left the driver out of registers no maker,
         % so the roster the page-device request is held to is the roster
@@ -705,9 +707,9 @@ end } bind put
         % data/recorddev.ps). Every page-device request afterwards is
         % weighed the same way at the page it asks for, so what is named
         % below is the selection and not the route this page took.
-        dup /StartPageSize //.xpostsys /.hostvalue get exec aload pop
-        //.xpostsys /.devicefor get exec
-        /StartPageSize //.xpostsys /.hostvalue get exec aload pop
+        dup /StartPageSize //.hostvalue exec aload pop
+        //.devicefor exec
+        /StartPageSize //.hostvalue exec aload pop
         3 -1 roll //.xpostsys /.devicemakers get exch get exec
 
         % The interpreter's own device takes the same finishing
@@ -765,20 +767,20 @@ end } bind put
 %  input is carrying something else and the read takes a line of it.
 %
 .xpostsys /.pagepause {  % (banner)  .  -
-    /.interactive //.xpostsys /.hostvalue get exec
+    /.interactive //.hostvalue exec
     {
         =print flush
         [ {(%lineedit)(r)file}stopped cleartomark
     }{
         pop
     } ifelse
-} bind put
+} put
 
 .xpostsys /ShowpageSemanticsDict <<
 
     % XPOST_SHOWPAGE_DEFAULT
     0 {
-        (----showpage----) //.xpostsys /.pagepause get exec
+        (----showpage----) //.pagepause exec
         DEVICE /pagenumber
         2 copy known {
             2 copy get 1 add put
@@ -806,7 +808,7 @@ end } bind put
 %  the same three behaviours, less the page number and the erasure.
 %
 .xpostsys /CopypageSemanticsDict <<
-    0 { (----copypage----) //.xpostsys /.pagepause get exec }
+    0 { (----copypage----) //.pagepause exec }
     1 { }
     2 { returntocaller }
 >> put
@@ -826,12 +828,12 @@ end } bind put
 %
 
 .xpostsys /.pageno {  % -  .  int
-    //.xpostsys /.pagestate get /.plrmpage 2 copy known { get }{ pop pop 0 } ifelse
-} bind put
+    //.pagestate /.plrmpage 2 copy known { get }{ pop pop 0 } ifelse
+} put
 
 .xpostsys /.setpageno {  % int  .  -
-    //.xpostsys /.pagestate get exch /.plrmpage exch put
-} bind put
+    //.pagestate exch /.plrmpage exch put
+} put
 
 %
 %  Two facts about the page, kept beside the count and for the same reason:
@@ -851,12 +853,12 @@ end } bind put
 %
 
 .xpostsys /.pagemarked {  % -  .  bool
-    //.xpostsys /.pagestate get /.marked 2 copy known { get }{ pop pop false } ifelse
-} bind put
+    //.pagestate /.marked 2 copy known { get }{ pop pop false } ifelse
+} put
 
 .xpostsys /.setpagemarked {  % bool  .  -
-    //.xpostsys /.pagestate get exch /.marked exch put
-} bind put
+    //.pagestate exch /.marked exch put
+} put
 
 %
 %  The same record, reached from where the interpreter's own side reads
@@ -867,15 +869,15 @@ end } bind put
 %  dictionary is the one object shared, not a copy: what one side writes
 %  is what the other reads.
 %
-.privatedict /.pagestate //.xpostsys /.pagestate get put
+.privatedict /.pagestate //.pagestate put
 
 .xpostsys /.pagesent {  % -  .  bool
-    //.xpostsys /.pagestate get /.sent 2 copy known { get }{ pop pop false } ifelse
-} bind put
+    //.pagestate /.sent 2 copy known { get }{ pop pop false } ifelse
+} put
 
 .xpostsys /.setpagesent {  % bool  .  -
-    //.xpostsys /.pagestate get exch /.sent exch put
-} bind put
+    //.pagestate exch /.sent exch put
+} put
 
 %
 %  The handler the current page device carries under that name, or null where
@@ -885,7 +887,7 @@ end } bind put
     graphicsdict /.pagedevice 2 copy known {
         get exch 2 copy known { get }{ pop pop null } ifelse
     }{ pop pop pop null } ifelse
-} bind put
+} put
 
 %
 %  A handler that cannot be executed cannot be run at a page boundary, and
@@ -902,7 +904,7 @@ end } bind put
             pop
         }{ pop } ifelse
     } forall
-} bind put
+} put
 
 %
 %  A device feature the machinery reads as a number is refused as it is
@@ -934,7 +936,7 @@ end } bind put
         } if
         pop
     } forall
-} bind put
+} put
 
 %
 %  Start a page: nothing painted yet, and the BeginPage handler the page
@@ -946,12 +948,12 @@ end } bind put
 %
 .xpostsys /.beginpage {  % -  .  -
     % A page that has just begun carries nothing yet.
-    false //.xpostsys /.setpagemarked get exec
-    /BeginPage //.xpostsys /.pagehandler get exec
+    false //.setpagemarked exec
+    /BeginPage //.pagehandler exec
     dup null eq { pop }{
-        //.xpostsys /.pageno get exec exch exec
+        //.pageno exec exch exec
     } ifelse
-} bind put
+} put
 
 %
 %  Runs the EndPage handler over the page count and the reason, and answers
@@ -963,7 +965,7 @@ end } bind put
 .xpostsys /.endpage {  % reason  .  bool
     3 dict begin
     /reason exch def
-    /EndPage //.xpostsys /.pagehandler get exec
+    /EndPage //.pagehandler exec
     dup null eq {
         % No handler: transmit a page ended by showpage or copypage, and
         % do not transmit one ended by the device going away.
@@ -976,7 +978,7 @@ end } bind put
         % ran, so the verdict does not depend on what the caller happened to
         % have below, and a handler that empties the stack is caught too.
         count /base exch def
-        //.xpostsys /.pageno get exec reason
+        //.pageno exec reason
         h exec
         count base 1 add eq
         dup { pop dup type /booleantype eq } if
@@ -986,7 +988,7 @@ end } bind put
     % answers wrongly does not leave the dictionary stack deeper as well.
     end
     { }{ /EndPage cvx /typecheck signalerror } ifelse
-} bind put
+} put
 
 %
 %  End the page and transmit it (PLRM 8.2), then begin the next.
@@ -996,16 +998,16 @@ end } bind put
 %  advances, because the page has ended either way.
 %
 /showpage [ ] {  % -  .  -
-    0 //.xpostsys /.endpage get exec {
-        DEVICE //.xpostsys /.transmitpage get exec
-        true //.xpostsys /.setpagesent get exec
-        //.xpostsys /ShowpageSemanticsDict get /ShowpageSemantics //.xpostsys /.hostvalue get exec get exec
+    0 //.endpage exec {
+        DEVICE //.transmitpage exec
+        true //.setpagesent exec
+        //ShowpageSemanticsDict /ShowpageSemantics //.hostvalue exec get exec
     } if
 
     % a page ended by showpage is counted whether or not it was transmitted
-    //.xpostsys /.pageno get exec 1 add //.xpostsys /.setpageno get exec
-    //.xpostsys /.beginpage get exec
-} //.xpostsys /.defop get exec
+    //.pageno exec 1 add //.setpageno exec
+    //.beginpage exec
+} //.defop exec
 
 %
 %  Transmit the page and keep it (PLRM 8.2): the marks stay, so what
@@ -1015,16 +1017,16 @@ end } bind put
 %  is the whole of the difference a page device sees between them.
 %
 /copypage [ ] {  % -  .  -
-    1 //.xpostsys /.endpage get exec {
-        DEVICE //.xpostsys /.transmitpage get exec
-        true //.xpostsys /.setpagesent get exec
+    1 //.endpage exec {
+        DEVICE //.transmitpage exec
+        true //.setpagesent exec
         flushpage
-        //.xpostsys /CopypageSemanticsDict get /ShowpageSemantics //.xpostsys /.hostvalue get exec get exec
+        //CopypageSemanticsDict /ShowpageSemantics //.hostvalue exec get exec
     } if
 
     % copypage ends a page without counting it (PLRM 6.2.6).
-    //.xpostsys /.beginpage get exec
-} //.xpostsys /.defop get exec
+    //.beginpage exec
+} //.defop exec
 
 %
 %  The page a job leaves behind when it ends without asking for one.
@@ -1044,13 +1046,15 @@ end } bind put
 %  that is left unfinished.
 %
 .xpostsys /.endjobpage {  % -  .  -
-    //.xpostsys /.pagesent get exec not
-    //.xpostsys /.pagemarked get exec and {
-        0 //.xpostsys /.endpage get exec {
-            DEVICE //.xpostsys /.transmitpage get exec
-            true //.xpostsys /.setpagesent get exec
+    //.pagesent exec not
+    //.pagemarked exec and {
+        0 //.endpage exec {
+            DEVICE //.transmitpage exec
+            true //.setpagesent exec
         } if
     } if
-} bind put
+} put
+
+end end
 
 //.internaldict /QUIET known { }{ (eof device.ps\n)print } ifelse

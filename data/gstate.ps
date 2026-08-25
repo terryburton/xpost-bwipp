@@ -17,6 +17,8 @@
 %
 true setglobal
 
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
 %
 %  .gstatetemplate yields a freshly-initialized dictionary
 %  with the following values. currmatrix and scratchmatrix
@@ -244,7 +246,7 @@ setglobal
             newstack i
                 pgd /gstackarray get i get
                 dup length 4 add dict
-                //.xpostsys /gstatecopy get exec
+                //gstatecopy exec
             put
         } for
 
@@ -253,7 +255,7 @@ setglobal
             /currgstate
                 pgd /currgstate get
                 dup length 4 add dict
-                //.xpostsys /gstatecopy get exec
+                //gstatecopy exec
             /gstackarray newstack
             /gptr gp
         >> def
@@ -272,7 +274,7 @@ graphicsdict begin
     gstackarray gptr gstate put  % Push copy on stack
     currgstate /currpath 2 copy get .copypath put  % Make a new working copy of path
 end
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  pop graphics state
@@ -283,14 +285,14 @@ graphicsdict begin
         gstackarray gptr get
 
             %dup {exch = ==} forall
-        currgstate //.xpostsys /gstatecopy get exec pop
+        currgstate //gstatecopy exec pop
         gptr 0 gt {  %discard all but one element, for grestoreall
             gstackarray gptr null put  % Discard stack copy
         } if
         /gptr gptr 1 sub def
     } if
 end
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  pop to bottommost graphics state
@@ -299,9 +301,9 @@ end
 graphicsdict begin
     /gptr -1 def
     gstackarray 0 get
-    currgstate //.xpostsys /gstatecopy get exec pop
+    currgstate //gstatecopy exec pop
 end
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Reset the eleven graphics state parameters PLRM 8.2 names -- the CTM,
@@ -325,7 +327,7 @@ end
     0 setlinejoin
     10 setmiterlimit
     [ ] 0 setdash
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The graphics state a newly installed device starts from (PLRM 8.2
@@ -367,8 +369,8 @@ end
 %
 /gstate [ ] {  % -  .  gstate
     .privatedict /.gstatetemplate get exec dup length dict copy
-    graphicsdict /currgstate get exch //.xpostsys /gstatecopy get exec
-} //.xpostsys /.defop get exec
+    graphicsdict /currgstate get exch //gstatecopy exec
+} .defop
 
 %
 %  Set graphics state from gstate
@@ -378,7 +380,7 @@ end
     dup /currmatrix known not
         { /setgstate cvx /typecheck signalerror } if
     graphicsdict /currgstate get copy pop
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  copy current graphics state into given gstate object
@@ -386,15 +388,15 @@ end
 /currentgstate [ /dicttype ] {  % gstate  .  gstate
     dup /currmatrix known not
         { /currentgstate cvx /typecheck signalerror } if
-    graphicsdict /currgstate get exch //.xpostsys /gstatecopy get exec
-} //.xpostsys /.defop get exec
+    graphicsdict /currgstate get exch //gstatecopy exec
+} .defop
 
 %
 %  Return current font from the graphics state
 %
 /currentfont [ ] {  % -  .  dict
     graphicsdict /currgstate get /currfont get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Install the transfer procedure for every component
@@ -406,14 +408,14 @@ end
     dup dup /transfer get /redtransfer exch put
     dup dup /transfer get /greentransfer exch put
     dup /transfer get /bluetransfer exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return the grey channel's transfer procedure
 %
 /currenttransfer [ ] {  % -  .  proc
     graphicsdict /currgstate get /transfer get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Black generation and undercolor removal (recorded only: painting
@@ -426,23 +428,23 @@ end
 /setblackgeneration [ /proctype ] {  % proc  .  -
     /setblackgeneration exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /blackgen exch put
-} //.xpostsys /.defop get exec
+} .defop
 /currentblackgeneration [ ] {  % -  .  proc
     graphicsdict /currgstate get /blackgen get
-} //.xpostsys /.defop get exec
+} .defop
 /setundercolorremoval [ /proctype ] {  % proc  .  -
     /setundercolorremoval exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /ucr exch put
-} //.xpostsys /.defop get exec
+} .defop
 /currentundercolorremoval [ ] {  % -  .  proc
     graphicsdict /currgstate get /ucr get
-} //.xpostsys /.defop get exec
+} .defop
 /setcolorrendering [ /dicttype ] {  % dict  .  -
     graphicsdict /currgstate get exch /colorrendering exch put
-} //.xpostsys /.defop get exec
+} .defop
 /currentcolorrendering [ ] {  % -  .  dict
     graphicsdict /currgstate get /colorrendering get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  renderingintent  .  name bool
@@ -468,14 +470,14 @@ end
     /ColorRendering /ProcSet findresource
     dup /GetPageDeviceName get exec
     exch /GetHalftoneName get exec
-    //.xpostsys /.crdname get exec
+    //.crdname exec
     dup /ColorRendering resourcestatus {
         pop pop true
     }{
         /ColorRendering /ProcSet findresource /GetSubstituteCRD get exec
         false
     } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 /DefaultColorRendering 0 dict dup /ColorRenderingType 1 put
 /ColorRendering defineresource pop
 
@@ -527,7 +529,7 @@ end
     graphicsdict /currgstate get exch /bluetransfer exch put
     graphicsdict /currgstate get exch /greentransfer exch put
     graphicsdict /currgstate get exch /redtransfer exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return every component's transfer procedure
@@ -537,7 +539,7 @@ end
     graphicsdict /currgstate get /greentransfer get
     graphicsdict /currgstate get /bluetransfer get
     graphicsdict /currgstate get /transfer get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  copy the grey screen to the colour channels: setscreen installs one
@@ -602,8 +604,8 @@ end
 %
 .xpostsys /.sampletransfer {  % /opname {proc}  .  {proc'}
     //.xpostsys /.sampletransferbody get
-    //.xpostsys /.tskeys get 0
-    //.xpostsys /.callout get exec
+    //.tskeys 0
+    //.callout exec
 } put
 
 %
@@ -621,7 +623,7 @@ end
     0 1 255 {
         255 div
         graphicsdict /.tsd count 2 sub put
-        graphicsdict /.tsproc get //.xpostsys /.pexec get exec
+        graphicsdict /.tsproc get //.pexec exec
         count graphicsdict /.tsd get ne
             { graphicsdict /.tsop get cvx /typecheck signalerror } if
         dup type dup /integertype ne exch /realtype ne and
@@ -660,8 +662,8 @@ end
 %
 .xpostsys /.samplecolortransfer {  % /opname [redproc greenproc blueproc grayproc]  .  [procs']
     //.xpostsys /.samplecolortransferbody get
-    //.xpostsys /.ctkeys get 0
-    //.xpostsys /.callout get exec
+    //.ctkeys 0
+    //.callout exec
 } put
 
 %
@@ -672,7 +674,7 @@ end
     graphicsdict exch /.ctrec exch put
     graphicsdict exch /.ctop exch put
     graphicsdict /.ctop get graphicsdict /.ctrec get 3 get
-        //.xpostsys /.sampletransfer get exec pop
+        //.sampletransfer exec pop
     0 //.xpostsys /.ctchannel get exec
     1 //.xpostsys /.ctchannel get exec
     2 //.xpostsys /.ctchannel get exec
@@ -688,7 +690,7 @@ end
     dup graphicsdict /.ctrec get 3 get eq
         { pop }
         { graphicsdict /.ctop get exch
-          //.xpostsys /.sampletransfer get exec pop } ifelse
+          //.sampletransfer exec pop } ifelse
 } put
 
 %
@@ -711,8 +713,8 @@ end
 %
 .xpostsys /.installscreen {  % freq ang proc  .  -
     //.xpostsys /.installscreenbody get
-    //.xpostsys /.ssreckeys get 0
-    //.xpostsys /.callout get exec
+    //.ssreckeys 0
+    //.callout exec
 } put
 
 %
@@ -734,7 +736,7 @@ end
     graphicsdict /currgstate get exch /screenproc exch put
     graphicsdict /currgstate get exch /screenangle exch put
     graphicsdict /currgstate get exch /screenfreq exch put
-    //.xpostsys /.spreadgrayscreen get exec
+    //.spreadgrayscreen exec
 } put
 
 %
@@ -763,8 +765,8 @@ end
 %
 .xpostsys /.installcolorscreen {  % rf ra rp gf ga gp bf ba bp kf ka kp  .  -
     //.xpostsys /.installcolorscreenbody get
-    //.xpostsys /.csreckeys get 0
-    //.xpostsys /.callout get exec
+    //.csreckeys 0
+    //.callout exec
 } put
 
 %
@@ -842,8 +844,8 @@ end
 %
 .xpostsys /.samplespot {  % freq ang proc  .  -
     //.xpostsys /.samplespotbody get
-    //.xpostsys /.sskeys get 0
-    //.xpostsys /.callout get exec
+    //.sskeys 0
+    //.callout exec
 } put
 
 %
@@ -881,7 +883,7 @@ end
     % program's own object failing and setscreen keeps the operands it
     % consumed getting here; the depth bookkeeping either side is the
     % sampling's own.
-    /ppexec //.xpostsys /.pexec get def
+    /ppexec //.pexec def
     /pexec /exec load def
     /pget /get load def
     /pput /put load def
@@ -975,7 +977,7 @@ end
 %
 .xpostsys /.celldet {  % W H W2 H2  .  n
     mul 3 1 roll mul add
-} bind put
+} put
 
 %
 %  The side of the axis-aligned tile that repeats such a cell. The cell
@@ -986,12 +988,12 @@ end
 %  has no tile -- the caller refuses those rather than dividing by them.
 %
 .xpostsys /.cellside {  % W H W2 H2  .  n
-    3 index 1 index //.xpostsys /.gcd get exec
-    2 index 4 index //.xpostsys /.gcd get exec
-    //.xpostsys /.gcd get exec
-    5 1 roll //.xpostsys /.celldet get exec
+    3 index 1 index //.gcd exec
+    2 index 4 index //.gcd exec
+    //.gcd exec
+    5 1 roll //.celldet exec
     dup 0 eq { exch pop }{ exch idiv } ifelse
-} bind put
+} put
 
 %
 %  The lattices a screen is chosen from do not depend on the screen. The
@@ -1015,8 +1017,8 @@ end
         0 1 span 1 sub {
             /b exch def
             a 0 eq b 0 eq and not {
-                /sz a a b b //.xpostsys /.celldet get exec sqrt def
-                /per a a b b //.xpostsys /.cellside get exec def
+                /sz a a b b //.celldet exec sqrt def
+                /per a a b b //.cellside exec def
                 per 64 le sz 1.5 ge and {
                     buf m       a put
                     buf m 1 add b put
@@ -1071,8 +1073,8 @@ end
         } if
     } for
     /a besta def /b bestb def
-    /q a a b b //.xpostsys /.celldet get exec def
-    /L a a b b //.xpostsys /.cellside get exec def
+    /q a a b b //.celldet exec def
+    /L a a b b //.cellside exec def
     a b L q quad bestcand
     end
 } put
@@ -1089,7 +1091,7 @@ end
 .xpostsys /.installscreencell {  % freq ang proc  .  -
     20 dict begin
     /proc exch def /ang exch def /freq exch def
-    freq ang //.xpostsys /.screenlattice get exec
+    freq ang //.screenlattice exec
     pop
     /quad exch def /q exch def /L exch def /b exch def /a exch def
     /vals L L mul array def
@@ -1148,7 +1150,7 @@ end
     % each cell takes every nth rank in its own value order, so a
     % shell of equal spot values splits evenly and every cell grows
     % the same dot, one pixel at a time.
-    /g a abs b abs //.xpostsys /.gcd get exec def
+    /g a abs b abs //.gcd exec def
     /nc q g idiv g idiv def
     nc 1 gt {
         /ap a g idiv def
@@ -1230,7 +1232,7 @@ end
                 DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
                 th eq not {
                     th ht /Width get ht /Height get th
-                    //.xpostsys /.setscreencell get exec
+                    //.setscreencell exec
                 } if
             }{
                 pop
@@ -1241,7 +1243,7 @@ end
                     currentdict /sp get eq not {
                         ht /Frequency 2 copy known { get }{ pop pop 60 } ifelse
                         ht /Angle 2 copy known { get }{ pop pop 0 } ifelse
-                        currentdict /sp get //.xpostsys /.installscreencell get exec
+                        currentdict /sp get //.installscreencell exec
                     } if
                 }{ pop } ifelse
             } ifelse
@@ -1256,7 +1258,7 @@ end
                 graphicsdict /currgstate get /screenfreq get
                 graphicsdict /currgstate get /screenangle get
                 graphicsdict /currgstate get /screenproc get
-                //.xpostsys /.installscreencell get exec
+                //.installscreencell exec
             } if
         } ifelse
         end
@@ -1280,13 +1282,13 @@ end
     graphicsdict /currgstate get exch /screenfreq exch put
     graphicsdict /currgstate get /halftone null put
     graphicsdict /currgstate get /halftonetransfer null put
-    //.xpostsys /.spreadgrayscreen get exec
+    //.spreadgrayscreen exec
     graphicsdict /currgstate get /screenfreq get dup 0 gt {
         graphicsdict /currgstate get /screenangle get
         graphicsdict /currgstate get /screenproc get
-        dup xcheck { //.xpostsys /.installscreen get exec }{ pop pop pop } ifelse
+        dup xcheck { //.installscreen exec }{ pop pop pop } ifelse
     }{ pop } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return the grey channel's screen parameters
@@ -1295,7 +1297,7 @@ end
     graphicsdict /currgstate get /screenfreq get
     graphicsdict /currgstate get /screenangle get
     graphicsdict /currgstate get /screenproc get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  rf ra rp gf ga gp bf ba bp kf ka kp  .  -
@@ -1309,8 +1311,8 @@ end
                   /numbertype /numbertype /anytype
                   /numbertype /numbertype /anytype
                   /numbertype /numbertype /anytype ] {
-    //.xpostsys /.installcolorscreen get exec
-} //.xpostsys /.defop get exec
+    //.installcolorscreen exec
+} .defop
 
 %
 %  a type 5 dictionary carries one halftone per colorant: grey
@@ -1369,12 +1371,12 @@ end
         /W src /Width get def   /H src /Height get def
         /W2 src /Width2 get def /H2 src /Height2 get def
     } ifelse
-    /N W H W2 H2 //.xpostsys /.celldet get exec def
+    /N W H W2 H2 //.celldet exec def
     /th src /Thresholds get def
 
     % The tile that repeats the cell is not N on a side but N reduced by
     % what the sides share, which .cellside answers for any cell shape.
-    /L W H W2 H2 //.xpostsys /.cellside get exec def
+    /L W H W2 H2 //.cellside exec def
 
     % where the cell repeats inside that tile
     /seen L L mul string def
@@ -1451,10 +1453,10 @@ end
             } ifelse
         }{
             dup 2 eq 1 index 4 eq or {
-                pop //.xpostsys /.htgraytriple get exec
+                pop //.htgraytriple exec
             }{
                 dup 10 eq exch 16 eq 2 index /Width2 known and or {
-                    //.xpostsys /.htangledcell get exec
+                    //.htangledcell exec
                 } if
         } ifelse } ifelse
     } if
@@ -1493,7 +1495,7 @@ end
                     /hw2 ht /Width2 get def /hh2 ht /Height2 get def
                 } if
             } ifelse
-            /nsamp htw hth hw2 hh2 //.xpostsys /.celldet get exec def
+            /nsamp htw hth hw2 hh2 //.celldet exec def
             /nbytes nsamp wide { 2 mul } if def
             nsamp 0 gt nbytes 65535 le and {
                 nbytes string
@@ -1540,7 +1542,7 @@ end
 %
 .xpostsys /.htnum {  % obj  .  bool
     type dup /integertype eq exch /realtype eq or
-} bind put
+} put
 
 %
 %  The tails of the entry names that state an extent. A screen frequency
@@ -1587,12 +1589,12 @@ put
     4 dict begin
     /bad false def
     {
-        dup //.xpostsys /.htnum get exec
+        dup //.htnum exec
         { 0 le }{ pop false } ifelse
         {
             60 string cvs /nm exch def
             /skip false def
-            //.xpostsys /.htextentexempt get {
+            //.htextentexempt {
                 nm eq { /skip true def } if
             } forall
             skip not {
@@ -1609,7 +1611,7 @@ put
     bad
     end
     { /sethalftone cvx /rangecheck signalerror } if
-} bind put
+} put
 
 %
 %  The entries PLRM types that no halftone type requires, and the types
@@ -1639,7 +1641,7 @@ put
 .xpostsys /.htoptional {  % ht  .  -
     3 dict begin
     /ht exch def
-    //.xpostsys /.htoptypes get {
+    //.htoptypes {
         /want exch def
         ht 1 index known {
             ht exch get type
@@ -1650,7 +1652,7 @@ put
         }{ pop } ifelse
     } forall
     end
-} bind put
+} put
 
 %
 %  The function a colour component goes through on its way to a mark:
@@ -1676,7 +1678,7 @@ put
     dup null eq
         { pop graphicsdict /currgstate get exch get }
         { exch pop } ifelse
-} bind put
+} put
 
 %
 %  Tell a dictionary what its screen came to.
@@ -1710,7 +1712,7 @@ put
     ht /ActualFrequency known ht /ActualAngle known or and
     eff /HalftoneType 2 copy known { get 1 eq }{ pop pop false } ifelse and {
         eff /Frequency get eff /Angle get
-        //.xpostsys /.screenlattice get exec
+        //.screenlattice exec
         /cand exch def /quad exch def /q exch def pop pop pop
         ht /ActualFrequency known {
             ht /ActualFrequency
@@ -1721,7 +1723,7 @@ put
         } if
     } if
     end
-} bind put
+} put
 
 %
 %  Every key the declared type demands, or the missing one is undefined
@@ -1730,7 +1732,7 @@ put
     { 1 index exch known not
         { /sethalftone cvx /undefined signalerror } if } forall
     pop
-} bind put
+} put
 
 %
 %  An angled cell is screened by expanding it onto the axis-aligned tile
@@ -1742,12 +1744,12 @@ put
 %  can acquire a limit the other does not have.
 %
 .xpostsys /.htcelllimit {  % W H W2 H2  .  -
-    //.xpostsys /.cellside get exec
+    //.cellside exec
     dup 0 eq
         { /sethalftone cvx /rangecheck signalerror } if
     dup mul 65535 gt
         { /sethalftone cvx /limitcheck signalerror } if
-} bind put
+} put
 
 %
 %  Check a halftone dictionary against the type it declares before any
@@ -1764,15 +1766,15 @@ put
         { /sethalftone cvx /typecheck signalerror } if
     dup 1 eq {
         pop
-        ht [ /Frequency /Angle /SpotFunction ] //.xpostsys /.htrequire get exec
-        ht /Frequency get //.xpostsys /.htnum get exec
-        ht /Angle get //.xpostsys /.htnum get exec and not
+        ht [ /Frequency /Angle /SpotFunction ] //.htrequire exec
+        ht /Frequency get //.htnum exec
+        ht /Angle get //.htnum exec and not
             { /sethalftone cvx /typecheck signalerror } if
         ht /SpotFunction get type dup /arraytype ne exch /nametype ne and
             { /sethalftone cvx /typecheck signalerror } if
     }{ dup 3 eq {
         pop
-        ht [ /Width /Height /Thresholds ] //.xpostsys /.htrequire get exec
+        ht [ /Width /Height /Thresholds ] //.htrequire exec
         ht /Width get type /integertype eq
         ht /Height get type /integertype eq and not
             { /sethalftone cvx /typecheck signalerror } if
@@ -1794,7 +1796,7 @@ put
         % .htreadthresholds already draws Width x Height bytes out of it
         % and puts the string back where the screen looks for it, so
         % nothing downstream distinguishes the two.
-        ht [ /Width /Height /Thresholds ] //.xpostsys /.htrequire get exec
+        ht [ /Width /Height /Thresholds ] //.htrequire exec
         ht /Width get type /integertype eq
         ht /Height get type /integertype eq and not
             { /sethalftone cvx /typecheck signalerror } if
@@ -1813,10 +1815,10 @@ put
                  /GreenFrequency /GreenAngle /GreenSpotFunction
                  /BlueFrequency  /BlueAngle  /BlueSpotFunction
                  /GrayFrequency  /GrayAngle  /GraySpotFunction ] } ifelse
-        ht exch //.xpostsys /.htrequire get exec
+        ht exch //.htrequire exec
         ht /GrayFrequency 2 copy known {
-            get //.xpostsys /.htnum get exec
-            ht /GrayAngle get //.xpostsys /.htnum get exec and not
+            get //.htnum exec
+            ht /GrayAngle get //.htnum exec and not
                 { /sethalftone cvx /typecheck signalerror } if
         }{ pop pop } ifelse
     }{ dup 10 eq {
@@ -1828,7 +1830,7 @@ put
         % next (PLRM 7.4.5). Its thresholds may arrive either way a type
         % 3's and a type 6's may, and there are Xsquare^2 + Ysquare^2 of
         % them, square X first.
-        ht [ /Xsquare /Ysquare /Thresholds ] //.xpostsys /.htrequire get exec
+        ht [ /Xsquare /Ysquare /Thresholds ] //.htrequire exec
         ht /Xsquare get type /integertype eq
         ht /Ysquare get type /integertype eq and not
             { /sethalftone cvx /typecheck signalerror } if
@@ -1842,11 +1844,11 @@ put
         ht /Thresholds get type /stringtype eq {
             ht /Thresholds get length
             ht /Xsquare get dup ht /Ysquare get dup
-            //.xpostsys /.celldet get exec lt
+            //.celldet exec lt
                 { /sethalftone cvx /rangecheck signalerror } if
         } if
         ht /Xsquare get dup ht /Ysquare get dup
-        //.xpostsys /.htcelllimit get exec
+        //.htcelllimit exec
     }{ dup 16 eq {
         pop
 
@@ -1854,7 +1856,7 @@ put
         % a sample rather than one (PLRM Table 7.8). The optional second
         % rectangle travels as a pair: Width2 without Height2 describes a
         % rectangle with no extent.
-        ht [ /Width /Height /Thresholds ] //.xpostsys /.htrequire get exec
+        ht [ /Width /Height /Thresholds ] //.htrequire exec
         ht /Width get type /integertype eq
         ht /Height get type /integertype eq and not
             { /sethalftone cvx /typecheck signalerror } if
@@ -1874,7 +1876,7 @@ put
             ht /Height2 get type /integertype eq and not
                 { /sethalftone cvx /typecheck signalerror } if
             ht /Width get ht /Height get ht /Width2 get ht /Height2 get
-            //.xpostsys /.htcelllimit get exec
+            //.htcelllimit exec
         } if
     }{ 5 eq {
         % a composite dictionary: one halftone per colorant, and the
@@ -1909,8 +1911,8 @@ put
         % the type without anything in the language layer changing.
         /sethalftone cvx /rangecheck signalerror
     } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse
-    ht //.xpostsys /.htextent get exec
-    ht //.xpostsys /.htoptional get exec
+    ht //.htextent exec
+    ht //.htoptional exec
     end
 } put
 
@@ -1924,7 +1926,7 @@ put
     dup type /dicttype ne {
         /sethalftone cvx /typecheck signalerror
     } if
-    dup //.xpostsys /.htvalidate get exec
+    dup //.htvalidate exec
     graphicsdict /currgstate get exch /halftone exch put
 
     % The thresholds are drawn out of their file BEFORE a component is
@@ -1933,14 +1935,14 @@ put
     graphicsdict /currgstate get /halftone get
     dup /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse 5 eq {
         { exch pop
-          dup type /dicttype eq { //.xpostsys /.htreadthresholds get exec }{ pop } ifelse
+          dup type /dicttype eq { //.htreadthresholds exec }{ pop } ifelse
         } forall
     }{
-        //.xpostsys /.htreadthresholds get exec
+        //.htreadthresholds exec
     } ifelse
 
     1 dict begin
-    /ht graphicsdict /currgstate get /halftone get //.xpostsys /.ht5component get exec def
+    /ht graphicsdict /currgstate get /halftone get //.ht5component exec def
     ht /HalftoneType 2 copy known { get 1 eq }{ pop pop false } ifelse
     ht /Frequency known and ht /Angle known and {
         graphicsdict /currgstate get /screenfreq ht /Frequency get put
@@ -1959,10 +1961,10 @@ put
     graphicsdict /currgstate get /halftonetransfer
         ht /TransferFunction 2 copy known { get }{ pop pop null } ifelse put
     graphicsdict /currgstate get /halftone get ht
-        //.xpostsys /.htanswer get exec
+        //.htanswer exec
     end
-    //.xpostsys /.spreadgrayscreen get exec
-} //.xpostsys /.defop get exec
+    //.spreadgrayscreen exec
+} .defop
 
 %
 %  Return the halftone: the installed dictionary, or a type 1
@@ -1978,7 +1980,7 @@ put
            /SpotFunction graphicsdict /currgstate get /screenproc get
         >>
     } if
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return every component's screen parameters
@@ -1996,7 +1998,7 @@ put
     graphicsdict /currgstate get /screenfreq get
     graphicsdict /currgstate get /screenangle get
     graphicsdict /currgstate get /screenproc get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Ask for stroke adjustment (PLRM 8.2), which would move stroke edges
@@ -2005,7 +2007,7 @@ put
 %
 /setstrokeadjust [ /booleantype ] {  % flag  .  -   (recorded only)
     graphicsdict /currgstate get exch /strokeadjust exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Whether stroke adjustment is asked for (PLRM 8.2). Recorded only:
@@ -2015,7 +2017,7 @@ put
 /currentstrokeadjust [ ] {  % -  .  bool
     graphicsdict /currgstate get /strokeadjust 2 copy known
         { get }{ pop pop false } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Ask for a bound on the colour error a shading may be rendered with
@@ -2024,7 +2026,7 @@ put
 %
 /setsmoothness [ /numbertype ] {  % num  .  -   (recorded only)
     graphicsdict /currgstate get exch /smoothness exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The smoothness a shading is asked to be rendered to (PLRM 8.2).
@@ -2034,21 +2036,21 @@ put
 /currentsmoothness [ ] {  % -  .  num
     graphicsdict /currgstate get /smoothness 2 copy known
         { get }{ pop pop 0.02 } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Set line width
 %
 /setlinewidth [ /numbertype ] {  % num  .  -
     graphicsdict /currgstate get exch cvr /linewidth exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return current line width
 %
 /currentlinewidth [ ] {  % -  .  num
     graphicsdict /currgstate get /linewidth get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Set shape of the ends for stroke (0=butt, 1=round, 2=square)
@@ -2057,14 +2059,14 @@ put
     dup 0 lt 1 index 2 gt or
     { pop /setlinecap cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch /linecap exch put } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return current line cap
 %
 /currentlinecap [ ] {  % -  .  int
     graphicsdict /currgstate get /linecap get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  A non-empty dash array must hold no negative element and not be all
@@ -2090,7 +2092,7 @@ put
         { /setdash cvx /limitcheck signalerror } if
     graphicsdict /currgstate get exch cvr /dashoffset exch put
     graphicsdict /currgstate get exch /dasharray exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The dash pattern and its offset as setdash recorded them (PLRM 8.2).
@@ -2098,7 +2100,7 @@ put
 /currentdash [ ] {  % -  .  array offset
     graphicsdict /currgstate get /dasharray get
     graphicsdict /currgstate get /dashoffset get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Set shape of corners for stroke (0=miter, 1=round, 2=bevel)
@@ -2107,14 +2109,14 @@ put
     dup 0 lt 1 index 2 gt or
     { pop /setlinejoin cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch /linejoin exch put } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Return current line join
 %
 /currentlinejoin [ ] {  % -  .  int
     graphicsdict /currgstate get /linejoin get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  How far a miter join may extend before it is cut to a bevel, as the
@@ -2125,14 +2127,14 @@ put
     dup 1 lt
     { pop /setmiterlimit cvx /rangecheck signalerror }
     { graphicsdict /currgstate get exch cvr /miterlimit exch put } ifelse
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The miter limit in force (PLRM 8.2).
 %
 /currentmiterlimit [ ] {  % -  .  num
     graphicsdict /currgstate get /miterlimit get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Whether painting leaves the separations it does not name alone rather
@@ -2142,14 +2144,14 @@ put
 %
 /setoverprint [ /booleantype ] {  % bool  .  -
     graphicsdict /currgstate get exch /overprint exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Whether overprint is in force (PLRM 8.2).
 %
 /currentoverprint [ ] {  % -  .  bool
     graphicsdict /currgstate get /overprint get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The overprint mode refines overprint (0 the default, 1 the nonzero mode).
@@ -2158,7 +2160,7 @@ put
 %
 /setoverprintmode [ /integertype ] {  % int  .  -
     graphicsdict /currgstate get exch /overprintmode exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The overprint mode (an Adobe extension): 0 paints every component, 1
@@ -2166,7 +2168,7 @@ put
 %
 /currentoverprintmode [ ] {  % -  .  int
     graphicsdict /currgstate get /overprintmode get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The code selects how a source pixel would combine with the destination
@@ -2177,7 +2179,7 @@ put
 %
 /setrasteropcode [ /integertype ] {  % int  .  -      (NeWS) set the raster-operation code
     graphicsdict /currgstate get exch /rasteropcode exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The raster-operation code in force. A NeWS extension, recorded only:
@@ -2186,7 +2188,7 @@ put
 %
 /currentrasteropcode [ ] {  % -  .  int
     graphicsdict /currgstate get /rasteropcode get
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  Graphics State Operators -- Device Dependent
@@ -2204,7 +2206,7 @@ put
 /setflat [ /numbertype ] {  % num  .  -
     dup 0.2 lt { pop 0.2 }{ dup 100 gt { pop 100 } if } ifelse
     graphicsdict /currgstate get exch cvr /flat exch put
-} //.xpostsys /.defop get exec
+} .defop
 
 %
 %  The flatness tolerance in force (PLRM 8.2): how far a flattened curve
@@ -2212,6 +2214,8 @@ put
 %
 /currentflat [ ] {  % -  .  num
     graphicsdict /currgstate get /flat get
-} //.xpostsys /.defop get exec
+} .defop
+
+end end
 
 //.internaldict /QUIET known { }{ (eof gstate.ps\n)print } ifelse
