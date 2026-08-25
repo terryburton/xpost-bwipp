@@ -166,7 +166,7 @@ own    path_recycle_test.ps                   1
 own    path_walk_cost_test.ps                 1
 own    pdf_append_fail_test.ps                1
 own    privatedict_install_test.ps            1
-own    qsort_test.ps                          1
+own    qsort_test.ps                          3
 own    raster_row_test.ps                     1
 own    record_replay_test.ps                  2
 own    record_short_test.ps                   3

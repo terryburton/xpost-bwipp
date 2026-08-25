@@ -75,32 +75,40 @@ currentglobal true setglobal
 } bind def
 
 %
-%  array       .  -
+%       array  .  -
 %  array proc  .  -
 %
 %  Sort an array in place, comparing elements with proc, or with lt when
 %  none is given. The array is consumed: what has been sorted is the
 %  array object the caller still holds, and nothing is left behind.
 %
-%  The one name this file exports, reached as //.xpostsys /qsort get exec
-%  and called only by image.ps, to order a scanline's intersections. It
-%  opens qsortdict around the sort and closes it after, which is what
-%  gives partition and quicksort above the dictionary they need.
+%  The one name this file exports, reached as //.xpostsys /qsort get exec.
+%  gstate.ps calls it, to rank the samples of a halftone's spot function
+%  when a screen cell is built; the call in image.ps sits inside a
+%  procedure literal that is discarded, the scanline sweep having moved
+%  to the .yxsort operator. It opens qsortdict around the sort and closes
+%  it after, which is what gives partition and quicksort above the
+%  dictionary they need.
 %
-%  The array and the comparison procedure must both be in global VM. cmp
-%  is stored in qsortdict, which is global, and a global dictionary
-%  refuses a local value: a local comparison procedure raises
-%  invalidaccess here instead of sorting.
+%  cmp is held in a dictionary of this call's own rather than in
+%  qsortdict, which buys two things. The comparison procedure may be in
+%  either VM bank: qsortdict is global, a global dictionary refuses a
+%  local value, so cmp kept there would refuse a local comparison
+%  procedure with invalidaccess rather than sort with it. And a comparison
+%  procedure may start a sort of its own: the inner sort's cmp is a slot
+%  of its own and goes away with it, where one shared slot would have
+%  left the outer sort comparing with the inner one's procedure.
 %
-%  Not re-entrant. cmp is one slot in one shared dictionary, so a
-%  comparison procedure that starts a sort of its own replaces it, and
-%  the outer sort finishes comparing with the inner sort's procedure.
+%  The array is subject to neither: it travels on the stack and is never
+%  stored, so it sorts from either bank.
 %
 /qsort {
     //qsortdict begin
+    1 dict begin
     dup xcheck not{ {lt} }if
     /cmp exch def
     0 1 index length 1 sub quicksort
+    end
     end
 } bind
 end  % Qsortdict

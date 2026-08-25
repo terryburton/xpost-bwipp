@@ -34,8 +34,6 @@ true setglobal
 %  In the method comments, IMAGE is an instance returned by Create and
 %  c1..cN are the .ncomp colour components, each in [0,1].
 %
-(/qsort.ps) //.xpostsys /.loadmodule get exec
-
 .xpostsys /.rasterproto <<
     /dimensions [0 0]
 
@@ -542,21 +540,10 @@ true setglobal
         /DEBUGFILL where { pop
             (FillPoly:<sort scanline intersection list>)=
         } if
-        {
-        dup {  % comparitor  % [x1 y1] [x2 y2] . bool
-            1 index 1 get
-            1 index 1 get
-            eq {            % y1 == y2
-                exch 0 get
-                exch 0 get
-                lt             % (x1 < x2)
-            }{              % y1 != y2
-                exch 1 get
-                exch 1 get
-                lt             % (y1 < y2)
-            } ifelse
-        } //.xpostsys /qsort get exec   % [sorted-list-of-intersections]
-        } pop
+
+        % The intersections in scanline order, by y and then by x. The
+        % comparison is the operator's own, so the sweep neither builds a
+        % procedure per fill nor calls one per comparison.
         dup .yxsort
         /DEBUGFILL where { pop
             dup ==()=

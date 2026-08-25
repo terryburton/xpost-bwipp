@@ -57,5 +57,60 @@ B 0 get 999 eq (its greatest element is at the front) assert
 
 setglobal
 
+% --- neither operand has to be in global VM ---
+%
+% cmp is kept in a dictionary the call makes for itself, so it lands in
+% whichever bank the caller is working in. Kept in qsortdict, which is
+% global, it would refuse a local comparison procedure with invalidaccess
+% rather than sort with it -- and refuse it from inside the sort, where
+% what the program sees is a failure in its own comparison.
+% A sort abandoned part-way leaves both stacks as it had them: qsort
+% brackets itself with begin and end and a stop steps over the end, and
+% the operands of whatever refused are still where it left them. stopped
+% restores neither. So the depths are taken before each probe and put
+% back after one that fails -- without which a failure here would fail
+% every assertion after it too, each for a reason of its own, and the
+% run would end somewhere unrelated.
+/mark! { countdictstack /DEPTH exch def count /NCOUNT exch def } bind def
+/unwind {
+    { countdictstack DEPTH le { exit } if end } loop
+    { count NCOUNT le { exit } if pop } loop
+} bind def
+
+currentglobal false setglobal
+/L [ 5 1 4 2 3 ] def
+/LC { lt } def
+mark!
+{ L /LC load qs } stopped { unwind false }{ true } ifelse
+/sorted exch def
+sorted (a local array and a local comparison sort) assert
+sorted { L { gt not } ordered? }{ false } ifelse
+    (and the local sort left them non-descending) assert
+setglobal
+
+% --- a comparison procedure may start a sort of its own ---
+%
+% Each call holds its own cmp and drops it on the way out, so an inner
+% sort cannot leave the outer one comparing with the inner one's
+% procedure. One shared slot would: the outer sort would finish under a
+% comparison it never asked for, and finish quietly.
+currentglobal true setglobal
+/inner [ 30 10 20 ] def
+/outer [ 3 1 2 ] def
+% The inner sort asks for ascending and the outer for descending, so a
+% cmp the inner sort left behind is visible in the outer sort's answer.
+% Were both the same comparison, a clobbered cmp would sort correctly by
+% accident and this would assert nothing.
+/NEST { //inner { lt } qs gt } def
+mark!
+{ outer /NEST load qs } stopped { unwind false }{ true } ifelse
+/nested exch def
+nested (a comparison procedure may start a sort of its own) assert
+nested { outer { lt not } ordered? }{ false } ifelse
+    (and the outer sort still came out descending) assert
+nested { inner { gt not } ordered? }{ false } ifelse
+    (the inner sort ordered its array too) assert
+setglobal
+
 failed 0 eq { (SUCCESS\n) print }
 { (FAILED: ) print failed ==only ( assertions\n) print } ifelse
