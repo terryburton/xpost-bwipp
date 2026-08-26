@@ -2009,6 +2009,35 @@ setglobal
 } .defop
 
 %
+%  The form types execform implements, as PLRM Table 3.8 has a program ask
+%  after them (see the note in shade.ps). One, which is the only form type
+%  PLRM defines.
+%
+currentglobal true setglobal
+[ 1 ] { dup /FormType defineresource pop } forall
+setglobal
+
+%
+%  The filters this build has, as PLRM Table 3.8 has a program ask after them:
+%  /FlateDecode /Filter resourcestatus is how a program finds out whether it
+%  may send compressed data before it sends any. The instance of an implicit
+%  resource is the capability itself, so each answers with its own name.
+%
+%  Every one of these was exercised to get on the list, which is not the same
+%  as reading the names out of the source: a name the C mentions may be a
+%  name it refuses. The encoders were built over a writable target and the
+%  decoders over data, because a filter refuses the other way round and would
+%  otherwise have looked absent.
+%
+currentglobal true setglobal
+[ /ASCIIHexDecode /ASCIIHexEncode /ASCII85Decode /ASCII85Encode
+  /LZWDecode /LZWEncode /RunLengthDecode /RunLengthEncode
+  /FlateDecode /FlateEncode /CCITTFaxDecode /CCITTFaxEncode
+  /DCTDecode /DCTEncode /NullEncode /SubFileDecode /ReusableStreamDecode ]
+{ dup /Filter defineresource pop } forall
+setglobal
+
+%
 %  User paths: the self-describing form is an executable array of the
 %  path operators below; the encoded form pairs an operand source (a
 %  number array or encoded number string) with a string of opcodes,

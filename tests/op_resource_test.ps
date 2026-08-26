@@ -155,4 +155,118 @@ okwidget (a category copied from Generic holds instances) assert
 } forall
 missingcidcat 0 eq (the CID machinery's categories are all there) assert
 
+% --- implicit resources say what this build can actually do -------------
+%
+% PLRM Table 3.8: an implicit resource's instance is a capability rather
+% than an object a program defined, and `7 /ShadingType resourcestatus` is
+% how a program asks whether type 7 shadings are painted before it sends
+% one. A declaration that does not match the code is worse than none: it
+% answers the question wrongly, and the program acts on the answer.
+%
+% So this is held in BOTH directions, per capability. Each row carries a
+% probe that exercises the thing itself. Where the probe succeeds the
+% resource must be declared; where it fails the resource must be absent.
+% Neither a capability that was added and not declared, nor a declaration
+% for something that has stopped working, can pass.
+%
+% The probes are shaped per type on purpose. A halftone dictionary of the
+% wrong shape is refused exactly as an unsupported type is, so a careless
+% probe reports a working type as missing -- which is how types 2, 3, 4
+% and 5 came to be thought absent while all four work.
+/rgbdata <000000> def
+/capabilities [
+  % A function-based shading is fed by a function of TWO inputs; given the
+  % one-input form its siblings use it is refused, which looks exactly like
+  % the type being unsupported. It is not.
+  [ /ShadingType 1 { << /ShadingType 1 /ColorSpace /DeviceGray /Domain [0 1 0 1]
+        /Matrix [1 0 0 1 0 0]
+        /Function << /FunctionType 0 /Domain [0 1 0 1] /Range [0 1]
+                     /Size [2 2] /BitsPerSample 8 /DataSource <00FF00FF> >>
+        >> shfill } ]
+  [ /FunctionType 0 { << /ShadingType 1 /ColorSpace /DeviceGray /Domain [0 1 0 1]
+        /Matrix [1 0 0 1 0 0]
+        /Function << /FunctionType 0 /Domain [0 1 0 1] /Range [0 1]
+                     /Size [2 2] /BitsPerSample 8 /DataSource <00FF00FF> >>
+        >> shfill } ]
+  [ /ShadingType 2 { << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 1 0]
+        /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> shfill } ]
+  [ /ShadingType 3 { << /ShadingType 3 /ColorSpace /DeviceGray /Coords [0 0 0 0 0 1]
+        /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> shfill } ]
+  [ /FunctionType 2 { << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 1 0]
+        /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> shfill } ]
+  [ /FunctionType 3 { << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 1 0]
+        /Function << /FunctionType 3 /Domain [0 1]
+          /Functions [ << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >>
+                       << /FunctionType 2 /Domain [0 1] /C0 [1] /C1 [0] /N 1 >> ]
+          /Bounds [0.5] /Encode [0 1 0 1] >> >> shfill } ]
+  [ /HalftoneType 1 { << /HalftoneType 1 /Frequency 60 /Angle 0
+        /SpotFunction { pop } >> sethalftone } ]
+  [ /HalftoneType 3 { << /HalftoneType 3 /Width 2 /Height 2
+        /Thresholds <00408000> >> sethalftone } ]
+  [ /HalftoneType 5 { << /HalftoneType 5
+        /Gray << /HalftoneType 1 /Frequency 60 /Angle 0 /SpotFunction { pop } >>
+        /Default << /HalftoneType 1 /Frequency 60 /Angle 45 /SpotFunction { pop } >>
+        >> sethalftone } ]
+  % 6 and 16 take their thresholds through a file where 3 takes a string,
+  % and 10 describes its screen with Xsquare and Ysquare. Given the wrong
+  % shape each is refused exactly as an unimplemented type would be, which
+  % is how all three came to be thought missing when all three work.
+  [ /HalftoneType 6 { << /HalftoneType 6 /Width 2 /Height 2
+        /Thresholds (00408000>) /ASCIIHexDecode filter >> sethalftone } ]
+  [ /HalftoneType 10 { << /HalftoneType 10 /Xsquare 2 /Ysquare 2
+        /Thresholds <0040800000408000> >> sethalftone } ]
+  [ /HalftoneType 16 { << /HalftoneType 16 /Width 2 /Height 2
+        /Thresholds (0040800000408000>) /ASCIIHexDecode filter >> sethalftone } ]
+  [ /ImageType 1 { << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+        /Decode [0 1] /ImageMatrix [1 0 0 -1 0 1] /DataSource <80> >> image } ]
+  [ /ImageType 4 { << /ImageType 4 /MaskColor [0] /Width 1 /Height 1
+        /BitsPerComponent 8 /Decode [0 1] /ImageMatrix [1 0 0 -1 0 1]
+        /DataSource <80> >> image } ]
+  [ /PatternType 1 { << /PatternType 1 /PaintType 1 /TilingType 1
+        /BBox [0 0 1 1] /XStep 1 /YStep 1 /PaintProc { pop } >> matrix makepattern } ]
+  [ /PatternType 2 { << /PatternType 2 /Shading << /ShadingType 2
+        /ColorSpace /DeviceGray /Coords [0 0 1 0] /Function << /FunctionType 2
+        /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> >> matrix makepattern } ]
+  [ /FormType 1 { << /FormType 1 /BBox [0 0 1 1] /Matrix [1 0 0 1 0 0]
+        /PaintProc { pop } >> execform } ]
+  [ /ColorRenderingType 1 { << /ColorRenderingType 1
+        /WhitePoint [0.9505 1 1.089] >> setcolorrendering } ]
+  [ /Filter /FlateDecode { (abc) /FlateDecode filter closefile } ]
+  [ /Filter /ASCIIHexDecode { (616263>) /ASCIIHexDecode filter closefile } ]
+  [ /ColorSpaceFamily /DeviceCMYK { /DeviceCMYK setcolorspace } ]
+  [ /ColorSpaceFamily /Separation { [ /Separation (S) /DeviceGray { } ]
+        setcolorspace } ]
+] def
+
+/capmismatch 0 def
+capabilities {
+    aload pop /body exch def /key exch def /cat exch def
+    gsave
+    % /body load, not body: a name that answers with a procedure runs it,
+    % and stopped wants the procedure itself.
+    /body load stopped /worked exch not def
+    grestore
+    clear
+    key cat resourcestatus { pop pop true }{ false } ifelse /declared exch def
+    declared worked ne {
+        /capmismatch capmismatch 1 add store
+        (MISMATCH: ) print cat 20 string cvs print ( ) print
+        key 20 string cvs print
+        worked { ( works but is not declared) }{ ( is declared but does not work) }
+        ifelse print (\n) print
+    } if
+} forall
+capmismatch 0 eq
+    (every implicit resource declared is one this build can do, and every one
+     it can do is declared) assert
+
+% The categories themselves exist, so a program asking is answered rather
+% than stopped (PLRM: an absent category raises undefined).
+/missingimplicit 0 def
+[ /ShadingType /FunctionType /HalftoneType /ImageType /PatternType /FormType
+  /ColorRenderingType /Filter /ColorSpaceFamily ]
+{ /Category resourcestatus { pop pop }{ /missingimplicit missingimplicit 1 add store } ifelse
+} forall
+missingimplicit 0 eq (the implicit resource categories are all there) assert
+
 verdict

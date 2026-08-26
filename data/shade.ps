@@ -983,4 +983,21 @@ end
 
 end end
 
+%
+%  What this file can be asked for, as PLRM Table 3.8 has a program ask it.
+%  An implicit resource's instance is the capability itself: 7
+%  /ShadingType findresource answers 7 where type 7 shadings are painted and
+%  raises undefined where they are not, so a program can settle what it is
+%  talking to without painting anything to find out.
+%
+%  Declared here rather than beside the categories, because what is true of
+%  these is decided by the code in this file: a type added to the dispatch
+%  above and not to the list here is a capability nothing can discover, and
+%  one listed here and not implemented is a lie the guard catches.
+%
+currentglobal true setglobal
+[ 1 2 3 4 5 6 7 ] { dup /ShadingType defineresource pop } forall
+[ 0 2 3 ] { dup /FunctionType defineresource pop } forall
+setglobal
+
 //.internaldict /QUIET known { }{ (eof shade.ps\n)print } ifelse

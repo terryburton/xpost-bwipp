@@ -140,10 +140,28 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  program asking after a device is told there is no such instance rather than
 %  that there is no such category.
 %
+%  The last row is PLRM Table 3.8's implicit categories, whose instances are
+%  not objects a program defines but capabilities this interpreter either has
+%  or does not: an integer key that answers findresource is a type it
+%  implements. They are how a program asks what it is talking to -- 7
+%  /ShadingType resourcestatus is the question "do you do type 7 shadings"
+%  and, without the category, it raises an error instead of answering. The
+%  instances are defined by whichever module implements the capability, not
+%  here, so the answer cannot drift from the code that has to be true for it.
+%
+%  Absent by intent: /TrappingType, which this interpreter has no trapping to
+%  report; and /FMapType and /FontType, whose support has not been established
+%  to the standard the others were -- definefont accepts a dictionary without
+%  proving the type behind it is implemented, so a declaration made on that
+%  evidence would be a guess.
+%
 [ /Font /CIDFont /CMap /FontSet /Encoding /Form /Pattern /ProcSet
-  /ColorSpace /Halftone /ColorRendering /IdiomSet /Filter
-  /ColorSpaceFamily /Emulator /ControlLanguage /Localization /PDL
-  /Generic /IODevice ]
+  /ColorSpace /Halftone /ColorRendering /IdiomSet /InkParams /TrapParams
+  /OutputDevice /ControlLanguage /Localization /PDL /HWOptions
+  /Filter /ColorSpaceFamily /Emulator /IODevice
+  /ColorRenderingType /FormType /HalftoneType /ImageType /PatternType
+  /FunctionType /ShadingType
+  /Generic ]
 { //.defcategory exec } forall
 
 %
@@ -157,8 +175,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
    /ColorSpace /arraytype /Halftone /dicttype /ColorRendering /dicttype
    /IdiomSet /dicttype /ControlLanguage /dicttype /Localization /dicttype
    /PDL /dicttype /Category /dicttype
+   /InkParams /dicttype /TrapParams /dicttype /OutputDevice /dicttype
+   /HWOptions /dicttype
    /Filter /nametype /ColorSpaceFamily /nametype /Emulator /nametype
-   /IODevice /stringtype >>
+   /IODevice /stringtype
+   /ColorRenderingType /integertype /FormType /integertype
+   /HalftoneType /integertype /ImageType /integertype
+   /PatternType /integertype /FunctionType /integertype
+   /ShadingType /integertype >>
 {
     //.resources /Category get 3 -1 roll get
     /InstanceType 3 -1 roll put
@@ -542,10 +566,24 @@ setglobal
     /.rfbuf 127 string def
     [ .rfinst { pop } forall ]
     {
-        dup .rfbuf cvs .rftmpl //.wcmatch exec {
-            % load, not lookup: a bare name would run the proc early
-            .rfscr cvs /.rfproc load //.xpostsys /.pexec get exec
-        }{ pop } ifelse
+        % PLRM 8.2: a key that is neither a name nor a string matches only
+        % the template (*), and is handed to the procedure AS IT IS rather
+        % than copied into the scratch string. That is not a corner: an
+        % implicit category's instances are the capability itself and are
+        % keyed by integer (PLRM Table 3.8), so this is the ordinary case
+        % for /ShadingType and its neighbours. Writing such a key through
+        % cvs would hand the program the text of a number where the number
+        % is what findresource and resourcestatus take back.
+        dup type dup /nametype eq exch /stringtype eq or {
+            dup .rfbuf cvs .rftmpl //.wcmatch exec {
+                % load, not lookup: a bare name would run the proc early
+                .rfscr cvs /.rfproc load //.xpostsys /.pexec get exec
+            }{ pop } ifelse
+        }{
+            .rftmpl (*) eq {
+                /.rfproc load //.xpostsys /.pexec get exec
+            }{ pop } ifelse
+        } ifelse
     } forall
     end
 } .defop

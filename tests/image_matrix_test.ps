@@ -165,6 +165,55 @@
      /DataSource bytes >> image grestore }
     (an unknown image type) (a bad description) refuses2
 
+% --- the dictionary's word about its own data source ---------------------
+%
+% PLRM Table 4.20: MultipleDataSources says whether DataSource carries one
+% source or one per colour component. It is the dictionary's word that
+% decides, not the shape of what DataSource points at -- so a dictionary
+% whose flag disagrees with its value is describing itself wrongly and is
+% refused, rather than painted from whichever the implementation guessed.
+%
+% Both forms still work when the dictionary is truthful, which is the half
+% that would otherwise be lost by refusing too much.
+
+/rgb3 [ <FF> <80> <00> ] def
+{ gsave /DeviceRGB setcolorspace
+  << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+     /Decode [0 1 0 1 0 1] /ImageMatrix [1 0 0 -1 0 1]
+     /MultipleDataSources true /DataSource rgb3 >> image grestore }
+  (one source per component, said so) works
+
+{ gsave /DeviceRGB setcolorspace
+  << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+     /Decode [0 1 0 1 0 1] /ImageMatrix [1 0 0 -1 0 1]
+     /MultipleDataSources false /DataSource <FF8000> >> image grestore }
+  (one source for all of them, said so) works
+
+{ gsave /DeviceRGB setcolorspace
+  << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+     /Decode [0 1 0 1 0 1] /ImageMatrix [1 0 0 -1 0 1]
+     /MultipleDataSources true /DataSource <FF8000> >> image grestore }
+  /typecheck (several sources promised, one string given) raises
+
+{ gsave /DeviceRGB setcolorspace
+  << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+     /Decode [0 1 0 1 0 1] /ImageMatrix [1 0 0 -1 0 1]
+     /MultipleDataSources false /DataSource rgb3 >> image grestore }
+  /typecheck (one source promised, an array of them given) raises
+
+% absent is false (PLRM Table 4.20), so this is the case above by default
+{ gsave /DeviceRGB setcolorspace
+  << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+     /Decode [0 1 0 1 0 1] /ImageMatrix [1 0 0 -1 0 1]
+     /DataSource rgb3 >> image grestore }
+  /typecheck (an array of sources with the flag left out) raises
+
+{ gsave /DeviceRGB setcolorspace
+  << /ImageType 1 /Width 1 /Height 1 /BitsPerComponent 8
+     /Decode [0 1 0 1 0 1] /ImageMatrix [1 0 0 -1 0 1]
+     /MultipleDataSources 7 /DataSource <FF8000> >> image grestore }
+  /typecheck (a flag that is not a boolean) raises
+
 (imatrix.scratch) status { pop pop pop pop
     (imatrix.scratch) deletefile } if
 verdict

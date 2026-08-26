@@ -2218,4 +2218,21 @@ put
 
 end end
 
+%
+%  The halftone and colour-rendering types this file implements, as PLRM
+%  Table 3.8 has a program ask after them (see the note in shade.ps).
+%
+%  All eight of PLRM Table 7.5's types, which is what .htvalidate above
+%  accepts. Three of them are easy to think missing: 6 and 16 take their
+%  thresholds through a FILE where 3 takes a string, and 10 describes its
+%  screen with Xsquare and Ysquare rather than Width and Height. Handed the
+%  wrong shape each is refused exactly as an unimplemented type would be,
+%  so a reader checking by experiment has to build the right dictionary
+%  before believing the answer.
+%
+currentglobal true setglobal
+[ 1 2 3 4 5 6 10 16 ] { dup /HalftoneType defineresource pop } forall
+[ 1 ] { dup /ColorRenderingType defineresource pop } forall
+setglobal
+
 //.internaldict /QUIET known { }{ (eof gstate.ps\n)print } ifelse

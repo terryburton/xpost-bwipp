@@ -55,19 +55,27 @@ cats {
       (refuses to find a missing instance) nm refuses2
 
     % and whatever it does hold, it can find and give a status for --
-    % the two operators have to agree with the enumeration. The name
-    % arrives in the scratch string, which is handed out again for the
-    % next instance, so it is copied rather than kept.
+    % the two operators have to agree with the enumeration.
+    %
+    % A key is not always a name. An implicit category's instances are the
+    % capability itself and are keyed by integer (PLRM Table 3.8), so the
+    % key is taken as it arrives and only a string one is copied: a string
+    % comes in the scratch buffer, which is handed out again for the next
+    % instance, while an integer is a value and stays one.
     { /first null def
-      (*) { first null eq
-            { dup length string copy /first exch store }{ pop } ifelse }
+      /firstset false def
+      (*) { firstset not
+            { dup type /stringtype eq { dup length string copy } if
+              /first exch store /firstset true store }
+            { pop } ifelse }
           100 string cat resourceforall
-      first null ne {
-          first cvn cat resourcestatus
+      firstset {
+          first type /stringtype eq { first cvn }{ first } ifelse
+          dup cat resourcestatus
               { pop pop }
               { (an enumerated instance has no status) nm note }
           ifelse
-          first cvn cat findresource pop
+          cat findresource pop
       } if }
       (finds what it enumerates) nm works2
 } forall

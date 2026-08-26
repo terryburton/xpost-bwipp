@@ -193,7 +193,24 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % the pattern space, no cells to step.
         gsave
         pm setmatrix
-        pat /Shading get shfill
+        /sh pat /Shading get def
+
+        % PLRM Table 4.11: a Background is laid over the whole area about
+        % to be painted before the shading goes on, so that what the
+        % gradient does not reach is that colour rather than the page.
+        % It is the shading PATTERN that honours it; shfill is required
+        % to ignore it (PLRM 8.2, shfill), and does, which is why this is
+        % here and not there.
+        sh /Background 2 copy known {
+            get
+            gsave
+                sh /ColorSpace get setcolorspace
+                aload pop setcolor
+                clippath fill
+            grestore
+        }{ pop pop } ifelse
+
+        sh shfill
         grestore
     }{
     /bb pat /BBox get def
@@ -322,5 +339,13 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 end
 
 end end
+
+%
+%  The pattern types this file implements, as PLRM Table 3.8 has a program
+%  ask after them (see the note in shade.ps): 1 tiling, 2 shading.
+%
+currentglobal true setglobal
+[ 1 2 ] { dup /PatternType defineresource pop } forall
+setglobal
 
 //.internaldict /QUIET known { }{ (eof pattern.ps\n)print } ifelse

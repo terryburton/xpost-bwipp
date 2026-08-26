@@ -150,6 +150,33 @@
   dup /TilingType 47 put matrix makepattern pop } outcome /rangecheck eq
     (TilingType 47) (makepattern) (a pattern with) label assert
 
+% --- a shading pattern's Background ---------------------------------------
+%
+% PLRM Table 4.11: a Background is laid over the whole area about to be
+% painted, before the shading goes on, so what the gradient does not reach
+% is that colour rather than the page. It is the shading PATTERN that
+% honours it -- shfill is required to ignore it (PLRM 8.2), so the same
+% dictionary through the two routes is meant to differ.
+%
+% Painted where it can be read back rather than asserted from the outside:
+% a radial shading of radius 3 in the middle of a 20x20 fill leaves most of
+% the area to the Background, so the corner is the background colour and not
+% the gradient's.
+
+/BgShading << /ShadingType 3 /ColorSpace /DeviceRGB
+    /Coords [10 10 0 10 10 3] /Background [0 1 0]
+    /Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [1 0 0] /N 1 >>
+  >> def
+
+{ gsave
+  << /PatternType 2 /Shading BgShading >> matrix makepattern
+  /Pattern setcolorspace setcolor
+  0 0 20 20 rectfill
+  grestore } (a shading pattern with a Background paints) works
+
+{ gsave BgShading shfill grestore }
+  (shfill takes the same dictionary and ignores the Background) works
+
 showpage
 
 verdict

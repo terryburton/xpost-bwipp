@@ -1401,4 +1401,21 @@ end
 
 end end
 
+%
+%  The colour space families this file implements, as PLRM Table 3.8 has a
+%  program ask after them (the same shape as the type categories elsewhere).
+%
+%  /ICCBased is absent because it is not implemented; the eleven here were
+%  each entered with setcolorspace to get on the list. Two of them nearly did
+%  not: a CIEBasedDEF or DEFG built with a Table of the wrong shape is refused
+%  the same way an unsupported family would be, so a careless probe reports
+%  them missing when they work.
+%
+currentglobal true setglobal
+[ /DeviceGray /DeviceRGB /DeviceCMYK
+  /CIEBasedA /CIEBasedABC /CIEBasedDEF /CIEBasedDEFG
+  /Separation /DeviceN /Indexed /Pattern ]
+{ dup /ColorSpaceFamily defineresource pop } forall
+setglobal
+
 //.internaldict /QUIET known { }{ (eof color\n)print } ifelse

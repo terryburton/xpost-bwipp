@@ -1297,6 +1297,36 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  the MaskColor ranges leaves the page untouched. MaskColor holds one
 %  value per component (an exact colour) or min,max pairs.
 %
+%  The data source a dictionary names, held to what the dictionary says
+%  about it.
+%
+%  PLRM Table 4.20 has MultipleDataSources say whether DataSource carries
+%  one source or one per colour component, and it is the dictionary's word
+%  that decides. Reading the shape of DataSource instead and letting the
+%  flag mean nothing accepts two dictionaries that describe themselves
+%  wrongly -- a true flag over a single string, and a false one (or none,
+%  which is false) over an array of sources -- and paints something for
+%  both rather than refusing. Each is a typecheck, as is a flag that is not
+%  a boolean at all.
+%
+.xpostsys /.imgdatasource {  % dict /op  .  proc
+    2 dict begin
+    /op exch def
+    /d exch def
+    /multi d /MultipleDataSources 2 copy known { get }{ pop pop false } ifelse def
+    multi type /booleantype ne { op cvx /typecheck signalerror } if
+    /src d /DataSource get def
+    % /src load, never src: the common case is a procedure delivering a row
+    % at a time, and naming it would run it here instead of handing it on.
+    % A literal array is several sources; an executable one is that
+    % procedure, and is a single stream.
+    /src load type /arraytype eq /src load xcheck not and multi ne
+        { op cvx /typecheck signalerror } if
+    /src load //.imgsource exec
+    end
+} put
+
+%
 .xpostsys /.imagetype4 {  % imagedict  .  -
     6 dict begin
     /d exch def
@@ -1312,7 +1342,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } ifelse
     ] def
     d /Width get d /Height get itbits d /ImageMatrix get
-    d /DataSource get //.imgsource exec
+    d /image //.imgdatasource exec
     d /Decode get
     itn null itrange
     end
@@ -1509,7 +1539,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             dup type /booleantype eq { .privatedict /.imginterp 3 -1 roll put }{ pop } ifelse
             d /Width get d /Height get
             d /BitsPerComponent get d /ImageMatrix get
-            d /DataSource get //.imgsource exec
+            d /image //.imgdatasource exec
             d /Decode get
             end
             //.ncomponents exec //.imagepaint exec
@@ -1839,7 +1869,7 @@ setglobal
         d /Width get d /Height get
         d /Decode get 0 get 0 ne
         d /ImageMatrix get
-        d /DataSource get //.imgsource exec
+        d /imagemask //.imgdatasource exec
         d /Interpolate 2 copy known { get }{ pop pop false } ifelse
         dup type /booleantype ne { pop false } if
         end
@@ -1850,5 +1880,14 @@ setglobal
 } .defop
 
 end end
+
+%
+%  The image types this file implements, as PLRM Table 3.8 has a program ask
+%  after them (see the note in shade.ps). 1 is the plain image and the
+%  stencil mask, 3 the explicitly masked image, 4 the colour-keyed one.
+%
+currentglobal true setglobal
+[ 1 3 4 ] { dup /ImageType defineresource pop } forall
+setglobal
 
 //.internaldict /QUIET known { }{ (eof paint.ps\n)print } ifelse
