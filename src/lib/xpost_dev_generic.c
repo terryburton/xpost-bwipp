@@ -334,16 +334,16 @@ int _yxsort (Xpost_Context *ctx, Xpost_Object arr)
 }
 
 /* a winding-resolved fill span: the x extent the region covers within
-   one pixel-row band, still in real device coordinates */
+   one pixel-row band, still in device coordinates */
 struct rspan
 {
     int band;
-    real lo, hi;
+    double lo, hi;
 };
 
 static
 int _rspan_push(struct rspan **rsp, int *cap, int *n,
-                int band, real lo, real hi)
+                int band, double lo, double hi)
 {
     if (*n == *cap)
     {
@@ -374,7 +374,7 @@ struct _rspan_collector
 };
 
 static
-int _rspan_collect(Xpost_Span_Consumer *c, int band, real lo, real hi)
+int _rspan_collect(Xpost_Span_Consumer *c, int band, double lo, double hi)
 {
     struct _rspan_collector *k = (struct _rspan_collector *)c;
 
@@ -646,7 +646,7 @@ struct _rect_painter
 /* The span consumer that paints. It turns each resolved span into the
    driver's FillRect over the columns the span reaches. */
 static
-int _rect_paint(Xpost_Span_Consumer *c, int band, real lo, real hi)
+int _rect_paint(Xpost_Span_Consumer *c, int band, double lo, double hi)
 {
     struct _rect_painter *p = (struct _rect_painter *)c;
     integer xlo = (integer)floor(lo);
@@ -1185,8 +1185,8 @@ static int _rspans_to_columns(struct rspan *r, int n)
 
     for (i = 0; i < n; i++)
     {
-        real lo = (real)floor(r[i].lo);
-        real hi = (real)ceil(r[i].hi);
+        double lo = floor(r[i].lo);
+        double hi = ceil(r[i].hi);
 
         if (hi <= lo)
             continue;
@@ -1332,8 +1332,8 @@ int _regionmeet(Xpost_Context *ctx,
 
             while (i2 < nS && S[i2].band == b && j2 < nC && C[j2].band == b)
             {
-                real L = S[i2].lo > C[j2].lo ? S[i2].lo : C[j2].lo;
-                real R = S[i2].hi < C[j2].hi ? S[i2].hi : C[j2].hi;
+                double L = S[i2].lo > C[j2].lo ? S[i2].lo : C[j2].lo;
+                double R = S[i2].hi < C[j2].hi ? S[i2].hi : C[j2].hi;
 
                 if (L < R)
                 {

@@ -122,8 +122,8 @@ int main(void)
         {
             a[k].band = (int)(_next() % 7u);
             a[k].dirn = (_next() & 1u) ? 1 : -1;
-            a[k].lo = (real)(_next() % 5u);
-            a[k].hi = a[k].lo + (real)(_next() % 3u);
+            a[k].lo = (double)(_next() % 5u);
+            a[k].hi = a[k].lo + (double)(_next() % 3u);
         }
         sprintf(what, "random n=%d", n);
         _check_case(what, a, n);
@@ -135,7 +135,7 @@ int main(void)
     {
         a[i].band = i / 4;
         a[i].dirn = (i & 1) ? 1 : -1;
-        a[i].lo = (real)(i % 4);
+        a[i].lo = (double)(i % 4);
         a[i].hi = a[i].lo + 1;
     }
     _check_case("already ordered", a, n);

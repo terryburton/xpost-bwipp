@@ -59,7 +59,7 @@
 typedef struct
 {
     int band;
-    real lo, hi;
+    double lo, hi;
 } Span;
 
 typedef struct
@@ -70,7 +70,7 @@ typedef struct
     int overflow;
 } Collect;
 
-static int _take(Xpost_Span_Consumer *c, int band, real lo, real hi)
+static int _take(Xpost_Span_Consumer *c, int band, double lo, double hi)
 {
     Collect *k = (Collect *)c;
 
@@ -242,6 +242,72 @@ static void handmade(void)
     { Xpost_Span_Vertex p[] = {{10,60},{50,140},{12,140}}; drive(p,3,"boundary to boundary"); }
 }
 
+
+/* An edge through a lattice point crosses there exactly.
+ *
+ * The conversion cuts an edge at each band boundary and interpolates the
+ * x it crosses at. Where that crossing is a whole number -- which every
+ * edge passing through a lattice point produces, so constantly -- the
+ * interpolation has to land on it and not a fraction past it: the column
+ * the extent reaches is decided by a floor and a ceiling further on, and
+ * a crossing of 30.000002 where the answer is 30 takes one more column
+ * than the shape covers.
+ *
+ * Held here because it is the one property of the conversion that a
+ * single build cannot notice on its own. Interpolated at the width of
+ * the interpreter's own number, the crossing is exact where that is a
+ * double and a little past where it is a single, so the same page comes
+ * out of the two builds with different pixels along an edge -- and each
+ * build, asked only to agree with itself, is perfectly consistent.
+ *
+ * The edge runs (0,0) to (300,900): a third of a unit across per unit
+ * down, so at every third band boundary the crossing is a whole number.
+ * A third is not representable either way, which is the point -- what
+ * differs is whether multiplying it back out recovers the whole number.
+ */
+static void lattice_crossings(void)
+{
+    Xpost_Span_Vertex p[4];
+    Collect got;
+    int k, checked = 0, off = 0;
+
+    p[0].x = 0.0;   p[0].y = 0.0;
+    p[1].x = 300.0; p[1].y = 900.0;
+    p[2].x = 0.0;   p[2].y = 900.0;
+    p[3].x = 0.0;   p[3].y = 0.0;
+
+    got.v = ubuf;
+    if (convert(p, 4, 0, NULL, &got))
+    {
+        check(0, "the lattice-crossing shape converted");
+        return;
+    }
+
+    /* band 3k-1 is cut at y = 3k, where the edge is at x = k exactly */
+    for (k = 1; k <= 300; k++)
+    {
+        int band = 3 * k - 1;
+        int i;
+
+        for (i = 0; i < got.n; i++)
+        {
+            if (got.v[i].band != band)
+                continue;
+            if (got.v[i].hi >= (double)(k - 1) && got.v[i].hi <= (double)(k + 1))
+            {
+                checked++;
+                if (got.v[i].hi != (double)k)
+                    off++;
+            }
+        }
+    }
+
+    check(checked > 250, "the edge was cut at the lattice boundaries");
+    check(off == 0, "every lattice crossing landed on the whole number");
+    printf("span-window: %d lattice crossing(s), %d off the whole number\n",
+           checked, off);
+}
+
 int main(void)
 {
     int grain, s;
@@ -294,6 +360,8 @@ int main(void)
             drive(p, n, name);
         }
     }
+
+    lattice_crossings();
 
     check(cases > 0, "the window was compared against the page at all");
     check(mismatches == 0, "every window kept what the page kept there");

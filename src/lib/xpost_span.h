@@ -36,7 +36,16 @@
  *
  * A span is stated in the coordinates of the page, in the pixel-row
  * band it lies in (band b is the row covering b <= y < b+1) and as the
- * real x extent the region covers within that band. Turning the extent
+ * x extent the region covers within that band.
+ *
+ * That extent is a double and not a `real`, which is the interpreter's
+ * number and is as wide as the object is. Where an edge crosses a pixel
+ * boundary exactly -- which is every edge through a lattice point, so
+ * constantly -- the crossing is that boundary in double and a little
+ * past it in single, and the column it lands in is then decided
+ * differently by each. The page a program describes does not depend on
+ * how wide this build's numbers are, so the arithmetic that resolves it
+ * does not either. Turning the extent
  * into columns, and deciding whether those columns are addressable at
  * all, is the consumer's business: what the page names and what a
  * destination holds are separate questions, and only the consumer knows
@@ -52,7 +61,7 @@ struct band_span
 {
     int band;
     int dirn;
-    real lo, hi;
+    double lo, hi;
 };
 
 /* Order a shape's passages by band, then left edge, then right edge,
@@ -66,7 +75,7 @@ XPOST_TEST_VISIBLE void xpost_span_sort(struct band_span *spans, int n);
    vertex: it ends one subpath and begins the next. */
 typedef struct
 {
-    real x, y;
+    double x, y;
 } Xpost_Span_Vertex;
 
 typedef struct _Xpost_Span_Consumer Xpost_Span_Consumer;
@@ -81,7 +90,7 @@ typedef struct _Xpost_Span_Consumer Xpost_Span_Consumer;
    needs, and recovered from the pointer by the callback. */
 struct _Xpost_Span_Consumer
 {
-    int (*take)(Xpost_Span_Consumer *consumer, int band, real lo, real hi);
+    int (*take)(Xpost_Span_Consumer *consumer, int band, double lo, double hi);
 };
 
 /* The rows of the page a conversion states spans for: an inclusive

@@ -117,7 +117,7 @@ xpost_span_sort (struct band_span *spans, int n)
 static
 int _span_push(struct band_span **spans, int *cap, int *n,
                const Xpost_Span_Rows *rows,
-               int band, int dirn, real lo, real hi)
+               int band, int dirn, double lo, double hi)
 {
     if (rows && (band < rows->lo || band > rows->hi))
         return 0;
@@ -146,6 +146,31 @@ int _span_push(struct band_span **spans, int *cap, int *n,
     (*spans)[*n].hi = hi;
     ++*n;
     return 0;
+}
+
+/* Where an edge crosses a given y.
+ *
+ * Multiplied before it is divided, so that an edge through a lattice
+ * point crosses there exactly. Dividing first turns the ratio into a
+ * number that is usually not exact -- a third, say -- and multiplying
+ * that back out lands a little either side of the whole number the
+ * crossing is, which the floor and ceiling further on then read as one
+ * more column than the shape covers.
+ *
+ * In double, and not in the interpreter's own number: where that is a
+ * single, the crossing is a little past the boundary it should be on
+ * and the two builds settle a differently shaped edge. A page does not
+ * depend on how wide this build's numbers are.
+ *
+ * Written once and called from both the walk and the jump into a
+ * window, because the two are required to arrive at the same number:
+ * the window's correctness is stated as an equality against the
+ * unwindowed walk, and two spellings of this that round apart would
+ * break it while each stayed self-consistent.
+ */
+static double _edge_x_at(Xpost_Span_Vertex P, Xpost_Span_Vertex Q, double y)
+{
+    return P.x + (Q.x - P.x) * (y - P.y) / (Q.y - P.y);
 }
 
 /* Scan-convert a run of vertices to winding-resolved spans, stating
@@ -202,7 +227,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
     {
         integer s0, nv, base, k;
         int dirn, ib, code;
-        real lo, hi, submin, submax;
+        double lo, hi, submin, submax;
 
         while (i < npoints && points[i].x == SUBPATH_BREAK)
             i++;
@@ -238,7 +263,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
 
             if (P.y == Q.y)
             {
-                if (P.y == (real)floor(P.y))
+                if (P.y == floor(P.y))
                 {
                     /* on a band boundary: deposits nothing; until the
                        chain has a direction just track the position */
@@ -257,7 +282,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
             /* the band this edge starts in: a start exactly on a band
                boundary belongs to the band ahead of travel */
             eb = (int)floor(P.y);
-            if (d < 0 && (real)eb == P.y)
+            if (d < 0 && (double)eb == P.y)
                 eb--;
 
             if (d != dirn)
@@ -296,24 +321,24 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
             if (rows)
             {
                 int entry = ib;
-                real ey = 0;
+                double ey = 0;
 
                 if (d > 0 && ib < rows->lo)
                 {
                     entry = rows->lo;
-                    ey = (real)rows->lo;
+                    ey = (double)rows->lo;
                 }
                 else if (d < 0 && ib > rows->hi)
                 {
                     entry = rows->hi;
-                    ey = (real)(rows->hi + 1);
+                    ey = (double)(rows->hi + 1);
                 }
                 /* only where the edge actually crosses that boundary: one
                    that stops short of the window never enters it, and the
                    walk below has to end in the band it really stops in */
                 if (entry != ib && (d > 0 ? Q.y > ey : Q.y < ey))
                 {
-                    lo = hi = P.x + (Q.x - P.x) * ((ey - P.y) / (Q.y - P.y));
+                    lo = hi = _edge_x_at(P, Q, ey);
                     ib = entry;
                 }
             }
@@ -321,7 +346,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
             /* walk the edge band to band, cutting at each boundary */
             while (code == 0)
             {
-                real yb;
+                double yb;
 
                 /* Past the window, and travelling away from it: every
                    band left keeps nothing, so finish the edge here
@@ -340,11 +365,11 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
                     break;
                 }
 
-                yb = (real)(d > 0 ? ib + 1 : ib);
+                yb = (double)(d > 0 ? ib + 1 : ib);
 
                 if (d > 0 ? Q.y > yb : Q.y < yb)
                 {
-                    real xb = P.x + (Q.x - P.x) * ((yb - P.y) / (Q.y - P.y));
+                    double xb = _edge_x_at(P, Q, yb);
 
                     if (xb < lo) lo = xb;
                     if (xb > hi) hi = xb;
@@ -407,7 +432,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
         {
             int b = spans[s].band;
             int wind = 0;
-            real L = spans[s].lo, R = spans[s].hi;
+            double L = spans[s].lo, R = spans[s].hi;
             int code;
 
             do
