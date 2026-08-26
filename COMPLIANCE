@@ -1,274 +1,61 @@
 Xpost Postscript Compliance
 ===========================
 
+Where this interpreter departs from the published language, and nothing
+else.
+
+It used to list every operator, and two hundred and fifty-nine of those
+lines said the operator's name and no more. A name with nothing beside it
+carries no information a reader can act on: implemented is the expected
+state, and the whole of what a reader needs is where it is not.
+
+Such a list is also unable to report its own gaps. This one had eighty-
+seven of them -- composefont, cshow, setbbox, the CIDInit and CMap
+groups, globalvmstatus and the rest -- every one of them swept and tested
+in the operator campaign, none of them ever written down here. Nothing
+inside a list of what works can say what is missing from it.
+
+So what is left is the exceptions: an operator that is partly there, one
+that is not there at all, and one that is there with something worth
+saying about how. What is NOT here is the assurance that everything else
+is implemented, because a document cannot carry that assurance honestly.
+tests/plrm-operators holds every operator the specification defines, and
+a guard asks a running interpreter which of them it has -- so the
+completeness question is answered by the interpreter and this file
+answers the other one.
+
 Notation
 --------
 
  [ ] : not implemented
  [/] : partially implemented
- [X] : implemented
+ [X] : implemented, with the note beside it -- a qualification, not an
+       assurance; an operator with nothing to say about it is absent
+       from this file
 
 Level 1 operators
 -----------------
 
- [X] setdash
- [X] currentdash
- [X] arcto
- [X] fill with complex paths
- [X] eofill
- [X] clip with complex paths
- [X] eoclip
- [X] setlinejoin
- [X] currentlinejoin
- [X] setlinecap
- [X] currentlinecap
  [X] image (12-bit samples render at the raster's 8-bit depth)
- [X] imagemask
- [X] settransfer
- [X] currenttransfer
  [X] setscreen (a spot procedure that leaves no result loses nothing
      from the caller's stack, where the reference interpreters error)
- [X] currentscreen
- [X] setcolorscreen
- [X] currentcolorscreen
- [X] sethalftone
- [X] currenthalftone
- [X] makefont
- [X] ashow
- [X] widthshow
- [X] awidthshow
- [X] kshow
- [X] stringwidth
- [X] Type-3 Fonts
- [X] font data caching
- [X] definefont for modified font properties (matrix, encoding, etc.)
  [X] base font CharStrings (a face whose program cannot be read
      publishes glyph indices)
 
- [X] pop
- [X] exch
- [X] dup
- [X] copy
- [X] index
- [X] roll
- [X] clear
- [X] count
- [X] cleartomark
- [X] counttomark
- [X] add
- [X] div
- [X] idiv
- [X] mod
- [X] mul
- [X] sub
- [X] abs
- [X] neg
- [X] ceiling
- [X] floor
- [X] round
- [X] truncate
- [X] sqrt
- [X] atan
- [X] cos
- [X] sin
- [X] exp
- [X] ln
- [X] log
- [X] rand
- [X] srand
- [X] rrand
- [X] array
- [X] length
- [X] get
- [X] put
- [X] getinterval
- [X] putinterval
- [X] aload
- [X] astore
- [X] forall
- [X] dict
- [X] maxlength
- [X] begin
- [X] end
- [X] def
- [X] load
- [X] store
- [X] known
- [X] where
- [X] currentdict
- [X] countdictstack
- [X] dictstack
- [X] string
- [X] anchorsearch
- [X] search
- [X] token
- [X] eq
- [X] ne
- [X] ge
- [X] gt
- [X] le
- [X] lt
- [X] and
- [X] not
- [X] or
- [X] xor
- [X] bitshift
- [X] exec
- [X] if
- [X] ifelse
- [X] for
- [X] repeat
- [X] loop
- [X] exit
- [X] countexecstack
- [X] execstack
- [X] quit
- [X] stop
- [X] stopped
- [X] type
- [X] cvlit
- [X] cvx
- [X] xcheck
- [X] executeonly
- [X] noaccess
- [X] readonly
- [X] rcheck
- [X] wcheck
- [X] cvi
- [X] cvn
- [X] cvr
- [X] cvrs
- [X] cvs
- [X] file
- [X] closefile
- [X] read
- [X] write
- [X] readhexstring
- [X] writehexstring
- [X] readstring
- [X] writestring
- [X] readline
- [X] bytesavailable
- [X] flush
- [X] flushfile
- [X] resetfile
- [X] status
- [X] currentfile
- [X] print
- [X] echo
- [X] save
- [X] restore
- [X] vmstatus
- [X] bind
- [X] usertime
- [X] getenv
- [X] gsave
- [X] grestore
- [X] grestoreall
- [X] setlinewidth
- [X] currentlinewidth
- [X] setlinecap
- [X] currentlinecap
- [X] setlinejoin
- [X] currentlinejoin
- [X] setmiterlimit
- [X] currentmiterlimit
- [X] setflat
- [X] currentflat
- [X] setgray
- [X] currentgray
- [X] setrgbcolor
- [X] currentrgbcolor
- [X] sethsbcolor
- [X] currenthsbcolor
- [X] settransfer
- [X] currenttransfer
- [X] matrix
- [X] initmatrix
- [X] identmatrix
- [X] defaultmatrix
- [X] currentmatrix
- [X] setmatrix
- [X] translate
- [X] scale
- [X] rotate
- [X] concat
- [X] concatmatrix
- [X] transform
- [X] dtransform
- [X] itransform
- [X] idtransform
- [X] invertmatrix
- [X] newpath
- [X] currentpoint
- [X] moveto
- [X] rmoveto
- [X] lineto
- [X] rlineto
- [X] arc
- [X] arcn
- [X] arcto
- [X] curveto
- [X] rcurveto
- [X] closepath
- [X] flattenpath
- [X] charpath
- [X] clippath
- [X] pathbbox
- [X] initclip
- [X] clip
- [X] eoclip
- [X] erasepage
- [X] fill
- [X] eofill
- [X] stroke
- [X] strokepath
- [X] reversepath
- [X] image
- [X] imagemask
- [X] showpage
- [X] copypage
- [X] setfont
- [X] currentfont
- [X] show
- [X] stringwidth
- [X] findfont
- [X] scalefont
- [X] setcharwidth
- [X] = and == (also stack, pstack, =print)
- [X] executive (also prompt, start)
  [X] handleerror (an error out of a procedure-implemented operator
      restores the stacks to their depths at the call; operands the
      procedure had already consumed are not pushed back)
- [X] run
- [X] initgraphics
- [X] nulldevice
- [X] pathforall
- [X] version
- [X] eexec
- [X] internaldict
- [X] cachestatus
- [X] setcachelimit
 
 Level 2 operators
 -----------------
 
- [X] arct
- [X] rectfill
- [X] rectstroke
- [X] rectclip
- [X] selectfont
  [X] setcolorspace (all colour-space families; colour rendering dictionaries
      are recorded, not applied)
- [X] currentcolorspace
- [X] setcolor
- [X] currentcolor
  [X] setpagedevice (OutputDevice, PageSize, HWResolution, OutputFile,
      PageOffset, ImagingBBox; other keys reach the device as features.
      A device keeping its page as rows keeps only the rows an imaging
      bounding box reaches, so a mark painted outside the box a program
      declared is not rendered)
- [X] currentpagedevice
  [X] BeginPage, EndPage (called with the count of pages the device has
      transmitted, EndPage also with the reason -- 0 showpage, 1 copypage,
      2 the device going away -- and its boolean decides whether the page
@@ -281,30 +68,17 @@ Level 2 operators
      operator descriptions have it; the reference interpreter collapses
      copypage into showpage, reason 0 and counted, as a LanguageLevel 3
      interpreter may)
- [X] xshow
- [X] yshow
- [X] xyshow
- [X] glyphshow
- [X] colorimage
  [X] image with dict argument (ImageTypes 1, 3 and 4; Interpolate
      smooths the samples of any shape on the direct raster path,
      while a mask still decides each pixel by its nearest sample;
      MultipleDataSources is held to the DataSource it describes, so a
      dictionary disagreeing with itself is refused)
- [X] imagemask with dict argument
- [X] setcolortransfer
- [X] currentcolortransfer
  [X] setblackgeneration (recorded only)
- [X] currentblackgeneration
  [X] setundercolorremoval (recorded only)
- [X] currentundercolorremoval
  [X] setcolorrendering (the dictionary is checked and recorded; the
      rendering it describes is the device's own -- see the deviations)
- [X] currentcolorrendering
- [X] Named Resources
  [X] makepattern (every tile repaints its cell; text through a CMap
      composite under a pattern colour paints the underlying colour)
- [X] setpattern
  [X] filter (decode filters: ASCIIHex, ASCII85, SubFile, RunLength,
      Flate, LZW, CCITTFax, DCT, ReusableStream; encode filters:
      ASCIIHex, ASCII85, Null, RunLength, Flate, LZW, CCITTFax, DCT.
@@ -322,11 +96,8 @@ Level 2 operators
  [X] Trapping procedure set: settrapparams, currenttrapparams, settrapzone
      (parameters recorded and queryable; no traps are generated, as the
      language leaves in-RIP trapping device-dependent)
- [X] setglobal, currentglobal, gcheck
- [X] gstate, setgstate, currentgstate
  [X] packedarray (built as ordinary arrays), setpacking,
      currentpacking
- [X] setcmykcolor, currentcmykcolor
  [X] setoverprint, currentoverprint (carried to the pdfwrite output; the
      composite raster devices paint opaque)
  [X] setoverprintmode, currentoverprintmode (carried to the pdfwrite output;
@@ -341,26 +112,17 @@ Level 2 operators
      may ask for a smaller stack, and is answered with the capacity it
      will actually get. VMThreshold is recorded and reported back but
      does not change how often collection runs)
- [X] deletefile, renamefile, filenameforall
- [X] fileposition, setfileposition
- [X] cleardictstack
- [X] undef
- [X] vmreclaim
- [X] realtime
- [X] product, revision, serialnumber
- [X] languagelevel
- [X] undefinefont
- [X] rootfont
  [X] startjob (job boundaries accepted; no VM encapsulation)
+ [ ] start (the specification's top-level entry point. This interpreter
+     keeps its start procedures in the private dictionary the machinery
+     lives in, so no program can name one; a run reaches them through
+     the interpreter rather than through the language)
  [X] setcachedevice2 (reduces to setcachedevice)
- [X] setcacheparams, currentcacheparams
  [X] user paths (upath, uappend, ufill, ueofill, ustroke,
      ustrokepath, setbbox; ucache is accepted, nothing is cached)
  [X] insideness testing (infill, ineofill, instroke, inufill,
      inueofill, inustroke; a user path without a leading setbbox is
      accepted rather than rejected)
- [X] user objects (defineuserobject, execuserobject,
-     undefineuserobject)
  [X] execform (output cached on raster pages, keyed by the form and
      the transformation; a vector or screening page, or an
      unwritable dictionary, paints afresh)
@@ -386,8 +148,6 @@ Level 3 operators
      one-byte codes. The CIDInit procedure set is complete: notdef
      mappings and usematrix are taken, though a single-descendant job
      applies neither)
- [X] clipsave
- [X] cliprestore
  [X] setsmoothness, currentsmoothness (recorded only)
  [X] findcolorrendering (names the default instance)
  [X] Type 4 CIDFonts, and the BitmapFontInit procedure set: addglyph,
@@ -445,7 +205,6 @@ Display Postscript
 NeWS
 ----
 
- [X] getenv/putenv
  [X] magic dictionaries
  [X] setrasteropcode, currentrasteropcode (recorded only; a raster page
      replaces, so the default copy is honoured and other codes are stored in
@@ -457,19 +216,12 @@ NeWS
 Typical output devices
 ----------------------
 
- [X] pgm
- [X] ppm
- [X] pbm
  [X] tiff (24-bit rgb, one uncompressed strip)
- [X] jpeg
  [X] png (also a png with alpha)
  [X] pdf (pdfwrite)
  [X] svg (svgwrite)
- [X] bounding-box
  [X] dsc-compliant distilled ps (dscwrite; separations arrive as
      their process colours)
- [X] xcb
- [X] ms-windows
 
 Known behavioural deviations
 ----------------------------

@@ -50,6 +50,8 @@ tests/form-facts \
 tests/check-function-facts.sh \
 tests/function-facts \
 tests/check-colorrendering-facts.sh \
+tests/check-plrm-operators.sh \
+tests/plrm-operators \
 tests/check-colourspace-facts.sh \
 tests/colourspace-facts \
 tests/check-pattern-facts.sh \
