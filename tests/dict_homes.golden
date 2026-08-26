@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 388
+entries 397
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -116,22 +116,31 @@ entries 388
 .xpostsys /.cidface
 .xpostsys /.cidtypemap
 .xpostsys /.cidstamp
-.xpostsys /.cieabcrgb
-.xpostsys /.ciearpgb
+.xpostsys /.cieabcdev
+.xpostsys /.cieadev
 .xpostsys /.cieclamp
 .xpostsys /.cieclampcomps
 .xpostsys /.ciecomps
 .xpostsys /.cieconv
-.xpostsys /.ciedefgrgb
-.xpostsys /.ciedefrgb
+.xpostsys /.ciedefgdev
+.xpostsys /.ciedefdev
 .xpostsys /.ciefams
-.xpostsys /.cielmnxyzrgb
+.xpostsys /.cielmndev
 .xpostsys /.cierange
 .xpostsys /.cierangekeys
-.xpostsys /.ciergb
+.xpostsys /.ciedev
 .xpostsys /.cietblpos
 .xpostsys /.cietblval
 .xpostsys /.ciexyzrgb
+.xpostsys /.crdabc
+.xpostsys /.crddefault
+.xpostsys /.crdget
+.xpostsys /.crdinv3
+.xpostsys /.crdmul
+.xpostsys /.crdpqr
+.xpostsys /.crdsame
+.xpostsys /.crdtable
+.xpostsys /.cierender
 .xpostsys /.armdevrequest
 .xpostsys /.classcopydict
 .xpostsys /.clipbig

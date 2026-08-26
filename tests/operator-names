@@ -29,6 +29,8 @@
 .checkpagefeatures          setpagedevice
 .checkpagehandlers          setpagedevice
 .cidface                    show
+.crdinv3                    setcolor
+.crdtable                   setcolor
 .crdvalidate                setcolorrendering
 .csvalidate                 setcolorspace
 .endpage                    EndPage

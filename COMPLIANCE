@@ -75,8 +75,10 @@ Level 2 operators
      dictionary disagreeing with itself is refused)
  [X] setblackgeneration (recorded only)
  [X] setundercolorremoval (recorded only)
- [X] setcolorrendering (the dictionary is checked and recorded; the
-     rendering it describes is the device's own -- see the deviations)
+ [X] setcolorrendering (the dictionary is the conversion a CIE-based
+     colour goes through: the MatrixPQR and TransformPQR white point
+     adaptation, MatrixLMN, EncodeLMN, MatrixABC and EncodeABC, and a
+     RenderTable of three or four components)
  [X] makepattern (every tile repaints its cell; text through a CMap
      composite under a pattern colour paints the underlying colour)
  [X] filter (decode filters: ASCIIHex, ASCII85, SubFile, RunLength,
@@ -149,7 +151,8 @@ Level 3 operators
      mappings and usematrix are taken, though a single-descendant job
      applies neither)
  [X] setsmoothness, currentsmoothness (recorded only)
- [X] findcolorrendering (names the default instance)
+ [X] findcolorrendering (names the default instance, whose entries
+     describe the conversion a graphics state starts out performing)
  [X] Type 4 CIDFonts, and the BitmapFontInit procedure set: addglyph,
      removeall, removeglyphs (charpath over such a font marks nothing,
      as the language requires)
@@ -266,12 +269,16 @@ Known behavioural deviations
      apart, and undefined is what this interpreter answers for a
      required entry that is absent everywhere else. The second oracle
      could not be driven for this question.
- [X] setcolorrendering  the dictionary is checked against Table 7.1 and
-     recorded, and nothing afterwards reads its entries: colour is
-     rendered by the device's own conversion. A program that sets a
-     colour rendering dictionary and expects the rendering it describes
-     gets the device's instead, and cannot tell from the interpreter
-     that this is so.
+ [X] setcolorrendering  the colour rendering dictionary is the conversion
+     a CIE-based colour goes through (PLRM 7.1.2), and both reference
+     interpreters ignore it -- one renders such a colour through its own
+     colour management and the other preserves the colour space rather
+     than rendering it at all, and neither calls a TransformPQR, an
+     EncodeLMN or an EncodeABC procedure. Here the dictionary is read: a
+     program that sets one gets the rendering it describes. RangePQR is
+     not read, which the specification allows -- it states what the
+     TransformPQR procedures will see rather than clamping them, and says
+     outright that they must accept values outside it.
  [X] ]  a construction closed over more objects than an array can hold is
      limitcheck, where some interpreters return an array shorter than the
      objects they were given.

@@ -23,10 +23,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 %  The four CIE-based families reduce a colour to X Y Z the way the
 %  language describes: per-component clamps to the declared ranges,
-%  the decode procedures, and the matrix stages. The X Y Z then
-%  renders to device RGB through fixed daylight primaries with the
-%  white point adapted by channel scaling; rendering dictionaries
-%  beyond the recorded stub take no part.
+%  the decode procedures, and the matrix stages. The X Y Z then becomes
+%  device colour under the colour rendering dictionary the graphics state
+%  holds, which is the conversion PLRM 7.1 puts there.
 %
 
 .xpostsys begin
@@ -53,105 +52,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /h exch def /l exch def
     dup l lt { pop l } if
     dup h gt { pop h } if
-    end
-} def
-
-%
-%  CIE XYZ to the device's RGB, against a white point: the matrix every
-%  CIE family below funnels into once it has reduced its own colour to
-%  XYZ, followed by the gamma the sRGB primaries want.
-%
-%  One conversion rather than one per family, so the families differ
-%  only in how they reach XYZ.
-%
-/.ciexyzrgb {  % X Y Z whitepoint  .  r g b
-    5 dict begin
-    /wp exch def /Z exch def /Y exch def /X exch def
-    /X X 0.9505 wp 0 get div mul def
-    /Y Y 1.0    wp 1 get div mul def
-    /Z Z 1.089  wp 2 get div mul def
-    X  3.2406 mul Y -1.5372 mul add Z -0.4986 mul add
-    X -0.9689 mul Y  1.8758 mul add Z  0.0415 mul add
-    X  0.0557 mul Y -0.2040 mul add Z  1.0570 mul add
-    3 {
-        3 -1 roll
-        dup 0 lt { pop 0 } if
-        dup 1 gt { pop 1 } if
-        0.45 exp
-    } repeat
-    end
-} def
-
-%
-%  CIEBasedABC's second stage and CIEBasedDEF's third: the LMN
-%  components through their DecodeLMN procedures and MatrixLMN, which is
-%  what leaves XYZ for the conversion above.
-%
-/.cielmnxyzrgb {  % L M N ciedict  .  r g b
-    8 dict begin
-    /cd exch def /NN exch def /MM exch def /LL exch def
-    /rl cd /RangeLMN 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
-    /LL LL rl 0 get rl 1 get //.cieclamp exec def
-    /MM MM rl 2 get rl 3 get //.cieclamp exec def
-    /NN NN rl 4 get rl 5 get //.cieclamp exec def
-    cd /DecodeLMN 2 copy known { get }{ pop pop null } ifelse
-    dup null ne {
-        /dl exch def
-        /LL LL dl 0 get //.decode exec def
-        /MM MM dl 1 get //.decode exec def
-        /NN NN dl 2 get //.decode exec def
-    }{ pop } ifelse
-    /ml cd /MatrixLMN 2 copy known { get }{ pop pop [1 0 0 0 1 0 0 0 1] } ifelse def
-    LL ml 0 get mul MM ml 3 get mul add NN ml 6 get mul add
-    LL ml 1 get mul MM ml 4 get mul add NN ml 7 get mul add
-    LL ml 2 get mul MM ml 5 get mul add NN ml 8 get mul add
-    cd /WhitePoint get
-    //.ciexyzrgb exec
-    end
-} def
-
-%
-%  A CIEBasedABC colour to device RGB (PLRM 4.8.3): the ABC components
-%  through DecodeABC and MatrixABC, then the LMN stage above.
-%
-/.cieabcrgb {  % A B C ciedict  .  r g b
-    8 dict begin
-    /cd exch def /CC exch def /BB exch def /AA exch def
-    /ra cd /RangeABC 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
-    /AA AA ra 0 get ra 1 get //.cieclamp exec def
-    /BB BB ra 2 get ra 3 get //.cieclamp exec def
-    /CC CC ra 4 get ra 5 get //.cieclamp exec def
-    cd /DecodeABC 2 copy known { get }{ pop pop null } ifelse
-    dup null ne {
-        /da exch def
-        /AA AA da 0 get //.decode exec def
-        /BB BB da 1 get //.decode exec def
-        /CC CC da 2 get //.decode exec def
-    }{ pop } ifelse
-    /ma cd /MatrixABC 2 copy known { get }{ pop pop [1 0 0 0 1 0 0 0 1] } ifelse def
-    AA ma 0 get mul BB ma 3 get mul add CC ma 6 get mul add
-    AA ma 1 get mul BB ma 4 get mul add CC ma 7 get mul add
-    AA ma 2 get mul BB ma 5 get mul add CC ma 8 get mul add
-    cd //.cielmnxyzrgb exec
-    end
-} def
-
-%
-%  A CIEBasedA colour to device RGB (PLRM 4.8.3). One component through
-%  DecodeA and MatrixA, which produces the LMN the shared stage takes.
-%
-/.ciearpgb {  % A ciedict  .  r g b
-    6 dict begin
-    /cd exch def /AA exch def
-    /ra cd /RangeA 2 copy known { get }{ pop pop [0 1] } ifelse def
-    /AA AA ra 0 get ra 1 get //.cieclamp exec def
-    cd /DecodeA 2 copy known { get }{ pop pop null } ifelse
-    dup null ne { AA exch //.decode exec /AA exch def }{ pop } ifelse
-    /ma cd /MatrixA 2 copy known { get }{ pop pop [1 1 1] } ifelse def
-    AA ma 0 get mul
-    AA ma 1 get mul
-    AA ma 2 get mul
-    cd //.cielmnxyzrgb exec
     end
 } def
 
@@ -184,12 +84,358 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
-%  A CIEBasedDEF colour to device RGB (PLRM 4.8.5): the DEF components
+%  CIE XYZ to the device's RGB, against a white point: the matrix every
+%  CIE family below funnels into once it has reduced its own colour to
+%  XYZ, followed by the gamma the sRGB primaries want.
+%
+%  One conversion rather than one per family, so the families differ
+%  only in how they reach XYZ.
+%
+/.ciexyzrgb {  % X Y Z whitepoint  .  r g b
+    5 dict begin
+    /wp exch def /Z exch def /Y exch def /X exch def
+    /X X 0.9505 wp 0 get div mul def
+    /Y Y 1.0    wp 1 get div mul def
+    /Z Z 1.089  wp 2 get div mul def
+    X  3.2406 mul Y -1.5372 mul add Z -0.4986 mul add
+    X -0.9689 mul Y  1.8758 mul add Z  0.0415 mul add
+    X  0.0557 mul Y -0.2040 mul add Z  1.0570 mul add
+    3 {
+        3 -1 roll
+        dup 0 lt { pop 0 } if
+        dup 1 gt { pop 1 } if
+        0.45 exp
+    } repeat
+    end
+} def
+
+%
+%  --- the colour rendering dictionary --------------------------------
+%
+%  PLRM 7.1.2 makes a type 1 colour rendering dictionary the conversion
+%  from the X Y Z a CIE-based colour reduces to into device colour, in
+%  three stages: the white point adaptation of MatrixPQR and
+%  TransformPQR, the render colour space of MatrixLMN, EncodeLMN,
+%  MatrixABC and EncodeABC, and either a RenderTable lookup or the A B C
+%  components taken as the device colour outright.
+%
+%  The render colour space here is DeviceRGB, or DeviceCMYK where a
+%  RenderTable delivers four components. A device whose own space is
+%  neither converts onward from it (PLRM 7.2), which is the same route a
+%  device colour set anywhere else takes.
+%
+%  RangePQR is not read. The specification gives it as a statement to the
+%  TransformPQR procedures about the values they will see rather than as
+%  a clamp, and says outright that they must accept values outside it.
+%
+
+%
+%  An entry of a colour rendering dictionary, or the default the
+%  specification gives where the dictionary leaves it out.
+%
+/.crdget {  % dict key default  .  value
+    3 1 roll 2 copy known { get exch pop }{ pop pop } ifelse
+} def
+
+%
+%  Two diffuse points that state the same thing. What this decides is
+%  whether the white point adaptation runs at all: PLRM 7.1.2 step 2
+%  says that where the source and the device state the same white and
+%  black points the step is the identity and MatrixPQR and TransformPQR
+%  go unread.
+%
+/.crdsame {  % a b  .  bool
+    3 dict begin
+    /b exch def /a exch def
+    a length 3 eq b length 3 eq and {
+        a 0 get b 0 get eq
+        a 1 get b 1 get eq and
+        a 2 get b 2 get eq and
+    }{ false } ifelse
+    end
+} def
+
+%
+%  A three-element vector through a three-by-three matrix laid out as the
+%  specification lays one out: the first output reads the first, fourth
+%  and seventh entries, so the array is the matrix by columns.
+%
+/.crdmul {  % x y z matrix  .  a b c
+    4 dict begin
+    /m exch def /z3 exch def /y3 exch def /x3 exch def
+    x3 m 0 get mul y3 m 3 get mul add z3 m 6 get mul add
+    x3 m 1 get mul y3 m 4 get mul add z3 m 7 get mul add
+    x3 m 2 get mul y3 m 5 get mul add z3 m 8 get mul add
+    end
+} def
+
+%
+%  The inverse of such a matrix, which is what carries the transformed
+%  P Q R back to X Y Z. A matrix with no inverse describes no adaptation
+%  at all, and is refused where it is read rather than left to divide by
+%  zero part way through a colour.
+%
+/.crdinv3 {  % matrix  .  matrix'
+    8 dict begin
+    /m exch def
+    /k0 m 4 get m 8 get mul m 7 get m 5 get mul sub def
+    /k1 m 1 get m 8 get mul m 7 get m 2 get mul sub def
+    /k2 m 1 get m 5 get mul m 4 get m 2 get mul sub def
+    /dt m 0 get k0 mul m 3 get k1 mul sub m 6 get k2 mul add def
+    dt 0 eq { /setcolor cvx /undefinedresult signalerror } if
+    [
+        k0 dt div
+        k1 neg dt div
+        k2 dt div
+        m 3 get m 8 get mul m 6 get m 5 get mul sub neg dt div
+        m 0 get m 8 get mul m 6 get m 2 get mul sub dt div
+        m 0 get m 5 get mul m 3 get m 2 get mul sub neg dt div
+        m 3 get m 7 get mul m 6 get m 4 get mul sub dt div
+        m 0 get m 7 get mul m 6 get m 1 get mul sub neg dt div
+        m 0 get m 4 get mul m 3 get m 1 get mul sub dt div
+    ]
+    end
+} def
+
+%
+%  The white point adaptation (PLRM 7.1.2 step 2): the colour's X Y Z
+%  carried into the P Q R representation by MatrixPQR, each component
+%  transformed by its TransformPQR procedure against the source's and the
+%  device's white and black points, and carried back by the inverse.
+%
+%  Each of the four points reaches the procedure as six numbers -- the
+%  point in X Y Z and the same point in P Q R -- which is what the
+%  specification hands one.
+%
+/.crdpqr {  % X Y Z ciedict crd  .  X' Y' Z'
+    16 dict begin
+    /crd exch def /cd exch def
+    /ws cd /WhitePoint get def
+    /bs cd /BlackPoint [0 0 0] //.crdget exec def
+    /wd crd /WhitePoint get def
+    /bd crd /BlackPoint [0 0 0] //.crdget exec def
+    ws wd //.crdsame exec bs bd //.crdsame exec and {
+        end
+    }{
+        /mp crd /MatrixPQR [1 0 0 0 1 0 0 0 1] //.crdget exec def
+        /tp crd /TransformPQR get def
+        /Ws [ ws aload pop ws aload pop mp //.crdmul exec ] def
+        /Bs [ bs aload pop bs aload pop mp //.crdmul exec ] def
+        /Wd [ wd aload pop wd aload pop mp //.crdmul exec ] def
+        /Bd [ bd aload pop bd aload pop mp //.crdmul exec ] def
+        mp //.crdmul exec
+        /Rs exch def /Qs exch def /Ps exch def
+        Ws Bs Wd Bd Ps tp 0 get //.decode exec
+        Ws Bs Wd Bd Qs tp 1 get //.decode exec
+        Ws Bs Wd Bd Rs tp 2 get //.decode exec
+        mp //.crdinv3 exec //.crdmul exec
+        end
+    } ifelse
+} def
+
+%
+%  The render colour space (PLRM 7.1.2 step 3): X Y Z through MatrixLMN
+%  and the EncodeLMN procedures to L M N, then through MatrixABC and the
+%  EncodeABC procedures to A B C, each brought inside the range the
+%  dictionary states for it.
+%
+/.crdabc {  % X Y Z crd  .  A B C
+    10 dict begin
+    /crd exch def
+    crd /MatrixLMN [1 0 0 0 1 0 0 0 1] //.crdget exec //.crdmul exec
+    crd /EncodeLMN null //.crdget exec
+    dup null ne {
+        /el exch def
+        /NN exch def /MM exch def /LL exch def
+        LL el 0 get //.decode exec
+        MM el 1 get //.decode exec
+        NN el 2 get //.decode exec
+    }{ pop } ifelse
+    crd /MatrixABC [1 0 0 0 1 0 0 0 1] //.crdget exec //.crdmul exec
+    crd /EncodeABC null //.crdget exec
+    dup null ne {
+        /ea exch def
+        /CC exch def /BB exch def /AA exch def
+        AA ea 0 get //.decode exec
+        BB ea 1 get //.decode exec
+        CC ea 2 get //.decode exec
+    }{ pop } ifelse
+    /ra crd /RangeABC [0 1 0 1 0 1] //.crdget exec def
+    /CC exch def /BB exch def /AA exch def
+    AA ra 0 get ra 1 get //.cieclamp exec
+    BB ra 2 get ra 3 get //.cieclamp exec
+    CC ra 4 get ra 5 get //.cieclamp exec
+    end
+} def
+
+%
+%  A RenderTable lookup (PLRM 7.1.2 step 4): the A B C components index a
+%  three-dimensional table of m-component entries, the eight surrounding
+%  entries are interpolated trilinearly, and each interpolated byte goes
+%  through its own procedure to become a device component.
+%
+%  The axis a value falls on is found the same way a CIEBasedDEF Table's
+%  is, so the same helper decides both; what differs is that the bounds
+%  come from RangeABC and the entries lie m to a cell rather than three.
+%
+/.crdtable {  % A B C crd  .  d1..dm m
+    24 dict begin
+    /crd exch def
+    /rt crd /RenderTable get def
+    /na rt 0 get def /nb rt 1 get def /nc rt 2 get def
+    /tv rt 3 get def
+    /mm rt 4 get def
+
+    % A table entry is three components or four, which is what says
+    % whether it is a DeviceRGB colour or a DeviceCMYK one (PLRM 7.1.2).
+    % A table of any other width names no device space, so nothing can be
+    % done with its entries and the colour is refused rather than set
+    % from however many components happened to come out. The count is
+    % read here and not where the dictionary was set, because the
+    % dictionary is the program's and it may write the entry after
+    % setting it.
+    mm 3 eq mm 4 eq or not
+        { /setcolor cvx /rangecheck signalerror } if
+    /ra crd /RangeABC [0 1 0 1 0 1] //.crdget exec def
+    /CC exch def /BB exch def /AA exch def
+    AA ra 0 get ra 1 get na //.cietblpos exec /af exch def /a1 exch def /a0 exch def
+    BB ra 2 get ra 3 get nb //.cietblpos exec /bf exch def /b1 exch def /b0 exch def
+    CC ra 4 get ra 5 get nc //.cietblpos exec /cf exch def /c1 exch def /c0 exch def
+    0 1 mm 1 sub { /k exch def
+        0
+        0 1 1 { /sa exch def
+            /aa sa 0 eq { a0 }{ a1 } ifelse def
+            /aw sa 0 eq { 1 af sub }{ af } ifelse def
+        0 1 1 { /sb exch def
+            /bb sb 0 eq { b0 }{ b1 } ifelse def
+            /bw sb 0 eq { 1 bf sub }{ bf } ifelse def
+        0 1 1 { /sc exch def
+            /cc sc 0 eq { c0 }{ c1 } ifelse def
+            /cw sc 0 eq { 1 cf sub }{ cf } ifelse def
+            tv aa get bb nc mul cc add mm mul k add get
+            aw mul bw mul cw mul add
+        } for } for } for
+        255 div rt 5 k add get //.decode exec
+        0.0 1.0 //.cieclamp exec
+    } for
+    mm
+    end
+} def
+
+%
+%  The device colour a CIE-based colour's X Y Z renders to, under the
+%  colour rendering dictionary the graphics state holds.
+%
+%  The default dictionary describes the conversion above rather than
+%  asking for another one, so when it is the one in force that conversion
+%  runs and the dictionary's procedures go unread. PLRM 7.1.2 says the
+%  stages are performed in combination rather than in sequence and that
+%  an implementation detects the cases where they cancel; this is that
+%  case, and it is the case every job that never sets a dictionary of its
+%  own is in. tests/crd_render_test.ps holds the two descriptions to each
+%  other by rendering the same colour through a copy of the dictionary,
+%  which is not the dictionary and so takes the general route.
+%
+/.cierender {  % X Y Z ciedict  .  comps... space
+    2 dict begin
+    /cd exch def
+    /crd graphicsdict /currgstate get /colorrendering get def
+    crd //.crddefault eq {
+        cd /WhitePoint get //.ciexyzrgb exec
+        /DeviceRGB
+    }{
+        cd crd //.crdpqr exec
+        crd //.crdabc exec
+        crd /RenderTable known {
+            crd //.crdtable exec
+            4 eq { /DeviceCMYK }{ /DeviceRGB } ifelse
+        }{
+            /DeviceRGB
+        } ifelse
+    } ifelse
+    end
+} def
+
+%
+%  CIEBasedABC's second stage and CIEBasedDEF's third: the LMN
+%  components through their DecodeLMN procedures and MatrixLMN, which is
+%  what leaves the XYZ the rendering dictionary above converts.
+%
+/.cielmndev {  % L M N ciedict  .  comps... space
+    8 dict begin
+    /cd exch def /NN exch def /MM exch def /LL exch def
+    /rl cd /RangeLMN 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
+    /LL LL rl 0 get rl 1 get //.cieclamp exec def
+    /MM MM rl 2 get rl 3 get //.cieclamp exec def
+    /NN NN rl 4 get rl 5 get //.cieclamp exec def
+    cd /DecodeLMN 2 copy known { get }{ pop pop null } ifelse
+    dup null ne {
+        /dl exch def
+        /LL LL dl 0 get //.decode exec def
+        /MM MM dl 1 get //.decode exec def
+        /NN NN dl 2 get //.decode exec def
+    }{ pop } ifelse
+    /ml cd /MatrixLMN 2 copy known { get }{ pop pop [1 0 0 0 1 0 0 0 1] } ifelse def
+    LL ml 0 get mul MM ml 3 get mul add NN ml 6 get mul add
+    LL ml 1 get mul MM ml 4 get mul add NN ml 7 get mul add
+    LL ml 2 get mul MM ml 5 get mul add NN ml 8 get mul add
+    cd //.cierender exec
+    end
+} def
+
+%
+%  A CIEBasedABC colour to device colour (PLRM 4.8.3): the ABC
+%  components through DecodeABC and MatrixABC, then the LMN stage above.
+%
+/.cieabcdev {  % A B C ciedict  .  comps... space
+    8 dict begin
+    /cd exch def /CC exch def /BB exch def /AA exch def
+    /ra cd /RangeABC 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
+    /AA AA ra 0 get ra 1 get //.cieclamp exec def
+    /BB BB ra 2 get ra 3 get //.cieclamp exec def
+    /CC CC ra 4 get ra 5 get //.cieclamp exec def
+    cd /DecodeABC 2 copy known { get }{ pop pop null } ifelse
+    dup null ne {
+        /da exch def
+        /AA AA da 0 get //.decode exec def
+        /BB BB da 1 get //.decode exec def
+        /CC CC da 2 get //.decode exec def
+    }{ pop } ifelse
+    /ma cd /MatrixABC 2 copy known { get }{ pop pop [1 0 0 0 1 0 0 0 1] } ifelse def
+    AA ma 0 get mul BB ma 3 get mul add CC ma 6 get mul add
+    AA ma 1 get mul BB ma 4 get mul add CC ma 7 get mul add
+    AA ma 2 get mul BB ma 5 get mul add CC ma 8 get mul add
+    cd //.cielmndev exec
+    end
+} def
+
+%
+%  A CIEBasedA colour to device colour (PLRM 4.8.3). One component
+%  through DecodeA and MatrixA, which produces the LMN the shared stage
+%  takes.
+%
+/.cieadev {  % A ciedict  .  comps... space
+    6 dict begin
+    /cd exch def /AA exch def
+    /ra cd /RangeA 2 copy known { get }{ pop pop [0 1] } ifelse def
+    /AA AA ra 0 get ra 1 get //.cieclamp exec def
+    cd /DecodeA 2 copy known { get }{ pop pop null } ifelse
+    dup null ne { AA exch //.decode exec /AA exch def }{ pop } ifelse
+    /ma cd /MatrixA 2 copy known { get }{ pop pop [1 1 1] } ifelse def
+    AA ma 0 get mul
+    AA ma 1 get mul
+    AA ma 2 get mul
+    cd //.cielmndev exec
+    end
+} def
+
+%
+%  A CIEBasedDEF colour to device colour (PLRM 4.8.5): the DEF components
 %  through DecodeDEF, then looked up in the three-dimensional Table with
 %  trilinear interpolation between the eight surrounding entries, which
 %  gives the ABC the stage above takes.
 %
-/.ciedefrgb {  % D E F ciedict  .  r g b
+/.ciedefdev {  % D E F ciedict  .  comps... space
     24 dict begin
     /cd exch def /FF exch def /EE exch def /DD exch def
     /rd cd /RangeDEF 2 copy known { get }{ pop pop [0 1 0 1 0 1] } ifelse def
@@ -230,16 +476,16 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } for } for } for
         255 div ra c 2 mul get ra c 2 mul 1 add get //.cietblval exec
     } for
-    cd //.cieabcrgb exec
+    cd //.cieabcdev exec
     end
 } def
 
 %
-%  A CIEBasedDEFG colour to device RGB (PLRM 4.8.5): the same as
+%  A CIEBasedDEFG colour to device colour (PLRM 4.8.5): the same as
 %  CIEBasedDEF with a fourth input, so the table is four-dimensional and
 %  the interpolation is over sixteen surrounding entries.
 %
-/.ciedefgrgb {  % D E F G ciedict  .  r g b
+/.ciedefgdev {  % D E F G ciedict  .  comps... space
     28 dict begin
     /cd exch def /GG exch def /FF exch def /EE exch def /DD exch def
     /rd cd /RangeDEFG 2 copy known { get }{ pop pop [0 1 0 1 0 1 0 1] } ifelse def
@@ -283,7 +529,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } for } for } for } for
         255 div ra c 2 mul get ra c 2 mul 1 add get //.cietblval exec
     } for
-    cd //.cieabcrgb exec
+    cd //.cieabcdev exec
     end
 } def
 
@@ -291,18 +537,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  The family dispatch, keyed by the space's own name.
 %
 /.ciefams <<
-    /CIEBasedA //.ciearpgb
-    /CIEBasedABC //.cieabcrgb
-    /CIEBasedDEF //.ciedefrgb
-    /CIEBasedDEFG //.ciedefgrgb
+    /CIEBasedA //.cieadev
+    /CIEBasedABC //.cieabcdev
+    /CIEBasedDEF //.ciedefdev
+    /CIEBasedDEFG //.ciedefgdev
 >> def
 
 %
-%  The device RGB a CIE-based colour renders to, whichever of the five
-%  families the space belongs to: the family is read off the space's own
-%  name and dispatched through .ciefams below.
+%  The device colour a CIE-based colour renders to, whichever of the
+%  families the space belongs to, and the space those components belong
+%  in: the family is read off the space's own name and dispatched through
+%  .ciefams below.
 %
-/.ciergb {  % comps... space  .  r g b
+/.ciedev {  % comps... space  .  comps... space'
     dup 1 get exch 0 get
     //.ciefams exch get exec
 } def
@@ -506,14 +753,18 @@ end
 } put
 
 %
-%  The device RGB a CIE-based colour renders to
+%  The device colour a CIE-based colour renders to
+%
+%  Which device space that is is the rendering dictionary's to say: a
+%  RenderTable delivering four components names DeviceCMYK, and
+%  everything else DeviceRGB (PLRM 7.1.2).
 %
 .xpostsys /.cieconv {  % -  .  -
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
-    //.ciergb exec
-    /DeviceRGB setcolorspace
-    setrgbcolor
+    //.ciedev exec
+    dup setcolorspace
+    /DeviceCMYK eq { setcmykcolor }{ setrgbcolor } ifelse
 } put
 
 %

@@ -2047,6 +2047,20 @@ test('colour-space-family',
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   timeout: 120)
 
+# PLRM 7.1.2 makes the colour rendering dictionary the conversion from a
+# CIE-based colour to device colour. This holds each of its stages to a
+# colour it visibly decides -- the white point adaptation, the two matrix
+# and encode pairs, the range it clamps to, and a render table of three
+# components and of four -- and holds the default dictionary's entries to
+# the conversion that runs when the default is the one in force, which is
+# the same rendering written down twice.
+test('crd-render',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/crd_render_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  timeout: 120)
+
 # Adobe's separation / custom-colour convenience operators
 # (findcmykcustomcolor, findrgbcustomcolor, setcustomcolor) are shorthand
 # over the Separation colour space: this holds their packaged objects and

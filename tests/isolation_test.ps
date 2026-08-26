@@ -133,8 +133,10 @@ startupudlen 0 eq (userdict was empty at startup) assert
 % callers (//.cie... exec), so the names are invisible to a program and a
 % program redefining them cannot reach the colour machinery.
 /CIENAMES [
-    /.cieclamp /.ciexyzrgb /.cielmnxyzrgb /.cieabcrgb /.ciearpgb /.cietblpos
-    /.cietblval /.ciedefrgb /.ciedefgrgb /.ciergb /.ciefams
+    /.cieclamp /.ciexyzrgb /.cielmndev /.cieabcdev /.cieadev /.cietblpos
+    /.cietblval /.ciedefdev /.ciedefgdev /.ciedev /.ciefams
+    /.cierender /.crddefault /.crdget /.crdsame /.crdmul /.crdinv3
+    /.crdpqr /.crdabc /.crdtable
 ] def
 CIENAMES {
     dup where { pop (CIE-VISIBLE: ) print == false }{ pop true } ifelse
