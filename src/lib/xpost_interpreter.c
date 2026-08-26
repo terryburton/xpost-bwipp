@@ -94,6 +94,7 @@ static int _initializing = 1;  /* garbage collect does not run while _initializi
                                   which would create a circular dependency. */
 
 int eval(Xpost_Context *ctx);
+static int _other_runnable(void);
 
 /* What mainloop answers, named so that no two of them are the same
    number. A yield is a program's own doing -- the returntocaller
@@ -311,6 +312,9 @@ int _xpost_interpreter_extra_context_init(Xpost_Context *ctx, const char *device
 int xpost_interpreter_init(Xpost_Interpreter *itpptr, const char *device)
 {
     int ret;
+
+    /* what a blocked read asks before deciding whether to wait */
+    xpost_file_other_runnable_set(_other_runnable);
 
     ret = xpost_context_init(&itpptr->ctab[0],
                              xpost_interpreter_cid_init,
@@ -2015,6 +2019,35 @@ void _onerror(Xpost_Context *ctx,
    along the way, change C_WAIT contexts to C_RUN
    to retry wait conditions.
  */
+/* Whether any context other than the current one could run now.
+
+   What a blocked read asks before deciding whether to wait. With nobody
+   else to run, giving the read up would buy nothing and cost a pass
+   through the scheduler, so the read waits where it is. The states
+   counted are the ones the round-robin below will hand control to: a
+   context waiting on a join or blocked on I/O is made runnable as it is
+   passed, so it counts as something to run. */
+static int _other_runnable(void)
+{
+    int i;
+
+    /* Without the context operators there is only ever the running
+       context, so there is nothing to give a read up for. */
+    if (!itpdata || !xpost_dps_enabled())
+        return 0;
+    for (i = 0; i < MAXCONTEXT; i++)
+    {
+        const Xpost_Context *c = &itpdata->ctab[i];
+
+        if (c->id == itpdata->cid)
+            continue;
+        if (c->state == C_RUN || c->state == C_IDLE
+            || c->state == C_WAIT || c->state == C_IOBLOCK)
+            return 1;
+    }
+    return 0;
+}
+
 static
 Xpost_Context *_switch_context(Xpost_Context *ctx)
 {
@@ -2063,6 +2096,55 @@ Xpost_Context *_switch_context(Xpost_Context *ctx)
 }
 
 
+
+/* Put a blocked operator back the way it was found.
+
+   An operator that answers ioblock has done nothing: it read no byte and
+   pushed no result. But the dispatcher has already taken its operands
+   off the operand stack and into the hold, and eval has already taken
+   the operator itself off the execution stack -- so leaving it there
+   would lose both. Both go back, the operands the way an error puts them
+   back (hold order, with the dispatcher's coercions undone), and the
+   operator on top of the execution stack, where it will be the first
+   thing this context runs when the scheduler comes back to it.
+
+   The operand restore is conditional on the same flag an error's is: the
+   hold holds this operator's arguments only while nothing else has
+   called through the dispatcher since. */
+static void _reexecute_current(Xpost_Context *ctx)
+{
+    int n;
+    int i;
+
+    /* Both halves or neither. An operator put back without its operands
+       would run again against whatever the stack now holds, which is a
+       different call and not the same one; so where the hold cannot be
+       trusted to still carry this operator's arguments, nothing is put
+       back. Nothing reaches here in that state -- the answer is only
+       offered to a read whose arguments are in the hold -- and this says
+       what would have to be true for it to be reachable. */
+    if (xpost_object_get_type(ctx->currentobject) != operatortype
+        || !ctx->opargsinhold)
+        return;
+
+    n = ctx->currentobject.mark_.pad0;
+    for (i = 0; i < n; i++)
+        xpost_stack_push(ctx->lo, ctx->os,
+                xpost_stack_bottomup_fetch(ctx->lo, ctx->hold, i));
+    for (i = 0; i < ctx->op_restore_n; i++)
+    {
+        int idx = ctx->op_restore_idx[i];
+
+        /* the n arguments were just pushed back, so an index below n is
+           one the stack now has */
+        if (idx < n)
+            XPOST_REFUSAL_IMPOSSIBLE(
+                xpost_stack_topdown_replace(ctx->lo, ctx->os, idx,
+                                            ctx->op_restore_val[i]));
+    }
+
+    xpost_stack_push(ctx->lo, ctx->es, ctx->currentobject);
+}
 
 /*
    the big main central interpreter loop.
@@ -2149,6 +2231,7 @@ ctxswitch:
             case yieldtocaller:
                 return XPOST_MAINLOOP_YIELDED;
             case ioblock:
+                _reexecute_current(ctx);
                 ctx->state = C_IOBLOCK; /* fallthrough */
             case contextswitch:
                 goto ctxswitch;

@@ -873,6 +873,54 @@ xpost_diskfile_fopen_beneath(const char *root, const char *rel, int *err)
    detour to be for. */
 #define f_tmpfile tmpfile
 
+/* --- a read that would wait, when something else could run -------------
+   A read from a pipe or a terminal waits for its byte. Waiting is right
+   when there is nothing else to do, and wrong when another context could
+   be running meanwhile: the interpreter has a way to say so -- the
+   ioblock return, which makes the mainloop mark this context blocked and
+   choose another -- and this is where that answer is produced.
+
+   Which of the two a read does is decided here rather than by the
+   scheduler. Were the scheduler to decide, a lone context would be
+   handed straight back to itself and the wait would become a spin at the
+   scheduler's level instead of a sleep in select(): the same processor
+   burned, by a longer route.
+
+   The answer is offered for one stream at a time, and only for the plain
+   host stream an operator has just been handed. A filter reading its
+   source is a different stream and never gets it, because a filter
+   handed an end-of-file it was not expecting would take the data for
+   finished. */
+
+extern struct Xpost_File_Methods disk_methods;
+
+static Xpost_File *_ioblock_arm = NULL;   /* the stream that may answer */
+static int _ioblock_hit = 0;              /* and whether it did */
+static int (*_other_runnable)(void) = NULL;
+
+void xpost_file_other_runnable_set(int (*fn)(void))
+{
+    _other_runnable = fn;
+}
+
+/* Offer the answer for this stream, for the length of one read. Armed
+   only for a plain host stream: everything else waits as it did. */
+void xpost_file_ioblock_arm(Xpost_File *f)
+{
+    _ioblock_hit = 0;
+    _ioblock_arm = (f && f->methods == &disk_methods) ? f : NULL;
+}
+
+/* Take the offer back, answering whether the read would have waited. */
+int xpost_file_ioblock_disarm(void)
+{
+    int hit = _ioblock_hit;
+
+    _ioblock_arm = NULL;
+    _ioblock_hit = 0;
+    return hit;
+}
+
 /* --- streams over a host file ----------------------------------------
    A disk file is a stream over a FILE* the host gave us, and these are the
    methods that make one behave like every other stream: a byte at a time,
@@ -896,10 +944,11 @@ disk_readch(Xpost_File *file)
      * A read there falls through to _getc_nolock below and waits in the C
      * library, which is the same waiting this does, by another route.
      *
-     * What Windows lacks is not the wait but the chance to do something else
-     * during it -- and so does this, for as long as nothing returns ioblock
-     * (see the wait below). Giving Windows its own poll is worth doing only
-     * once that is wired up and the waiting is the scheduler's.
+     * What Windows lacks is the chance to do something else during the
+     * wait. Where this block gives the scheduler a blocked read to work
+     * with (see the wait below), Windows waits in the C library and the
+     * run has nothing else to do meanwhile. Giving it its own poll is
+     * what would close that gap; nothing else here depends on it.
      */
 
 #ifdef HAVE_SYS_SELECT_H
@@ -920,23 +969,40 @@ disk_readch(Xpost_File *file)
            of processor for a 6.00s wait, three voluntary context switches.
            Waiting costs nothing and answers the moment the byte lands.
 
-           No timeout, because there is nothing for one to be for. The
-           interpreter has a way to say "this context is blocked on input" --
-           the ioblock return, which makes the mainloop mark the context
-           C_IOBLOCK and run another -- but nothing returns it, so no other
-           context runs while this read waits however it is written here. A
-           timeout would only be this function guessing how long that stays
-           true. Wiring the read into ioblock is what would make a wait here
-           worth interrupting, and then the scheduler decides the waiting,
-           not this line. */
+           Whether it waits at all is the one question asked first. With
+           another context runnable and this stream armed to answer, the
+           wait belongs to the scheduler: ask without waiting, and say
+           "not yet" so the read can be given up and something else run.
+           With nothing else to run there is nothing for the scheduler to
+           do, so wait here -- which is the sleep, and the reason a lone
+           context does not spin. */
 
-        ret = select(fileno(fp) + 1, &reads, &writes, &excepts, NULL);
-
-        if (ret <= 0 || !FD_ISSET(fileno(fp), &reads))
+        if (_ioblock_arm == file && _other_runnable && _other_runnable())
         {
-            /* byte not available, push retry, and request eval() to block this thread */
-            errno=EINTR;
-            return EOF;
+            struct timeval now;
+
+            now.tv_sec = 0;
+            now.tv_usec = 0;
+            ret = select(fileno(fp) + 1, &reads, &writes, &excepts, &now);
+            if (ret <= 0 || !FD_ISSET(fileno(fp), &reads))
+            {
+                /* the read is given up rather than waited out; the caller
+                   turns this into the ioblock the mainloop acts on */
+                _ioblock_hit = 1;
+                errno = EAGAIN;
+                return EOF;
+            }
+        }
+        else
+        {
+            ret = select(fileno(fp) + 1, &reads, &writes, &excepts, NULL);
+
+            if (ret <= 0 || !FD_ISSET(fileno(fp), &reads))
+            {
+                /* byte not available, push retry, and request eval() to block this thread */
+                errno=EINTR;
+                return EOF;
+            }
         }
     }
 #endif

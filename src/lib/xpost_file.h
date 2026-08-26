@@ -509,6 +509,29 @@ FILE *xpost_file_stdio_stream_get(Xpost_File *fp);
 Xpost_Object xpost_file_read_byte(Xpost_Memory_File *mem, Xpost_Object f);
 
 /**
+ * @brief Tell the stream layer how to ask whether another context could run.
+ *
+ * A read that would wait answers "not yet" instead when something else
+ * could be running; with nothing else to run it waits, so a single
+ * context sleeps rather than spinning.
+ */
+void xpost_file_other_runnable_set(int (*fn)(void));
+
+/**
+ * @brief Let this stream answer that a read would wait, for one read.
+ *
+ * Armed only for a plain host stream. A filter's source is never armed:
+ * a filter handed an unexpected end-of-file would take its data for
+ * finished.
+ */
+void xpost_file_ioblock_arm(Xpost_File *f);
+
+/**
+ * @brief Take the offer back, answering whether the read would have waited.
+ */
+int xpost_file_ioblock_disarm(void);
+
+/**
  * @brief Write a byte to a file object.
  */
 int xpost_file_write_byte(Xpost_Memory_File *mem, Xpost_Object f, Xpost_Object b);

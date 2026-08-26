@@ -566,6 +566,7 @@ tests/run-glyph-page-test.sh \
 tests/run-halftone-drain-test.sh \
 tests/run-lzwencode-early-test.sh \
 tests/run-dps-test.sh \
+tests/run-ioblock-test.sh \
 tests/run-job-page-test.sh \
 tests/run-page-extent-test.sh \
 tests/run-startup-page-test.sh \

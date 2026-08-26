@@ -358,6 +358,7 @@ vm test entity-limit
 vm test filenameforall-large
 vm test forall-large
 vm test form-cache-evict
+vm test ioblock
 vm test form-serial-restore
 vm test free-*
 vm test gc-*

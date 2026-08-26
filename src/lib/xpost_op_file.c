@@ -734,7 +734,22 @@ int xpost_op_file_read(Xpost_Context *ctx,
     Xpost_Object b;
     if (!xpost_object_is_readable(ctx,f))
         return invalidaccess;
+    /* A read that would wait is given up rather than waited out when
+       another context could run: the operator answers ioblock, the
+       mainloop puts its operand back and chooses another context, and
+       this runs again from the top when this one is next chosen. Nothing
+       has been consumed at that point, so running it again is the same
+       read and not a second one.
+
+       Offered only where the dispatcher put this call's arguments in the
+       hold, since that is what the operand has to be recovered from: an
+       operator reached any other way waits as it always did rather than
+       being put back without it. */
+    if (ctx->opargsinhold)
+        xpost_file_ioblock_arm(xpost_file_get_file_pointer(ctx->lo, f));
     b = xpost_file_read_byte(ctx->lo, f);
+    if (xpost_file_ioblock_disarm())
+        return ioblock;
     if (xpost_object_get_type(b) == invalidtype)
     {
         /* a closed file reads as end-of-data rather than erroring */

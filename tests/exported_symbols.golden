@@ -195,9 +195,12 @@ xpost_file_get_status
 xpost_file_hand_over
 xpost_file_held_count
 xpost_file_held_object
+xpost_file_ioblock_arm
+xpost_file_ioblock_disarm
 xpost_file_object_close
 xpost_file_object_close_at_eod
 xpost_file_open
+xpost_file_other_runnable_set
 xpost_file_read
 xpost_file_read_byte
 xpost_file_release_entity

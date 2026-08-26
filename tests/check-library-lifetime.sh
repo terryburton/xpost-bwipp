@@ -148,6 +148,18 @@ function emit(file, line, head,   outer, decls, i, k, nm, rest) {
     if (outer !~ /\*/ && outer ~ /^[ \t]*static[ \t]+const[ \t]/) return  # a const object
     if (outer ~ /\(/ && outer !~ /\(\*/) return       # a prototype, not a variable
 
+    # a pointer to a function: the name is inside the parentheses the
+    # star is in, and the parameter list after it would otherwise be read
+    # for part of the declarator and the whole line dropped
+    if (outer ~ /\([ \t]*\*[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*\)[ \t]*\(/) {
+        nm = outer
+        sub(/^.*\([ \t]*\*[ \t]*/, "", nm)
+        sub(/[ \t]*\).*$/, "", nm)
+        if (nm != "" && nm !~ /[^A-Za-z0-9_]/)
+            print file "\t" nm "\t" line
+        return
+    }
+
     # the name of each declarator: strip the initialiser, split on the
     # commas that separate them, and take the identifier each ends with
     rest = outer

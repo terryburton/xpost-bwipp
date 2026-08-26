@@ -3161,6 +3161,16 @@ test('dps',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A read that would wait answers ioblock when another context could run,
+# so the mainloop puts the operator back and chooses one; with nothing else
+# to run it waits in select() instead, which is what keeps a lone context
+# from spinning. Both halves are held here.
+test('ioblock',
+  find_program('tests/run-ioblock-test.sh'),
+  args: [ xpost_exe ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Every mutating operator against restore. Whether an operator records
 # what it overwrites is a property of the operator, not of the type, so
 # one reverting says nothing about the next.

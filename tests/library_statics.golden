@@ -51,6 +51,15 @@ src/lib/xpost_font.c            _xpost_font_last_file      outlives owned-here-r
 # The sandbox is documented (xpost.h) as belonging to the process and as
 # one-way: a later lifetime finding what was permitted before it is the
 # stated contract, and clearing these would break it.
+# The blocked-read machinery. The armed stream is set and taken back
+# within one operator's call, with nothing between the two that can
+# return, so outside that call it names nothing; the hook is written
+# afresh by every interpreter_init, so a second lifetime never reads the
+# first one's. (The flag beside them is an int and names nothing, so it
+# is not of this population.)
+src/lib/xpost_file.c            _ioblock_arm               outlives disarmed-within-the-call-that-armed-it
+src/lib/xpost_file.c            _other_runnable            reset xpost_interpreter_init
+
 src/lib/xpost_file.c            xpost_permit_read_dir      outlives process-wide-latch-by-contract
 src/lib/xpost_file.c            xpost_permit_read_leaf     outlives process-wide-latch-by-contract
 src/lib/xpost_file.c            xpost_permit_write_dir     outlives process-wide-latch-by-contract

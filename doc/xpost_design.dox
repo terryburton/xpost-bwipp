@@ -925,6 +925,21 @@
  * mechanism reads @c xpost_dps_enabled first, so a run that never
  * installed the operators keeps the single-context path it had.
  *
+ * A read that would have to wait is where the blocking comes from, and
+ * the read decides it rather than the scheduler. Asked to wait, it first
+ * asks whether any other context could run: if one could, it polls
+ * without waiting and answers @c ioblock, so the loop puts the operator
+ * back -- operands out of the hold, the operator itself back on the
+ * execution stack -- and gives the run to somebody else; the read
+ * happens again from the top when this context is next chosen, having
+ * consumed nothing. If none could, it waits in @c select() as it would
+ * have anyway. Handing that decision to the scheduler instead is what
+ * would break it: with one context the round-robin returns that same
+ * context, the read retries at once, and a sleep becomes a spin. The
+ * answer is offered for one plain host stream at a time and never for a
+ * filter's source, an unexpected end-of-file being something a filter
+ * would take for the end of its data.
+ *
  * The same loop is the embedder's seam. A run can be created with
  * showpage semantics that suspend the program just before showpage
  * returns, handing control back to the caller with the page's
