@@ -72,11 +72,15 @@ userdict begin
     /patbase null
     /patcomps null
 
-    % Black generation, undercolor removal and the colour rendering
-    % dictionary, recorded for round-tripping.
+    % Black generation and undercolor removal, recorded for
+    % round-tripping, and the colour rendering dictionary, which is the
+    % conversion a CIE-based colour goes through. The default dictionary
+    % is not built until further down this file, so the slot is stamped
+    % with it there; a graphics state made before that has no conversion
+    % to run and says so rather than rendering under an empty dictionary.
     /blackgen {}  % k  .  k
     /ucr {}  % k  .  k
-    /colorrendering 0 dict
+    /colorrendering null
     /transfer {}  % num  .  num
 
     % a halftone dictionary's own transfer function, null unless the
@@ -466,12 +470,11 @@ end
 %  program can discover -- the /ColorRenderingType category -- something
 %  the interpreter answers for rather than a list beside it.
 %
-%  What is checked is the dictionary and not the rendering. The entries
-%  are not read afterwards: this interpreter records a colour rendering
-%  dictionary and renders through the device's own conversion, which
-%  COMPLIANCE states. Validating it is still worth doing, because a
-%  program cannot otherwise tell a dictionary this interpreter will not
-%  use from one it cannot even parse.
+%  What is checked is the shape and not the rendering. The entries a
+%  dictionary carries beyond these three are read where the colour
+%  machinery reaches them, and an entry of the wrong shape is refused
+%  there, by the operator that was reading it -- which is where the
+%  reader can see which entry was wrong.
 %
 .xpostsys /.crdvalidate {  % dict  .  -
     1 dict begin
@@ -530,25 +533,57 @@ end
     } ifelse
 } .defop
 %
-%  The default colour rendering dictionary, and the one findcolorrendering
-%  substitutes for a request it cannot satisfy exactly. It carries the
-%  three entries PLRM 7.1.3 Table 7.1 requires of a type 1 dictionary, so
-%  that the documented sequence -- findcolorrendering, findresource,
-%  setcolorrendering -- ends in a dictionary setcolorrendering will take.
-%  A default this interpreter would itself refuse is a default no program
-%  can use.
+%  The default colour rendering dictionary: the one a graphics state
+%  starts out holding, and the one findcolorrendering substitutes for a
+%  request it cannot satisfy exactly.
 %
-%  What the entries say is what the conversion already does. The white
-%  point is the D65 the CIE families are normalised toward on their way
-%  to device colour, and TransformPQR is the identity because no
-%  chromatic adaptation is performed. So the dictionary describes the
-%  rendering in force rather than asking for another one.
+%  Its entries describe the conversion this interpreter performs rather
+%  than asking for another one, and they describe all of it, so that a
+%  program reading them learns what its CIE colours are actually being
+%  put through. The white point is the D65 the CIE families are
+%  normalised toward; TransformPQR scales each component by the ratio of
+%  the two diffuse white points, which is the adaptation the families
+%  were already getting; MatrixLMN is the sRGB primaries; and EncodeABC
+%  is the gamma those primaries want, applied to a component first
+%  brought inside the unit range.
 %
-/DefaultColorRendering 3 dict
+%  The operands a TransformPQR procedure is called with are the source's
+%  and the device's white and black points and then the component
+%  itself, so the component's own white point is four below the top and
+%  the device's is two (PLRM 7.1.2). Each procedure drops the four
+%  arrays, which is what leaves the transformed component alone on the
+%  stack.
+%
+/DefaultColorRendering 8 dict
     dup /ColorRenderingType 1 put
     dup /WhitePoint [0.9505 1.0 1.089] put
-    dup /TransformPQR [ {} {} {} ] put
+    dup /BlackPoint [0.0 0.0 0.0] put
+    dup /TransformPQR [
+        { 2 index 0 get 5 index 0 get div mul 4 { exch pop } repeat }
+        { 2 index 1 get 5 index 1 get div mul 4 { exch pop } repeat }
+        { 2 index 2 get 5 index 2 get div mul 4 { exch pop } repeat }
+    ] put
+    dup /MatrixLMN [ 3.2406 -0.9689  0.0557
+                    -1.5372  1.8758 -0.2040
+                    -0.4986  0.0415  1.0570 ] put
+    dup /EncodeABC [
+        { dup 0 lt { pop 0 } if dup 1 gt { pop 1 } if 0.45 exp }
+        { dup 0 lt { pop 0 } if dup 1 gt { pop 1 } if 0.45 exp }
+        { dup 0 lt { pop 0 } if dup 1 gt { pop 1 } if 0.45 exp }
+    ] put
+    dup /RangeABC [0.0 1.0 0.0 1.0 0.0 1.0] put
+    dup .xpostsys exch /.crddefault exch put
 /ColorRendering defineresource pop
+
+%
+%  The dictionary a graphics state starts out holding, stamped into the
+%  template whose slot for it stands empty until here. So the state a
+%  program reads with currentcolorrendering is a dictionary
+%  setcolorrendering would take, and a CIE colour has a conversion to go
+%  through before any program has set one.
+%
+.privatedict /.gstatetemplate get exec
+    /colorrendering .xpostsys /.crddefault get put
 
 %
 %  The parts of CRD selection a device is meant to be able to replace

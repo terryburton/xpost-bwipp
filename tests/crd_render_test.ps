@@ -1,0 +1,281 @@
+%!testlib
+%!
+% The colour rendering dictionary in the rendering of a CIE-based colour.
+%
+% PLRM 7.1.2 makes the type 1 colour rendering dictionary the conversion
+% from a CIE-based colour to device colour: the X Y Z the colour space
+% reduces to is adapted between the source's and the device's white and
+% black points by MatrixPQR and TransformPQR, carried into the render
+% colour space by MatrixLMN, EncodeLMN, MatrixABC and EncodeABC, and then
+% either looked up in RenderTable or used as the device colour directly.
+%
+% The observable here is currentrgbcolor and currentcmykcolor, which
+% answer with the device components a CIE colour was reduced to, and
+% currentcolorspace, which still answers with the space the program set.
+%
+% run-ps-test.sh passes iff this prints SUCCESS (failcount reached zero).
+
+% Two components that agree to the precision the conversions here carry.
+/assertnear { % val expected (name) . -
+    3 1 roll sub abs 0.0005 lt exch assert
+} bind def
+
+% A CIE space whose own reduction is the identity, so that what comes out
+% is the colour rendering dictionary's doing and nothing else.
+/CS [ /CIEBasedABC <<
+    /WhitePoint [0.9505 1.0 1.089]
+    /RangeABC [0 1 0 1 0 1]
+    /DecodeABC [ {} {} {} ]
+    /MatrixABC [1 0 0 0 1 0 0 0 1]
+    /RangeLMN [0 1 0 1 0 1]
+    /DecodeLMN [ {} {} {} ]
+    /MatrixLMN [1 0 0 0 1 0 0 0 1]
+>> ] def
+
+% A dictionary carrying the three entries Table 7.1 requires, with a
+% TransformPQR that hands back the component it was given: the four white
+% and black point arrays sit beneath it, and dropping them is what a
+% procedure that adapts nothing does.
+/PASSPQR [ {4 {exch pop} repeat} {4 {exch pop} repeat} {4 {exch pop} repeat} ] def
+
+/rgbof {  % {set the colour}  .  r g b
+    gsave CS setcolorspace exec currentrgbcolor grestore
+} def
+
+% ---- the default rendering ----
+%
+% What a CIE colour renders to with the dictionary a graphics state starts
+% out holding. These are the numbers the fixed conversion produces, and
+% they are here so that giving the default dictionary entries that describe
+% that conversion cannot quietly change it.
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b1 exch def /g1 exch def /r1 exch def
+r1 0.9353833 (the default rendering leaves red where it was) assertnear
+g1 0.1538930 (the default rendering leaves green where it was) assertnear
+b1 0.8888311 (the default rendering leaves blue where it was) assertnear
+
+% ---- the initial dictionary is one setcolorrendering would take ----
+%
+% currentcolorrendering answers with a colour rendering dictionary, which
+% means the documented round trip -- read it, set it back -- completes.
+currentcolorrendering type /dicttype eq
+    (currentcolorrendering answers with a dictionary) assert
+{ currentcolorrendering setcolorrendering }
+    (the dictionary a graphics state starts with is one setcolorrendering takes) works
+
+% ---- EncodeABC ----
+%
+% The A B C components are the device colour, so procedures that answer
+% with constants make the whole page that colour whatever was asked for.
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /EncodeABC [ {pop 0.125} {pop 0.375} {pop 0.625} ] >> setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b2 exch def /g2 exch def /r2 exch def
+grestore
+r2 0.125 (EncodeABC decides the red component) assertnear
+g2 0.375 (EncodeABC decides the green component) assertnear
+b2 0.625 (EncodeABC decides the blue component) assertnear
+
+% ---- MatrixLMN ----
+%
+% With every procedure an identity, the matrices alone carry X Y Z to the
+% render colour space. Halving X, Y and Z halves what comes out.
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /MatrixLMN [0.5 0 0 0 0.5 0 0 0 0.5] >> setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b3 exch def /g3 exch def /r3 exch def
+grestore
+r3 0.25  (MatrixLMN scales the first component) assertnear
+g3 0.125 (MatrixLMN scales the second component) assertnear
+b3 0.375 (MatrixLMN scales the third component) assertnear
+
+% ---- MatrixABC ----
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /MatrixABC [0 1 0 1 0 0 0 0 1] >> setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b4 exch def /g4 exch def /r4 exch def
+grestore
+r4 0.25 (MatrixABC swaps the first two components) assertnear
+g4 0.5  (MatrixABC swaps the first two components the other way) assertnear
+b4 0.75 (MatrixABC leaves the third alone) assertnear
+
+% ---- RangeABC clamps what comes out ----
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /RangeABC [0 0.5 0 0.5 0 0.5]
+   /EncodeABC [ {pop 0.9} {pop 0.1} {pop 0.3} ] >> setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b5 exch def /g5 exch def /r5 exch def
+grestore
+r5 0.5 (RangeABC brings a component above its range down) assertnear
+g5 0.1 (RangeABC leaves a component inside its range) assertnear
+b5 0.3 (RangeABC leaves another component inside its range) assertnear
+
+% ---- TransformPQR runs when the two white points differ ----
+%
+% The source states one diffuse white point and the dictionary another, so
+% the adaptation is not the identity and the procedures are called. Each
+% answers with a constant, so what comes out is those constants carried
+% through the identity matrices.
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.8 1.0 1.2]
+   /TransformPQR [ {5 {pop} repeat 0.2} {5 {pop} repeat 0.4} {5 {pop} repeat 0.6} ] >>
+   setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b6 exch def /g6 exch def /r6 exch def
+grestore
+r6 0.2 (TransformPQR decides the first component) assertnear
+g6 0.4 (TransformPQR decides the second component) assertnear
+b6 0.6 (TransformPQR decides the third component) assertnear
+
+% ---- and is skipped when they are the same ----
+%
+% PLRM 7.1.2 step 2: where the source and the device state the same white
+% and black points the entries are ignored. So the same procedures, under a
+% dictionary whose white point matches the space's, leave the colour alone.
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR [ {5 {pop} repeat 0.2} {5 {pop} repeat 0.4} {5 {pop} repeat 0.6} ] >>
+   setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b7 exch def /g7 exch def /r7 exch def
+grestore
+r7 0.5  (a matching white point leaves the first component alone) assertnear
+g7 0.25 (a matching white point leaves the second component alone) assertnear
+b7 0.75 (a matching white point leaves the third component alone) assertnear
+
+% ---- MatrixPQR is undone after the transform ----
+%
+% The components go into the P Q R representation through MatrixPQR and
+% come back through its inverse, so a MatrixPQR that permutes and a
+% TransformPQR that passes its component through leave the colour where it
+% started -- which is what says the inverse is really taken.
+gsave
+<< /ColorRenderingType 1 /WhitePoint [0.8 1.0 1.2]
+   /MatrixPQR [0 0 1 1 0 0 0 1 0]
+   /RangePQR [-2 2 -2 2 -2 2]
+   /TransformPQR PASSPQR >> setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b8 exch def /g8 exch def /r8 exch def
+grestore
+r8 0.5  (MatrixPQR is undone in the first component) assertnear
+g8 0.25 (MatrixPQR is undone in the second component) assertnear
+b8 0.75 (MatrixPQR is undone in the third component) assertnear
+
+% ---- RenderTable of three components ----
+%
+% A two-by-two-by-two table over the unit cube. The A B C the stages above
+% produce index it, the eight surrounding entries are interpolated, and the
+% T procedures carry each interpolated byte to a device component.
+/T3 <<
+   /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /RangeABC [0 1 0 1 0 1]
+   /RenderTable [ 2 2 2
+       [ <000000 000000 000000 000000>      % A = 0: every entry black
+         <FFFFFF FFFFFF FFFFFF FFFFFF> ]    % A = 1: every entry white
+       3 {} {} {} ]
+>> def
+gsave
+T3 setcolorrendering
+{ 0.25 0.5 0.5 setcolor } rgbof
+/b9 exch def /g9 exch def /r9 exch def
+grestore
+r9 0.25 (a RenderTable interpolates along its first axis) assertnear
+g9 0.25 (a RenderTable interpolates its second component alike) assertnear
+b9 0.25 (a RenderTable interpolates its third component alike) assertnear
+
+% ---- a RenderTable of four components delivers CMYK ----
+%
+% Four components are cyan, magenta, yellow and black (PLRM 7.1.2), so the
+% colour the graphics state ends up holding is a DeviceCMYK one.
+/T4 <<
+   /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /RangeABC [0 1 0 1 0 1]
+   /RenderTable [ 2 2 2
+       [ <00000000 00000000 00000000 00000000>
+         <00000000 00000000 00000000 00000000> ]
+       4 {pop 0.0} {pop 0.0} {pop 0.0} {pop 1.0} ]
+>> def
+gsave
+T4 setcolorrendering
+CS setcolorspace
+0.5 0.25 0.75 setcolor
+currentcmykcolor
+/k10 exch def /y10 exch def /m10 exch def /c10 exch def
+currentcolorspace 0 get /CIEBasedABC eq
+    (a table-rendered colour still reports the space the program set) assert
+grestore
+c10 0.0 (a four-component RenderTable delivers cyan) assertnear
+m10 0.0 (a four-component RenderTable delivers magenta) assertnear
+y10 0.0 (a four-component RenderTable delivers yellow) assertnear
+k10 1.0 (a four-component RenderTable delivers black) assertnear
+
+% ---- a render table of any other width names no device space ----
+/T2 <<
+   /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+   /TransformPQR PASSPQR
+   /RenderTable [ 2 2 2 [ <0000 0000 0000 0000> <0000 0000 0000 0000> ] 2 {} {} ]
+>> def
+gsave
+T2 setcolorrendering
+{ CS setcolorspace 0.5 0.25 0.75 setcolor } /rangecheck
+    (a render table of two components is refused) raises
+grestore
+
+% ---- the default dictionary describes the default conversion ----
+%
+% The conversion a graphics state starts out performing is written down
+% twice: once as the dictionary's entries and once as the reduction that
+% runs when that dictionary is the one in force. A copy of the dictionary
+% is not that dictionary, so setting the copy runs the entries -- and the
+% two must agree, or the entries describe a rendering nobody gets.
+gsave
+currentcolorrendering dup length dict copy setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b11 exch def /g11 exch def /r11 exch def
+grestore
+r11 r1 (the default dictionary's entries reproduce the default red) assertnear
+g11 g1 (the default dictionary's entries reproduce the default green) assertnear
+b11 b1 (the default dictionary's entries reproduce the default blue) assertnear
+
+% Three sample colours prove nothing about the rest of the cube, and the
+% two descriptions have to agree everywhere or one of them is wrong
+% somewhere. So the whole cube is swept, and the components are compared
+% exactly rather than nearly: the two run the same arithmetic in the same
+% order, so any difference at all is a difference in what they say.
+/agree true def
+0.0 0.25 1.0 { /xv exch def
+0.0 0.25 1.0 { /yv exch def
+0.0 0.25 1.0 { /zv exch def
+    gsave CS setcolorspace xv yv zv setcolor currentrgbcolor grestore
+    /bf exch def /gf exch def /rf exch def
+    gsave
+    currentcolorrendering dup length dict copy setcolorrendering
+    CS setcolorspace xv yv zv setcolor currentrgbcolor
+    grestore
+    /bc exch def /gc exch def /rc exch def
+    rf rc eq gf gc eq and bf bc eq and
+    not { /agree false store } if
+} for } for } for
+agree (the default dictionary's entries reproduce the whole colour cube) assert
+
+% ---- and the graphics state carries it, not a bare copy ----
+gsave
+/DefaultColorRendering /ColorRendering findresource setcolorrendering
+{ 0.5 0.25 0.75 setcolor } rgbof
+/b12 exch def /g12 exch def /r12 exch def
+grestore
+r12 r1 (the default instance renders as the initial dictionary does) assertnear
+g12 g1 (the default instance renders green alike) assertnear
+b12 b1 (the default instance renders blue alike) assertnear
+
+verdict
