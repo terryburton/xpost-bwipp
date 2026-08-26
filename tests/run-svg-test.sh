@@ -106,9 +106,9 @@ CEOF
 "$xpost" -q -d svgwrite -o "$c" "$tmp/c.ps" </dev/null >/dev/null 2>&1
 [ -s "$c" ] || fail "the SVG writer emitted nothing for a stencil"
 grep -q '<mask id="xm' "$c" || fail "the stencil went out as fills rather than as a mask"
-nm=$(grep -o '<mask id="xm' "$c" | wc -l)
+nm=$(grep -o '<mask id="xm' "$c" | wc -l | tr -d ' ')
 [ "$nm" = 2 ] || fail "expected 2 masks for 3 placements of 2 distinct stencils, saw $nm"
-nr=$(grep -o 'mask="url(#xm' "$c" | wc -l)
+nr=$(grep -o 'mask="url(#xm' "$c" | wc -l | tr -d ' ')
 [ "$nr" = 3 ] || fail "expected 3 placements drawn through a mask, saw $nr"
 grep -q 'mask="url(#xm0)"' "$c" || fail "the repeated stencil does not refer to the first mask"
 # The mask holds a path. A viewer is required to read PNG and JPEG
