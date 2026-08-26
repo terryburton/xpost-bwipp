@@ -123,6 +123,44 @@ guard_hold "$work/live-screens" "$work/reg-screens" \
       that still holds:"
 [ "$guard_held" -eq 0 ] || fail=1
 
+# ---- what a program is told it may screen with
+#
+# The set above is what the interpreter screens with. What a PROGRAM is
+# told it may screen with is a different statement of the same fact: the
+# /HalftoneType resource category (PLRM Table 3.8), whose instances are
+# a list written by hand in data/halftone.ps.
+#
+# A hand-written list of what the code can do is the shape that drifts,
+# and this one has: it was once short of three types that worked, and
+# nothing said so, because a list is only ever compared against another
+# list and a type missing from both looks like a type that does not
+# exist. The probe above does not read any list -- it asks the
+# interpreter -- so holding the declaration to it is holding a claim to
+# behaviour rather than to a second claim.
+cat > "$work/decl.ps" <<'PSEOF'
+(*) { =only (\n) print } 16 string /HalftoneType resourceforall
+PSEOF
+XPOST_DATA_DIR="$src/data" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/decl.ps" </dev/null 2>/dev/null \
+    | tr -d "$cr" | awk 'NF == 1 { print }' | LC_ALL=C sort > "$work/decl-types"
+
+if [ ! -s "$work/decl-types" ]; then
+    echo "FAILURES: the /HalftoneType category named no instances at all."
+    echo "      A category that answers nothing cannot be held to anything,"
+    echo "      and an empty answer here reads exactly like a category that"
+    echo "      is correctly empty."
+    exit 1
+fi
+
+guard_held=0
+guard_hold "$work/live-screens" "$work/decl-types" \
+    "screened with by the interpreter and not offered as a /HalftoneType
+      resource. A program asking what it may screen with is told less
+      than the truth; the list in data/halftone.ps is where to say so:" \
+    "offered as a /HalftoneType resource and answering rangecheck. A
+      program is promised a screen this interpreter refuses:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 # ---- a refused type must really be refused
 while read -r t kind rest; do
     [ "$kind" = refused ] || continue
