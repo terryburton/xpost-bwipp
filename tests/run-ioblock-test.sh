@@ -82,7 +82,7 @@ PS
 ) &
 writer=$!
 
-out=$(run_limited 25 "$xpost" -q --no-sandbox --enable-dps -d null \
+out=$(run_limited 60 "$xpost" -q --no-sandbox --enable-dps -d null \
         "$work/block.ps" </dev/null 2>&1)
 st=$?
 wait "$writer" 2>/dev/null
@@ -105,59 +105,99 @@ esac
 echo "a blocked read let the forked context run"
 
 # ---- with nothing else to run, the read sleeps ------------------------
+#
+# The claim is that the waiting itself costs no processor. Measured
+# against a control rather than against a constant: the same program is
+# run twice, once with its byte there at once and once with it three
+# seconds late, and what the wait costs is the difference between them.
+# A constant would be wrong wherever the interpreter is slower or
+# hungrier to start than it is here -- under a sanitizer it is both --
+# and the difference is what the claim was about anyway.
 
 # The processor time is read from time(1), whose format option is not the
 # same everywhere: where the one written here is not understood, the half
 # that needs it is passed over rather than guessed at.
-if ! /usr/bin/time -f '%U %S' -o /dev/null true >/dev/null 2>&1; then
+if ! /usr/bin/time -f '%U %S %e' -o /dev/null true >/dev/null 2>&1; then
     echo "SKIP: time(1) here does not take the format this reads"
     echo "SUCCESS: a blocked read yields when it can (the sleep half skipped)"
     exit 0
 fi
 
-mkfifo "$work/q" || { echo "SKIP: cannot make a second fifo"; exit 77; }
-
-cat > "$work/lone.ps" <<PS
-/pipe ($work/q) (r) file def
+# run the lone-context program against a fifo whose byte arrives after $1
+# seconds, leaving the processor and elapsed times in $work/cpu
+lone_run() {
+    _delay=$1
+    _fifo=$work/q$_delay
+    rm -f "$_fifo"
+    mkfifo "$_fifo" || return 1
+    cat > "$work/lone$_delay.ps" <<PS
+/pipe ($_fifo) (r) file def
 pipe read { pop }{ } ifelse
-(LONE-DONE\n) print
+(LONE-DONE\\n) print
 flush
 PS
-
-(
-    exec 3<>"$work/q"
-    sleep 2
-    printf 'Y' >&3
+    # The fifo is held open here, for the whole run, rather than in the
+    # writer: a fifo closed before its reader opens has nowhere to keep
+    # what was written and the reader then waits for a writer that has
+    # been and gone. Held open, a byte written early simply waits in it.
+    exec 3<>"$_fifo"
+    _w=''
+    if [ "$_delay" -gt 0 ]; then
+        ( sleep "$_delay"; printf 'Y' >&3 ) &
+        _w=$!
+    else
+        printf 'Y' >&3
+    fi
+    run_limited 90 /usr/bin/time -f '%U %S %e' -o "$work/cpu" \
+        "$xpost" -q --no-sandbox --enable-dps -d null \
+        "$work/lone$_delay.ps" </dev/null > "$work/lone.out" 2>&1
+    _st=$?
+    [ -n "$_w" ] && wait "$_w" 2>/dev/null
     exec 3>&-
-) &
-writer=$!
+    return $_st
+}
 
-# the processor time this run spends is the whole point: a read that spun
-# would spend the two seconds it waits, one that sleeps spends almost none
-run_limited 25 /usr/bin/time -f '%U %S' -o "$work/cpu" \
-    "$xpost" -q --no-sandbox --enable-dps -d null \
-    "$work/lone.ps" </dev/null > "$work/lone.out" 2>&1
+lone_run 0
 st=$?
 out=$(cat "$work/lone.out")
-wait "$writer" 2>/dev/null
+verdict_run "$st" "$out" "the control run" || exit 1
+case $out in
+    *LONE-DONE*) ;;
+    *) echo "FAIL: the control run did not finish: $out"; exit 1 ;;
+esac
+control=$(awk '{ printf "%.2f", $1 + $2 }' "$work/cpu")
 
+lone_run 3
+st=$?
+out=$(cat "$work/lone.out")
 verdict_run "$st" "$out" "the lone-context run" || exit 1
 case $out in
     *LONE-DONE*) ;;
     *) echo "FAIL: the lone run did not finish: $out"; exit 1 ;;
 esac
+waited=$(awk '{ printf "%.2f", $1 + $2 }' "$work/cpu")
+elapsed=$(awk '{ printf "%.2f", $3 }' "$work/cpu")
 
-spent=$(awk '{ printf "%.2f", $1 + $2 }' "$work/cpu")
+# it has to have waited at all, or there is nothing to say about the cost
+short=$(awk -v e="$elapsed" 'BEGIN { print (e < 2.0) ? 1 : 0 }')
+if [ "$short" -eq 1 ]; then
+    echo "SKIP: the byte arrived in ${elapsed}s, so nothing waited here"
+    echo "SUCCESS: a blocked read yields when it can (the sleep half skipped)"
+    exit 0
+fi
 
-# a two-second wait spun would cost about two seconds of processor; slept it
-# costs a small fraction of one. The bar is set well clear of both.
-over=$(awk -v s="$spent" 'BEGIN { print (s > 1.0) ? 1 : 0 }')
+# spun, the three seconds would show up as three seconds of processor on
+# top of what starting up costs; slept, as almost none
+cost=$(awk -v a="$waited" -v b="$control" 'BEGIN { printf "%.2f", a - b }')
+over=$(awk -v c="$cost" 'BEGIN { print (c > 1.0) ? 1 : 0 }')
 if [ "$over" -eq 1 ]; then
-    echo "FAIL: a lone context spent ${spent}s of processor waiting 2s for a"
-    echo "      byte; the read is spinning rather than sleeping"
+    echo "FAIL: waiting ${elapsed}s for a byte cost ${cost}s of processor over"
+    echo "      the same run without the wait (${control}s); the read is"
+    echo "      spinning rather than sleeping"
     exit 1
 fi
-echo "a lone context slept through its wait (${spent}s of processor)"
+echo "a lone context slept through its wait (${cost}s of processor over the control)"
+
 
 echo "SUCCESS: a blocked read yields when it can and sleeps when it cannot"
 exit 0
