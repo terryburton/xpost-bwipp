@@ -1127,11 +1127,11 @@ int xpost_operator_exec(Xpost_Context *ctx,
             (ctx->currentobject.mark_.padw == opcode))
         {
             ctx->currentobject.mark_.pad0 = 0;
-            ctx->currentobject.tag |= XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD;
+            ctx->opargsinhold = 1;
         }
         else
         {
-            ctx->currentobject.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD;
+            ctx->opargsinhold = 0;
         }
         hold = xpost_stack_at(ctx->lo, ctx->hold);
         hold->prevseg = ctx->hold;
@@ -1266,7 +1266,7 @@ int xpost_operator_exec(Xpost_Context *ctx,
         (ctx->currentobject.mark_.padw == opcode))
     {
         ctx->currentobject.mark_.pad0 = sp[i].in;
-        ctx->currentobject.tag |= XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD;
+        ctx->opargsinhold = 1;
     }
     else
     {
@@ -1274,7 +1274,7 @@ int xpost_operator_exec(Xpost_Context *ctx,
            HOLD may *not* be assumed to contain currentobject's arguments.
            clear the flag.
         */
-        ctx->currentobject.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD;
+        ctx->opargsinhold = 0;
     }
 
     _xpost_operator_push_args_to_hold(ctx, ctx->lo, ctx->os, sp[i].in);

@@ -111,10 +111,18 @@ typedef enum
     XPOST_OBJECT_TAG_DATA_FLAG_LIT_OFFSET =
         XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET + 2, /* access is a 2-bit field, lit must make room */
     XPOST_OBJECT_TAG_DATA_FLAG_BANK_OFFSET,
-    XPOST_OBJECT_TAG_DATA_EXTENDED_INT_OFFSET,
     XPOST_OBJECT_TAG_DATA_EXTENDED_REAL_OFFSET,
-    XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD_OFFSET,
     XPOST_OBJECT_TAG_DATA_FLAG_PACKED_OFFSET,
+    /* Two bits a pair of flags used to hold, kept out of use rather than
+       given away. What lies above the flags is the entity number's high
+       end (XPOST_OBJECT_TAG_EXTRA_BITS_SIZE below), so a flag that stops
+       being spent is a quadrupling of how many entities an object can
+       name -- which is an architectural bound, stated in the design page
+       and held by a test that fills to it, and not something a tidying
+       of flags should decide by side effect. They are here for the next
+       flag that wants one, or to be spent deliberately. */
+    XPOST_OBJECT_TAG_DATA_RESERVED_0_OFFSET,
+    XPOST_OBJECT_TAG_DATA_RESERVED_1_OFFSET,
     XPOST_OBJECT_TAG_DATA_EXTRA_BITS,
     XPOST_OBJECT_TAG_DATA_NBITS = XPOST_OBJECT_TAG_DATA_EXTRA_BITS,  /* this MUST be < 16, the size of the tag field */
 
@@ -128,14 +136,12 @@ typedef enum
         01 << XPOST_OBJECT_TAG_DATA_FLAG_BANK_OFFSET,
             /**< select memory-file for composite-object data:
               0=local, 1=global */
-    XPOST_OBJECT_TAG_DATA_EXTENDED_INT =
-        01 << XPOST_OBJECT_TAG_DATA_EXTENDED_INT_OFFSET,
-            /**< extended object was integer */
     XPOST_OBJECT_TAG_DATA_EXTENDED_REAL =
         01 << XPOST_OBJECT_TAG_DATA_EXTENDED_REAL_OFFSET,
-            /**< extended object was real */
-    XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD =
-        01 << XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD_OFFSET,
+            /**< an extended object was a real; clear, it was an integer.
+                 One bit rather than two: a number key is one or the
+                 other, so a pair of flags spends a bit of tag space to
+                 describe a state that cannot occur */
             /**< for _onerror to reset stack */
     XPOST_OBJECT_TAG_DATA_FLAG_PACKED =
         01 << XPOST_OBJECT_TAG_DATA_FLAG_PACKED_OFFSET,
@@ -279,8 +285,8 @@ typedef struct
 typedef struct
 {
     word tag; /**< extendedtype |
-                ( XPOST_OBJECT_TAG_DATA_EXTENDED_INT
-                or XPOST_OBJECT_TAG_DATA_EXTENDED_REAL ) | other flags */
+                XPOST_OBJECT_TAG_DATA_EXTENDED_REAL when the key was a
+                real, clear when it was an integer | other flags */
     word sign_exp; /**< sign and exponent from a double */
     dword fraction; /**< truncated fraction from a double */
 } Xpost_Object_Extended;

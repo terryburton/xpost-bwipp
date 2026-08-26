@@ -297,6 +297,14 @@ struct _Xpost_Context {
         FontDirectory to whichever the allocation mode calls for (PLRM).
         Both are null until the boot file has defined them. */
     unsigned int state;  /**< process state: running, blocked, iowait */
+    /** Whether the operands of the operator in currentobject were
+        moved into the hold stack, so that the error path can put
+        them back. It rode in the object's tag, which is storage
+        every object of every type pays for to answer a question
+        only the operator being executed right now can be asked;
+        it is set and cleared in step with currentobject, which is
+        one field of this context and not a stack. */
+    int opargsinhold;
     unsigned int quit;  /**< if 1 cause mainloop() to return, if 0 keep looping */
 
     /** How many evaluations are nested inside operators of this

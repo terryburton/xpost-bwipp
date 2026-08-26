@@ -71,6 +71,7 @@ count    xpost_context.h:_Xpost_Context     quit
 count    xpost_context.h:_Xpost_Context     rand_next
 count    xpost_context.h:_Xpost_Context     run_uncaught
 count    xpost_context.h:_Xpost_Context     scan_proc_depth
+count    xpost_context.h:_Xpost_Context     opargsinhold
 count    xpost_context.h:_Xpost_Context     scanner_defer
 count    xpost_context.h:_Xpost_Context     skip_graphics
 count    xpost_context.h:_Xpost_Context     state

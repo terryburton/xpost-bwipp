@@ -551,19 +551,10 @@ Xpost_Object xpost_dict_convert_extended_to_number (Xpost_Object e)
     Xpost_Object o = { 0 };
     double d = xpost_dict_convert_extended_to_double(e);
 
-    if (e.tag & XPOST_OBJECT_TAG_DATA_EXTENDED_INT)
-    {
-        o = xpost_int_cons((integer)d);
-    }
-    else if (e.tag & XPOST_OBJECT_TAG_DATA_EXTENDED_REAL)
-    {
+    if (e.tag & XPOST_OBJECT_TAG_DATA_EXTENDED_REAL)
         o = xpost_real_cons((real)d);
-    }
     else
-    {
-        XPOST_LOG_ERR("invalid extended number object");
-        return null;
-    }
+        o = xpost_int_cons((integer)d);
     return o;
 }
 
@@ -596,7 +587,6 @@ Xpost_Object clean_key (Xpost_Context *ctx,
         }
         case integertype:
             k = consextended(k.int_.val);
-            k.tag |= XPOST_OBJECT_TAG_DATA_EXTENDED_INT;
             break;
         case realtype:
             k = consextended(k.real_.val);

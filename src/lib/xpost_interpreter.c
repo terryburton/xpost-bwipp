@@ -1882,7 +1882,7 @@ void _onerror(Xpost_Context *ctx,
 
     /* reset stack */
     if ((xpost_object_get_type(ctx->currentobject) == operatortype) &&
-        (ctx->currentobject.tag & XPOST_OBJECT_TAG_DATA_FLAG_OPARGSINHOLD))
+        ctx->opargsinhold)
     {
         int n = ctx->currentobject.mark_.pad0;
         int i;
