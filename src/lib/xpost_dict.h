@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dict.h
+ * @brief Declares the dictionary operations.
+ *
+ * The implementation is in the .c beside this.
+ */
+
 #ifndef XPOST_DI_H
 #define XPOST_DI_H
 

@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_xcb.c
+ * @brief The X11 window device, through XCB.
+ *
+ * Draws into a window on a running display server rather than into a file.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

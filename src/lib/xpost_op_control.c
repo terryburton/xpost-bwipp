@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_control.c
+ * @brief Installs the control operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * exec if ifelse for repeat loop exit stop stopped quit execstack countexecstack
+ *
+ * Control here is the execution stack: each of these pushes what is to be
+ * done rather than calling it, so a loop is a frame and not a recursion.
+ */
+
 /* control operators */
 
 #ifdef HAVE_CONFIG_H

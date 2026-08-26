@@ -4,6 +4,19 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_name.c
+ * @brief Names: the trees that give each one a number.
+ *
+ * Every name in a program interns to a number, once, and everything after
+ * compares numbers rather than text.
+ *
+ * There is a ternary search tree in each bank, not one: a local name is
+ * found in the local tree, and a global name only after the local search has
+ * missed -- so interning a global name costs two walks, which is what makes
+ * resolving the same name once per unit of work worth avoiding.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

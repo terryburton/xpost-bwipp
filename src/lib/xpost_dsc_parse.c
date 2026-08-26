@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dsc_parse.c
+ * @brief Reads the structuring comments out of a PostScript file.
+ *
+ * A separate library from the interpreter: it answers what a file says about
+ * itself without running any of it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_free.h
+ * @brief Declares the free lists, and describes the arena to a memory checker.
+ *
+ * The poison and reopen macros live here. Off the valgrind-arena profile
+ * each is an empty statement, so nothing outside that profile pays for them.
+ */
+
 #ifndef XPOST_FREE_H
 #define XPOST_FREE_H
 

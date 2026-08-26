@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_view.h
+ * @brief Declares what a viewer back end must provide.
+ *
+ * One of the platform files beside this implements it.
+ */
+
 #ifndef XPOST_VIEW_H
 #define XPOST_VIEW_H
 

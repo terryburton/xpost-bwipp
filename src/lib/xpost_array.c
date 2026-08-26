@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_array.c
+ * @brief Arrays: a run of objects in the arena.
+ *
+ * As with strings, an interval shares storage. A packed array is the same
+ * run stored more tightly and read-only, which is what a procedure is.
+ */
+
 /** \file xpost_array.c
    array functions
 */

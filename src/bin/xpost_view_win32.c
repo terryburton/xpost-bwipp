@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_view_win32.c
+ * @brief The viewer's Windows back end.
+ *
+ * Opens the window and puts the pixels in it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

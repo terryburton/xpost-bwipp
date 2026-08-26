@@ -5,6 +5,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_operator.c
+ * @brief The operator table: every operator this build has, in row order.
+ *
+ * An operator object carries the number of its row and nothing else, so the
+ * order of this table is part of what an image of virtual memory means: a
+ * table built in another order would dispatch to the wrong operator without
+ * raising anything.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

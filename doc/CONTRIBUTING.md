@@ -232,6 +232,34 @@ by the interpreter rather than spooled, so the line is a convention and
 not load-bearing, but it is written in full. `check-file-headers` holds
 every file to a conforming header.
 
+### Saying what a file is for
+
+A header states who owns the file and under what licence. It does not say
+what the file *is*, and a reader who has just opened it wants that first.
+So every C source also carries a doxygen block naming itself and saying in
+a line what it holds, with as much beneath that line as the file needs:
+
+```c
+/**
+ * @file xpost_free.c
+ * @brief The free lists: what the collector reclaimed, waiting to be
+ *        handed out again.
+ *
+ * ... what a reader has to know before reading the rest.
+ */
+```
+
+`@file` names the file it is in, so a block copied from a neighbour is
+caught rather than left to mislead. `check-file-purpose` holds every C
+source to one.
+
+This arrived late, and `tests/file-purpose` was the list of files that did
+not have one yet. **That list only ever shrinks, and it is now empty**: every
+C source carries a block. A source in neither the list nor the rule fails, so
+a new file joins the day it is added; a source in both fails too, so the list
+cannot rot into a standing excuse. Adding a name back is letting one file off
+a rule the rest keep, and wants an argument rather than a line.
+
 ## Writing PostScript
 
 The data files are the interpreter's own PostScript, read into a sealed

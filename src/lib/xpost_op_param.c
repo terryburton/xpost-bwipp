@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_param.c
+ * @brief Installs the parameter and virtual-memory operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * vmstatus globalvmstatus vmreclaim setvmthreshold
+ * currentuserparams setuserparams
+ *
+ * These report and steer the arena rather than allocate in it: what has been
+ * taken, when the collector runs, and the limits a program may read.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_save.h
+ * @brief Declares save and restore.
+ *
+ * The implementation is in the .c beside this.
+ */
+
 #ifndef XPOST_SAVE_H
 #define XPOST_SAVE_H
 

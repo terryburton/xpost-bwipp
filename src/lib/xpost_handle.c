@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_handle.c
+ * @brief Handles: naming a block that is not in virtual memory.
+ *
+ * A device's instance state and a font's face live outside the arena, and an
+ * entity that names one carries a handle this process issued. That is why an
+ * image of virtual memory is refused where any entity carries one: the
+ * number would mean nothing in the process that read it back.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

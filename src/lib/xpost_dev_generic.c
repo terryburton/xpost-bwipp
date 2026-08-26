@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_generic.c
+ * @brief The device every other device inherits from.
+ *
+ * It owns the page as an array of pixels and implements every method in
+ * terms of that, so a device that has pixels need implement almost nothing.
+ * A device without them -- one that records or writes a file -- has to
+ * override each method that would reach for them.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

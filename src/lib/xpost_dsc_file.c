@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dsc_file.c
+ * @brief Getting the bytes of a file to the structuring reader.
+ *
+ * Mapped where the host can, read where it cannot.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

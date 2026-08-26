@@ -5,6 +5,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dict.c
+ * @brief Dictionaries: the hash table every name is looked up in.
+ *
+ * A dictionary is a table of key-value pairs in the arena. Lookup is what
+ * the interpreter does most, so the table is open-addressed and the name a
+ * key interns to is compared as a number rather than as text.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

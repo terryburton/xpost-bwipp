@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_save.c
+ * @brief Installs the save, restore and allocation-mode operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * save restore currentglobal setglobal gcheck startjob vmstatus
+ *
+ * A save is a mark in the arena and a restore winds back to it, so what is
+ * allocated after one does not survive it -- which is why the allocation
+ * mode, local or global, is settled here too.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

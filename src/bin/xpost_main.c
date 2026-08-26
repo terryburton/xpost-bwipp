@@ -6,6 +6,19 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_main.c
+ * @brief The command line: what a run was asked for, settled before a context exists.
+ *
+ * Everything here happens before or around the interpreter rather than
+ * inside it: which device to draw on, where output goes, what the language
+ * is built with, and which of the options change the language itself --
+ * those are written into an image of virtual memory, so a run cannot read
+ * back a language it did not ask for.
+ *
+ * The library is what runs the program. This decides what to hand it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

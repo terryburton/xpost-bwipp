@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_span.c
+ * @brief Spans: a row of pixels a paint covers, and the runs it breaks into.
+ *
+ * The scan converter's unit of work. A shape becomes spans and the spans are
+ * what a device is asked to fill.
+ */
+
 /** \file xpost_span.c
    scan conversion: a boundary in, spans out
 */

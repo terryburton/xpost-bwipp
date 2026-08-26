@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_dict.c
+ * @brief Installs the dictionary operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * dict begin end def load store get put known where copy forall
+ * currentdict countdictstack dictstack cleardictstack length maxlength undef
+ *
+ * Lookup walks the dictionary stack from the top, which is what makes a
+ * definition shadow rather than replace.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

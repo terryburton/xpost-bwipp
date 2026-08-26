@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_packedarray.c
+ * @brief Installs the packed-array operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * packedarray currentpacking setpacking
+ *
+ * A packed array holds the same objects in less room and is read-only by
+ * construction, which is what procedures are stored as.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

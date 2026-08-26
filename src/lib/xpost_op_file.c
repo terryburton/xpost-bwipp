@@ -4,6 +4,22 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_file.c
+ * @brief Installs the file and filter operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * file filter closefile read write readstring writestring readline
+ * readhexstring writehexstring bytesavailable flush flushfile resetfile
+ * status run currentfile print echo deletefile renamefile filenameforall
+ *
+ * A filter is a file whose bytes pass through a decoder or an encoder on the
+ * way, and it is a file object like any other to everything above it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

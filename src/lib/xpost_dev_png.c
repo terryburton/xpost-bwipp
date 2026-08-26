@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_png.c
+ * @brief The PNG output device, with and without an alpha channel.
+ *
+ * A raster held to the end of the page and then encoded, rather than a
+ * device drawn on directly.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

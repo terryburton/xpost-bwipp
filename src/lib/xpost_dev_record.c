@@ -4,6 +4,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_record.c
+ * @brief The recording device: keeps the marks instead of the pixels.
+ *
+ * What makes banding possible. Nothing is rastered as it is drawn; the marks
+ * are kept in order and replayed once per band, so a page too large to hold
+ * as pixels is drawn a strip at a time.
+ */
+
 /*
  * The device that writes a page down instead of painting it, and the
  * replay that paints a page it wrote down.

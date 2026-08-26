@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_client.c
+ * @brief A small program that drives the interpreter as a library.
+ *
+ * What an embedding caller looks like, and a check that the library can in
+ * fact be embedded.
+ */
+
 /*
    This is a simple example of a client calling xpost as a library
    with a postscript program, desiring the raster data of the

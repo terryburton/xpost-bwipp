@@ -5,6 +5,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_garbage.c
+ * @brief The collector: what is still reachable, and what the sweep takes back.
+ *
+ * Mark and sweep over both banks. Marking walks the object graph from the
+ * roots a context holds, over a worklist of the collector's own rather than
+ * over the C stack, so that a graph deeper than the stack is a slower
+ * collection rather than a crash.
+ *
+ * The sweep hands what nothing reached to the free lists, and describes
+ * each reclaimed entity to a memory checker as storage the interpreter has
+ * taken back -- which is what makes a reference something still holds
+ * report against whoever made it rather than read as an ordinary byte.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

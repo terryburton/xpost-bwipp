@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_string.c
+ * @brief Installs the string operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * string copy length get put getinterval putinterval forall
+ * search anchorsearch
+ *
+ * A string is a run of bytes in the arena; an interval shares that storage,
+ * so writing through one is seen through the other.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

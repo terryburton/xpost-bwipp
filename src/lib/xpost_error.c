@@ -5,6 +5,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_error.c
+ * @brief Raising an error, and the record a handler reads.
+ *
+ * PLRM 3.11.1 has $error hold what was executing when the error was raised,
+ * which is how a program learns which of its calls went wrong. Raising one
+ * unwinds to the nearest stopped context.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

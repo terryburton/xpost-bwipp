@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_stack.c
+ * @brief Installs the operand-stack operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * pop exch dup copy index roll clear count mark cleartomark counttomark
+ *
+ * The only operators whose subject is the stack itself rather than what is
+ * on it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

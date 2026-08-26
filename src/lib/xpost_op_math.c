@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_math.c
+ * @brief Installs the arithmetic operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * add sub mul div idiv mod neg abs ceiling floor round truncate sqrt
+ * atan sin cos exp ln log rand srand rrand
+ *
+ * Integer arithmetic that overflows becomes real, which PLRM requires and
+ * which is why several of these are not simply the C operator.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

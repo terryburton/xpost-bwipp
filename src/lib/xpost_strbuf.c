@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_strbuf.c
+ * @brief A growing byte buffer, outside virtual memory.
+ *
+ * For assembling text this process needs and the language does not: messages,
+ * paths, the encoders' output.
+ */
+
 /** \file xpost_strbuf.c
    the growable byte buffer's one out-of-line member
 */

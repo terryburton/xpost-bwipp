@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_view_xcb.c
+ * @brief The viewer's X11 back end, through XCB.
+ *
+ * Opens the window and puts the pixels in it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

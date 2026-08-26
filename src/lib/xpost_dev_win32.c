@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_win32.c
+ * @brief The Windows window device.
+ *
+ * The same device the XCB one is, against the Windows drawing interfaces.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

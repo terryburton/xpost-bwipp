@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_save.c
+ * @brief save and restore: winding virtual memory back to a mark.
+ *
+ * A save records where the arena stood; a restore puts back everything
+ * written since, so what was allocated after the save does not survive it.
+ * What is saved is the old contents of anything overwritten, not a copy of
+ * the whole arena.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

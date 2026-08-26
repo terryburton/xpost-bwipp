@@ -5,6 +5,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_main.c
+ * @brief The library's own entry points: starting a run and taking it down again.
+ *
+ * A caller that embeds the interpreter reaches it here. This is the small
+ * file of the two that share the name: the large one is the command-line
+ * program in src/bin, which is one caller of this among others.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

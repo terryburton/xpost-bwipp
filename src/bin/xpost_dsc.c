@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dsc.c
+ * @brief The command-line reader for structuring comments.
+ *
+ * Prints what a PostScript file says about itself. Uses the dsc library and
+ * never starts an interpreter.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

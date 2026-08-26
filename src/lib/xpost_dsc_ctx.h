@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dsc_ctx.h
+ * @brief The reader's own state while it walks a file.
+ *
+ * Nothing here outlives one parse.
+ */
+
 #ifndef XPOST_DSC_CTX_H
 #define XPOST_DSC_CTX_H
 

@@ -5,6 +5,19 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_interpreter.c
+ * @brief The main loop: what executes an object, and what a run is.
+ *
+ * The interpreter proper. An object is executed by pushing it and taking the
+ * top of the execution stack until there is nothing left, so a procedure is a
+ * frame rather than a recursion.
+ *
+ * This is also where a context is created and brought up -- out of the boot
+ * files, or out of an image of virtual memory -- and where the boundary
+ * between one job and the next winds the context back.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

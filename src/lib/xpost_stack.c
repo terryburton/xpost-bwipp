@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_stack.c
+ * @brief The stacks: operand, execution and dictionary.
+ *
+ * A stack is a chain of fixed segments in the arena rather than one block,
+ * so it grows without moving what is already on it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

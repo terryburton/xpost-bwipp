@@ -664,6 +664,7 @@ always test check-exported-symbols
 always test check-dist-lists
 always test check-awk-portability
 always test check-file-headers
+always test check-file-purpose
 always test check-proc-spec
 always test check-ps-spacing
 always test check-memory-declarations

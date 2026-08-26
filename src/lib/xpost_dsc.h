@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dsc.h
+ * @brief Declares the document-structuring-convention reader.
+ *
+ * The DSC comments a PostScript file carries about itself -- its pages, its
+ * bounding box, what it needs -- read without executing the program.
+ */
+
 #ifndef XPOST_DSC_H
 #define XPOST_DSC_H
 

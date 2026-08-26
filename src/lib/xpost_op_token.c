@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_token.c
+ * @brief Installs the token operator.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * token
+ *
+ * One operator, and its own file because what it does is the scanner: it
+ * reads one PostScript object out of a string or a file and answers whether
+ * it found one.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

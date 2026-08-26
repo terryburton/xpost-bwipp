@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_misc.c
+ * @brief Installs the operators that belong to no other group.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * bind usertime realtime getenv putenv dumpvm dumpnames
+ * debugloadon debugloadoff returntocaller
+ *
+ * Some are PLRM's, some are this interpreter's own for looking at its
+ * insides; the ones that are not PLRM's are removed at the lockdown.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

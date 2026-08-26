@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_compat.c
+ * @brief What the hosts do not agree about, behind one name each.
+ *
+ * The platform-specific halves are in the posix and win32 files beside this.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

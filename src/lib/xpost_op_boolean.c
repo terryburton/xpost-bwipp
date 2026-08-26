@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_boolean.c
+ * @brief Installs the boolean and bitwise operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * and or not xor eq ne gt ge lt le bitshift
+ *
+ * The comparisons answer for every type PLRM says they answer for, which is
+ * why they are here rather than beside the arithmetic.
+ */
+
 /* relational, boolean, and bitwise operators */
 
 #ifdef HAVE_CONFIG_H

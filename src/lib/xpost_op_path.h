@@ -4,6 +4,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_path.h
+ * @brief Declares the one function that installs the path-construction operators.
+ *
+ * The operators themselves are in the .c beside this. Nothing here is
+ * called by anything but the operator table's own set-up, which asks
+ * each module in turn to install what it owns.
+ */
+
 #ifndef XPOST_OP_PATH_H
 #define XPOST_OP_PATH_H
 

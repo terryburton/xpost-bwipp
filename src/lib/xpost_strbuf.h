@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_strbuf.h
+ * @brief Declares the growing byte buffer.
+ *
+ * The implementation is in the .c beside this.
+ */
+
 #ifndef XPOST_STRBUF_H
 #define XPOST_STRBUF_H
 

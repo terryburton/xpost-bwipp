@@ -63,6 +63,7 @@ tests/check-c-held-objects.sh \
 tests/c_held_objects.register \
 tests/check-awk-portability.sh \
 tests/check-file-headers.sh \
+tests/check-file-purpose.sh \
 tests/check-memory-declarations.sh \
 tests/check-device-skeleton.sh \
 tests/check-width-comparisons.sh \
@@ -206,6 +207,7 @@ tests/operator_identity_test.ps \
 tests/check-operator-names.sh \
 tests/check-image-config.sh \
 tests/image-config \
+tests/file-purpose \
 tests/operator-names \
 tests/error_unwind_test.ps \
 tests/execform_cache_test.ps \

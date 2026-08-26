@@ -1,0 +1,15 @@
+# The C sources that do not yet name themselves and say what they hold.
+#
+# EMPTY, AND THAT IS THE POINT. Every C source in the tree now opens with a
+# doxygen block -- `@file <name>` and an `@brief` line -- and
+# tests/check-file-purpose.sh holds all of them to it.
+#
+# The list is kept rather than deleted because it is what the guard reads,
+# and because an empty list is a stronger statement than a missing one: the
+# rule applies to everything, with nothing standing outside it.
+#
+# THIS LIST ONLY EVER SHRINKS, and it has reached nothing. A name added here
+# is a file being let off a rule the other hundred and twenty-five keep, so
+# it wants an argument in the commit that adds it and not just a line. The
+# guard fails a file that carries a block while still named here, so a name
+# left behind after the block is written cannot go unnoticed either.

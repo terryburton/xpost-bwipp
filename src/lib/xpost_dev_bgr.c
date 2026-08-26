@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_bgr.c
+ * @brief The BGR raster device.
+ *
+ * A raster device whose pixels are ordered blue, green, red.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

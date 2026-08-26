@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_driver.h
+ * @brief The contract every output device answers to.
+ *
+ * A device is a dictionary of methods and a block of instance state held
+ * outside virtual memory. This declares what the methods are; a device that
+ * keeps a buffer of its own must override every inherited one that would
+ * otherwise reach for image data it does not have.
+ */
+
 #ifndef XPOST_DEV_DRIVER_H
 #define XPOST_DEV_DRIVER_H
 

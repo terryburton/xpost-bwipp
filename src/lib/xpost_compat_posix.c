@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_compat_posix.c
+ * @brief The POSIX half of the host compatibility layer.
+ *
+ * The declarations are in xpost_compat.h.
+ */
+
 #if defined(__linux__)
 # ifndef _GNU_SOURCE
 #  define _GNU_SOURCE /* O_PATH, syscall, openat2 */

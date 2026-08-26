@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_garbage_diag.c
+ * @brief Reporting what the collector did, for a run that asks.
+ *
+ * Diagnosis only: nothing here decides anything the collector does.
+ */
+
 /* The collector's independent diagnostics, out of the mainline collect
    path: a BFS reachability verifier with its own visited set
    (XPOST_GC_VERIFY), an entity census (XPOST_GC_CENSUS piggybacked on

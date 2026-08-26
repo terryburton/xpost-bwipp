@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_driver.c
+ * @brief Loads a device by name and hands back its class dictionary.
+ *
+ * The one place a device is named. Everything above works in methods.
+ */
+
 /** \file xpost_dev_driver.c
    registering a device class: the part of the driver contract that runs
    once per device rather than once per mark

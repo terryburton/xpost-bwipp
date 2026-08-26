@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_file.c
+ * @brief Files: the one place a disk file is opened, and the filters that wrap one.
+ *
+ * Every disk file the interpreter opens passes through one function here,
+ * so that file-access policy has a single place to be enforced from --
+ * which is what the sandbox depends on and what a guard holds the tree to.
+ *
+ * Above that sits the file object a program sees: a descriptor, a buffer,
+ * and for a filter the decoder or encoder that stands between the two. A
+ * read that would block waits for its byte rather than asking repeatedly
+ * whether one has arrived.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

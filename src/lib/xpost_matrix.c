@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_matrix.c
+ * @brief Matrix arithmetic: the transformations a graphics state holds.
+ *
+ * Nothing here is in virtual memory. A PostScript matrix is a six-element
+ * array; this is the arithmetic behind it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

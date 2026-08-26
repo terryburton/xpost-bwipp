@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_font.c
+ * @brief Installs the font and text-showing operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * findfont setfont show ashow widthshow awidthshow stringwidth
+ *
+ * What each showing operator adds to show is the whole of the difference
+ * between them: a per-glyph displacement, a displacement for one character,
+ * or both.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

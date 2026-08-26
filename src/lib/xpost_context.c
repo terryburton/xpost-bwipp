@@ -5,6 +5,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_context.c
+ * @brief An execution context: the stacks, the two banks, and what the collector roots from.
+ *
+ * A context is the unit a program runs in. It names an operand, execution
+ * and dictionary stack, the two memory files it allocates in -- local and
+ * global -- and the handful of objects the collector treats as roots.
+ *
+ * Contexts are numbered and the numbers are what the collector is given: it
+ * is handed a memory file and has to find the contexts that run on it, so
+ * the list of live identifiers lives in the file itself rather than in this
+ * process's memory.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

@@ -3513,6 +3513,19 @@ test('check-file-headers',
   args: [ meson.current_source_dir() ],
   timeout: 60)
 
+# The other half of a header: a file that says what it is for. The guard
+# beside this one asks a PostScript file to name itself and has never asked
+# a C file anything but its licence, which is why one of a hundred and
+# twenty-five C files opens with a sentence saying what it is. A migration,
+# so what is not written yet is named in tests/file-purpose and that list
+# only shrinks; the gate stays green while it does.
+test('check-file-purpose',
+  find_program('tests/check-file-purpose.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ],
+  timeout: 60)
+
 test('check-ps-spacing',
   find_program('tests/check-ps-spacing.sh'),
   priority: guard_priority,

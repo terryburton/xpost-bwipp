@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_string.c
+ * @brief Strings: a run of bytes in the arena.
+ *
+ * An interval of a string shares its storage rather than copying it, which
+ * is what makes writing through one visible through the other.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

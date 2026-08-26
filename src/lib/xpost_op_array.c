@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_array.c
+ * @brief Installs the array operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * array aload astore copy forall get getinterval length put putinterval
+ *
+ * An array is a run of objects in the arena and an object naming it, so an
+ * interval of one shares its storage rather than copying it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

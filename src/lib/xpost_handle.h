@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_handle.h
+ * @brief Declares the handle table.
+ *
+ * The implementation is in the .c beside this.
+ */
+
 #ifndef XPOST_HANDLE_H
 #define XPOST_HANDLE_H
 

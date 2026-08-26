@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_jpeg.c
+ * @brief The JPEG output device.
+ *
+ * As the PNG device: the page is rastered, then encoded once at the end.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

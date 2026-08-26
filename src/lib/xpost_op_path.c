@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_path.c
+ * @brief Installs the path-construction operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * newpath moveto rmoveto lineto rlineto curveto rcurveto arc arcn arct
+ * arcto closepath currentpoint pathbbox flattenpath
+ *
+ * A path is built here and painted elsewhere. Curves are kept as curves
+ * until something asks for the flattened form.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

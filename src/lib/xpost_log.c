@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_log.c
+ * @brief Where the interpreter's own messages go.
+ *
+ * Not a program's output: this is the build talking about itself, and a quiet
+ * run says none of it.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_vm_image.c
+ * @brief A context's virtual memory as one file, written and read back.
+ *
+ * Both banks written whole, so that a later run reads the language back
+ * instead of building it out of the boot files. What the file does not hold
+ * is as much the point as what it does: a host address is written as a zero
+ * and rebuilt at the read, and a handle is refused outright.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

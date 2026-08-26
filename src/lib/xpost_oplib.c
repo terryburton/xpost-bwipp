@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_oplib.c
+ * @brief Asks each operator module in turn to install what it owns.
+ *
+ * The one place the modules are listed, and so the one place that decides
+ * the order the operator table comes out in.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

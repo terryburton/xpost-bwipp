@@ -4,6 +4,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_span.h
+ * @brief Declares the span operations.
+ *
+ * The implementation is in the .c beside this.
+ */
+
 #ifndef XPOST_SPAN_H
 #define XPOST_SPAN_H
 

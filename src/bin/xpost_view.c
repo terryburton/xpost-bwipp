@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_view.c
+ * @brief The viewer: puts a rendered page in a window.
+ *
+ * Platform-independent half; the window itself is opened by the xcb or win32
+ * file beside this.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

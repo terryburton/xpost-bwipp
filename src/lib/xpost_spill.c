@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_spill.c
+ * @brief Spilling a recorded page to a file when it outgrows memory.
+ *
+ * The record keeps marks rather than pixels, but a page can carry more marks
+ * than may be held; this is where the overflow goes and how it comes back.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

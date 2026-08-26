@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_dev_raster.c
+ * @brief The in-memory raster devices, in each of their pixel layouts.
+ *
+ * rgb, bgr, argb and bgra are one device parameterised by how a pixel is
+ * laid out in memory, which is the only thing that differs between them.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

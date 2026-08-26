@@ -4,6 +4,21 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_type.c
+ * @brief Installs the type and access operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * type cvi cvr cvn cvs cvrs cvx cvlit xcheck
+ * readonly executeonly noaccess rcheck wcheck
+ *
+ * An object carries its type and its access attributes in its tag, so both
+ * halves of this group read and write the same few bits.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

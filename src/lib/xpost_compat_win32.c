@@ -5,6 +5,13 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_compat_win32.c
+ * @brief The Windows half of the host compatibility layer.
+ *
+ * The declarations are in xpost_compat.h.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

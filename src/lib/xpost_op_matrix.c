@@ -4,6 +4,22 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_matrix.c
+ * @brief Installs the matrix operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * matrix initmatrix identmatrix defaultmatrix currentmatrix setmatrix
+ * translate scale rotate concat concatmatrix transform dtransform
+ * itransform idtransform invertmatrix
+ *
+ * A matrix is a six-element array a program may hold and alter, and the
+ * current transformation is one of these kept in the graphics state.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

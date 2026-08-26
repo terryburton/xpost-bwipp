@@ -5,6 +5,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_private.h
+ * @brief What is visible to the tests and to nothing else.
+ *
+ * XPOST_TEST_VISIBLE marks a function a test may call directly. It is not
+ * part of the library's interface and carries no promise to a caller.
+ */
+
 #ifndef XPOST_PRIVATE_H
 #define XPOST_PRIVATE_H
 

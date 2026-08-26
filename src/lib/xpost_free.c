@@ -5,6 +5,23 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_free.c
+ * @brief The free lists: what the collector reclaimed, waiting to be handed out again.
+ *
+ * Reclaimed entities are chained by size class, so that both ends of the
+ * transaction are cheap: the sweep pushes onto the bucket a size falls in,
+ * and an allocation takes from the first bucket large enough. The link
+ * lives in the entity's table row rather than in the storage being
+ * reclaimed, because the sweep and the allocator are the two writers of
+ * these lists and they have to agree about them.
+ *
+ * A freed entity carries the same zero tag a live raw allocation carries,
+ * so the table alone cannot tell the two apart. That is why the arena's
+ * description to a memory checker is rebuilt from these lists and not from
+ * the table.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

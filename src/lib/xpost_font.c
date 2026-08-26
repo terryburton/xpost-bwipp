@@ -5,6 +5,15 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_font.c
+ * @brief Faces, glyphs, and the cache that keeps a rendered glyph.
+ *
+ * Where the face library is reached. A build without one is a font system
+ * with no faces rather than one with a hole in it: every operator still
+ * exists and refuses with invalidfont where a face would be needed.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

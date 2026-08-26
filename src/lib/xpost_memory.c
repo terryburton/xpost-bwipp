@@ -4,6 +4,26 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_memory.c
+ * @brief The arena every object lives in, and the table that indexes it.
+ *
+ * A memory file is one region that grows without moving, because an object
+ * addresses it by offset rather than by pointer: a growth that copied the
+ * region would leave every offset naming the wrong byte. What backs the
+ * region -- a mapping, a reservation, or the host allocator -- is decided
+ * here, at the head of the file, and is the one thing about it a caller
+ * cannot choose.
+ *
+ * The table at the front of the region is how a byte is found: an entity is
+ * a row, and a row is an address and a size. Everything above the layer is
+ * an entity number.
+ *
+ * This is also where a job's snapshot of virtual memory is taken and put
+ * back, which is the whole arena copied in one go rather than object by
+ * object.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif

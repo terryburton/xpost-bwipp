@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_record.c
+ * @brief The recorded page: what was painted, kept so it can be painted again.
+ *
+ * A device that cannot draw the whole page at once is given the marks
+ * instead of the pixels. Each is recorded in the order it was made and
+ * replayed once per band, so a page larger than memory is drawn a strip at
+ * a time from one description.
+ *
+ * The store grows in blocks and can spill to a file when a page outgrows
+ * what it may hold in memory; what it holds is marks and the state each
+ * was made under, never a raster.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif

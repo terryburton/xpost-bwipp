@@ -4,6 +4,20 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+/**
+ * @file xpost_op_context.c
+ * @brief Installs the context operators.
+ *
+ * The implementations, and the one function that installs them.
+ *
+ * Installed into systemdict as:
+ *
+ * fork join detach yield currentcontext
+ *
+ * Concurrency, not preemption: a context runs until it yields, blocks, or
+ * returns, which is what PLRM 2nd ed 7.1 permits.
+ */
+
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
