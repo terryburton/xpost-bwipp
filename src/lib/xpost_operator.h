@@ -289,6 +289,10 @@ xpost_operator_table(Xpost_Memory_File *gl)
  * so the store succeeds and there is nothing for the record below to
  * catch. Testing the type covers all five refusals at once, which
  * testing for invalid alone would not.
+ *
+ * The key is a literal name, which is the attribute every other key in
+ * the dictionary has: the operator's name is not being executed here,
+ * it is being stored, and what forall hands back is the object stored.
  */
 #define INSTALL \
     do { \
@@ -297,7 +301,7 @@ xpost_operator_table(Xpost_Memory_File *gl)
         else \
         { \
             optab = xpost_operator_table(ctx->gl); \
-            n.mark_.tag = nametype|XPOST_OBJECT_TAG_DATA_FLAG_BANK; \
+            n.mark_.tag = nametype|XPOST_OBJECT_TAG_DATA_FLAG_LIT|XPOST_OBJECT_TAG_DATA_FLAG_BANK; \
             n.mark_.pad0 = 0; \
             n.mark_.padw = optab[op.mark_.padw].name; \
             if (xpost_dict_put(ctx, sd, n, op)) \

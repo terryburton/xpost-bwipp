@@ -1,6 +1,7 @@
 %!testlib
-% A read-only dictionary lookup with a string key does not intern a name,
-% run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+% What a dictionary key is -- how a string key resolves to one, and the
+% attribute a stored key carries -- run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
 % A dictionary key that is a name is compared by its interned identity, so
 % a string key is resolved to the name it names before the lookup. A store
@@ -37,6 +38,54 @@ d (beta) known not (undef by string key removes the named entry) assert
 { d (noSuchKey) undef } outcome
 { d /noSuchKey undef } outcome
 eq (undef of an absent string key matches undef of an absent name key) assert
+
+% ---- a stored key is a literal name, whoever stored it
+
+% forall hands back the object stored beside the value, so the attribute a
+% key was stored with is one a program reads. Executability belongs to the
+% token a name was scanned from: /add is literal, add inside a procedure is
+% executable, and a name that was never scanned -- a key, or cvn of a
+% string -- takes the attribute PLRM 3.3.4 gives it rather than a default.
+% A key is not being executed, so every key in these dictionaries is
+% literal, whether the entry came from PostScript or was installed by the
+% interpreter itself.
+
+/execkeys { 0 exch { pop xcheck { 1 add } if } forall } def
+
+{ systemdict execkeys } (counting executable keys works) works
+systemdict execkeys 0 eq    (every systemdict key is literal) assert
+userdict execkeys 0 eq      (every userdict key is literal) assert
+globaldict execkeys 0 eq    (every globaldict key is literal) assert
+statusdict execkeys 0 eq    (every statusdict key is literal) assert
+errordict execkeys 0 eq     (every errordict key is literal) assert
+$error execkeys 0 eq        ($error's keys are literal) assert
+FontDirectory execkeys 0 eq (FontDirectory's keys are literal) assert
+
+% the two ways an entry gets into systemdict, each checked at its key: add
+% is an operator the interpreter installs, clip one written in PostScript
+/keyfor {  % string  .  key-as-stored
+    /_want exch def /_got null def
+    systemdict { pop dup 40 string cvs _want eq { /_got exch def } { pop }
+        ifelse } forall
+    _got
+} def
+
+(add) keyfor  dup xcheck not (the key an installed operator is stored under is literal) assert
+    type /nametype eq (that key is a name) assert
+(clip) keyfor dup xcheck not (the key a PostScript-defined operator is stored under is literal) assert
+    type /nametype eq (that key is a name too) assert
+
+% which is what makes a harvested key inert: a program that collects keys
+% and executes them gets the names, not the operators they name
+[ (add) keyfor ] cvx exec
+dup type /nametype eq (executing a harvested key yields the name) assert
+xcheck not (and the name it yields is literal) assert
+
+% the scanner is what applies executability, and cvn follows its string
+/add xcheck not (a name written /name is literal) assert
+{ add } 0 get xcheck (a name scanned from an unquoted token is executable) assert
+(add) cvn xcheck not (cvn of a literal string yields a literal name) assert
+(add) cvx cvn xcheck (cvn of an executable string yields an executable name) assert
 
 % ---- probing with distinct strings does not grow virtual memory
 

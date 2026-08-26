@@ -499,6 +499,19 @@ unsigned int addname(Xpost_Context *ctx,
        nametype tag with FBANK flag,
        mark_.pad0 set to zero
        mark_.padw contains XPOST_MEMORY_TABLE_SPECIAL_NAME_STACK stack index
+
+   The name is literal. Executability belongs to the token a name was
+   scanned from, and the scanner is the only thing that knows it: it
+   makes a name from an unquoted token executable and one written /name
+   literal (xpost_op_token.c). A name built here was not scanned from
+   anything -- it is a dictionary key, or a string a program handed to
+   cvn -- so it carries the attribute PLRM 3.3.4 gives such a name, and
+   a caller wanting the other one says so with xpost_object_cvx.
+
+   This is what a program sees: the key a dictionary hands back to
+   forall is the object stored with the value, so a key minted here
+   prints as /add rather than add, and reaches an array or a procedure
+   as something inert rather than something that runs.
  */
 Xpost_Object xpost_name_cons_n(Xpost_Context *ctx,
                                const char *s,
@@ -577,16 +590,16 @@ Xpost_Object xpost_name_cons_n(Xpost_Context *ctx,
             u = addname(ctx, chars, n); // obeys vmmode
             if (chars != inline_copy)
                 free(chars);
-            o.mark_.tag = nametype | (ctx->vmmode==GLOBAL?XPOST_OBJECT_TAG_DATA_FLAG_BANK:0);
+            o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_LIT | (ctx->vmmode==GLOBAL?XPOST_OBJECT_TAG_DATA_FLAG_BANK:0);
             o.mark_.pad0 = 0;
             o.mark_.padw = u;
         } else {
-            o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_BANK; // global
+            o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_LIT | XPOST_OBJECT_TAG_DATA_FLAG_BANK; // global
             o.mark_.pad0 = 0;
             o.mark_.padw = u;
         }
     } else {
-        o.mark_.tag = nametype; // local
+        o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_LIT; // local
         o.mark_.pad0 = 0;
         o.mark_.padw = u;
         }
@@ -623,7 +636,7 @@ Xpost_Object xpost_name_find_n(Xpost_Context *ctx,
     u = tstsearch(ctx->lo, _tsttab_root(ctx->lo), s, n);
     if (u)
     {
-        o.mark_.tag = nametype; /* local */
+        o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_LIT; /* local */
         o.mark_.pad0 = 0;
         o.mark_.padw = u;
         return o;
@@ -631,7 +644,7 @@ Xpost_Object xpost_name_find_n(Xpost_Context *ctx,
     u = tstsearch(ctx->gl, _tsttab_root(ctx->gl), s, n);
     if (u)
     {
-        o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_BANK; /* global */
+        o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_LIT | XPOST_OBJECT_TAG_DATA_FLAG_BANK; /* global */
         o.mark_.pad0 = 0;
         o.mark_.padw = u;
         return o;
@@ -671,7 +684,7 @@ Xpost_Object xpost_name_cons_global(Xpost_Context *ctx,
         u = addname(ctx, s, (unsigned int)strlen(s));
         ctx->vmmode = vmmode;
     }
-    o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_BANK;
+    o.mark_.tag = nametype | XPOST_OBJECT_TAG_DATA_FLAG_LIT | XPOST_OBJECT_TAG_DATA_FLAG_BANK;
     o.mark_.pad0 = 0;
     o.mark_.padw = u;
     return o;
