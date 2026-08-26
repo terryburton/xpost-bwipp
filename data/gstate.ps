@@ -4,14 +4,17 @@
 %
 % vim: set sw=4 sts=4 tw=72 et:
 %
-% Halftones and screens, and the graphics-state template they sit in.
+% The graphics state: the template every gstate is copied from, and the
+% parameters a program sets on it.
 %
-% Two thirds of this file is the halftone machinery: sethalftone and
-% setscreen and what they validate, the spot-function sampling, the
-% threshold arrays, the cell geometry, and the transfer functions the
-% screen carries. The rest is the graphics state proper -- the template
-% every gstate is copied from, gsave and grestore, and the parameters a
-% program sets on it.
+% .gstatetemplate is the dictionary a fresh graphics state is made from,
+% and gsave, grestore, grestoreall, gstate, setgstate and currentgstate
+% are what move between states. The rest of the file is the parameters
+% themselves -- line width, cap, join, mitre limit, dash, flatness,
+% smoothness, stroke adjustment and the two overprint controls -- with
+% the transfer functions, black generation and undercolour removal, and
+% the colour rendering dictionaries beside them. The halftones and
+% screens a transfer function is carried alongside are halftone.ps.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
