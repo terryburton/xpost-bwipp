@@ -141,6 +141,21 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  apart: a device in one and not the other would be a program told a thing
 %  exists by one operator and denied it by the next.
 %
+%  FOUR OF THESE ARE DECLARED AND HOLD NOTHING, and that is a decision
+%  rather than an omission. /Halftone, /Pattern, /Form and /FontSet take
+%  instances a program defines; PLRM requires no particular ones to be
+%  supplied, and the two implementations this tree is adjudicated against
+%  do not agree on what to supply -- one ships a halftone and no colour
+%  spaces, the other ten colour spaces and no halftone. So an instance
+%  here would be this interpreter's invention rather than the language's
+%  requirement. The categories exist so that a program defining its own
+%  is answered, and so that one asking after a name is told there is no
+%  such instance rather than no such category.
+%
+%  /FontSet is empty for a further reason: StartData, which is what fills
+%  it, reads its data and defines nothing on this build. That is written
+%  down in doc/COMPLIANCE with the rest of the deviations.
+%
 %  The last row is PLRM Table 3.8's implicit categories, whose instances are
 %  not objects a program defines but capabilities this interpreter either has
 %  or does not: an integer key that answers findresource is a type it

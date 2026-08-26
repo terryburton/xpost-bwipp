@@ -288,7 +288,9 @@ Level 2 operators
  [X] colorimage
  [X] image with dict argument (ImageTypes 1, 3 and 4; Interpolate
      smooths the samples of any shape on the direct raster path,
-     while a mask still decides each pixel by its nearest sample)
+     while a mask still decides each pixel by its nearest sample;
+     MultipleDataSources is held to the DataSource it describes, so a
+     dictionary disagreeing with itself is refused)
  [X] imagemask with dict argument
  [X] setcolortransfer
  [X] currentcolortransfer
@@ -329,8 +331,11 @@ Level 2 operators
  [X] setoverprintmode, currentoverprintmode (carried to the pdfwrite output;
      the composite raster devices paint opaque)
  [X] setsystemparams, currentsystemparams, setuserparams,
-     currentuserparams, setdevparams, currentdevparams (accepted; the
-     parameter sets are minimal. MaxOpStack, MaxDictStack and
+     currentuserparams, setdevparams, currentdevparams (the parameter
+     sets are minimal. setdevparams and currentdevparams answer for
+     %stdin, %stdout, %stderr, %lineedit and %statementedit and refuse
+     any other name; they hold no writable parameters, so the one
+     answers an empty dictionary and the other applies nothing. MaxOpStack, MaxDictStack and
      MaxExecStack report capacities this interpreter fixes: a program
      may ask for a smaller stack, and is answered with the capacity it
      will actually get. VMThreshold is recorded and reported back but
@@ -377,11 +382,26 @@ Level 3 operators
      CIDFontType 2, incremental GlyphDirectory delivery, and
      CIDFontType 0, charstrings through StartData; escapes select
      within one modal level; cshow rebinds a CMap composite to
-     one-byte codes)
+     one-byte codes. The CIDInit procedure set is complete: notdef
+     mappings and usematrix are taken, though a single-descendant job
+     applies neither)
  [X] clipsave
  [X] cliprestore
  [X] setsmoothness, currentsmoothness (recorded only)
  [X] findcolorrendering (names the default instance)
+ [X] Type 4 CIDFonts, and the BitmapFontInit procedure set: addglyph,
+     removeall, removeglyphs (charpath over such a font marks nothing,
+     as the language requires)
+ [/] FontSetInit procedure set: StartData reads its data and defines
+     no FontSet, so a font a document sends this way is unavailable;
+     findresource reports the set undefined. Compact font format
+     containers are not read
+ [X] implicit resource categories: a program may ask what this
+     interpreter can do -- ShadingType, FunctionType, HalftoneType,
+     ImageType, PatternType, FormType, ColorRenderingType, Filter,
+     ColorSpaceFamily and IODevice answer for what is implemented.
+     FontType and FMapType are NOT declared, so a program asking after
+     a font type is answered undefined rather than truthfully
 
 Extensions
 ----------
