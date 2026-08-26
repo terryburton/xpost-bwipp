@@ -134,11 +134,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  (PLRM 3.9.3), and it is a category in its own right, taking instances
 %  of any type, so it is made the same way as the rest rather than
 %  written straight into the /Category table with no instances of its own
-%  /IODevice is among them and stays empty: PLRM 3.8.5 has resourceforall over
-%  it enumerate the device parameter sets setdevparams and currentdevparams
-%  reach, and this interpreter has none to report. The category exists so a
-%  program asking after a device is told there is no such instance rather than
-%  that there is no such category.
+%  /IODevice holds the parameter sets setdevparams and currentdevparams reach
+%  (PLRM 3.8.5), which are the special files this interpreter opens by name.
+%  It is filled where those operators are defined rather than here, so the
+%  list a program can enumerate and the list they answer for cannot come
+%  apart: a device in one and not the other would be a program told a thing
+%  exists by one operator and denied it by the next.
 %
 %  The last row is PLRM Table 3.8's implicit categories, whose instances are
 %  not objects a program defines but capabilities this interpreter either has

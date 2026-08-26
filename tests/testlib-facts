@@ -151,7 +151,7 @@ own    op_operand_shapes_test.ps              1
 own    op_packing_test.ps                     1
 own    op_printdepth_test.ps                  1
 own    op_radix_test.ps                       6
-own    op_resource_test.ps                    9
+own    op_resource_test.ps                    10
 own    op_showstate_test.ps                   5
 own    op_string_filter_test.ps               1
 own    op_userparams_test.ps                  2

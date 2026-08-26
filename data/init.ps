@@ -1253,12 +1253,39 @@ end
 %  not defined here.
 %
 %  setdevparams and currentdevparams are the device pair, and
-%  setsystemparams and currentsystemparams the system one. This
-%  interpreter carries no writable device parameters, so the device pair
-%  accepts what it is given and answers an empty dictionary.
+%  setsystemparams and currentsystemparams the system one.
 %
-/setdevparams [ /stringtype /dicttype ] { pop pop } .defop  % string dict  .  -
-/currentdevparams [ /stringtype ] { pop 0 dict } .defop  % string  .  dict
+%  This interpreter carries no writable device parameters, so the device
+%  pair answers an empty dictionary and applies nothing. What it may not
+%  do is answer for a parameter set it does not have: PLRM 8.2 gives both
+%  operators the undefined error, and a program asks after a device
+%  precisely to find out whether it is there. Answering an empty
+%  dictionary for every string it is handed tells a program that every
+%  device exists, which is a worse answer than none.
+%
+%  The sets are the special files this interpreter opens by name, which is
+%  what a parameter set corresponds to (PLRM C.4). Everything else a
+%  program may name is an ordinary path.
+%
+/.devparamsets [ (%stdin) (%stdout) (%stderr) (%lineedit) (%statementedit) ] def
+
+.xpostsys /.knowndevparam {  % string /op  .  -
+    3 dict begin
+    /op exch def
+    /s exch def
+    /found false def
+    //.devparamsets { s eq { /found true store } if } forall
+    found not { op cvx /undefined signalerror } if
+    end
+} put
+
+/setdevparams [ /stringtype /dicttype ] {  % string dict  .  -
+    pop /setdevparams //.xpostsys /.knowndevparam get exec
+} .defop
+/currentdevparams [ /stringtype ] {  % string  .  dict
+    /currentdevparams //.xpostsys /.knowndevparam get exec
+    0 dict
+} .defop
 
 %
 %  MaxBandBytes and CurBandHeight are the pair a program asks about
@@ -1531,6 +1558,18 @@ setglobal
 %  data file
 %
 (/resource.ps) //.loadmodule exec
+
+%
+%  The device parameter sets, as the IODevice resource category (PLRM
+%  Table 3.8), so a program can enumerate what setdevparams and
+%  currentdevparams answer for rather than guess at it. Declared from the
+%  one list those operators are held to, so the two cannot disagree --
+%  and declared here rather than beside them, because the category has to
+%  exist first and the resource machinery is what has just arrived.
+%
+currentglobal true setglobal
+//.devparamsets { dup /IODevice defineresource pop } forall
+setglobal
 
 %
 %  The font a name stands for (PLRM 8.2): from the font directory where

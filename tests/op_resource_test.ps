@@ -260,6 +260,43 @@ capmismatch 0 eq
     (every implicit resource declared is one this build can do, and every one
      it can do is declared) assert
 
+% --- the device parameter sets ------------------------------------------
+%
+% PLRM 3.8.5 has IODevice enumerate the parameter sets setdevparams and
+% currentdevparams reach, and PLRM 8.2 gives both operators the undefined
+% error. So the category and the operators have to agree: a device a
+% program can enumerate must be one the operators answer for, and one they
+% refuse must not be enumerable. Answering an empty dictionary for every
+% string handed in -- which is what this did -- tells a program that every
+% device exists.
+/iodmismatch 0 def
+[ (%stdin) (%stdout) (%stderr) (%lineedit) (%statementedit) ]
+{ /d exch def
+    d /IODevice resourcestatus { pop pop }{ 
+        /iodmismatch iodmismatch 1 add store
+        (MISSING from IODevice: ) print d print (\n) print } ifelse
+    { d currentdevparams pop } stopped {
+        /iodmismatch iodmismatch 1 add store
+        (currentdevparams refuses an enumerated device: ) print d print (\n) print
+    } if
+    clear
+} forall
+iodmismatch 0 eq
+    (every device the category holds is one the operators answer for) assert
+
+{ (%nosuchdevice) currentdevparams pop } stopped
+    (currentdevparams refuses a parameter set that is not there) assert
+$error /errorname get /undefined eq
+    (and refuses it as undefined) assert
+clear
+{ (%nosuchdevice) 1 dict setdevparams } stopped
+    (setdevparams refuses a parameter set that is not there) assert
+$error /errorname get /undefined eq
+    (and refuses it as undefined) assert
+clear
+(%nosuchdevice) /IODevice resourcestatus not
+    (and it is not enumerable either) assert
+
 % The categories themselves exist, so a program asking is answered rather
 % than stopped (PLRM: an absent category raises undefined).
 /missingimplicit 0 def
