@@ -60,10 +60,8 @@ Level 2 operators
      rows keeps only the rows an imaging bounding box reaches, so a mark
      painted outside the box a program declared is not rendered. A page
      size that is not a whole number of the device's pixels is taken as
-     the next whole pixel in each direction, so the medium is at most one
-     pixel larger than the page in each and no part of the page falls off
-     it, where the reference interpreters take the nearest whole pixel
-     and let a page rounded down lose its far edge; a device whose page
+     the nearest whole pixel in each direction, so a page rounded down
+     has its far edge clipped by the medium under it; a device whose page
      is written as points takes the size exactly. PageSize reports the
      size that was asked for on both)
  [/] page device parameters (every parameter PLRM 6.2 defines and this

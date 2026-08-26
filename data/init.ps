@@ -2922,8 +2922,16 @@ currentglobal true setglobal
                 % width and height are points, written into its output syntax)
                 /pwf size 0 get sx mul def
                 /phf size 1 get sy mul def
-                /pw pwf ceiling cvi def
-                /ph phf ceiling cvi def
+                % The medium is the nearest whole pixel to the page, which is
+                % what the reference interpreters make of a size that is not
+                % one. PLRM 6.2.7 describes both a nearest medium and a next
+                % larger one and does not choose between them, so the page a
+                % program describes is the same either way and only the medium
+                % under it differs. Rounded down, the far edge of the page
+                % falls outside the medium and is clipped, which is what that
+                % section says of a medium smaller than the page.
+                /pw pwf 0.5 add floor cvi def
+                /ph phf 0.5 add floor cvi def
 
                 graphicsdict /.exactpagedims [pwf phf] put
 

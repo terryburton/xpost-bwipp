@@ -68,11 +68,13 @@
 %   w h rx ry (name)  .  -
 %
 % What every device owes: the page asked for is reported back unchanged,
-% the default clip starts at the origin, and the whole of that page is
-% inside it. What a device whose page is pixels owes besides: the medium
-% is the page rounded up to whole pixels, so it reaches at least as far
-% as the page and less than one pixel past it. What a device whose page
-% is points owes besides: the medium is the page.
+% the default clip starts at the origin, and it reaches within half a
+% pixel of that page. What a device whose page is pixels owes besides:
+% the medium is the page rounded to the NEAREST whole pixel, so it lies
+% within half a pixel of the page in each direction -- past it where the
+% page rounded up, and short of it, clipping the page's far edge, where
+% it rounded down. What a device whose page is points owes besides: the
+% medium is the page, exactly.
 /onepage {                                         % w h rx ry (name)  .  -
     10 dict begin
     /tag exch store
@@ -94,9 +96,22 @@
     llx 0 near  lly 0 near and
     (the default clip starts at the origin) assert
 
-    % True of every device, and the whole of what the rounding is for.
-    urx w eps sub ge  ury h eps sub ge and
-    (the page asked for is inside the default clip) assert
+    % The medium is the nearest whole pixel to the page, so the default
+    % clip reaches within half a pixel of the page in each direction --
+    % over it where the page rounded up, and short of it, clipping the
+    % page's far edge, where it rounded down. PLRM 6.2.7 describes both a
+    % nearest medium and a next larger one without choosing, and this
+    % takes the nearest, which is what the reference interpreters make of
+    % a size that is not a whole number of pixels.
+    /halfpx 0.5 72 rx div mul eps add def
+    urx w halfpx sub ge  ury h halfpx sub ge and
+    (the default clip reaches within half a pixel of the page) assert
+
+    % and no further than that: rounding UP to the next whole pixel
+    % would put the medium as much as a whole pixel past the page, which
+    % is what taking the nearest gives up
+    urx w halfpx add le  ury h halfpx add le and
+    (the default clip stops within half a pixel of the page) assert
 
     points? {
         urx w near  ury h near and
