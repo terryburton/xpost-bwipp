@@ -3064,6 +3064,32 @@ currentfont /FontMatrix get 0 get base.m0 24 mul sub abs base.room lt
     (selectfont refuses a size that is neither number nor matrix) assert
 clear
 grestore
+
+% image takes either the five operands of the Level 1 form or a single
+% image dictionary (PLRM 8.2), and states both, the way imagemask beside
+% it does. What the statement buys is the refusal: a Level 1 call whose
+% bits-per-component is not an integer is answered before the body runs,
+% where an operator that declared only its topmost operand would carry a
+% malformed call into the painting machinery and fail somewhere further
+% in, with an error naming whatever it reached.
+gsave
+20 20 scale
+{ 4 4 8 [4 0 0 -4 0 4] <00408000C0FF40208010FFC08000FF4020> image } stopped not
+    (image takes the Level 1 five-operand form) assert
+{ << /ImageType 1 /Width 2 /Height 2 /BitsPerComponent 8
+     /Decode [0 1] /ImageMatrix [2 0 0 -2 0 2]
+     /DataSource <00FF8040> >> image } stopped not
+    (image takes an image dictionary) assert
+% The error name is the assertion, and not merely that something stopped:
+% a call carried into the painting machinery stops there too, and reports
+% whatever it reached. typecheck is the dispatcher answering for the
+% operand statement, before a line of the body has run.
+{ 4 4 (bits) [4 0 0 -4 0 4] <00> image } stopped
+    (image refuses a Level 1 call it cannot paint from) assert
+$error /errorname get /typecheck eq
+    (and refuses it on the operand statement, not somewhere further in) assert
+clear
+grestore
 userdict /base.m0 undef userdict /base.room undef
 
 count 0 eq (operand stack is balanced) assert

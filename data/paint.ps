@@ -1517,7 +1517,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  ImageType 1 plainly, 3 under an explicit mask, 4 under colour-key
 %  masking
 %
-/image [ /anytype ] {
+/image [ [ /integertype /integertype /integertype /arraytype /anytype ]
+         [ /dicttype ] ] {
     dup type /dicttype eq {
         dup /ImageType get
         dup 1 eq {
