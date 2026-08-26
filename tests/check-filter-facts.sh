@@ -224,6 +224,36 @@ if [ "$nasked" -ne "$nmembers" ]; then
     exit 1
 fi
 
+# ---- what a program is told it may filter with
+#
+# The names above are read from the table the filter operator compares
+# against, which is where a filter either exists or does not. What a
+# PROGRAM is told it may filter with is a second statement of the same
+# fact: the /Filter resource category (PLRM Table 3.8), whose instances
+# are a list written by hand in data/init.ps.
+#
+# Holding one list to another cannot catch the drift that matters -- a
+# filter missing from both reads exactly like one that does not exist --
+# so the declaration is held to the operator's own table instead.
+printf '(*) { =only (\\n) print } 32 string /Filter resourceforall\n' > "$work/decl.ps"
+( cd "$work" && XPOST_DATA_DIR="$abssrc/data" "$absxpost" \
+    -q --no-sandbox -d null -o /dev/null decl.ps </dev/null 2>/dev/null ) \
+    | tr -d "$cr" | awk 'NF == 1 { print }' | LC_ALL=C sort > "$work/decl.set"
+if [ ! -s "$work/decl.set" ]; then
+    echo "FAILURES: the /Filter category named no instances at all. A"
+    echo "      category that answers nothing cannot be held to anything."
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/source-names" "$work/decl.set" \
+    "compared against by the filter operator and not offered as a /Filter
+      resource. A program asking what it may filter with is told less
+      than the truth; the list in data/init.ps is where to say so:" \
+    "offered as a /Filter resource and not a name the filter operator
+      compares against. A program is promised a filter this interpreter
+      does not have:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 while read -r name answer; do
     said=$(awk -v n="$name" '$1 == n { print $2; exit }' "$work/reg")
     where=$(awk -v n="$name" '$1 == n { print $3; exit }' "$work/reg")

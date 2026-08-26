@@ -117,6 +117,42 @@ guard_hold "$work/reg.type" "$work/got.type" \
       written down; add it to tests/form-facts:"
 [ "$guard_held" -eq 0 ] || fail=1
 
+# ---- what a program is told it may use
+#
+# The set above is what this interpreter paints. What a PROGRAM is told
+# it may use is a second statement of the same fact: the /FormType resource
+# category (PLRM Table 3.8), whose instances are a list written by hand
+# in data/init.ps.
+#
+# A hand-written list of what the code can do is the shape that drifts,
+# and holding it to another list cannot catch the drift that matters --
+# something missing from both reads exactly like something that does not
+# exist. The set above is read off the interpreter, so holding the
+# declaration to it holds a claim against behaviour rather than against
+# a second claim.
+printf '(*) { =only (\\n) print } 32 string /FormType resourceforall\n' > "$work/decl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/decl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | sort -n > "$work/decl.set"
+if [ ! -s "$work/decl.set" ]; then
+    echo "FAILURES: the /FormType category named no instances at all. A"
+    echo "      category that answers nothing cannot be held to anything,"
+    echo "      and an empty answer reads exactly like one that is"
+    echo "      correctly empty."
+    exit 1
+fi
+# the derived set carries what each type is beside its number; the
+# declaration is numbers alone, so compare the numbers
+awk '{ print $1 }' "$work/got.type" | sort -n > "$work/got.set"
+guard_held=0
+guard_hold "$work/got.set" "$work/decl.set" \
+    "paints by this interpreter and not offered as a /FormType resource. A
+      program asking what it may use is told less than the truth; the
+      list in data/init.ps is where to say so:" \
+    "offered as a /FormType resource and not paints by this interpreter. A
+      program is promised something this interpreter refuses:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 # ---- the entries: required or not, read or not
 nread=0
 while read -r name need use; do

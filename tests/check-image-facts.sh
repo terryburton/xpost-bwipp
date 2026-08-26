@@ -155,6 +155,39 @@ guard_hold "$work/reg.type" "$work/got.type" \
       down; add it to tests/image-facts:"
 [ "$guard_held" -eq 0 ] || fail=1
 
+# ---- what a program is told it may use
+#
+# The set above is what this interpreter paints. What a PROGRAM is told
+# it may use is a second statement of the same fact: the /ImageType resource
+# category (PLRM Table 3.8), whose instances are a list written by hand
+# in data/paint.ps.
+#
+# A hand-written list of what the code can do is the shape that drifts,
+# and holding it to another list cannot catch the drift that matters --
+# a type missing from both reads exactly like one that does not exist.
+# The set above is read off the interpreter, so holding the declaration
+# to it holds a claim against behaviour rather than against a second
+# claim.
+printf '(*) { =only (\\n) print } 16 string /ImageType resourceforall\n' > "$work/decl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/decl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | sort -n > "$work/decl.set"
+if [ ! -s "$work/decl.set" ]; then
+    echo "FAILURES: the /ImageType category named no instances at all. A"
+    echo "      category that answers nothing cannot be held to anything,"
+    echo "      and an empty answer reads exactly like one that is"
+    echo "      correctly empty."
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/got.type" "$work/decl.set" \
+    "paints by this interpreter and not offered as a /ImageType resource. A
+      program asking what it may use is told less than the truth; the
+      list in data/paint.ps is where to say so:" \
+    "offered as a /ImageType resource and not paints by this interpreter. A
+      program is promised something this interpreter refuses:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 # ---- the widths. A width that is taken must produce the ramp its
 #      samples describe; the eight values are the range's ends and the
 #      six steps between, so any misreading moves at least one of them.

@@ -991,12 +991,21 @@ end end
 %  talking to without painting anything to find out.
 %
 %  Declared here rather than beside the categories, because what is true of
-%  these is decided by the code in this file: a type added to the dispatch
-%  above and not to the list here is a capability nothing can discover, and
-%  one listed here and not implemented is a lie the guard catches.
+%  these is decided by the code in this file.
+%
+%  The shading types are not listed at all: they are read off the dispatch
+%  dictionary that decides which painter a type reaches, so the set a
+%  program can discover and the set the interpreter paints are one
+%  statement and cannot come apart. A type added to that dictionary is
+%  discoverable the moment it is dispatched, with nothing else to write.
+%
+%  The function types are still a list, there being no such dictionary to
+%  read -- the type is settled by a chain of comparisons rather than by a
+%  lookup -- so the list is held to what the interpreter evaluates by
+%  tests/check-function-facts.sh instead.
 %
 currentglobal true setglobal
-[ 1 2 3 4 5 6 7 ] { dup /ShadingType defineresource pop } forall
+//.shadepainters { pop dup /ShadingType defineresource pop } forall
 [ 0 2 3 ] { dup /FunctionType defineresource pop } forall
 setglobal
 

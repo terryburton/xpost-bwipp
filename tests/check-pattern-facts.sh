@@ -130,6 +130,39 @@ guard_hold "$work/reg.type" "$work/got.type" \
       have to be written down; add it to tests/pattern-facts:"
 [ "$guard_held" -eq 0 ] || fail=1
 
+# ---- what a program is told it may use
+#
+# The set above is what this interpreter paints. What a PROGRAM is told
+# it may use is a second statement of the same fact: the /PatternType resource
+# category (PLRM Table 3.8), whose instances are a list written by hand
+# in data/pattern.ps.
+#
+# A hand-written list of what the code can do is the shape that drifts,
+# and holding it to another list cannot catch the drift that matters --
+# something missing from both reads exactly like something that does not
+# exist. The set above is read off the interpreter, so holding the
+# declaration to it holds a claim against behaviour rather than against
+# a second claim.
+printf '(*) { =only (\\n) print } 32 string /PatternType resourceforall\n' > "$work/decl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/decl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | sort -n > "$work/decl.set"
+if [ ! -s "$work/decl.set" ]; then
+    echo "FAILURES: the /PatternType category named no instances at all. A"
+    echo "      category that answers nothing cannot be held to anything,"
+    echo "      and an empty answer reads exactly like one that is"
+    echo "      correctly empty."
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/got.type" "$work/decl.set" \
+    "paints by this interpreter and not offered as a /PatternType resource. A
+      program asking what it may use is told less than the truth; the
+      list in data/pattern.ps is where to say so:" \
+    "offered as a /PatternType resource and not paints by this interpreter. A
+      program is promised something this interpreter refuses:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 # ---- what a value that is not a pattern type gets
 badval() {          # <case> -> the literal, or empty
     case $1 in

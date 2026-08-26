@@ -160,6 +160,41 @@ guard_hold "$work/built" "$work/roster.names" \
       guard can ask it a single question. Write one in space():"
 [ "$guard_held" -eq 0 ] || fail=1
 
+# ---- what a program is told it may use
+#
+# The set above is what this interpreter builds. What a PROGRAM is told
+# it may use is a second statement of the same fact: the /ColorSpaceFamily resource
+# category (PLRM Table 3.8), whose instances are a list written by hand
+# in data/color.ps.
+#
+# A hand-written list of what the code can do is the shape that drifts,
+# and holding it to another list cannot catch the drift that matters --
+# something missing from both reads exactly like something that does not
+# exist. The set above is read off the interpreter, so holding the
+# declaration to it holds a claim against behaviour rather than against
+# a second claim.
+# The roster this is held to is itself held, just above, to the spaces
+# the interpreter actually builds, so a family here is one that works.
+printf '(*) { =only (\\n) print } 32 string /ColorSpaceFamily resourceforall\n' > "$work/decl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/decl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | LC_ALL=C sort > "$work/decl.set"
+if [ ! -s "$work/decl.set" ]; then
+    echo "FAILURES: the /ColorSpaceFamily category named no instances at all. A"
+    echo "      category that answers nothing cannot be held to anything,"
+    echo "      and an empty answer reads exactly like one that is"
+    echo "      correctly empty."
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/roster.names" "$work/decl.set" \
+    "builds by this interpreter and not offered as a /ColorSpaceFamily resource. A
+      program asking what it may use is told less than the truth; the
+      list in data/color.ps is where to say so:" \
+    "offered as a /ColorSpaceFamily resource and not builds by this interpreter. A
+      program is promised something this interpreter refuses:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 # ---- run a program and report what it printed, plus the ink it laid
 run() {             # <body> -> "<errorname>" or "ink <n>"
     {

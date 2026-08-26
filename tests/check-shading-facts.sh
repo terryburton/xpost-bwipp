@@ -124,6 +124,31 @@ guard_hold "$work/reg.type" "$work/table" \
       be written down; add it to tests/shading-facts:"
 [ "$guard_held" -eq 0 ] || fail=1
 
+# ---- what a program is told it may paint with
+#
+# The dispatch dictionary read above is also what data/shade.ps declares
+# the /ShadingType category from, so the set a program can discover and
+# the set the interpreter paints are one statement rather than two. This
+# holds that to be still true: a literal list put back in its place would
+# be a second statement, and a second statement is one that drifts.
+printf '(*) { =only (\\n) print } 32 string /ShadingType resourceforall\n' > "$work/decl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/decl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | sort -n > "$work/decl.set"
+awk '{ print $1 }' "$work/table" | sort -n > "$work/table.set"
+if [ ! -s "$work/decl.set" ]; then
+    echo "FAILURES: the /ShadingType category named no instances at all. A"
+    echo "      category that answers nothing cannot be held to anything."
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/table.set" "$work/decl.set" \
+    "dispatched to a painter and not offered as a /ShadingType resource.
+      A program asking what it may paint is told less than the truth:" \
+    "offered as a /ShadingType resource and dispatched to no painter. A
+      program is promised a shading this interpreter cannot paint:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 # ---- the counts the register states
 count() {           # <keyword> <how many were derived>
     guard_hold_count "$work/reg" "$1" "$2" || fail=1
