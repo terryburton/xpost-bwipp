@@ -88,6 +88,13 @@
 % and the interpreter is still working
 1 2 add 3 eq (the interpreter still works after the rounds) assert
 
+% The round above leaves its files open: nothing in it closes one and
+% nothing asks for a reclaim, which is its whole subject. The scratch
+% file is deleted next, and a host that refuses to delete a file another
+% handle still holds refuses that for the round's leavings rather than
+% for anything the delete is being asked about. The handles go back
+% first, so what the delete answers is the delete.
+1 vmreclaim
 nm deletefile
 
 % --- what a refused file operation is called -----------------------------
