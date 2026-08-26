@@ -37,7 +37,26 @@ fi
 
 verdict_workdir
 prog="$work/page.ps"
-printf 'newpath 10 10 moveto 90 90 lineto stroke showpage\n' > "$prog"
+
+# The page is not quite trivial, and the part that is not earns its place.
+# A stroked line alone was what this rendered, and it asks too little: the
+# constructs a device may have to decompose rather than emit -- a tiling
+# pattern above all -- were never put to one here, and a tiling pattern
+# after setpagedevice raised a typecheck on all three vector writers while
+# every raster device painted it. The page size is set for the same
+# reason: it is what made the writers' height fractional, which is what
+# the failure turned on.
+cat > "$prog" <<'PAGEEOF'
+<< /PageSize [100 100] >> setpagedevice
+newpath 10 10 moveto 90 90 lineto stroke
+gsave
+  << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 8 8]
+     /XStep 8 /YStep 8 /PaintProc { pop 0 0 4 4 rectfill } >>
+  matrix makepattern /Pattern setcolorspace setcolor
+  10 60 30 30 rectfill
+grestore
+showpage
+PAGEEOF
 
 # the devices that leave nothing at the -o path, and everything else in
 # the roster. Which are which is DEVICE_FLEET_NOFILE's answer, held by

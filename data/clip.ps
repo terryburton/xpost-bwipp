@@ -104,6 +104,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dup /clipregion get
     exch dup /clipcache get /serial get
     exch /device get dup /height known { /height get }{ pop 0 } ifelse
+    % as a count of rows. A raster device's page is a whole number of
+    % them, but a vector device adopts the page size exactly and its
+    % height is in points, which need not be integral (.adoptexactpage,
+    % pdfwrite.ps); rounded up so the count still covers every row the
+    % page reaches.
+    ceiling cvi
     .regionmeet
 } put
 
@@ -140,7 +146,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     { [ [ tx0 ty0 ] [ tx1 ty0 ] [ tx1 ty1 ] [ tx0 ty1 ] null ]
       subj null ne { subj exch 0
         graphicsdict /currgstate get /device get
-        dup /height known { /height get }{ pop 0 } ifelse .regionmeet } if
+        dup /height known { /height get }{ pop 0 } ifelse
+        ceiling cvi .regionmeet } if
       //.clipmeet exec
     } stopped {
         count n0 sub { pop } repeat
