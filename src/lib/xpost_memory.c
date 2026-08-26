@@ -127,6 +127,11 @@ size_t xpost_memory_return_grain;
    byte by byte does not make a system call per allocation */
 # define XPOST_MEMORY_COMMIT_STEP ((size_t)0x100000)
 
+/* --- getting the arena from the host ---------------------------------
+   Three arrangements, chosen for one property: the base never moves as the
+   file grows. Only the two that own their pages can give storage back, and
+   which a build has is reported as its memory backing. */
+
 /* The three steps, each named once so that the two hosts differ in what
    they call and in nothing else. A reservation is address space the
    process has claimed and is not charged for; committing part of it
@@ -860,6 +865,11 @@ xpost_memory_file_grow(Xpost_Memory_File *mem,
    back into storage the file already owns, allocating nothing and unable
    to fail. */
 
+/* --- a bank, captured and put back -----------------------------------
+   What the job boundary reverts through: a whole bank written aside and
+   restored wholesale. Total, and unable to fail part way, because it
+   allocates nothing. */
+
 void xpost_memory_image_free(Xpost_Memory_Image *img)
 {
     if (!img)
@@ -1010,6 +1020,11 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
 #endif
 }
 
+/* --- handing out storage ---------------------------------------------
+   The cursor, and growing the file when it would pass the end. Every
+   allocation is 8-aligned and named by an offset from the base -- never an
+   address, which is the whole of what lets the arena move. */
+
 
 /*
    allocate data linearly from the memory file
@@ -1151,6 +1166,11 @@ xpost_memory_file_dump(const Xpost_Memory_File *mem)
 
     XPOST_LOG_DUMP("\n");
 }
+
+/* --- the table that indexes the arena --------------------------------
+   Every allocation has a row, and the row is the only thing that says
+   where its bytes are. That is what makes compaction writable at all: a
+   block without a row could not be seen, and would be slid over. */
 
 
 /*

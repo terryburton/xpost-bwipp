@@ -259,6 +259,12 @@ static unsigned int _create_cont_opcode;
 static unsigned int _replay_step_opcode;
 static unsigned int _loadrecorddevicecont_opcode;
 
+/* --- reaching the record a device holds ------------------------------
+   The record lives outside virtual memory, named from the device's
+   instance dictionary by a handle. These resolve that handle and answer
+   for the case where it names nothing -- a record that has been refused a
+   mark reports rather than carrying on short. */
+
 /* The slot the device that paints is asked through for each kind of
    mark. A record holds the call, so playing it is making the call. */
 static Xpost_Object _slot(Xpost_Record_Kind kind)
@@ -311,6 +317,13 @@ static int _lost(Xpost_Context *ctx, Xpost_Object devdic, int err)
         xpost_record_lost(private.rec);
     return err;
 }
+
+/* --- deciding where the marks are kept -------------------------------
+   A record is held in memory while it is worth less than the raster
+   banding saves, and goes to a scratch file past that. The weighing is
+   O(1): a running count of blocks, asked every so many marks and at any
+   entry big enough to cross the threshold alone -- never a walk over what
+   the record already holds. */
 
 /* Which of the three states a run asked for, read from where the run's
    own decisions live.
@@ -448,6 +461,13 @@ static int _covers_page(const real *ops, int width, int height)
                              &x0, &y0, &x1, &y1);
     return x0 <= 0 && y0 <= 0 && x1 >= width - 1 && y1 >= height - 1;
 }
+
+/* --- writing a mark down ---------------------------------------------
+   The marking methods, one per thing the recorder records. There are two
+   suites of them, one per colour arity, because a method's operand count
+   is fixed when the class is installed and a record made in one space and
+   played into a device declaring another would put each value in the place
+   of a different one. */
 
 /* Write one mark down. The colour is the components the device's space
    takes, in the range they arrived in: folding one to a channel is the
@@ -769,6 +789,11 @@ static int _fillpoly_g(Xpost_Context *ctx,
     comp[0] = grey;
     return _polymark(ctx, devdic, comp, 1, poly);
 }
+
+/* --- pictures, glyphs and placed drawings ----------------------------
+   The entries that are bulk pixels rather than geometry. Each is written
+   down once and re-emitted per band, which is the whole reason a record
+   costs less than the raster it stands in for. */
 
 /* What the blit dictionary carries, read out by key. A key it does not
    carry answers the default, which is what the row writer makes of one
@@ -1546,6 +1571,11 @@ static int _recordplaces(Xpost_Context *ctx,
     return 0;
 }
 
+/* --- what a record can be asked about itself -------------------------
+   The operators the machinery above uses to decide things: what the record
+   cost, what banding it would save, whether anything was cut on the way
+   in, where the marks are being kept. */
+
 /* IMAGE  .recordbox  x0 y0 x1 y1 true
                      false
    The box the marks a record holds reach, in the coordinates they were
@@ -1885,6 +1915,11 @@ static int _recordground(Xpost_Context *ctx,
     return 0;
 }
 
+/* --- the screen a band is played under -------------------------------
+   A screen is state rather than a mark: played in order, exempt from the
+   row filter, and surviving the page boundary, because a screen set before
+   a band governs that band wherever on the page it was set. */
+
 /* Put a cell on the device that paints. It is what playing a screen
    entry comes to, and what a raster is given before it is moved onto
    its first band. */
@@ -2018,6 +2053,13 @@ static int _recordscreen(Xpost_Context *ctx,
         return VMerror;
     return 0;
 }
+
+/* --- playing the record back -----------------------------------------
+   A band replay visits only the entries whose row range meets the band,
+   and hands each to the same marking calls a direct paint would have made
+   -- which is what keeps a page painted directly and a page replayed from
+   a record byte-identical. The walk is batched so collections and
+   interrupts still get their safe point. */
 
 /* A polygon mark's coordinates as the array a device method takes.
  *
@@ -3163,6 +3205,11 @@ static int _replayplace(Xpost_Context *ctx,
    width, which is past any page that is going to be painted and short of
    any page that could be held. */
 #define PAGE_ROWS_BUDGET 100000000u
+
+/* --- making the device -----------------------------------------------
+   The recording device itself: what it declares, what it refuses, and the
+   block it holds outside virtual memory, which goes when the device is
+   retired. */
 
 static int _extent_ok(Xpost_Object width, Xpost_Object height)
 {

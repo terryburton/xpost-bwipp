@@ -106,6 +106,13 @@ static int gcache_rr = 0;         /* next slot displaced when all are live */
 
 static const Xpost_Glyph_Entry *gcache_serving = NULL;
 
+/* --- the rendered-glyph cache ----------------------------------------
+   Rendering a glyph costs the face, the transform and the hinting, and a
+   page of text asks for the same few glyphs repeatedly. So a rendered
+   glyph is kept, keyed by face, glyph, size and the exact fixed-point
+   transform -- exact, because a glyph rendered at a hair's difference is a
+   different glyph. */
+
 static unsigned int
 gcache_hashkey(const void *k1, unsigned long long k2, const long m[4], long size)
 {
@@ -392,6 +399,12 @@ xpost_font_cache_setparams(long bmax, long lower, long upper)
         gcache_drop(gcache_tail);
 }
 
+/* --- the stencil-run cache -------------------------------------------
+   A second cache over the first, for driver-generated bitmap text: the
+   same small masks paint over and over, and scanning their bits again per
+   occurrence is where such jobs spend their time. Keyed by the content, so
+   a collision answers no differently than a miss. */
+
 int
 xpost_mask_cache_lookup(const void *k1, unsigned long long k2,
                              const long m[4], long size,
@@ -482,6 +495,10 @@ typedef struct _Xpost_Font_Program
 } Xpost_Font_Program;
 
 static Xpost_Font_Program *program_head = NULL;
+
+/* --- the font program a face was opened over -------------------------
+   Kept for as long as the face might build another glyph, and given up
+   with it. */
 
 static int
 program_keep(void *face, unsigned char *bytes)
@@ -599,6 +616,11 @@ xpost_font_quit(void)
 
 #ifdef HAVE_FREETYPE2
 # ifdef HAVE_FONTCONFIG
+
+/* --- finding a face by name ------------------------------------------
+   What the platform's font configuration answers, and how much of it to
+   believe. A substitution is recorded rather than hidden, so the suite can
+   hold a name to the face it actually lands on. */
 /* case- and blank-insensitive name comparison, as fontconfig applies
    to family names */
 static int

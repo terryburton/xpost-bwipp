@@ -129,6 +129,12 @@ int xpost_op_string_mode_file (Xpost_Context *ctx,
 #define XPOST_FILTER_LZW_EARLY   1
 #define XPOST_FILTER_FAX_COLUMNS 1728
 
+/* --- the filter operator ---------------------------------------------
+   One operator makes every filter, so what varies between them is a table
+   of names and the parameters each takes. A filter named with no parameter
+   dictionary gets the defaults the language states, which is why the
+   defaults are constructed here rather than assumed downstream. */
+
 static Xpost_Object _cons_lzw_default (Xpost_Memory_File *mem, Xpost_Object src)
 {
     return xpost_file_cons_filter_lzw(mem, src, XPOST_FILTER_LZW_EARLY);
@@ -692,6 +698,11 @@ int xpost_op_file_filter_subfile (Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));
     return 0;
 }
+
+/* --- reading and writing ---------------------------------------------
+   The operators that move bytes. Each is written once over the stream
+   method table, so none of them knows whether it is reading a disk file, a
+   string, or four filters stacked on one. */
 
 /* file  closefile  -
    close file object */

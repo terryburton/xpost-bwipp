@@ -212,6 +212,12 @@ struct _Xpost_Record
 #define _SPILL_MARK  "XPSPILL\1"
 #define _SPILL_BASE  32
 
+/* --- reaching what a record holds ------------------------------------
+   A record keeps its marks, its pictures, its masks, its screens and its
+   placed drawings in blocks of their own, and these are the accessors
+   every reader goes through. Nothing else knows the layout, which is what
+   lets the whole of it move to a file without the readers changing. */
+
 static _Mark *_marks(const Xpost_Record *rec)
 {
     return (_Mark *)rec->mark.s;
@@ -301,6 +307,13 @@ static void _short(Xpost_Record *rec, int why);
  * coverage, a screen's cell, a picture's samples -- goes into the same
  * stream under a header that says to step over it.
  */
+
+/* --- the record on disk ----------------------------------------------
+   Past a threshold a record is worth more than the raster it saves, and
+   its marks go to a scratch file. One stream in mark order, one write
+   buffer and one read window: order is what a record is for, and a chain
+   per band would cost it. Everything below reads the same record whether
+   it is in memory or in the file. */
 
 /* Put what the buffer holds where it belongs. */
 static int _sp_flush(Xpost_Record *rec)
@@ -678,6 +691,11 @@ static size_t _sp_resident(const _Spill *sp)
          + sp->blob.cap + sp->run.cap + sp->bits.cap;
 }
 
+/* --- making and giving up a record -----------------------------------
+   A record is not virtual memory: restore does not reach it and vmstatus
+   does not count it, so it is held and released explicitly, and its
+   Destroy runs when the device that owns it is retired. */
+
 Xpost_Record *xpost_record_new(int ncomp)
 {
     Xpost_Record *rec;
@@ -825,6 +843,11 @@ void xpost_record_free(Xpost_Record *rec)
     xpost_strbuf_free(&rec->sub);
     free(rec);
 }
+
+/* --- writing a mark down ---------------------------------------------
+   Every mark carries the run of rows it can reach, and that range must be
+   a conservative superset: a visit too many costs time, while a mark
+   judged out of a band it touches is simply absent from the page. */
 
 /* How many operands a kind carries after its colour, or -1 for one
    whose length is its own to state. */
@@ -1033,6 +1056,11 @@ int xpost_record_mark(Xpost_Record *rec, Xpost_Record_Kind kind,
     _extent(kind, ops, nops, &lo, &hi);
     return _put(rec, kind, colour, ops, nops, lo, hi);
 }
+
+/* --- pictures --------------------------------------------------------
+   Bulk pixels follow one rule -- a bitmap produced once is held once and
+   re-emitted per band -- so a picture is one entry naming its samples, the
+   transform that places them, and the tables they decode through. */
 
 /* Copy what a caller owns into memory the record owns, counting what it
    cost. Nothing asked for and nothing available both answer NULL, which
@@ -1341,6 +1369,13 @@ int xpost_record_image_rows(const Xpost_Record_Image *img,
     return first < last;
 }
 
+/* --- coverage masks, and the glyphs that share them ------------------
+   A mask is shared on its bytes rather than on a name, because
+   driver-generated text paints the same few masks over and over and the
+   cache that rendered them is bounded and may drop one a record still
+   names. So the record keeps its own copy, and finds a duplicate by
+   hashing the content. */
+
 /* A digest of a mask's bytes, and of the extents that say how to read
    them. It answers whether two masks might be equal; the bytes answer
    whether they are. */
@@ -1558,6 +1593,11 @@ const unsigned char *xpost_record_mask_get(const Xpost_Record *rec, size_t i,
                         (size_t)m->w * (size_t)m->h, i, 0);
 }
 
+/* --- a drawing placed more than once ---------------------------------
+   A form is captured as marks rather than as pixels, so one execution
+   serves every placement under the same linear transformation. A use is
+   one entry, which is why twenty-five placements cost one drawing. */
+
 int xpost_record_place(Xpost_Record *rec, Xpost_Record *sub,
                        real dx, real dy)
 {
@@ -1666,6 +1706,12 @@ Xpost_Record *xpost_record_place_get(const Xpost_Record *rec, size_t i)
         return NULL;
     return _subs(rec)[i];
 }
+
+/* --- the screen in force ---------------------------------------------
+   A screen entry is not a mark. It is played in the order it was made,
+   exempt from the row filter a band replay applies, and it survives the
+   page boundary -- state set before a band governs that band wherever on
+   the page it was set. */
 
 /* Write one screen entry down, its cell copied into the record's own
    memory. Shared by a screen the painting announced and by the one a

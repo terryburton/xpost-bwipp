@@ -139,6 +139,12 @@ static unsigned int _arcto_cont_opcode;
    than below the first on one platform and above it on another. */
 #define PATH_CMD(p, o) ((unsigned char)(p)[(o)])
 
+/* --- how a path is stored --------------------------------------------
+   A path is a string, not an array of objects: a run of fixed-size
+   elements read and written through these. That is what lets a path of
+   tens of thousands of segments cost bytes rather than composite objects,
+   and it is why nothing outside this file knows the layout. */
+
 static unsigned int
 _path_get_u32(const char *p, unsigned int off)
 {
@@ -503,6 +509,11 @@ static Xpost_Object _gstate_cache;
 static int _gstate_cached = 0;
 static unsigned int _gstate_cache_id = 0;
 
+/* --- building a path -------------------------------------------------
+   The construction operators the language exposes. Each appends one
+   element and leaves the current point where the specification says; the
+   relative forms reach the absolute ones after asking where the pen is. */
+
 static
 Xpost_Object _gstate(Xpost_Context *ctx)
 {
@@ -783,6 +794,13 @@ int _rcurveto_cont(Xpost_Context *ctx,
     return _curveto(ctx, x1, y1, x2, y2, x3, y3);
 }
 
+/* --- asking a path about itself --------------------------------------
+   What the path is, rather than what to add to it: its extent, whether it
+   is a rectangle, whether it is empty. The rectangle question is asked
+   often enough to be worth answering directly -- a rectangular clip is the
+   common case, and knowing it is one is what lets the clip be a pair of
+   numbers instead of a shape. */
+
 /* walk a packed path accumulating the bounding box of every stored
    coordinate pair (curve controls and close repeats included, matching
    the behaviour of the dictionary-walking predecessors); a moveto that
@@ -919,6 +937,11 @@ int _path_is_rect(Xpost_Context *ctx, Xpost_Object path,
     }
     return *maxx > *minx && *maxy > *miny;
 }
+
+/* --- handing a path to something that paints it ----------------------
+   The points a fill needs, the arguments the compiled polygon filler
+   takes, and the walks that put a path out to a vector writer as its own
+   path operators. */
 
 /* allocate an uninitialised array: the caller fills every slot
    directly, so the null prefill and per-put save checks of the
@@ -1763,6 +1786,12 @@ int _pathbbox(Xpost_Context *ctx)
     }
     return 0;
 }
+
+/* --- arcs ------------------------------------------------------------
+   An arc is not a path element: the language has arc operators and the
+   path has lines and curves, so an arc is approximated by Bezier segments
+   here, at a division fine enough that the difference is below the
+   device's own resolution. */
 
 
 static
