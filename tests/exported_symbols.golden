@@ -391,6 +391,10 @@ xpost_operator_dump
 xpost_operator_exec
 xpost_operator_init_optab
 xpost_operator_set_count
+xpost_operator_set_signature
+xpost_operator_table_restore
+xpost_operator_table_snapshot
+xpost_operator_take_signatures
 xpost_operator_wrapped_release
 xpost_oplib_init_ops
 xpost_output_buffer_release

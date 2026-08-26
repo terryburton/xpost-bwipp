@@ -142,6 +142,13 @@ int xpost_operator_set_signature(Xpost_Memory_File *gl, unsigned int k,
                                  unsigned int si, unsigned int in,
                                  const unsigned char *types);
 
+/* Keep the table as it stands and put it back: the job boundary reverts
+   the banks, and a row holds objects of the global bank. */
+int xpost_operator_table_snapshot(Xpost_Memory_File *gl,
+                                  unsigned char **buf, unsigned int *len);
+int xpost_operator_table_restore(Xpost_Memory_File *gl,
+                                 const unsigned char *buf, unsigned int len);
+
 /**
  * @brief output a text dump of the operator contents
  */

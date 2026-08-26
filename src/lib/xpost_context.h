@@ -475,6 +475,17 @@ struct _Xpost_Context {
         context must be destroyed rather than reused. */
     struct Xpost_Memory_Image *job_baseline_lo;
     struct Xpost_Memory_Image *job_baseline_gl;
+    /* The operator table as it stood at the baseline, and how many
+       operators it held. The table is the memory file's own storage
+       and no part of the arena, so the image restore that reverts a
+       bank does not reach it -- and a row holds objects of that bank:
+       the procedure a wrapped operator runs, and the name-stack index
+       of its name. A job that wrapped an operator would otherwise
+       leave the table naming an entity the revert has dropped, which
+       the next collection follows. */
+    unsigned char *job_baseline_optab;
+    unsigned int job_baseline_optab_len;
+    unsigned int job_baseline_operators;
     dword job_rand_next;
     unsigned int job_vmmode;
     int job_packing;

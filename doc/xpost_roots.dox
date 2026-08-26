@@ -44,7 +44,7 @@
  * |
  * +- special entities -- below `start`, never swept ----------- per bank
  * |    FREE . SAVE_STACK . CONTEXT_LIST . NAME_STACK . NAME_TREE
- * |    BOGUS_NAME . OPERATOR_TABLE ........................... (G only)
+ * |    BOGUS_NAME
  * |
  * +- save stack ......................... both banks
  * |    +- the backups a save took        (G) and (L), one stack each
@@ -60,8 +60,9 @@
  * |         are an entity of their own, above `start`
  * |
  * +- the operator table's procedures ...  (G)
- * |         an operator installed from C keeps its procedure there and
- * |         nowhere else, and the table is not an object
+ * |         the table is the memory file's own storage and no part of
+ * |         either arena, so the walk does not reach it; what keeps the
+ * |         procedures alive is .wrappedprocs, below
  * |
  * +- per context
  *    +- os    operand stack ............. (L)
@@ -129,9 +130,17 @@
  * itself is a special entity, below @c start, so a sweep never takes it.
  *
  * <b>The operator table.</b> An operator that runs a procedure holds that
- * procedure in the table, which is a special entity and is not walked by the
- * collector. The procedures are also kept in @c .wrappedprocs, which is
- * walked, and that is what keeps them from being taken for garbage.
+ * procedure in the table, and the table is not in virtual memory at all:
+ * it is the memory file's own storage, because a signature carries the C
+ * function implementing the operator and the arena holds no addresses. So
+ * the collector does not reach it, and the procedures are kept alive by
+ * @c .wrappedprocs, which it does reach.
+ *
+ * The same split is why the job boundary keeps a copy of the table. The
+ * boundary reverts both banks to a baseline image, which cannot reach
+ * storage outside them -- and a row holds objects of the global bank, so
+ * a job that wrapped an operator would otherwise leave a row naming an
+ * entity the revert had dropped, which the next collection follows.
  *
  * <b>The font face cache.</b> A face is cached so that every font dictionary a
  * name produces shares one synthesized @c CharStrings dictionary and one

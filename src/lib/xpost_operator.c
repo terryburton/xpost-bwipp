@@ -429,6 +429,53 @@ static int _optab_alloc(Xpost_Memory_File *gl, unsigned int sz,
     return 1;
 }
 
+/* Keep the table as it stands, for a caller that will put it back.
+
+   The job boundary is the one such caller: it reverts both banks to a
+   baseline image, and a row of this table holds objects of the global
+   bank -- the procedure a wrapped operator runs, and the name-stack index
+   of its name. The table is not in the arena, so the image restore does
+   not reach it, and a job that wrapped an operator would leave a row
+   naming an entity the revert has dropped.
+
+   Storage for the copy is this file's business rather than the caller's,
+   because the table's growth is: a caller holding the size would be
+   holding it across the calls that change it. */
+int xpost_operator_table_snapshot(Xpost_Memory_File *gl,
+                                  unsigned char **buf, unsigned int *len)
+{
+    unsigned char *keep;
+
+    if (!gl->optab_max)
+        return 1;
+    keep = realloc(*buf, gl->optab_max);
+    if (!keep)
+        return 0;
+    memcpy(keep, gl->optab, gl->optab_max);
+    *buf = keep;
+    *len = gl->optab_max;
+    return 1;
+}
+
+/* Put back what the snapshot above kept. */
+int xpost_operator_table_restore(Xpost_Memory_File *gl,
+                                 const unsigned char *buf, unsigned int len)
+{
+    if (!buf || !len)
+        return 1;
+    if (gl->optab_max < len)
+    {
+        unsigned char *bigger = realloc(gl->optab, len);
+
+        if (!bigger)
+            return 0;
+        gl->optab = bigger;
+        gl->optab_max = len;
+    }
+    memcpy(gl->optab, buf, len);
+    return 1;
+}
+
 /* Give row `k` room for `n` operand shapes, for a context whose table is
    being filled from an image rather than by installing operators.
 

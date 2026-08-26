@@ -71,9 +71,18 @@ done
 #                        thing through globfree, so the buffer it hands
 #                        back cannot be a structure with a lifetime of
 #                        its own
+#   xpost_operator.c     the operator table's storage, for the same
+#                        reason as xpost_memory.c: it is an allocator
+#                        rather than a byte stream. What it hands out are
+#                        rows and runs of signatures, named by offsets
+#                        from its start so that growing it moves nothing
+#                        that names what is in it -- which is the whole
+#                        of why it cannot be a string buffer, since a
+#                        string buffer's business is bytes and their end
 hits=$(grep -n 'realloc(' "$lib"/*.c "$src"/src/bin/*.c 2>/dev/null \
        | grep -v 'sizeof' | grep -v 'write_capacity' \
        | grep -v 'xpost_memory\.c:' \
+       | grep -v 'xpost_operator\.c:' \
        | grep -v 'xpost_compat\.c:' || true)
 if [ -n "$hits" ]; then
     echo "check-one-bytebuf: a byte buffer is grown outside xpost_strbuf.h:"

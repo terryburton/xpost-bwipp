@@ -4050,6 +4050,10 @@ static int _job_capture_baseline(Xpost_Context *ctx)
         return 0;
     if (!xpost_memory_image_capture(ctx->gl, ctx->job_baseline_gl))
         return 0;
+    if (!xpost_operator_table_snapshot(ctx->gl, &ctx->job_baseline_optab,
+                                       &ctx->job_baseline_optab_len))
+        return 0;
+    ctx->job_baseline_operators = xpost_operator_count();
     ctx->job_rand_next = ctx->rand_next;
     ctx->job_vmmode = ctx->vmmode;
     ctx->job_packing = ctx->packing;
@@ -4141,6 +4145,14 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     _job_close_born_files(ctx->gl, ctx->job_baseline_gl);
     xpost_memory_image_restore(ctx->lo, ctx->job_baseline_lo);
     xpost_memory_image_restore(ctx->gl, ctx->job_baseline_gl);
+    if (!xpost_operator_table_restore(ctx->gl, ctx->job_baseline_optab,
+                                      ctx->job_baseline_optab_len))
+    {
+        ctx->job_boundary_failed = 1;
+        return;
+    }
+    if (ctx->job_baseline_optab)
+        xpost_operator_set_count(ctx->job_baseline_operators);
     {
         /* put the object roots back to their baseline, save the stream file
            the job-stream logic owns across the boundary */

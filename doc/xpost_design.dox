@@ -266,15 +266,25 @@
  *
  * What an image does not carry is as much of the design as what it
  * does. Host state is excluded by construction: where this process
- * mapped the arenas, which descriptors are open, and the addresses of
- * the C functions in the operator table are all this process's own.
- * The function addresses are written as zeros and rebuilt at the read
- * from the operator table the reading process built for itself --
- * which is safe only because the image carries the operator names in
- * row order and the read holds this build's table to them row for
- * row; an operator object carries nothing but its row number, so a
- * table in another order would dispatch to the wrong operator, and
- * the check is what makes that impossible rather than unlikely. A
+ * mapped the arenas and which descriptors are open are this process's
+ * own. The arena itself holds no host address at all -- the operator
+ * table, which is where they were, is the memory file's own storage
+ * and no part of it -- so the bytes go out as they stand and nothing
+ * is put back at the read.
+ *
+ * What the image does carry of that table is its virtual-memory half:
+ * per row, the name-stack index of the operator's name, the procedure
+ * a wrapped operator runs, and the operand shapes of the operators the
+ * boot files declare in PostScript. A run that reads an image never
+ * runs those files, so without them it would come up with wrapped
+ * operators that run nothing. The rows a build installs from C keep
+ * the signatures that build installed, function pointers and all.
+ *
+ * The image carries the operator names in row order and the read holds
+ * this build's table to them row for row; an operator object carries
+ * nothing but its row number, so a table in another order would
+ * dispatch to the wrong operator, and the check is what makes that
+ * impossible rather than unlikely. A
  * block held outside virtual memory (a device's state, a stream, a
  * face) is named in VM by a handle only this process can resolve, so
  * an image is refused at the write if any entity carries one: nothing
@@ -339,8 +349,8 @@
  * Virtual memory is two banks -- local and global -- each an
  * Xpost_Memory_File: one large region, called the arena, sub-allocated
  * through an Xpost_Memory_Table sitting at its base. Global memory
- * holds what survives save and restore -- the operator table, the
- * frozen library, fonts and resources; local memory holds the job's
+ * holds what survives save and restore -- the frozen library, fonts
+ * and resources; local memory holds the job's
  * own allocations and is what the save machinery rewinds. A global
  * container may not hold a reference to a local object (local memory
  * is the perishable bank, and such a reference would dangle);
@@ -414,9 +424,8 @@
  * the free-list heads (FREE), the save stack (VS), the list of
  * contexts sharing the file (CTXLIST), the name string stack and name
  * tree (NAMES, NAMET), and a distinguished string for the
- * name-not-found answer (BOGUSNAME). The operator table (OPTAB) is a
- * special entity of the global bank only. The collector's domain
- * begins just past them -- the memory file records that boundary as
+ * name-not-found answer (BOGUSNAME). Both banks hold the same six.
+ * The collector's domain begins just past them -- the memory file records that boundary as
  * its @c start -- so the special entities are roots by construction,
  * not things to be marked and swept.
  *
@@ -479,8 +488,7 @@
  * order is load-bearing: the same spelling may be interned in both
  * banks, and the two are different objects with different indices --
  * different dictionary keys. System names are interned globally at
- * boot (the operator table lives in the global bank and records its
- * names by global index); a name a program makes goes wherever the
+ * boot (the operator table records its names by global index); a name a program makes goes wherever the
  * VM mode says. A name once interned is never given back: names are
  * identities, and the cost of keeping them is the string and a
  * node per character, once.

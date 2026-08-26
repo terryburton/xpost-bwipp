@@ -59,14 +59,18 @@ guard_require_file "$header" "the header holding the accessors"
 
 fail=0
 
-# The five constructors, each of which allocates its entity through the one
+# The four constructors, each of which allocates its entity through the one
 # allocator that holds it to the slot the enumerator names. Nothing else may
 # name one, and none of them may go back to checking it by hand.
+#
+# The operator table was a fifth. It is not an entity of the arena any
+# more -- a signature carries this process's function pointers, and the
+# arena holds no addresses -- so it is the memory file's own storage and
+# builds no special entity.
 cat > "$work/permitted" <<'EOF'
 xpost_context.c xpost_context_init_ctxlist
 xpost_free.c xpost_free_init
 xpost_name.c xpost_name_init
-xpost_operator.c xpost_operator_init_optab
 xpost_save.c xpost_save_init
 EOF
 
@@ -186,17 +190,18 @@ done < "$work/permitted"
 nspecial=$(sed -n '/^} Xpost_Memory_Table_Special;/q;p' "$header" \
            | grep -c '^ *XPOST_MEMORY_TABLE_SPECIAL_[A-Z_]*,\{0,1\}$')
 naccessor=$(grep -cE '^xpost_memory_[a-z_]*_(adr|ent)\(Xpost_Memory_File \*mem\)$' "$header")
-if [ "$nspecial" -lt 7 ]; then
+if [ "$nspecial" -lt 6 ]; then
     echo "FAILURES: the special-entity enum parsed as only $nspecial members;"
     echo "      it moved or changed shape and this check no longer reads it"
     exit 1
 fi
-# FREE, SAVE_STACK, CONTEXT_LIST, NAME_STACK, NAME_TREE, OPERATOR_TABLE each
-# have an accessor. Four return an address; the two stacks return an entity,
+# FREE, SAVE_STACK, CONTEXT_LIST, NAME_STACK and NAME_TREE each have an
+# accessor. Three return an address; the two stacks return an entity,
 # because a stack segment is an entity and each of those specials is its own
 # stack's first segment. BOGUS_NAME is an entity number, not a structure,
-# and is named only where the name stack is built.
-if [ "$naccessor" -ne 6 ]; then
+# and is named only where the name stack is built. The operator table has
+# no accessor here because it is no longer in virtual memory.
+if [ "$naccessor" -ne 5 ]; then
     echo "FAILURES: $naccessor accessors for $nspecial special"
     echo "      entities; an entity without one has nothing to reach it by"
     echo "      and its callers will go back to the fallible lookup"

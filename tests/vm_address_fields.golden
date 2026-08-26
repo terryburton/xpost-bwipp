@@ -45,6 +45,8 @@ count    xpost_context.h:_Xpost_Context     hold
 count    xpost_context.h:_Xpost_Context     id
 count    xpost_context.h:_Xpost_Context     idiomrecognition
 count    xpost_context.h:_Xpost_Context     ignoreinvalidaccess
+count    xpost_context.h:_Xpost_Context     job_baseline_operators
+count    xpost_context.h:_Xpost_Context     job_baseline_optab_len
 count    xpost_context.h:_Xpost_Context     job_baseline_ds
 count    xpost_context.h:_Xpost_Context     job_boundary_failed
 count    xpost_context.h:_Xpost_Context     job_encapsulated
@@ -141,6 +143,7 @@ count    xpost_file.h:Xpost_ProcFile        started
 count    xpost_interpreter.h                cid
 count    xpost_interpreter.h                in_onerror
 count    xpost_memory.h:Xpost_Memory_File   compact_pending
+count    xpost_memory.h:Xpost_Memory_File   optab_max
 count    xpost_memory.h:Xpost_Memory_File   end
 count    xpost_memory.h:Xpost_Memory_File   ent
 count    xpost_memory.h:Xpost_Memory_File   ent_exhausted
