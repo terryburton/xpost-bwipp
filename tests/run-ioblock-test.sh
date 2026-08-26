@@ -28,14 +28,16 @@ command -v mkfifo >/dev/null 2>&1 || { echo "SKIP: no mkfifo"; exit 77; }
 
 mkfifo "$work/p" || { echo "SKIP: cannot make a fifo here"; exit 77; }
 
-cat > "$work/block.ps" <<'PS'
-/pipe (PIPE) (r) file def
+# the paths go in as the file is written: sed's in-place option takes a
+# backup suffix on some platforms and not others, so it is not used here
+cat > "$work/block.ps" <<PS
+/pipe ($work/p) (r) file def
 % the child's whole job is to prove it ran: the writer is waiting for this
 % yield first: fork switches to the child at once, so without the yield the
 % child would finish before the parent ever reached the read. Yielding puts
 % the parent back in charge with the child still owing its one job, which is
 % what makes that job depend on the read giving way.
-mark { yield (GO) (w) file closefile } fork /child exch def
+mark { yield ($work/go) (w) file closefile } fork /child exch def
 % the byte cannot arrive until the child has run, so a read that waits here
 % waits for ever
 pipe read
@@ -45,7 +47,6 @@ child join
 (CHILD-JOINED\n) print
 flush
 PS
-sed -i "s|PIPE|$work/p|; s|GO|$work/go|" "$work/block.ps"
 
 # The writer opens its end at once, read-write rather than write-only: a
 # write-only open of a fifo waits for a reader, and on at least one
@@ -105,13 +106,12 @@ fi
 
 mkfifo "$work/q" || { echo "SKIP: cannot make a second fifo"; exit 77; }
 
-cat > "$work/lone.ps" <<'PS'
-/pipe (PIPE) (r) file def
+cat > "$work/lone.ps" <<PS
+/pipe ($work/q) (r) file def
 pipe read { pop }{ } ifelse
 (LONE-DONE\n) print
 flush
 PS
-sed -i "s|PIPE|$work/q|" "$work/lone.ps"
 
 (
     exec 3<>"$work/q"
