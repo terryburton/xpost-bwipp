@@ -2852,7 +2852,7 @@ static void _write_image(Xpost_Context *ctx, const char *datadir);
 static unsigned int _contexts_created = 0;
 
 /* Say that the boot files may be read, whichever way the language
-   arrives. init.ps is read from here now and graphics.ps lazily from the
+   arrives. init.ps is read from here now and callout.ps lazily from the
    same directory, so a later sandbox must not deny the interpreter its
    own start-up files -- and a run whose language came out of an image
    reaches the same directory for whatever it did not carry. */

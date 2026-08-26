@@ -296,7 +296,7 @@ fi
 scratch=0
 for f in device.ps font.ps init.ps image.ps pgmimage.ps pbmimage.ps \
          ppmimage.ps tiffimage.ps nulldev.ps bboxdev.ps pdfwrite.ps \
-         svgwrite.ps dscwrite.ps paint.ps graphics.ps gstate.ps; do
+         svgwrite.ps dscwrite.ps paint.ps callout.ps gstate.ps; do
     p="$src/data/$f"
     [ -f "$p" ] || continue
     while IFS= read -r hit; do

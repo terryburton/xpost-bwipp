@@ -1015,7 +1015,7 @@ int main(int argc, char *argv[])
     /* Confine the program to its working area unless --no-sandbox: the
        current directory, the input file's directory (read) and the
        output file's directory (write). The interpreter permits its own
-       data directory (init.ps, graphics.ps) during start-up; -I resource
+       data directory (init.ps, callout.ps) during start-up; -I resource
        directories were read-permitted above.
 
        NOT the temporary directory, though it reads like part of a

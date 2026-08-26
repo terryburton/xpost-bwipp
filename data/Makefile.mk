@@ -2,7 +2,7 @@
 EXTRA_DIST += \
 data/clip.ps \
 data/err.ps \
-data/graphics.ps \
+data/callout.ps \
 data/device.ps \
 data/color.ps \
 data/image.ps \
@@ -34,7 +34,7 @@ psfilesdir = $(pkgdatadir)
 psfiles_DATA = \
 data/clip.ps \
 data/err.ps \
-data/graphics.ps \
+data/callout.ps \
 data/device.ps \
 data/color.ps \
 data/image.ps \

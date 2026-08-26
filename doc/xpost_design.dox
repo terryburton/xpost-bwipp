@@ -68,14 +68,14 @@
  * at boot from the data directory: the error mechanism (err.ps),
  * resources, and the whole of the graphics language -- paths,
  * painting, colour spaces, clipping, images, patterns, shadings,
- * halftones, the device classes and the band loop -- in graphics.ps
+ * halftones, the device classes and the band loop -- in callout.ps
  * and the files it loads. The interpreter runs without any of the
  * graphics loaded (\--no-graphics), and the graphics arrive lazily the
  * first time something asks for them.
  *
  * The load chain is concrete and shallow: init.ps builds the
  * machinery and loads the error mechanism, the sort and resource
- * machinery and the job layer; graphics.ps, when asked for, loads
+ * machinery and the job layer; callout.ps, when asked for, loads
  * the device layer, the graphics state, colour, paths, clipping,
  * painting, text, patterns and shadings; the device layer loads the
  * imaging core, the structural devices and the writers; and the
@@ -205,7 +205,7 @@
  * The PostScript side is twenty-eight files in the data directory, loaded
  * through one module loader. init.ps builds the machinery and loads
  * err.ps, the sort and resource machinery (qsort.ps, resource.ps) and the
- * job layer; graphics.ps, when first asked for, loads the graphics
+ * job layer; callout.ps, when first asked for, loads the graphics
  * language in a fixed order -- device, gstate, halftone, color, path,
  * clip, paint, font, cid, pattern, shade -- and the device layer loads the
  * imaging core (image.ps), the structural devices (nulldev.ps, bboxdev.ps,
@@ -213,7 +213,7 @@
  * tiffimage) and the vector writers (pdfwrite, svgwrite, dscwrite).
  * prepr.ps is the pre-parser the scanner's binary token work uses. The
  * order is load-bearing where a module bakes a reference to another's
- * helper, which is why it is stated once, in graphics.ps, rather than
+ * helper, which is why it is stated once, in callout.ps, rather than
  * discovered per file.
  *
  * Neither set has a unit-test main() left in it: the six that once lived

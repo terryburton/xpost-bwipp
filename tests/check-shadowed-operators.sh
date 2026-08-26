@@ -49,7 +49,7 @@ grep -ho 'xpost_operator_cons(ctx, "[^"]*"' "$srcdir"/*.c 2>/dev/null \
 #
 # Leading whitespace is part of the line and not part of the rule. The
 # scan was once anchored to the first column, which meant a definition
-# indented inside a conditional -- graphics.ps defines breakhere that way,
+# indented inside a conditional -- callout.ps defines breakhere that way,
 # in the fallback block that runs when the file is loaded standalone --
 # was a second implementation the check could not see.
 grep -hoE '^[[:space:]]*/[A-Za-z=][A-Za-z0-9]* *[[{]' "$datadir"/*.ps 2>/dev/null \

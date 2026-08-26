@@ -120,9 +120,9 @@ settled  xpost_op_file.c       xpost_op_file_filter_dict    ReusableStreamDecode
 settled  xpost_op_file.c       xpost_op_file_filter_dict    VSamples               keys read off the dictionary a filter is made with: the job's first filter carrying one pays for the spelling, the first-ask-pays pattern the face cache's per-name keys follow
 settled  xpost_op_file.c       xpost_op_int_setobjectformat .objectformat          the parameter's anchor, asked where objectformat is set; the first ask pays for it and every ask after finds it
 settled  xpost_op_path.c       _fillpath_emit               .eorule                spelt by data/paint.ps, interned as the graphics world is scanned; asked again at every fill
-settled  xpost_op_path.c       _pathbbox                    .graphicsdict          graphics-state slot names spelt by data/gstate.ps and data/graphics.ps, interned as the graphics world is scanned
-settled  xpost_op_path.c       _pathbbox                    currgstate             graphics-state slot names spelt by data/gstate.ps and data/graphics.ps, interned as the graphics world is scanned
-settled  xpost_op_path.c       _pathbbox                    currmatrix             graphics-state slot names spelt by data/gstate.ps and data/graphics.ps, interned as the graphics world is scanned
+settled  xpost_op_path.c       _pathbbox                    .graphicsdict          graphics-state slot names spelt by data/gstate.ps and data/callout.ps, interned as the graphics world is scanned
+settled  xpost_op_path.c       _pathbbox                    currgstate             graphics-state slot names spelt by data/gstate.ps and data/callout.ps, interned as the graphics world is scanned
+settled  xpost_op_path.c       _pathbbox                    currmatrix             graphics-state slot names spelt by data/gstate.ps and data/callout.ps, interned as the graphics world is scanned
 settled  xpost_op_save.c       _rebind_fontdirectory        FontDirectory          spelt by data/init.ps and data/font.ps, interned as the world is built
 settled  xpost_op_token.c      grok                         <<                     the scanner's own delimiters, spelt on nearly every page of data/init.ps and interned as the world's programs are scanned
 settled  xpost_op_token.c      grok                         >>                     the scanner's own delimiters, spelt on nearly every page of data/init.ps and interned as the world's programs are scanned

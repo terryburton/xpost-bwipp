@@ -33,7 +33,7 @@ file device.ps        annotated
 file dscwrite.ps      annotated
 file err.ps           annotated
 file font.ps          annotated
-file graphics.ps      annotated
+file callout.ps      annotated
 file gstate.ps        annotated
 file halftone.ps      annotated
 file image.ps         annotated

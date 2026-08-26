@@ -363,7 +363,7 @@ xpost_dps_enabled(void)
 }
 
 /* -  .dpsenabled  bool
-   Whether the context operators were installed. graphics.ps reads it once, as
+   Whether the context operators were installed. callout.ps reads it once, as
    it loads, to pick the fast single-context graphics-dictionary accessor when
    they were not: only a forked context needs the accessor to resolve per
    context, and a context is forked only when the operators are installed. */
@@ -382,7 +382,7 @@ int xpost_oper_init_context_ops (Xpost_Context *ctx,
 
     assert(ctx->gl->base);
 
-    /* .dpsenabled is installed on every run -- graphics.ps reads it to choose
+    /* .dpsenabled is installed on every run -- callout.ps reads it to choose
        its graphics-dictionary accessor -- so it goes in before the opt-in gate */
     op = xpost_operator_cons(ctx, ".dpsenabled", (Xpost_Op_Func)op_dpsenabled, 0);
     INSTALL;

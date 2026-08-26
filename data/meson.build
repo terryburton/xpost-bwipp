@@ -1,7 +1,7 @@
 xpost_data_src = files([
   'clip.ps',
   'err.ps',
-  'graphics.ps',
+  'callout.ps',
   'device.ps',
   'color.ps',
   'image.ps',

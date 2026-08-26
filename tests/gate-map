@@ -266,7 +266,7 @@ filter width witness
 graphics path src/lib/xpost_matrix.*
 graphics path src/lib/xpost_op_matrix.*
 graphics path src/lib/xpost_op_path.*
-graphics path data/graphics.ps
+graphics path data/callout.ps
 graphics path data/paint.ps
 graphics path data/path.ps
 graphics path data/clip.ps

@@ -54,7 +54,7 @@
 %  The remaining operators that need no graphics: user objects, forms,
 %  user paths, and the rectangle operators.
 %
-%  loadgraphics, which reads graphics.ps and everything under it. It is
+%  loadgraphics, which reads callout.ps and everything under it. It is
 %  a PROCEDURE and not a call: graphics is loaded on demand, so a run
 %  that never paints never pays for it and a run that does pays once.
 %
@@ -284,7 +284,7 @@ userdict /.xpostsys get .setglobalprivatedict
 %  and nothing of this sits on the operand stack while it does.
 %
 %  It is defined here, and not with the other three brackets in
-%  graphics.ps, because two of its callers are the language rather than
+%  callout.ps, because two of its callers are the language rather than
 %  the graphics: the resource machinery runs a program's procedure over
 %  every instance, and that has to work in a configuration that never
 %  loads the graphics at all. A bracket reachable only when the graphics
@@ -2567,7 +2567,7 @@ currentglobal true setglobal
             % one-shot, so a program cannot reopen it.
             .sysdictunlock
 
-            (/graphics.ps) //.loadmodule exec
+            (/callout.ps) //.loadmodule exec
 
             currentglobal true setglobal
 
@@ -2718,7 +2718,7 @@ currentglobal true setglobal
             systemdict begin
 
             % The language is read into systemdict, but this pair is defined here,
-            % by loadgraphics itself, after graphics.ps has returned and closed the
+            % by loadgraphics itself, after callout.ps has returned and closed the
             % block that made systemdict current. They name it so they land with the
             % operators they belong beside rather than in the program's namespace.
             /setpagedevice [ /dicttype ] {  % pagedevicedict  .  -
