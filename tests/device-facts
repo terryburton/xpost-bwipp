@@ -613,7 +613,7 @@ method .intersect bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .maxmin bbox bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
-method PaintImage pdfwrite svgwrite
+method PaintImage dscwrite pdfwrite svgwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
 method .pdfoverprint dscwrite pdfwrite

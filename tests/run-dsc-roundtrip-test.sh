@@ -57,38 +57,70 @@ grestore
 showpage
 PAGEEOF
 
-box() {                 # <file>  .  the bbox line, or empty
-    XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d bbox -o /dev/null "$1" \
-        </dev/null 2>/dev/null | sed -n 's/^%%BoundingBox: //p' | head -1
+# Every run below reports through its exit status and leaves an artifact
+# behind, so each is judged by verdict_run before anything reads what it
+# left. A run that failed and a run that drew nothing are different
+# answers, and only the judgement tells them apart -- reading the artifact
+# first would report the second when it was the first.
+#
+# Each helper leaves its reading in a variable rather than printing it,
+# because verdict_run prints its own complaint and a command substitution
+# would swallow that into the reading.
+
+box() {                 # <file> <who>  .  leaves the bbox line in $boxline
+    boxline=''
+    _out=$(XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d bbox -o /dev/null "$1" \
+        </dev/null 2>&1)
+    _st=$?
+    verdict_run "$_st" "$_out" "$2" || return 1
+    boxline=$(printf '%s\n' "$_out" | sed -n 's/^%%BoundingBox: //p' | head -1)
+    return 0
 }
 
-want=$(box "$work/src.ps")
+# the page the emission renders onto, read off the raster's own header
+size() {                # <file> <who>  .  leaves "W H" in $sizeline
+    sizeline=''
+    _out=$(XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d ppm -o "$work/r.ppm" "$1" \
+        </dev/null 2>&1)
+    _st=$?
+    verdict_run "$_st" "$_out" "$2" || return 1
+    [ -s "$work/r.ppm" ] || return 1
+    sizeline=$(head -c 64 "$work/r.ppm" | tr '\n' ' ' | awk '{ print $2, $3 }')
+    return 0
+}
+
+# <file> <out> <who>  .  emit through the writer under test
+emit() {
+    _out=$(XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d dscwrite -o "$2" \
+        "$1" </dev/null 2>&1)
+    _st=$?
+    verdict_run "$_st" "$_out" "$3"
+}
+
+box "$work/src.ps" "the bounding-box run over the source page" || exit 1
+want=$boxline
 if [ -z "$want" ]; then
     echo "FAILURES: the source page reported no bounding box, so there is"
     echo "      nothing for the round trip to be compared against"
     exit 1
 fi
 
-XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d dscwrite -o "$work/out.dsc" \
-    "$work/src.ps" </dev/null 2>"$work/err" || {
-    echo "FAILURES: the DSC writer did not emit the page:"
-    sed 's/^/      /' "$work/err"
-    exit 1; }
+emit "$work/src.ps" "$work/out.dsc" "the DSC writer over the source page" || exit 1
 [ -s "$work/out.dsc" ] || { echo "FAILURES: the DSC writer emitted nothing"; exit 1; }
 
-# the page the emission renders onto, read off the raster's own header
-size() {                # <file>  .  "W H", or empty
-    XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d ppm -o "$work/r.ppm" "$1" \
-        </dev/null 2>/dev/null || return 0
-    [ -s "$work/r.ppm" ] || return 0
-    head -c 64 "$work/r.ppm" | tr '\n' ' ' | awk '{ print $2, $3 }'
-}
-wantsize=$(size "$work/src.ps")
-gotsize=$(size "$work/out.dsc")
+size "$work/src.ps" "the raster run over the source page" || exit 1
+wantsize=$sizeline
 if [ -z "$wantsize" ]; then
     echo "FAILURES: the source page rendered to no raster, so its size is"
     echo "      not known and the comparison below means nothing"
     exit 1
+fi
+
+if size "$work/out.dsc" "the raster run over the emitted document"; then
+    gotsize=$sizeline
+else
+    gotsize=''
+    fail=1
 fi
 if [ "$gotsize" != "$wantsize" ]; then
     echo "FAILURES: the emitted document renders onto a different page."
@@ -100,10 +132,14 @@ if [ "$gotsize" != "$wantsize" ]; then
     fail=1
 fi
 
-got=$(box "$work/out.dsc")
+if box "$work/out.dsc" "the bounding-box run over the emitted document"; then
+    got=$boxline
+else
+    got=''
+    fail=1
+fi
 if [ -z "$got" ]; then
-    echo "FAILURES: what the DSC writer emitted does not run, or draws"
-    echo "      nothing when it does"
+    echo "FAILURES: what the DSC writer emitted draws nothing when it runs"
     fail=1
 elif [ "$got" != "$want" ]; then
     echo "FAILURES: the emitted document draws its marks somewhere else."
@@ -143,9 +179,9 @@ awk 'BEGIN{ srand(7); for (r = 0; r < 120; r++) {
         print line } }' >> "$work/img.ps"
 printf 'grestore showpage\n' >> "$work/img.ps"
 
-XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d dscwrite -o "$work/img.dsc" \
-    "$work/img.ps" </dev/null 2>/dev/null
-if [ ! -s "$work/img.dsc" ]; then
+if ! emit "$work/img.ps" "$work/img.dsc" "the DSC writer over a sampled image"; then
+    fail=1
+elif [ ! -s "$work/img.dsc" ]; then
     echo "FAILURES: the DSC writer emitted nothing for a sampled image"
     fail=1
 else
@@ -160,11 +196,7 @@ else
         echo "      composite object takes, and the scanner refuses more"
         fail=1; }
     # and it reads back -- which is what a literal would have failed
-    if ! XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d bbox -o /dev/null \
-            "$work/img.dsc" </dev/null >/dev/null 2>&1; then
-        echo "FAILURES: the emitted image does not read back"
-        fail=1
-    fi
+    box "$work/img.dsc" "the read-back run over the emitted image" || fail=1
 fi
 
 [ "$fail" = 0 ] || exit 1
