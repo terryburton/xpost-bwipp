@@ -23,14 +23,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 %  The clip is a single value wearing three faces. /clipregion is the
 %  resolved region every painter meets what it was about to paint
-%  against. /clipsource is the shape to hand a device that clips for
-%  itself, or null when there is none to hand over. /clipcache holds what
-%  has been worked out about the region so far, and belongs to that region
-%  and no other. Set one and not the rest and the others go on describing
-%  a clip that is no longer in force -- which is not a fault that shows
-%  up where it is made: the painters keep enforcing the region while a
-%  vector device writes the old shape into its page, and no rasterised
-%  render of the same job disagrees with anything.
+%  against. /clipsource is what a device that clips for itself is handed
+%  -- the shape and the rule it is read under, [ path evenodd ] -- or
+%  null when there is none to hand over. The rule travels with the shape
+%  because a region is an outline AND a way of reading it: one outline
+%  under the two rules encloses different area, so a consumer told only
+%  the outline would enforce a region the painters here are not.
+%  /clipcache holds what has been worked out about the region so far,
+%  and belongs to that region and no other. Set one and not the rest and
+%  the others go on describing a clip that is no longer in force --
+%  which is not a fault that shows up where it is made: the painters
+%  keep enforcing the region while a vector device writes the old shape
+%  into its page, and no rasterised render of the same job disagrees
+%  with anything.
 %
 %  So no site sets one face. Every site that replaces the clip says what
 %  all of it becomes, here, in one call. tests/check-clip-writer.sh holds
@@ -282,11 +287,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % and put back, undisturbed by flattening or the intersection
     % remember the clip's shape as a path before flattening: a device
     % that clips for itself wants the shape, not the pixel-band spans the
-    % region may reduce to below. Only an unclipped page keeps an exact
-    % single-path region; intersecting with an existing region can produce
-    % a shape no single path describes, so that case clears the record.
-    .cliptrivial
-        { graphicsdict /currgstate get /currpath get .copypath }
+    % region may reduce to below. Intersecting with an existing region
+    % can produce a shape no single path describes; the branches below
+    % say which case this is, and the record starts as the one shape a
+    % clip taken inside a rectangle that already contains it leaves.
+    %
+    % An empty path encloses nothing and is no shape to hand over: a
+    % consumer given a clip with no path in it has nothing to intersect
+    % and leaves its clip as it was, which is the whole page -- the
+    % opposite of the region in force. Such a clip has no record, and
+    % the paint it cuts to nothing travels the polygon route instead.
+    .cliptrivial .pathempty not and
+        { [ graphicsdict /currgstate get /currpath get .copypath false ] }
         { null }
     ifelse
 
@@ -319,6 +331,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             closepath
         } if
         end
+
+        % The region is that rectangle, and a rectangle is one path: the
+        % record stands even though the region came from an intersection.
+        % Without it a fill under crossing rectangles would be cut to the
+        % region by the polygon machinery below and reach a vector device
+        % flattened, its curves gone. An empty intersection is no shape,
+        % as above.
+        .pathempty not {
+            exch pop
+            [ graphicsdict /currgstate get /currpath get .copypath false ]
+            exch
+        } if
     }{
         % Otherwise intersect span by span, as eoclip does: the
         % resulting pixel-band rectangles are winding-uniform, so
@@ -734,6 +758,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  caller's path survives untouched, as with clip.
 %
 /eoclip [ ] {  % -  .  -
+    % The region a device that clips for itself is handed, and the rule
+    % it reads it under. Where the existing region is a rectangle already
+    % containing the path, this region is that path's own even-odd
+    % interior and the path is the shape of it -- read by the even-odd
+    % rule, which is why the record carries the rule and not the shape
+    % alone. Intersecting with any other region gives pixel-band spans no
+    % single path describes, and that case has nothing to hand over.
+    % The empty path is no shape, as at clip.
+    .cliptrivial .pathempty not and
+        { [ graphicsdict /currgstate get /currpath get .copypath true ] }
+        { null }
+    ifelse
+
     graphicsdict /currgstate get /currpath get .copypath
     flattenpath
     true //.xpostsys /.fillsubjparts get exec
@@ -742,12 +779,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } if
     //.clipstoreparts exec
 
-    % The region is the even-odd interior resolved to pixel-band spans,
-    % which no single path under the nonzero rule describes: a device
-    % that clips for itself has no shape to be given.
-    graphicsdict /currgstate get /currpath get
-    null //.setclipregion exec
-    graphicsdict /currgstate get /currpath 3 -1 roll put
+    % The region is the current path, as at clip: put the caller's path
+    % back and install both faces at once.
+    graphicsdict /currgstate get /currpath get      % Source saved region
+    graphicsdict /currgstate get /currpath 3 index put
+    exch pop                                        % Source region
+    exch //.setclipregion exec
 } .defop
 
 %

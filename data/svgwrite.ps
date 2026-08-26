@@ -75,10 +75,17 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % here rather than shared, so each device counts its own document
         % and two of them open at once cannot take each other's numbers.
         currentglobal true setglobal
-        /.svgids 1 dict def
+        /.svgids 4 dict def
         setglobal
         .svgids /clipid 0 put
         .svgids /maskid 0 put
+
+        % The clipPath last written and the region it was written for, so
+        % that a run of shapes under one clip refers to the one element
+        % rather than repeating it. Zero is no region: the region counter
+        % starts at one.
+        .svgids /clipser 0 put
+        .svgids /clipfor 0 put
         /.svgmasks 64 dict def  % masks already written, so a repeated glyph is written once
     currentdict
     } //.indict exec } bind
@@ -485,23 +492,53 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % Without this the fill would be cut to pixel-band spans before
     % reaching the device and arrive as one path per scanline; the shape
     % costs one element and keeps its curves.
-    /ClipPath {  % path IMAGE  .  -
+    %
+    % The rule arrives with the shape and is written onto the path the
+    % clipPath holds, as clip-rule (SVG 1.1 14.3.5). The same outline
+    % under the two rules encloses different area, so a shape written out
+    % under the other rule would put a region on the page that the run
+    % enforced nowhere. The default is nonzero, said here rather than
+    % left out so the element does not inherit a rule from around it.
+    %
+    % The region's identity comes with it, and the element written for
+    % one region is referred to again rather than written a second time:
+    % a page painting many shapes under one clip would otherwise carry
+    % the shape once per shape, and for a shape of any size that is most
+    % of the document. Only the clip written last is kept, which is what
+    % makes the identity safe to trust: two handovers in a row naming the
+    % same region are the same region, whatever the counter does over the
+    % length of a run.
+    /ClipPath {  % path evenodd serial IMAGE  .  -
     {
+        /.svgcser exch def
+        currentdict /.svgids get /clipser get .svgcser eq {
+            pop pop  % the shape and its rule are in the document already
+            /.svgcid currentdict /.svgids get /clipfor get def
+        }{
         % The next identity this document has not used: the counter is
         % the one made at Create, which a restore does not reach.
         currentdict /.svgids get /clipid 2 copy get 1 add put
         /.svgcid currentdict /.svgids get /clipid get def
+        currentdict /.svgids get /clipser .svgcser put
+        currentdict /.svgids get /clipfor .svgcid put
 
         % The path walker reads the current path, so install the clip
         % shape for the walk and put the working path back after.
+        exch
         graphicsdict /currgstate get /currpath get
         exch
         graphicsdict /currgstate get exch /currpath exch put
-        (<clipPath id="xc) .put .svgcid 20 string cvs .put ("><path d=") .put
+        (<clipPath id="xc) .put .svgcid 20 string cvs .put ("><path clip-rule=) .put
+        exch { ("evenodd") }{ ("nonzero") } ifelse .put
+        ( d=") .put
         .emitdevpath pop
         ("/></clipPath>\n) .put
-        (<g clip-path="url\(#xc) .put .svgcid 20 string cvs .put (\)">\n) .put
         graphicsdict /currgstate get exch /currpath exch put
+        } ifelse
+
+        % The group the fill is drawn in refers to the element by
+        % identity, whether this call wrote it or an earlier one did.
+        (<g clip-path="url\(#xc) .put .svgcid 20 string cvs .put (\)">\n) .put
         /.svgclipopen true def
     } //.indict exec } bind
 
@@ -575,6 +612,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % written into. Counting from the same place for each of them is
         % what keeps a page's output the same wherever it falls in a job.
         currentdict /.svgids get /clipid 0 put
+
+        % and the clip written last is in the page just emitted, not in
+        % the one starting, so nothing may refer to it again
+        currentdict /.svgids get /clipser 0 put
+        currentdict /.svgids get /clipfor 0 put
     } //.indict exec }
 >> def
 

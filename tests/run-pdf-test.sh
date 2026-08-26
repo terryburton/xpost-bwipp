@@ -361,6 +361,49 @@ printf '%s\n' "$out" | grep -q 'huge-hole clip bounded OK' || { echo "FAIL: a hu
 printf '%s\n' "$out" | grep -q 'ordinary clip clips OK'    || { echo "FAIL: an ordinary clip did not clip after the bound"; exit 1; }
 echo "clip bound OK"
 
+# A clip reaches the document as a clip, and under the rule it was taken
+# by. Two rings wound the same way enclose an annulus by the even-odd
+# rule and a disc by the nonzero one, so a region is its outline AND the
+# rule that outline is read under: a writer carrying the outline alone
+# would put the disc on the page, which is not the region the run
+# enforced anywhere. The shape reaching the document at all is the other
+# half -- the alternative is the region resolved to pixel-band
+# rectangles, which arrives as one subpath per scanline, hundreds of them
+# for a clip two curves describe. Both are read off the content, which
+# the distiller parameter leaves uncompressed for the purpose.
+# the output name is relative for the reason the separation file's is: it
+# is read by the interpreter and not by the shell
+eoclipps=$(mktemp)
+eoclippdf=./eoclip-$$.pdf
+trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf"' EXIT INT TERM
+cat > "$eoclipps" <<EOF
+<< /CompressPages false >> setdistillerparams
+<< /OutputDevice /pdfwrite /OutputFile ($eoclippdf) /PageSize [400 400] >> setpagedevice
+newpath
+200 200 150 0 360 arc closepath
+200 200 75 0 360 arc closepath
+eoclip newpath
+0 0 1 setrgbcolor
+newpath 0 0 moveto 400 0 lineto 400 400 lineto 0 400 lineto closepath fill
+showpage
+<< /OutputDevice /null >> setpagedevice
+quit
+EOF
+run_xpost "the even-odd clip run" -d null -o /dev/null "$eoclipps"
+grep -q 'W\* n' "$eoclippdf" || {
+    echo "FAIL: an even-odd clip did not reach the document as one. A clip"
+    echo "      written out under the nonzero rule encloses the whole of what"
+    echo "      the even-odd rule leaves a hole in."
+    exit 1; }
+grep -q ' c$' "$eoclippdf" || { echo "FAIL: the clip shape reached the document without its curves"; exit 1; }
+eosubpaths=$(grep -c '^h$' "$eoclippdf")
+[ "$eosubpaths" -le 20 ] || {
+    echo "FAIL: the clipped fill arrived as $eosubpaths subpaths, which is the"
+    echo "      region resolved to pixel-band rectangles and written a row at a"
+    echo "      time rather than the shape it was taken from."
+    exit 1; }
+echo "even-odd clip OK"
+
 # separation registry at scale: the registry indexes a separation by name
 # so that a page naming many finds each in constant time, and the index
 # grows and is rebuilt as the count passes eight, sixteen and on. Register

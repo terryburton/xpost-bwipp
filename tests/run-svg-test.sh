@@ -40,6 +40,11 @@ showpage
 << /HWResolution [144 144] /OutputFile ($tmp/b.svg) >> setpagedevice
 0 0 1 setrgbcolor newpath 20 20 moveto 60 0 rlineto 0 40 rlineto -60 0 rlineto closepath fill
 showpage
+<< /HWResolution [72 72] /OutputFile ($tmp/eo.svg) /PageSize [400 400] >> setpagedevice
+newpath 200 200 150 0 360 arc closepath 200 200 75 0 360 arc closepath
+eoclip newpath
+0 0 1 setrgbcolor newpath 0 0 moveto 400 0 lineto 400 400 lineto 0 400 lineto closepath fill
+showpage
 << /OutputDevice /null >> setpagedevice
 quit
 PSEOF
@@ -81,6 +86,26 @@ grep -qE '"[a-zA-Z-]+="[^"]*"[^ />]' "$a" && fail "malformed attribute run"
 grep -q '</svg>' "$a" || fail "closing tag"
 grep -q 'width="200pt" height="100pt" viewBox="0 0 400 200"' "$b" || fail "144dpi page in points"
 grep -q 'd="M40 160L160 160L160 80L40 80Z"' "$b" || fail "144dpi coordinates"
+
+# --- a clip goes out as a clip, under the rule it was taken by ---------
+#
+# Two rings wound the same way enclose an annulus by the even-odd rule
+# and a disc by the nonzero one, so a region is its outline AND the rule
+# that outline is read under. A document carrying the outline alone
+# leaves the reader to apply its own default -- nonzero -- and the hole
+# in the middle of this page closes up.
+#
+# The shape reaching the document at all is the other half of it. The
+# alternative is the region resolved to pixel-band rectangles, which
+# arrives as one path per scanline: hundreds of them for a clip two
+# curves describe, and a page written a row at a time.
+eo=$tmp/eo.svg
+[ -s "$eo" ] || fail "no output for the clipped page"
+grep -q '<clipPath id="xc1"><path clip-rule="evenodd" d="M[0-9.]* [0-9.]*C' "$eo" \
+    || fail "the even-odd clip did not go out as an even-odd clip with its curves"
+grep -q '<g clip-path="url(#xc1)">' "$eo" || fail "the fill is not drawn through the clip"
+neop=$(grep -c '<path' "$eo")
+[ "$neop" -le 4 ] || fail "the clipped fill went out as $neop paths, which is the region resolved to pixel-band rectangles rather than the shape it was taken from"
 
 # --- a stencil goes out as a mask, and a repeated one goes out once ----
 #

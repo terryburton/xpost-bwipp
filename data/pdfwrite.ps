@@ -670,18 +670,32 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % arrive as one subpath per scanline; the shape costs a few operators
     % and keeps its curves. The clip lands inside the q/Q the fill's own
     % emission balances, so it governs that fill alone.
-    /ClipPath {  % path IMAGE  .  -
+    %
+    % The rule arrives with the shape and is written into the operator
+    % that takes it -- W for nonzero winding, W* for even-odd (PDF
+    % 8.5.4). The same outline under the two encloses different area, so
+    % writing one shape under the other rule would put a region on the
+    % page that the run enforced nowhere.
+    /ClipPath {  % path evenodd serial IMAGE  .  -
     {
+        % The region's identity is of no use here. A content stream
+        % names nothing and refers to nothing: the clip lives on the
+        % graphics state stack this q pushes, and the Q the fill's
+        % emission balances takes it off again, so the shape is written
+        % out wherever it is in force and there is nothing to point at.
+        pop
+
         % The path walker reads the current path, so install the clip
         % shape for the walk and put the working path back after. No
         % scratch dictionary is opened: the accumulator methods below
         % append through currentdict, which must stay the device.
-        graphicsdict /currgstate get /currpath get      % Path saved
-        exch                                            % Saved path
+        exch                                            % Evenodd path
+        graphicsdict /currgstate get /currpath get      % ... path saved
+        exch                                            % ... saved path
         graphicsdict /currgstate get exch /currpath exch put
         (q\n) .put
         .emitdevpath pop
-        (W n\n) .put
+        exch { (W* n\n) }{ (W n\n) } ifelse .put
         graphicsdict /currgstate get exch /currpath exch put
         /.pdfclipopen true def
     } //.indict exec } bind

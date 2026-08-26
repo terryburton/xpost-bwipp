@@ -133,10 +133,17 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 %  Give the device the clip shape when the fill is about to hand it a
 %  whole path under a non-trivial clip; a trivial clip needs no call.
+%  The record holds the shape and the rule together, and the device is
+%  given both: an outline read by the wrong rule is a different region.
+%
+%  The region's identity goes over with them, for a device that can
+%  write a shape down once and refer to it again: without it a page of
+%  shapes under one clip carries that clip once per shape.
 %
 .xpostsys /.devsendclip {  % -  .  -
     .cliptrivial not {
-        graphicsdict /currgstate get /clipsource get
+        graphicsdict /currgstate get dup /clipsource get aload pop
+        3 -1 roll /clipcache get /serial get
         DEVICE dup /ClipPath get exec
     } if
 } put

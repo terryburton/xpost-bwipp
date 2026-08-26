@@ -85,11 +85,18 @@ DEV begin
     /FillRect /.fillrectgray load def
     /clipcalls 0 def
     /clipagreed true def
+    /cliprule false def
 
-    % path IMAGE  .  -   ; adopt a clip shape
+    % path evenodd serial IMAGE  .  -   ; adopt a clip shape under a rule
     /ClipPath {
     begin
         /clipcalls clipcalls 1 add def
+        % the region's identity, for a consumer that writes a shape down
+        % once and refers to it again; this one only counts the calls
+        pop
+        % the rule travels with the shape: the same outline read the two
+        % ways encloses different area, so a consumer needs both
+        /cliprule exch def
         % the path walker and pathbbox read the current path, so stand
         % the shape in for the measurement and put the working path back
         graphicsdict /currgstate get /currpath get
@@ -149,15 +156,60 @@ DEV /clipagreed true put
 wide 0 setgray fill
 DEV /clipagreed get (initclip leaves no older shape behind) assert
 
-% eoclip: the region becomes the even-odd interior, which is resolved to
-% pixel-band spans and is no single path a nonzero clip could carry
+% eoclip: the region is the path's own even-odd interior, so the path is
+% the shape of it -- read by the even-odd rule, which is the half a
+% nonzero clip could not carry and the reason the rule goes over with
+% the shape. The interior is resolved to pixel-band spans for the
+% painters here; the shape is what a consumer resolves for itself.
 initgraphics
 20 20 280 280 boxpath clip
 100 100 150 150 boxpath eoclip
 DEV /clipcalls 0 put
 DEV /clipagreed true put
+DEV /cliprule false put
 wide 0 setgray fill
-DEV /clipagreed get (eoclip leaves no older shape behind) assert
+DEV /clipcalls get 0 gt (a fill under an eoclip asks the device to clip) assert
+DEV /clipagreed get (the eoclip shape is the region in force) assert
+DEV /cliprule get (the eoclip shape goes over under the even-odd rule) assert
+
+% and a clip taken by the nonzero rule says so, since the device applies
+% whichever rule it is told and the two are not the same region
+initgraphics
+20 20 280 280 boxpath clip
+100 100 150 150 boxpath clip
+DEV /clipcalls 0 put
+DEV /cliprule true put
+wide 0 setgray fill
+DEV /clipcalls get 0 gt (a fill under a nonzero clip asks the device to clip) assert
+DEV /cliprule get not (the nonzero clip shape goes over under that rule) assert
+
+% two rectangles that cross: the region is the rectangle they meet in,
+% which is one path, so it goes over as a shape. Without it the fill is
+% cut to the region by the polygon machinery and reaches the device
+% flattened -- with its curves gone, and a page a row at a time where
+% the region is not a rectangle at all.
+initgraphics
+20 20 200 200 boxpath clip
+100 100 280 280 boxpath clip
+DEV /clipcalls 0 put
+DEV /clipagreed true put
+wide 0 setgray fill
+DEV /clipcalls get 0 gt (a fill under crossing rectangles asks the device to clip) assert
+DEV /clipagreed get (the crossing-rectangle shape is the region in force) assert
+
+% a region covering no pixels: there is no shape to hand over. An empty
+% path is not a clip a consumer can apply -- given one it has nothing to
+% intersect and leaves its own clip as it was, which is the whole page,
+% the opposite of the region in force. So the fill takes the polygon
+% route, whose span intersection with an empty region marks nothing.
+initgraphics
+20 20 100 100 boxpath clip
+200 200 280 280 boxpath clip
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+wide 0 setgray fill
+DEV /clipcalls get 0 eq (an empty region hands no shape over) assert
+DEV /pathfills get 0 eq (an empty region takes the polygon route) assert
 
 % cliprestore: the region goes back to what clipsave took down, and so
 % must the shape
