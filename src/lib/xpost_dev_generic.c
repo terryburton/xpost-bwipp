@@ -83,6 +83,11 @@ static Xpost_Object namedothtcell;
 static Xpost_Object namedothtw;
 static Xpost_Object namedothth;
 
+/* --- what every device is given --------------------------------------
+   The raster's size and its block, the ground it clears to, the file a
+   page goes out through. A device class in PostScript reaches all of it
+   through these, so a class does not have to know how any of it is done. */
+
 int xpost_device_raster_bytes(int w, int h, size_t pixel, size_t reserve,
                               size_t *bytes)
 {
@@ -247,6 +252,12 @@ void xpost_device_page_close(FILE *f)
     else
         fclose(f);
 }
+
+/* --- resolving a mark into spans -------------------------------------
+   Scan conversion, and the only place it happens. A polygon, a path or a
+   run of points is reduced here to the runs of pixels it covers, sorted so
+   a fill costs the total height of its edges rather than edges times the
+   height of the page. */
 
 static
 int _yxcomp(const void *left, const void *right)
@@ -1058,6 +1069,13 @@ static struct
 static unsigned long _region_memo_clock;
 static int _region_serial_next;
 
+/* --- the clip, resolved and remembered -------------------------------
+   A clip is a shape, and what a mark needs is the columns it admits on the
+   row being painted. Resolving that per mark is what a page of text cannot
+   afford, so the answer is memoised against the clip's own identity -- and
+   the serial it is filed under is minted outside virtual memory, so a
+   restore cannot wind the counter back under an entry still held. */
+
 static
 void _region_memo_flush(void)
 {
@@ -1467,6 +1485,12 @@ int _pathspanparts(Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(parts));
     return 0;
 }
+
+/* --- putting colour on pixels ----------------------------------------
+   The compiled marking methods: a rectangle, a span, a blended pixel, a
+   line. These are where a device that keeps rows of its own actually gets
+   written to, and they are compiled because they run once per pixel or
+   once per span rather than once per page. */
 
 /* A colour component scaled to a 0..max channel value, through the
    driver contract's fold: the clamp that keeps an out-of-range
@@ -1917,6 +1941,11 @@ int _linepix(Xpost_Context *ctx,
     return 0;
 }
 
+/* --- getting a page out of the process -------------------------------
+   Encoding and writing: base64 and flate for the writers, the bit and byte
+   row formats for the rasters. What differs between the formats is here;
+   what a page is does not. */
+
 /* Encode a string's bytes as base64, RFC 4648 alphabet with padding;
    the output string allocates in local VM. The caller chunks input
    at a multiple of three bytes below the string limit. */
@@ -2162,6 +2191,13 @@ int _writergbrows(Xpost_Context *ctx,
         return ret;
     return _write_rgb_raster(ctx, imgdata, f, width, height);
 }
+
+/* --- the image blitter -----------------------------------------------
+   The fast path for a sampled image: axis-aligned, rectangular clip, a
+   device that keeps rows. Each sample's run of device columns is resolved
+   once and stated either into those rows or as one call to the device's own
+   rectangle fill, with the colour pipeline baked into tables before the
+   loop rather than walked per sample. */
 
 
 /* decode one interleaved normalized sample row to native colour,
@@ -2414,6 +2450,12 @@ _blit_row_spans(Xpost_Context *ctx, Xpost_Object cspans, int ncspans,
     }
     return 0;
 }
+
+/* --- the page, and the band loop under it ----------------------------
+   A page may arrive whole or a band at a time, and the device does not
+   choose: it declares what a row costs and whether it will take bands, and
+   the machinery above decides. These are the calls that move a band's rows
+   and hand a finished page to the class's own Emit. */
 
 /* blitdict  .blitrow  -
    write one image row into the page of the device the dictionary names.
@@ -2704,6 +2746,12 @@ int xpost_dev_page_emit(Xpost_Context *ctx, Xpost_Object devdic,
 
     return 0;
 }
+
+/* --- device parameters -----------------------------------------------
+   A driver states the knobs it reads beside the code that reads them, and
+   this is what setpagedevice and the command line reach them through. An
+   unknown key or an out-of-range value is refused loudly rather than
+   ignored. */
 
 /* The default an embedder asks of a compiled writer, outside any run.
 
@@ -3404,6 +3452,12 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
     return 0;
 }
 #undef SAMPLE
+
+/* --- what the PDF writer needs from C --------------------------------
+   The per-byte work of a document that the PostScript side would pay too
+   much for: compression, number formatting, and the accumulator a document
+   is built up in, which lives outside virtual memory so a restore cannot
+   tear a half-written file. */
 
 /* Deflate the concatenation of an array of strings, returning the result as an
    array of <=65535-byte strings (the PostScript string limit) plus a boolean

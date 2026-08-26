@@ -860,6 +860,13 @@ xpost_diskfile_fopen_beneath(const char *root, const char *rel, int *err)
    detour to be for. */
 #define f_tmpfile tmpfile
 
+/* --- streams over a host file ----------------------------------------
+   A disk file is a stream over a FILE* the host gave us, and these are the
+   methods that make one behave like every other stream: a byte at a time,
+   a block when the caller has one, and the seek and tell the language
+   exposes. Everything above the method table is written once and reads
+   any of the kinds below. */
+
 static int
 disk_readch(Xpost_File *file)
 {
@@ -1115,6 +1122,11 @@ FILE *xpost_file_stdio_stream_get(Xpost_File *f)
     return NULL;
 }
 
+/* --- streams over bytes already in hand ------------------------------
+   The same method table over a run of bytes rather than a descriptor. It
+   is what a string being read as a file is, and what a rereadable stream
+   replays out of once it has captured its source. */
+
 static int
 memory_readch(Xpost_File *f)
 {
@@ -1289,6 +1301,16 @@ typedef struct Xpost_FilterFile
     unsigned char out[4];
     int outn, outi;    /* decoded bytes pending */
 } Xpost_FilterFile;
+
+/* --- filters: a stream layered on a stream ---------------------------
+   A filter is a file whose source is another file, so the layering costs
+   nothing above: the operators that read bytes do not know whether they
+   are reading a disk file or four of these stacked on one.
+
+   The decoders below hold to one discipline, and it is the one that makes
+   layering work: a decoder consumes its end-of-data marker at the read
+   that meets it, so the stream underneath is left exactly past the data
+   and the next filter opened on it starts in the right place. */
 
 /* Peek past optional whitespace for a trailing "~>" and consume it, leaving the
    source just past the end-of-data marker so a fresh ASCII85Decode filter on the
@@ -1498,6 +1520,14 @@ struct Xpost_File_Methods a85_methods =
     Xpost_Object f = readonly(xpost_file_cons(fp, 1)).
  */
 
+/* --- the entity a stream belongs to ----------------------------------
+   A stream lives outside virtual memory and the file object naming it
+   lives inside, so the two are bound through the handle registry: the
+   entity records which stream is its own, and the stream records which
+   entity owns it. Both halves are written together, because they are one
+   fact -- and a stream that knew one half but not the other is how a
+   freed struct came to be closed twice. */
+
 /* Tie a freshly allocated file entity to the stream it holds.
 
    Records the stream against the entity, which then carries the handle
@@ -1691,6 +1721,13 @@ Xpost_Object xpost_file_cons_readstring(Xpost_Memory_File *mem,
     f.mark_.padw = ent;
     return f;
 }
+
+/* --- streams that run a program's procedure --------------------------
+   The language lets a filter's source or target be a procedure, which
+   means reading a byte can re-enter the interpreter. These carry what
+   that costs: the callback bracket, a queue for what the procedure hands
+   back, and somewhere to keep an error, since a stream can only say end
+   of data or refusal and the error itself has to be carried out of band. */
 
 /* Record a failed callback so the operator that was reaching through
    this stream answers for it. A stream can only say end of data or
@@ -2140,6 +2177,11 @@ typedef struct Xpost_HexFile
     Xpost_FilterBase base;
 } Xpost_HexFile;
 
+/* --- the decoding filters --------------------------------------------
+   One per format the language names. Each is the same shape -- a refill
+   that pulls from the source and a readch that hands out what it decoded
+   -- so what differs between them is the format and nothing else. */
+
 static int
 _hexval(int c)
 {
@@ -2575,6 +2617,11 @@ typedef struct Xpost_DctFile
     unsigned int rown, rowi;
 } Xpost_DctFile;
 
+/* --- the JPEG decoder ------------------------------------------------
+   A library decoder rather than one written here, which is why it has a
+   section: the library wants callbacks and a longjmp on error, and those
+   have to be married to a stream that answers a byte at a time. */
+
 static void
 dct_error_exit(j_common_ptr cinfo)
 {
@@ -2731,6 +2778,11 @@ dct_close(Xpost_File *f)
 }
 #endif
 
+/* --- the methods every filter shares ---------------------------------
+   Closing, flushing, seeking and unreading are the same whatever the
+   format, so they are written once here and every filter's method table
+   points at them. */
+
 static int
 filter_writech(Xpost_File *f, int c)
 {
@@ -2876,6 +2928,11 @@ typedef struct Xpost_PredFile
     int have;        /* bytes decoded into cur */
     int pos;         /* next byte to hand out */
 } Xpost_PredFile;
+
+/* --- the predictor ---------------------------------------------------
+   Not a filter of the language's own: a predictor sits between a decoder
+   and its reader, undoing the row-to-row differencing that PNG and TIFF
+   producers apply before compressing. */
 
 static int
 _paeth(int a, int b, int c)
@@ -3042,6 +3099,10 @@ typedef struct
     unsigned int bitbuf;
     int bitcnt;
 } Xpost_BitDecBase;
+
+/* --- LZW decoding, and the bit reader it needs -----------------------
+   A code is not a byte, so the bit reader comes first: everything below
+   it pulls codes of a width that changes as the table fills. */
 
 /* the next n bits of the source, high bit first, or -1 at its end */
 static int
@@ -3341,6 +3402,11 @@ typedef struct Xpost_FaxFile
     int rowsdone;
     int preeol;         /* end-of-line codes taken before the row decoder ran */
 } Xpost_FaxFile;
+
+/* --- CCITT fax decoding ----------------------------------------------
+   The most intricate decoder here, because the format is a run-length
+   code over two dimensions: a row may be coded by itself or as a set of
+   changes from the row above it. */
 
 static int
 fax_bit(Xpost_FaxFile *ff)
@@ -3827,6 +3893,11 @@ struct Xpost_EncBase
     int closed;
     const Xpost_Enc_Coding *coding;
 };
+
+/* --- the encoding filters --------------------------------------------
+   The other direction, and a different shape: an encoder is written to
+   rather than read from, so what each provides is a byte-at-a-time encode
+   and a finish that flushes whatever the format holds back. */
 
 static int
 enc_readch(Xpost_File *f)
@@ -4438,6 +4509,10 @@ typedef struct
     unsigned int bitbuf;
     int bitcnt;
 } Xpost_BitEncBase;
+
+/* --- the bit-packing encoders ----------------------------------------
+   LZW and fax both emit codes rather than bytes, so both need somewhere
+   to accumulate bits and pad the tail; that is written once here. */
 
 /* the whole bytes the buffer holds, high byte first; a target that
    refuses one leaves the rest with the buffer */

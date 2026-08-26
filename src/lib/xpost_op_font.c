@@ -215,6 +215,12 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_width, "width" },
 };
 
+/* --- the font program a face was opened over -------------------------
+   A face reads its program where it lies for as long as it might build
+   another glyph, so the bytes are the font's to hold and to give up. They
+   live outside virtual memory, reached through a handle, and go when the
+   font that named them does. */
+
 /* Give up the face the block holds, where the face is the block's.
    Called from the collector with the block, so it touches nothing in
    virtual memory: what it reaches is the face and what the font
@@ -340,6 +346,12 @@ typedef struct textstate
     const clipband *bands;  /* the region's bands, ascending, when CLIP_BANDS */
     int nbands;
 } textstate;
+
+/* --- matrices, metrics and the encoded name --------------------------
+   The small conversions every showing operator needs before it can ask
+   the face for anything: what the font matrix does apart from where it
+   puts the origin, what a character code is called, and how far the pen
+   moves afterwards. */
 
 /* The linear part of a six-element matrix object: the four numbers that
    map a direction, ahead of the translation the last two describe. Every
@@ -484,6 +496,12 @@ int _metrics_advance(Xpost_Context *ctx,
         return 0;
     return 1;
 }
+
+/* --- reading a Type 1 font program -----------------------------------
+   The language lets a program look inside a font, so a face opened over a
+   file has to hand back the charstrings it was built from -- eexec
+   encrypted, so they are decrypted here rather than by the font library,
+   which has no reason to expose them. */
 
 /* Extract the CharStrings of a Type 1 font program on disk: the
    values a font dictionary built by running the program would hold,
@@ -702,6 +720,11 @@ out:
     free(plain);
     return result;
 }
+
+/* --- reading a compact font format program ---------------------------
+   The same question of a CFF container: where the charstrings are, and how
+   to hand them back. The index structure is read directly, since what is
+   wanted is the bytes rather than the outlines. */
 
 /* CFF INDEX and DICT walking, enough to reach the CharStrings INDEX
    of a bare CFF or an OpenType CFF table: the glyph names come from
@@ -979,6 +1002,13 @@ out:
     return result;
 }
 
+/* --- the face cache --------------------------------------------------
+   Opening a face costs the file and everything derived from it, so faces
+   are kept per font name. The cache is split in two because its halves
+   have different lifetimes: what the font library holds is a C structure,
+   and the objects a font dictionary shares -- CharStrings, sfnts -- are in
+   global virtual memory under the private namespace. */
+
 /* A key interned in the bank the cache lives in.
 
    A name is interned into whichever bank the allocation mode selects, so
@@ -1109,6 +1139,12 @@ static struct { char *name; void *face; char *file; unsigned long used; }
 static int face_cache_n = 0;
 static unsigned long face_cache_clock = 0;
 
+/* --- what the text path needs to know about the clip -----------------
+   Glyphs are painted through a clip like any other mark, and asking the
+   clip machinery per glyph is what a page of text cannot afford. So the
+   clip is resolved once into the rows it admits, memoised against the
+   clip's own identity, and each glyph asks a row rather than a path. */
+
 /* Give the held faces back. The library the faces belong to goes down
    with the module (xpost_font_quit), and a cache still naming them
    afterwards would hand a later run of the same process a face that had
@@ -1161,6 +1197,11 @@ static void xpost_op_font_quit(void)
     face_cache_clock = 0;
     _clip_memo_drop();
 }
+
+/* --- finding a font, and installing one ------------------------------
+   findfont resolves a name to a face, through the font directory and, for
+   a host face, through the substitution the platform offers. What comes
+   back is a font dictionary; setfont puts it in the graphics state. */
 
 static
 int _findfont(Xpost_Context *ctx,
@@ -2134,6 +2175,11 @@ textstate _text_state_get(Xpost_Context *ctx,
     return ts;
 }
 
+/* --- which glyph a character is --------------------------------------
+   Two routes, because a program may name a character or hand over the
+   glyph itself: an encoded code goes through the encoding to a name and
+   the name to an index, while glyphshow starts at the name. */
+
 /* Map a character code to a glyph index. When the font carries an
    /Encoding array with a glyph name at this code, the name selects the
    glyph. A Type 42 font's /CharStrings dictionary maps glyph names to
@@ -2249,6 +2295,12 @@ int _clip_meets(const textstate *ts, int x0, int y0, int x1, int y1)
     }
     return 0;
 }
+
+/* --- painting a rendered glyph ---------------------------------------
+   A glyph arrives as a coverage mask and leaves as marks on the device.
+   What happens between is the colour, the clip and the blend: the mask
+   says how much of each pixel the glyph covers, and the device is asked
+   for that coverage of the current colour. */
 
 /* Record that something has been painted on the current page.
    The record is the one the page machinery keeps and the painting
@@ -2764,6 +2816,12 @@ typedef struct glyphfrag
     int svg;   /* emit SVG path commands instead of PDF operators */
 } glyphfrag;
 
+/* --- a glyph as an outline, for a device that wants one --------------
+   A vector writer would rather have the curve than the coverage, so the
+   face's outline is walked and turned into the writer's own path
+   operators. The same walk serves charpath, which needs the outline as
+   PostScript rather than as text. */
+
 /* the outline walker aborts on a non-zero return, and oom records that the
    fragment is incomplete for the caller that emits it */
 static int _frag_put(glyphfrag *f, const char *s, size_t n)
@@ -2953,6 +3011,11 @@ int _show_char_outline(Xpost_Context *ctx,
     xpost_strbuf_free(&f.d);
     return 1;
 }
+
+/* --- showing a string ------------------------------------------------
+   The operators the language exposes, and the one path they all reach:
+   step the string, find each glyph, paint it, move the pen. What the
+   variants add is where the pen goes between glyphs. */
 
 
 static
@@ -3424,6 +3487,12 @@ int _glyphshowidx(Xpost_Context *ctx,
     return _glyphshow_common(ctx, null, 0,
                              (unsigned int)gidx.int_.val);
 }
+
+/* --- building a font from a program the job supplied -----------------
+   definefont with a font program rather than a name. A CIDFontType 0 or
+   2, or a Type 1, is assembled into what the font library can open --
+   which for a CID font means writing out a container the library
+   recognises, since it has no other way in. */
 
 /* big-endian field readers over the assembled font program */
 static unsigned int _sfnt_u16(const unsigned char *p)
@@ -3931,6 +4000,12 @@ failh:
     xpost_strbuf_free(&hdr);
     return invalidfont;
 }
+
+/* --- the glyph mask cache --------------------------------------------
+   Driver-generated text paints the same few masks over and over, so a
+   rendered mask is kept and re-placed rather than rebuilt. The key has to
+   outlive a restore, which is why the serial it is filed under is minted
+   outside virtual memory. */
 
 
 /* maskdict  .stencilaa  bool
@@ -5095,6 +5170,11 @@ typedef struct outlinecollect
     Xpost_Object nm, nl, nc, nh;
 } outlinecollect;
 
+/* --- collecting an outline into PostScript ---------------------------
+   What charpath and the outline operators hand back: the same walk as the
+   writers', gathering into an array of path operators instead of into a
+   document. */
+
 static
 int _oc_push(outlinecollect *oc, Xpost_Object o)
 {
@@ -5372,6 +5452,10 @@ int _glyphoutlineidx(Xpost_Context *ctx,
     return _glyphoutline_common(ctx, null, 0,
                                 (unsigned int)gidx.int_.val);
 }
+
+/* --- the language's cache parameters ---------------------------------
+   The operators that report and set the bounds on what the glyph cache
+   holds. The bounds are real: the cache is held to what these say. */
 
 /* -  .cachestatus  bsize bmax msize mmax csize cmax blimit
    the glyph cache's actual figures */

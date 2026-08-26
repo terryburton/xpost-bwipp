@@ -124,6 +124,12 @@ void xpost_interpreter_set_initializing(int i)
     _initializing = i;
 }
 
+/* --- the interpreter and its contexts --------------------------------
+   One interpreter to a process, holding the context table and the two
+   memory files. A context is a thread of execution inside it, not a second
+   interpreter: fork shares both banks and gives the new context stacks of
+   its own. */
+
 /*  allocate a global memory file
     find the next unused mfile in the global memory table */
 static Xpost_Memory_File *xpost_interpreter_alloc_global_memory(void)
@@ -392,6 +398,12 @@ static int _stack_ceilings(Xpost_Context *ctx)
         ctx->ds_over = 0;
     return 0;
 }
+
+/* --- the interpreter loop --------------------------------------------
+   One executable object per turn, dispatched by type. Between turns comes
+   the work that must not happen inside one -- a pending collection, a
+   pending compaction, an interrupt raised from a signal handler -- which
+   is what makes those safe points rather than interruptions. */
 
 /* quit the interpreter */
 static
@@ -1575,6 +1587,13 @@ int eval(Xpost_Context *ctx)
     return ret;
 }
 
+/* --- what happens when an operator refuses ---------------------------
+   An operator leaves nothing behind when it refuses: the stacks are
+   unwound to the depths they had at the innermost live wrapped call before
+   anything is recorded. Then the PostScript side is handed the error, and
+   what it does with it is the language's business rather than this
+   file's. */
+
 /* An error leaving a wrapped operator is the operator's error.
    Each live call left its frame on the exec stack -- the operator, the
    operand and dict depths at the call, and the operands it was called
@@ -1973,6 +1992,13 @@ void _onerror(Xpost_Context *ctx,
     itpdata->in_onerror = 0;
 }
 
+/* --- scheduling, and running a program from C ------------------------
+   Cooperative: a context runs until it yields, blocks or finishes, and
+   the switch happens at one place so a context is validated once per
+   switch rather than once per object. The nested run is the other
+   direction -- C asking the interpreter to execute something, which the
+   graphics machinery does constantly. */
+
 
 /*
    select a new context to execute and return it
@@ -2299,6 +2325,13 @@ int xpost_interpreter_run_nested(Xpost_Context *ctx, Xpost_Object P)
    a nul byte, or this byte may produce garbage output when printed.
  */
 #define CNT_STR(s) sizeof(s) - 1, s
+
+/* --- what a run was asked for ----------------------------------------
+   Between the interpreter existing and the language being loaded: which
+   device, which page, where the boot files are, what the invocation asked
+   of the record and the band budget. All of it is this run's rather than
+   the language's, which is why it lands in the host dictionary and not in
+   systemdict. */
 
 /*
    set global pagesize,
@@ -2862,6 +2895,11 @@ void xpost_interpreter_permit_data_dir(const char *datadir)
         xpost_path_permit_read(datadir);
 }
 
+/* --- loading the language --------------------------------------------
+   Reading the boot files, or reading back an image of the memory they
+   would have built. Both end at the same place: the language complete, the
+   machinery locked down, and no device made yet. */
+
 /*
    load init.ps (which also loads err.ps) while systemdict is writeable
    ignore invalidaccess errors.
@@ -3344,6 +3382,12 @@ done:
     ctx->vmmode = vmmode;
     return ret;
 }
+
+/* --- the run, and the jobs in it -------------------------------------
+   xpost_create makes a context, xpost_run executes something in it, and
+   between jobs the context is put back to a baseline so that nothing one
+   job did reaches the next. The revert is a whole-VM image restore rather
+   than a save level: total, and unable to fail part way. */
 
 /* Name the standard local dictionaries in systemdict. systemdict is global, so
    holding a reference to a local dictionary would be an invalidaccess; the PLRM
