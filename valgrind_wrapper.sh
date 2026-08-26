@@ -1,6 +1,6 @@
 #!/bin/sh
 
-valgrind -q --leak-check=full --track-origins=yes --suppressions=glibc.supp --log-file=.valgrind-log "$@"
+valgrind -q --leak-check=full --track-origins=yes --log-file=.valgrind-log "$@"
 result="$?"
 
 # Valgrind should generate no error messages

@@ -4031,8 +4031,7 @@ test('filter-encode-pad',
 # that, so the run happens under a leak checker, and skips without one.
 test('filter-leak',
   find_program('tests/run-leak-test.sh'),
-  args: [ xpost_exe, files('tests/filter_leak_test.ps'),
-          files('glibc.supp') ],
+  args: [ xpost_exe, files('tests/filter_leak_test.ps') ],
   suite: cost_slow + ['memacct'],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   timeout: 300)
@@ -4042,8 +4041,7 @@ test('filter-leak',
 # PostScript program can observe, so this too runs under a leak checker.
 test('filter-abandon',
   find_program('tests/run-leak-test.sh'),
-  args: [ xpost_exe, files('tests/filter_abandon_test.ps'),
-          files('glibc.supp') ],
+  args: [ xpost_exe, files('tests/filter_abandon_test.ps') ],
   suite: cost_slow + ['memacct'],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   timeout: 300)
@@ -4054,8 +4052,7 @@ test('filter-abandon',
 # a leak checker too.
 test('font-leak',
   find_program('tests/run-leak-test.sh'),
-  args: [ xpost_exe, files('tests/font_leak_test.ps'),
-          files('glibc.supp') ],
+  args: [ xpost_exe, files('tests/font_leak_test.ps') ],
   suite: cost_slow + ['memacct'],
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   timeout: 300)

@@ -145,8 +145,7 @@ COMPLIANCE \
 autogen.sh \
 xpost.pc.in \
 m4/xpost.m4 \
-valgrind_wrapper.sh \
-glibc.supp
+valgrind_wrapper.sh
 
 clean-local:
 	find . -type f -name '*.gcno' -delete

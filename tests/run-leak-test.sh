@@ -13,11 +13,9 @@
 #
 #   $1  path to the built xpost binary
 #   $2  path to the PostScript program
-#   $3  path to the valgrind suppression file
 set -u
 xpost=$1
 script=$2
-supp=$3
 . "$(dirname "$0")/verdict.sh"
 
 # the run happens in a scratch directory, so every path must survive the
@@ -27,7 +25,6 @@ supp=$3
 # invocation a path that does not exist
 case $xpost in /* | ?:/* | ?:\\*) ;; *) xpost=$PWD/$xpost ;; esac
 case $script in /* | ?:/* | ?:\\*) ;; *) script=$PWD/$script ;; esac
-case $supp in /* | ?:/* | ?:\\*) ;; *) supp=$PWD/$supp ;; esac
 
 if ! command -v valgrind >/dev/null 2>&1; then
     echo "SKIP: no leak checker on this platform"
@@ -51,7 +48,6 @@ out=$(
     ulimit -v 3145728 2>/dev/null
     valgrind --leak-check=full --show-leak-kinds=definite,indirect \
              --error-exitcode=9 --log-file="$log" \
-             --suppressions="$supp" \
              "$xpost" -q --no-sandbox -d null "$script" </dev/null 2>&1
 )
 status=$?
