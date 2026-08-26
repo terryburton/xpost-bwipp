@@ -2658,6 +2658,123 @@ DEV2 zerorgb
 4 7 rgbat 150 gt exch 100 lt and exch 100 lt and
 (a Function mesh ends at C1) assert
 
+% A mesh whose colours are tints -- Separation or DeviceN -- runs the
+% space's transform once per triangle, and the space the program set is
+% what the graphics state holds when the triangle is filled. The mesh
+% painters resolve the alternative space before the first triangle
+% rather than entering it again at each one, so what each triangle is
+% left to do is asked for here directly.
+
+% the transform's colours reach the raster: (b s) becomes (b, s, 0), so
+% each corner's tints name its pixel
+/ShTintRGB [ /DeviceN [ (A) (B) ] /DeviceRGB { 0 } ] def
+/shp 0 def
+0 pb 0 0 ppt 255 pb   0 pb
+0 pb 8 0 ppt   0 pb 255 pb
+0 pb 0 8 ppt   0 pb   0 pb
+DEV2 zerorgb
+<<
+  /ShadingType 4 /ColorSpace ShTintRGB
+  /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+  /Decode [0 8 0 8 0 1 0 1]
+  /DataSource shbuf 0 shp getinterval
+>> shfill
+0 0 rgbat 100 lt exch 100 lt and exch 150 gt and
+    (a DeviceN mesh corner takes its first tint) assert
+7 0 rgbat 100 lt exch 150 gt and exch 100 lt and
+    (a DeviceN mesh corner takes its second tint) assert
+0 7 rgbat 100 lt exch 100 lt and exch 100 lt and
+    (a DeviceN mesh corner takes both tints at zero) assert
+
+% the space the program set is the space in force when the triangle is
+% filled, and a /None separation is a space that marks nothing: a mesh
+% left in the alternative space instead would paint every triangle
+/ShNone [ /Separation /None /DeviceRGB { pop 1 0 0 } ] def
+/shp 0 def
+0 pb 0 0 ppt 255 pb
+0 pb 8 0 ppt 255 pb
+0 pb 0 8 ppt 255 pb
+DEV2 zerorgb
+<<
+  /ShadingType 4 /ColorSpace ShNone
+  /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+  /Decode [0 8 0 8 0 1]
+  /DataSource shbuf 0 shp getinterval
+>> shfill
+1 1 rgbat 0 eq exch 0 eq and exch 0 eq and
+    (a None separation mesh marks nothing) assert
+
+% the transform is called with the colour the alternative space is
+% entered holding, not with the colour the triangle before it left: one
+% that adds to what it reads paints one flat colour rather than a ramp
+/ShCarry [ /DeviceN [ (A) (B) ] /DeviceRGB
+           { pop pop currentrgbcolor pop pop 0.5 add dup dup } ] def
+/shp 0 def
+0 pb 0 0 ppt 255 pb   0 pb
+0 pb 8 0 ppt   0 pb 255 pb
+0 pb 0 8 ppt   0 pb   0 pb
+DEV2 zerorgb
+<<
+  /ShadingType 4 /ColorSpace ShCarry
+  /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+  /Decode [0 8 0 8 0 1 0 1]
+  /DataSource shbuf 0 shp getinterval
+>> shfill
+0 0 rgbat pop pop /shcarry0 exch def
+5 1 rgbat pop pop /shcarry1 exch def
+shcarry0 shcarry1 eq
+    (a tint transform reads the same colour at every triangle) assert
+shcarry0 200 lt (and that colour is the one the space is entered holding) assert
+
+% and currentcolor answers it with the alternative space's components,
+% not with the tints of the space being converted: three components
+% rather than two
+/ShComps [ /DeviceN [ (A) (B) ] /DeviceRGB
+           { pop pop [ currentcolor ] length 3 eq
+             { 1 1 1 }{ 1 0 0 } ifelse } ] def
+/shp 0 def
+0 pb 0 0 ppt 255 pb   0 pb
+0 pb 8 0 ppt   0 pb 255 pb
+0 pb 0 8 ppt   0 pb   0 pb
+DEV2 zerorgb
+<<
+  /ShadingType 4 /ColorSpace ShComps
+  /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+  /Decode [0 8 0 8 0 1 0 1]
+  /DataSource shbuf 0 shp getinterval
+>> shfill
+1 1 rgbat 150 gt exch 150 gt and exch 150 gt and
+    (a tint transform reads the alternative space's components) assert
+
+% a device that keeps separations of its own is offered every triangle's
+% tint and files it: such a mesh is one whose colours do not convert the
+% same way at every triangle, and it goes the way every other colour of
+% its space goes
+% the count lands in an array rather than under a name: the device
+% method runs with the machinery's own dictionary current, where a
+% definition would land somewhere the assertion below cannot read
+/shsepn [ 0 ] def
+DEV2 /.registersep {  % tint space IMAGE  .  index true | tint false
+    pop pop pop shsepn 0 shsepn 0 get 1 add put 0 true
+} put
+/ShKept [ /Separation (Spot) /DeviceRGB { dup dup } ] def
+/shp 0 def
+0 pb 0 0 ppt 255 pb
+0 pb 8 0 ppt 128 pb
+0 pb 0 8 ppt   0 pb
+DEV2 zerorgb
+<<
+  /ShadingType 4 /ColorSpace ShKept
+  /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+  /Decode [0 8 0 8 0 1]
+  /DataSource shbuf 0 shp getinterval
+>> shfill
+DEV2 /.registersep undef
+% one call is the colour the space is entered holding; a mesh that took
+% the short way round would add none to it
+shsepn 0 get 1 gt
+    (a device that keeps separations is offered every mesh tint) assert
+
 graphicsdict /currgstate get /device DEV put
 initgraphics
 

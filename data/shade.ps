@@ -560,13 +560,81 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
+%  A mesh's colour space, resolved once for the whole shading.
+%
+%  A Separation or DeviceN colour is not recorded as it stands: its tints
+%  run through the space's transform into an alternative space, and it is
+%  the alternative-space colour the graphics state holds. Reached through
+%  setcolor, the alternative space is entered afresh at every triangle,
+%  and part of entering a space is asking questions of the space alone --
+%  whether it is a space at all, and which space a colour in it is
+%  finally recorded in. A mesh settles its space before its first
+%  triangle is read, so those questions have one answer for the whole of
+%  it, and this is where the answer is taken.
+%
+%  A Separation the device registers keeps the general route. That route
+%  files each tint with the device and records the index the marking
+%  methods read, and a mesh's tints are not one tint.
+%
+%  Answers [space alternative {transform}] for a mesh whose colours take
+%  the short way round, and null for one whose colours go the way every
+%  other colour goes.
+%
+/.gtintspace {  % -  .  [space alt {transform}] | null
+    currentcolorspace
+    dup //.spacekind exec /tint eq {
+        dup 0 get /Separation eq {
+            graphicsdict /currgstate get /device get /.registersep known
+        }{ false } ifelse
+        { pop null }
+        { dup dup 2 get exch 3 get 3 array astore } ifelse
+    }{ pop null } ifelse
+} def
+
+%
+%  Set one triangle's tint colour: the tints clamped to the range a tint
+%  lies in (PLRM 4.8.4), the space's transform run on them beneath the
+%  boundary, and the colour it returns set in the alternative space.
+%
+%  The alternative space is made current, holding the colour a space is
+%  entered holding and no record of a colour set in another, before the
+%  transform runs: the transform is the program's and may read the
+%  graphics state as well as its tints, and what it reads here is what it
+%  reads when a colour of this space is set anywhere else. That much is
+%  done at every triangle because the triangle before this one moved the
+%  colour away from it; what the resolved space above carries is the rest
+%  of entering a space, which no triangle can move.
+%
+%  The space the program set goes back afterwards, with the tints as
+%  given: it is that space a painting operator reads to decide whether
+%  the colour marks at all, and those tints that currentcolor answers
+%  with. The transform may set a space of its own, so the alternative is
+%  entered again behind it rather than assumed still current.
+%
+/.gtintcolor {  % [c0..cn-1]  .  -
+    //.tintsclamp exec
+    graphicsdict /currgstate get /setspace gtint 1 get put
+    graphicsdict /currgstate get /sepindex null put
+    graphicsdict /currgstate get /tintcomps null put
+    //.csinitcolor exec
+    dup aload pop
+    gtint 2 get //.pexec exec
+    gtint 1 get //.csalt exec
+    setcolor
+    graphicsdict /currgstate get /setspace gtint 0 get put
+    graphicsdict /currgstate get /tintcomps 3 -1 roll put
+} def
+
+%
 %  Set a mesh colour: components directly, or -- when the shading
 %  carries a Function -- a single parametric value through it. The
-%  mesh painters bind /shfn before any triangle paints.
+%  mesh painters bind /shfn and /gtint before any triangle paints.
 %
 /.gsetcolor {  % [c0..cn-1]  .  -
     shfn null eq {
-        aload pop setcolor
+        gtint null eq
+            { aload pop setcolor }
+            { //.gtintcolor exec } ifelse
     }{
         0 get shfn //.fneval exec pop setcolor
     } ifelse
@@ -747,6 +815,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 /.meshsh {  % shdict  .  -
     24 dict begin
     /gclipbox //.gtriclip exec def
+    /gtint //.gtintspace exec def
 
     % a lattice (type 5) mesh carries no per-vertex flag, so BitsPerFlag
     % may be absent from one of the two types this paints.
@@ -903,6 +972,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 /.patchsh {  % shdict  .  -
     30 dict begin
+    /gtint //.gtintspace exec def
 
     % Both patch types carry a flag on every patch, so BitsPerFlag is
     % required of them.
