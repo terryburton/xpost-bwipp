@@ -27,6 +27,7 @@
 /.fillrectgray 1183615869 internaldict /.fillrectgray get def
 /.fillrectrgb  1183615869 internaldict /.fillrectrgb get def
 /.wrapop       1183615869 internaldict /.wrapop get def
+/.clipcuts     1183615869 internaldict /.clipcuts get def
 
 % failures accumulate in a dedicated dict, so an assert that runs with
 % another dictionary begun still updates the shared counter
@@ -617,6 +618,49 @@ grestore
 30 32 pixval dup 60 gt exch 200 lt and
 (a mesh triangle blends between its vertices) assert
 4 32 inkat not (a mesh paints only its triangles) assert
+erasepage
+
+% A mesh is painted through the clip region as well as within the page,
+% and a triangle lying wholly outside either marks no pixel. The painter
+% settles that of a triangle before it subdivides it, so what the clip
+% would throw away is neither subdivided, coloured nor scan-converted --
+% which is what holds a mesh's cost to the part of it that shows, a
+% figure's own clip commonly being a small part of the page it sits on.
+%
+% The clip counts the paintings it may have cut, so a mesh painted
+% wholly outside it leaving that count where it found it is the pruning
+% itself: a triangle that reached the scan-converter and was clipped
+% away there would be counted, and paints the same nothing.
+erasepage
+gsave
+newpath 40 40 moveto 60 40 lineto 60 60 lineto 40 60 lineto closepath clip
+/cuts .clipcuts def
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <000800080000 002800080080 0018002800FF>
+>> shfill
+.clipcuts cuts eq
+(a mesh outside the clip is pruned rather than clipped away) assert
+grestore
+6 4 inkat not (a mesh outside the clip marks nothing there) assert
+50 50 inkat not (a mesh outside the clip marks nothing within it) assert
+erasepage
+
+% and the same mesh under a clip that holds it paints, so what the
+% check above reads is the clip pruning the mesh and not the mesh
+% painting nothing wherever it is put
+gsave
+newpath 0 0 moveto 32 0 lineto 32 32 lineto 0 32 lineto closepath clip
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <000800080000 002800080080 0018002800FF>
+>> shfill
+grestore
+6 4 inkat (a mesh within the clip paints) assert
 erasepage
 
 % a shading pattern (PatternType 2) paints its gradient over the

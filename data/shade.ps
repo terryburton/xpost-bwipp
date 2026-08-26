@@ -637,19 +637,45 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
-%  The page, in the user space a mesh states its triangles in: a box a
-%  triangle lying wholly past one edge of marks no pixel within. Two
-%  device units of margin absorb the inverse transform's rounding, and a
-%  rotated CTM only widens the box, so it never excludes a point the page
-%  holds. A device that states no size disables the test with a null.
+%  What a mesh can mark, in the user space it states its triangles in: a
+%  box a triangle lying wholly past one edge of marks no pixel within.
+%  Two device units of margin absorb the inverse transform's rounding,
+%  and a rotated CTM only widens the box, so it never excludes a point
+%  that can be marked. A device that states no size disables the test
+%  with a null.
+%
+%  A device that scan-converts has the box narrowed to the clip region
+%  as well, where that region is a rectangle: a triangle outside the clip
+%  marks no pixel just as one off the page does, and a mesh is commonly
+%  painted through a clip far smaller than the page it sits on -- a
+%  figure's own box -- where the page alone prunes nothing and every
+%  triangle beyond the figure is subdivided, coloured and filled for the
+%  clip to throw away. A clip region that is not a rectangle leaves the
+%  box the page, its own bounds being no narrower a statement of what it
+%  holds.
+%
+%  A device that takes whole paths keeps the page box alone. It writes
+%  the path it is given and is handed the clip beside it, and what it is
+%  handed is the shape the clip was made from rather than the region
+%  itself; a triangle withheld here is a triangle missing from what it
+%  wrote, and the two are only the same page while those agree.
 %
 /.gtriclip {  % -  .  [uminx uminy umaxx umaxy] or null
-    8 dict begin
+    16 dict begin
     graphicsdict /currgstate get /device get /d exch def
     d /width known d /height known and {
-        /W d /width get def /H d /height get def
+        /dx0 -2 def /dy0 -2 def
+        /dx1 d /width get 2 add def /dy1 d /height get 2 add def
+        d /FillPath known not {
+            //.internaldict /.cliprect get exec {
+                /cy1 exch 2 add def /cx1 exch 2 add def
+                /cy0 exch 2 sub def /cx0 exch 2 sub def
+                cx0 dx0 gt { /dx0 cx0 def } if  cy0 dy0 gt { /dy0 cy0 def } if
+                cx1 dx1 lt { /dx1 cx1 def } if  cy1 dy1 lt { /dy1 cy1 def } if
+            } if
+        } if
         /uminx 9e99 def /uminy 9e99 def /umaxx -9e99 def /umaxy -9e99 def
-        [ [ -2 -2 ] [ W 2 add -2 ] [ W 2 add H 2 add ] [ -2 H 2 add ] ] {
+        [ [ dx0 dy0 ] [ dx1 dy0 ] [ dx1 dy1 ] [ dx0 dy1 ] ] {
             aload pop itransform /uy exch def /ux exch def
             ux uminx lt { /uminx ux def } if  ux umaxx gt { /umaxx ux def } if
             uy uminy lt { /uminy uy def } if  uy umaxy gt { /umaxy uy def } if
