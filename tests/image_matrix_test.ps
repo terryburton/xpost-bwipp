@@ -462,6 +462,51 @@ true 1 1 3 { DEVICE /ImgData get 0 get exch get 255 eq and } for
                     /ImageMatrix [8 0 0 -3 0 3] /Decode [0 1] >> >> image
     } paint } /typecheck (heights neither of which divides the other) raises
 
+% An image of no samples in one dimension, presented with a mask. PLRM
+% Table 4.20 has Width and Height be the image's extent in samples, and
+% the text above that table makes an image dictionary whose entries are
+% inconsistent with each other a rangecheck. A mask dictionary stating
+% neither is refused already: PLRM Table 4.24 aligns the mask's corners
+% with the image's, and a grid with no rows or no columns has no corners
+% to align. The image's own grid carries the other half of that
+% alignment -- and under InterleaveType 2 the block shape is the ratio
+% of the two heights, which a height of none divides by nothing -- so a
+% masked image stating no width or no height is refused for the same
+% reason as the mask that states none.
+{ { << /ImageType 3 /InterleaveType 3
+       /DataDict << /ImageType 1 /Width 0 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /DataSource black
+                    /Decode [0 1] >>
+       /MaskDict md1 >> image
+    } paint } /rangecheck (a masked image of no columns) raises
+
+{ { << /ImageType 3 /InterleaveType 3
+       /DataDict << /ImageType 1 /Width 8 /Height 0 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /DataSource black
+                    /Decode [0 1] >>
+       /MaskDict md1 >> image
+    } paint } /rangecheck (a masked image of no rows) raises
+
+{ { << /ImageType 3 /InterleaveType 2
+       /DataDict << /ImageType 1 /Width 8 /Height 0 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /DataSource black
+                    /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } /rangecheck (a row-interleaved masked image of no rows) raises
+
+% Unmasked, an image of no samples is not refused. Nothing about it
+% contradicts anything else in its dictionary: it describes a rectangle
+% of no area and paints nothing, and this is the reading both reference
+% interpreters take.
+{ { << /ImageType 1 /Width 8 /Height 0 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource black /Decode [0 1] >> image
+    } paint } (an unmasked image of no rows paints nothing) works
+
+{ { << /ImageType 1 /Width 0 /Height 4 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource black /Decode [0 1] >> image
+    } paint } (an unmasked image of no columns paints nothing) works
+
 { { << /ImageType 3 /InterleaveType 1
        /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
                     /ImageMatrix [8 0 0 -4 0 4] /MultipleDataSources true

@@ -46,6 +46,17 @@
 { 4 4 7 [4 0 0 -4 0 4] { row } image }                  /image      reported
 { 4 4 7 [4 0 0 -4 0 4] { row } false 3 colorimage }     /colorimage reported
 
+% The masked form refuses a grid of no samples before any of it is read,
+% and that refusal is image's: reaching the blitter with a grid of no
+% columns would report the blitter's name to a program that called image.
+{ << /ImageType 3 /InterleaveType 3
+     /DataDict << /ImageType 1 /Width 0 /Height 4 /BitsPerComponent 8
+                  /ImageMatrix [4 0 0 -4 0 4] /DataSource <00>
+                  /Decode [0 1] >>
+     /MaskDict << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 1
+                  /ImageMatrix [4 0 0 -4 0 4] /DataSource <a0500000>
+                  /Decode [0 1] >> >> image }        /image      reported
+
 % ------------------------------------------------ the custom-colour operators
 % Both build their separation space through .customcolorspace, which refuses
 % an object that is neither the four- nor the five-element form.

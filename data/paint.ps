@@ -1549,13 +1549,23 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dd /ImageType get 1 ne md /ImageType get 1 ne or
         { end /image cvx /rangecheck signalerror } if
 
-    % A mask of no samples in either dimension is refused. PLRM Table
-    % 4.24 has the mask's ImageMatrix align the mask's corners with the
-    % image's, and a grid with no rows or no columns has no corners to
-    % align: there is nothing to say which of the image's pixels it
-    % would leave unpainted, and every ratio taken against it divides by
-    % nothing.
-    mw 1 lt mh 1 lt or
+    % A grid of no samples in either dimension is refused, whichever of
+    % the two states it. PLRM Table 4.24 has the mask's ImageMatrix
+    % align the mask's corners with the image's, and a grid with no rows
+    % or no columns has no corners to align: there is nothing to say
+    % which of the image's pixels the mask would leave unpainted, and
+    % every ratio taken between the two grids divides by nothing -- the
+    % interleave-2 block shape below is that ratio. The alignment is
+    % between two grids and reads the same from either end, so the
+    % image's dimensions answer for it as the mask's do; an image
+    % dictionary whose entries are inconsistent with each other is a
+    % rangecheck (PLRM 4.10.5, above Table 4.20, where Width and Height
+    % are the image's extent in samples).
+    %
+    % Unmasked, an image of no samples is not refused: nothing about it
+    % contradicts anything else in its dictionary, and it paints a
+    % rectangle of no area, which is a page.
+    w 1 lt h 1 lt or mw 1 lt or mh 1 lt or
         { end /image cvx /rangecheck signalerror } if
     il 3 ne {
         % the mask travels in the image's stream, so the image has one
@@ -1572,9 +1582,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }{
         md /BitsPerComponent get 1 ne
             { end /image cvx /typecheck signalerror } if
-        il 2 eq h 0 gt and mh 0 gt and {
+        il 2 eq {
             % row by row in the one stream: the block shape is the ratio
-            % of the heights, so one height is a multiple of the other
+            % of the heights, so one height is a multiple of the other.
+            % Both are at least one, refused above, so the ratio is a
+            % ratio and this asks only whether it is whole
             mh h ge { mh h mod }{ h mh mod } ifelse 0 ne
                 { end /image cvx /typecheck signalerror } if
         } if
