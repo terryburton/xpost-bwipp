@@ -88,7 +88,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }{
     gsave
         1 setgray
-        [ //currentcolordict DEVICE /nativecolorspace get
+        [ //CurrentColorDict DEVICE /nativecolorspace get
         get exec
         //.applytransfer exec
 
@@ -325,7 +325,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 .xpostsys /.fillparts {  % [ spans ... ]  .  -
     {
         dup length 2 gt {
-            [ //currentcolordict DEVICE /nativecolorspace get get exec
+            [ //CurrentColorDict DEVICE /nativecolorspace get get exec
             //.applytransfer exec
             counttomark 2 add -1 roll
             DEVICE dup /FillPoly get exec
@@ -355,7 +355,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     closepath
     //.devtakespath exec {
         //.devsendclip exec
-        [ //currentcolordict DEVICE /nativecolorspace get get exec
+        [ //CurrentColorDict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
         DEVICE dup /FillPath get exec
         true //.setpagemarked exec
@@ -594,7 +594,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             //dashpath exec
             //doclip exec
         } if
-        [ //currentcolordict DEVICE /nativecolorspace get get exec
+        [ //CurrentColorDict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
         DEVICE dup /StrokePath get exec
         true //.setpagemarked exec
@@ -622,7 +622,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         {          % ... xN-1 yN-1 xN yN
             4 copy  % ... xN-1 yN-1 xN yN xN-1 yN-1 xN yN
             .privatedict /.hairrect get //.hairsegclip exec {
-                [ //currentcolordict DEVICE /nativecolorspace get get exec
+                [ //CurrentColorDict DEVICE /nativecolorspace get get exec
                 //.applytransfer exec
                 counttomark 5 add -4 roll
 
@@ -638,7 +638,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         {            % x0 y0 xN yN
             4 2 roll  % XN yN x0 y0
             .privatedict /.hairrect get //.hairsegclip exec {
-                [ //currentcolordict DEVICE /nativecolorspace get get exec
+                [ //CurrentColorDict DEVICE /nativecolorspace get get exec
                 //.applytransfer exec
                 counttomark 5 add -4 roll
 
@@ -1051,7 +1051,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                 /lut 256 nat mul string def
                 0 1 255 { /v exch def
                     v dscale 0 get mul dbase 0 get add setcolor
-                    //currentcolordict DEVICE /nativecolorspace get get exec
+                    //CurrentColorDict DEVICE /nativecolorspace get get exec
                     nat 3 eq {
                         /bb exch def /gg exch def /rr exch def
                         lut v 3 mul       tlutr rr //.c255 exec get put

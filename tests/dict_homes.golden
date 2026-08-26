@@ -413,8 +413,8 @@ entries 403
 .xpostsys /ShowpageSemanticsDict
 .xpostsys /cpath
 .xpostsys /crossdashbound
-.xpostsys /currentcolordict
-.xpostsys /dashdict
+.xpostsys /CurrentColorDict
+.xpostsys /DashDict
 .xpostsys /dashpath
 .xpostsys /despike
 .xpostsys /doclip
@@ -436,7 +436,7 @@ entries 403
 .xpostsys /qsort
 .xpostsys /ravec
 .xpostsys /rect
-.xpostsys /setcolordict
+.xpostsys /SetColorDict
 .xpostsys /xpost
 gstate /blackgen
 gstate /bluescreenangle

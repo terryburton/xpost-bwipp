@@ -780,7 +780,7 @@ end
 /setcolorspace [ /anytype ] {  % array|name  .  -
     dup //.xpostsys /.csvalidate get exec
 
-    %[ currentcolor setcolordict currentcolorspace get counttomark 2 add -1 roll
+    %[ currentcolor SetColorDict currentcolorspace get counttomark 2 add -1 roll
     % record the space as set (what currentcolorspace reports), then the
     % space the colour components are recorded in: setcolor converts an
     % Indexed colour through its base and a Separation or DeviceN tint
@@ -829,7 +829,7 @@ end
     dup type /arraytype ne { 1 array astore } if
 } .defop
 
-.xpostsys /setcolordict <<
+.xpostsys /SetColorDict <<
     /DeviceGray /setgray cvx
     /DeviceRGB /setrgbcolor cvx
     /DeviceCMYK /setcmykcolor cvx
@@ -1190,7 +1190,7 @@ end
     }{
         % A pattern space arrives as an array: dispatch on the family
         dup type /arraytype eq { 0 get } if
-        //setcolordict exch get exec
+        //SetColorDict exch get exec
     } ifelse } ifelse } ifelse
 } .defop
 
@@ -1255,7 +1255,7 @@ end
     } ifelse } ifelse } ifelse } ifelse
 } put
 
-.xpostsys /currentcolordict <<
+.xpostsys /CurrentColorDict <<
     /DeviceGray /currentgray cvx
     /DeviceRGB /currentrgbcolor cvx
     /DeviceCMYK /currentcmykcolor cvx
@@ -1280,7 +1280,7 @@ end
     graphicsdict /currgstate get /tintcomps get type /arraytype eq {
         graphicsdict /currgstate get /tintcomps get aload pop
     }{
-        //currentcolordict graphicsdict /currgstate get /colorspace get get exec
+        //CurrentColorDict graphicsdict /currgstate get /colorspace get get exec
     } ifelse
 } .defop
 
@@ -1617,7 +1617,7 @@ end
 } .defop
 
 %
-%  setcolordict and currentcolordict dispatch a device colour through the
+%  SetColorDict and CurrentColorDict dispatch a device colour through the
 %  operator named for its space. A program may redefine setgray/setrgbcolor/
 %  setcmykcolor (and the current* readers) -- a common trick for remapping the
 %  colours a document paints -- and where such a redefinition re-enters the colour
@@ -1629,11 +1629,11 @@ end
 %  and setfont. The internal reduction then always reaches the real operators,
 %  while a program's own set*/current* calls still see its redefinition.
 %
-.xpostsys /setcolordict get
+.xpostsys /SetColorDict get
     dup /DeviceGray  /setgray      load put
     dup /DeviceRGB   /setrgbcolor   load put
         /DeviceCMYK  /setcmykcolor  load put
-.xpostsys /currentcolordict get
+.xpostsys /CurrentColorDict get
     dup /DeviceGray  /currentgray      load put
     dup /DeviceRGB   /currentrgbcolor   load put
     dup /DeviceCMYK  /currentcmykcolor  load put
@@ -1646,7 +1646,7 @@ end
 %  tints the colour was set with.
 %
 /Process {  % -  .  comp1..compN
-    //currentcolordict
+    //CurrentColorDict
     graphicsdict /currgstate get /colorspace get get exec
 } bind put
 

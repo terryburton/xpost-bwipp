@@ -286,7 +286,7 @@ end
 %  "switch" actions (indexed by .pathnext command code) for iterating
 %  the source subpath; handlers receive device coordinates.
 %
-.xpostsys /dashdict <<
+.xpostsys /DashDict <<
     0 {  % move: x y
         2 copy 2 array astore /firstpt exch def  % Device, for close
         itransform 2 array astore /cp exch def
@@ -314,7 +314,7 @@ end
         pop pop pop
     }
     3 {  % close
-        firstpt aload pop //.xpostsys /dashdict get 1 get exec
+        firstpt aload pop //.xpostsys /DashDict get 1 get exec
         closepath
     }
     2 { }  % Curve: eliminated by flattenpath
@@ -378,7 +378,7 @@ end
                     /ipos i_ipos def
                     /parity i_parity def
                 } if
-                //dashdict exch get exec
+                //DashDict exch get exec
             } loop
         } if
     } if
