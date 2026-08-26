@@ -292,6 +292,18 @@ Known behavioural deviations
  [X] >>  a construction closed over more pairs than a dictionary can hold is
      limitcheck, where some interpreters return a dictionary shorter than the
      pairs they were given.
+ [X] ==, pstack  a structure that contains itself, or that shares a subtree
+     many ways, is printed as far as a budget of depth and of printing done
+     allows, and the operator then returns: past the budget an array prints
+     as an array rather than being entered and an element list stops short.
+     Both reference interpreters instead descend into such a structure until
+     the execution stack overflows, and abandon the job on the error that
+     raises. PLRM 8.2 leaves the details of how == formats its output
+     "intentionally unspecified", and says what these operators write for a
+     structure that ends and nothing about one that does not. Returning is
+     what the standard error report needs: it prints every operand stack
+     entry through ==, so an error raised while such a structure is on the
+     stack has to be reportable at all.
  [X] error recovery  an operator that refuses hands its caller the operand
      stack as it stood when the operator was called (PLRM 3.11.1) -- the values
      it held, not merely the depth it stood at. Where the operator had run a

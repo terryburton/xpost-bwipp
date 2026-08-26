@@ -11,7 +11,7 @@ set -u
 xpost=$1
 . "$(dirname "$0")/verdict.sh"
 tmp=${TMPDIR:-/tmp}/errfmt-$$
-trap 'rm -f "$tmp".err.ps "$tmp".ok.ps "$tmp".caught.ps "$tmp".cascade.ps "$tmp".badreport.ps "$tmp".vmerror.ps' EXIT INT TERM
+trap 'rm -f "$tmp".err.ps "$tmp".ok.ps "$tmp".caught.ps "$tmp".cascade.ps "$tmp".badreport.ps "$tmp".vmerror.ps "$tmp".widecycle.ps "$tmp".widecycle.out' EXIT INT TERM
 
 # 1. a top-level undefined error: the error line (with its trailing space)
 #    and then the flush notice
@@ -86,5 +86,45 @@ printf '%s\n' "$out"
 printf '%s\n' "$out" | grep -Fq '%%[ Error: VMerror; OffendingCommand: cmd ]%%' || exit 1
 printf '%s\n' "$out" | grep -Fq '%%[ Report incomplete' && exit 1
 printf '%s\n' "$out" | grep -Fq '%%[ Flushing: rest of job (to end-of-file) will be ignored ]%%' || exit 1
+
+# 8. the report of an error raised with a structure on the operand stack
+#    that cannot be printed in full. The report prints every stack entry
+#    in re-readable form, so what it costs is whatever walking those
+#    entries costs -- and an array that refers to itself twice is
+#    re-expanded down both branches at every level of the descent, once
+#    per element, so a wide one is a finite walk of astronomical length
+#    from a program of four lines. Nothing about it is unusual to reach:
+#    the array is on the stack because the error was raised there.
+#    Bounding the descent is not enough, since a single array entered
+#    costs as much as it is long; what has to be bounded is the printing
+#    itself. The run is held to a wall-clock limit rather than left to
+#    the harness, because the failure being guarded against is a report
+#    that does not end, and a test that hangs reports nothing.
+printf '/o 2000 array def 0 1 1999 { o exch 0 put } for\no 0 o put o 1 o put\no 1 add\n' \
+    > "$tmp".widecycle.ps
+run_limited 30 "$xpost" -q --no-sandbox -d null "$tmp".widecycle.ps \
+    </dev/null > "$tmp".widecycle.out 2>&1
+rc=$?
+case $rc in
+    124 | 137)
+        echo "FAILURES: the report of an error holding a self-referential array"
+        echo "      did not finish inside the limit"
+        exit 1 ;;
+esac
+grep -Fq '%%[ Error: typecheck; OffendingCommand: add ]%%' "$tmp".widecycle.out || exit 1
+grep -Fq '%%[ Flushing: rest of job (to end-of-file) will be ignored ]%%' \
+    "$tmp".widecycle.out || exit 1
+[ "$rc" -ne 0 ] || exit 1
+# Finishing is not on its own the property wanted: a walk bounded only by
+# where it stops descending finishes too, after writing more than anyone
+# will read. The report of this error runs to about a hundred and thirty
+# kibibytes; a megabyte is far above that and far below what an unbounded
+# one reaches.
+sz=$(wc -c < "$tmp".widecycle.out)
+if [ "$sz" -gt 1048576 ]; then
+    echo "FAILURES: the report of an error holding a self-referential array"
+    echo "      ran to $sz bytes"
+    exit 1
+fi
 
 exit 0

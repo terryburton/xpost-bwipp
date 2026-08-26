@@ -3,10 +3,12 @@
 % `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
 % The printer descends into each array it meets. A structure that
-% contains itself has no bottom, so the descent is bounded: past the
-% bound an array prints as an array rather than being entered. Finite
-% structures are unaffected, and the bound is deep enough that ordinary
-% nesting never reaches it.
+% contains itself has no bottom, so two things are bounded: how deep the
+% descent goes, and how much printing one == does. Past either an array
+% prints as an array rather than being entered, and an element list stops
+% short. Finite structures are unaffected -- the depth is deeper than
+% ordinary nesting reaches, and the budget is far past what a program
+% prints on purpose.
 
 
 % a string to print into, so the output can be examined rather than
@@ -24,15 +26,40 @@ a 0 a put
 d /self d put
 { d == } (a self-referential dictionary prints and returns) works
 
-% Two references to itself, not one. Under a depth cap alone the printer
-% re-expands both branches at every level, so the array is walked 2^depth
-% times -- a tiny finite structure turned into unbounded work, reachable
-% automatically when handleerror dumps such an array off the operand
-% stack. A total-node budget bounds it, so this returns rather than runs.
+% Two references to itself, not one. A depth cap alone leaves the printer
+% re-expanding both branches at every level, so the array is walked
+% 2^depth times -- a tiny finite structure turned into unbounded work,
+% reachable automatically when handleerror dumps such an array off the
+% operand stack. The printing budget bounds it, so this returns rather
+% than runs.
 /b [ 0 0 ] def
 b 0 b put
 b 1 b put
 { b == } (an array with two references to itself prints and returns) works
+
+% Wide as well as self-referential. Bounding how deep the descent goes
+% does not bound what the descent does: one array entered is as much
+% work as it is long, and a wide one referring to itself twice has every
+% element of it re-expanded down both branches at every level. What is
+% printed is counted, not just how deep the printer went or how many
+% arrays it entered, so this returns.
+/w 2000 array def
+0 1 1999 { w exch 0 put } for
+w 0 w put
+w 1 w put
+{ w == } (a wide array with two references to itself prints and returns) works
+
+% A string costs its length to print -- a byte at a time, with its
+% escapes -- so a structure reaching the same long string over and over
+% is work in proportion to what it prints rather than to how many
+% objects it printed. Counted the same way, so this returns too.
+/big 60000 string def
+0 1 59999 { big exch 65 put } for
+/t [ 0 0 0 ] def
+t 0 big put
+t 1 t put
+t 2 t put
+{ t == } (a self-referential array holding a long string prints and returns) works
 
 % two arrays that contain each other
 /p [ 1 2 ] def

@@ -758,22 +758,32 @@ systemdict begin
         dup length cp add /cp exch def
         print
     } def
-    /typeprint { dup type exec } def  % obj  .  -
+    /typeprint {  % obj  .  -
+        /spent spent 1 add store
+        dup type exec
+    } def
 
+    % What one == may spend before it gives up on the rest: how deep it
+    % descends, and how much printing it does. Each bounds a shape the
+    % other does not. Depth bounds a structure that nests without end. It
+    % does not bound one that branches, since every level re-expands
+    % every branch, nor one that is merely wide, since a single array
+    % costs as much to print as it is long -- so what is printed is
+    % counted too, wherever in the descent it is reached. An object
+    % counts as one and a string as its length, because a string prints a
+    % byte at a time and a long one is the work of many objects. The
+    % budget is far past what a program prints on purpose -- the widest
+    % array and the longest string a narrow build can hold each print
+    % whole inside it -- and past it an array prints abbreviated and an
+    % element list stops short. That is what lets == of a structure
+    % containing itself finish, which handleerror printing the operand
+    % stack (data/err.ps) asks of it on an ordinary error. PLRM 8.2
+    % leaves how == formats its output intentionally unspecified.
     /maxdepth 24 def
-    /maxnodes 65536 def
+    /budget 65536 def
     /arraytype {  % array  .  -
         dup rcheck {
-            % A depth cap alone cannot bound the work of printing an array
-            % that refers to itself, or shares a subtree: each of the depth
-            % levels re-expands every branch, so an array holding two
-            % references to itself is walked 2^depth times. Count the arrays
-            % entered as well, and stop at a total far above any real
-            % structure, so == of a cyclic or richly-shared array truncates
-            % rather than running -- which handleerror printing the operand
-            % stack (data/err.ps) would otherwise do on an ordinary error.
-            /nodes nodes 1 add store
-            depth maxdepth ge nodes maxnodes gt or {
+            depth maxdepth ge spent budget gt or {
                 pop (-array-) tprint
             }{
                 /depth depth 1 add store
@@ -781,7 +791,12 @@ systemdict begin
                 /first true def
                 dup xcheck /isproc exch def
                 isproc { ({) }{ ([) } ifelse tprint
-                { first { /first false def }{ ( ) tprint } ifelse typeprint } forall
+                {
+                    spent budget gt {
+                        pop first not { ( ) tprint } if (...) tprint exit
+                    } if
+                    first { /first false def }{ ( ) tprint } ifelse typeprint
+                } forall
                 isproc { (}) }{ (]) } ifelse tprint
                 end
                 /depth depth 1 sub store
@@ -851,6 +866,7 @@ systemdict begin
     /stringtype {  % string  .  -
         dup rcheck {
             (\() tprint
+            dup length spent add /spent exch store
             { .escbyte } forall
             (\)) print
         }{
@@ -871,16 +887,16 @@ systemdict begin
 %  with their escapes, arrays with their brackets, an executable array
 %  as a procedure -- so that what comes out could be read back in.
 %
-%  The depth and node caps are what make it safe on a structure that
-%  refers to itself: a cyclic array printed without them is not slow, it
-%  does not finish.
+%  The budgets above are what make it safe on a structure that refers to
+%  itself: a cyclic array printed without them is not slow, it does not
+%  finish.
 %
 /==only {  % obj  .  -
     %traceon
     //==dict begin
         /cp 0 def
         /depth 0 def
-        /nodes 0 def
+        /spent 0 def
         { typeprint } stopped
     end            % Pop ==dict whether typeprint succeeded or errored,
     { stop } if    % So an error inside == does not strand it on the
