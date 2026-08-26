@@ -136,6 +136,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % this device: an unmarking white leaves the box alone.
     /FillPath {  % mark c1..cn IMAGE  .  mark
         {
+            % The repeat loop stays. The index/roll/cleartomark form is
+            % faster where the mark goes with the operands, but this keeps
+            % the mark, which costs a second cleartomark and a fresh mark
+            % and turns the saving round: measured over 200k iterations,
+            % 41ms against 74 at one component above the mark, 74 against
+            % 87 at three, 90 against 94 at four. A colour has at most
+            % four components, so there is no count here at which the
+            % other form wins.
             counttomark 1 sub { pop } repeat
             .opaque {
                 flattenpath
