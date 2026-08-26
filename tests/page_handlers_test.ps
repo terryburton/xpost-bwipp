@@ -1,14 +1,22 @@
-% BeginPage and EndPage (PLRM 6.2.6), run through `xpost -d null` by
-% run-ps-test.sh: prints SUCCESS iff every assertion holds.
+% Install, BeginPage and EndPage (PLRM 6.2.6), run through `xpost -d null`
+% by run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
-% A page device may carry a procedure to run at the start of each page and
-% one to run at the end. The interpreter calls them, hands them the count of
-% pages the device has transmitted, tells the end procedure why the page is
+% A page device may carry a procedure to run whenever the device is
+% installed, one to run at the start of each page and one to run at the end.
+% The interpreter calls them, hands the page procedures the count of pages
+% the device has transmitted, tells the end procedure why the page is
 % ending, and obeys the boolean it returns.
 %
 % The counts are what a program imposing several virtual pages onto one sheet
 % reads to decide where the next one goes, and the reason code is how it
 % learns the device is going away and it must flush what it has gathered.
+%
+% Install is the one that runs off a page boundary: setpagedevice calls it
+% once the new device is installed and before the page is erased and the
+% graphics state reinitialised, which is what makes it the place to set the
+% device-dependent parameters -- the halftone screen, the flatness -- that
+% describe how this particular device renders. A transformation it leaves
+% becomes the device's default matrix.
 
 /failcount 0 def
 /assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
@@ -181,6 +189,130 @@ deep (a BeginPage may itself show a page) assert
 
 fresh
 << /OutputDevice /null >> setpagedevice
+
+% --- Install: run on every activation, before the page begins -----------
+% PLRM 6.2.6: "Each time the setpagedevice operator is invoked, it calls the
+% currently defined Install procedure", after installing the device and
+% before erasepage and initgraphics.
+/order 20 string def
+/opos 0 def
+/mark1 { order opos 3 -1 roll put /opos opos 1 add store } bind def
+
+fresh
+/opos 0 store
+<< /OutputDevice /null
+   /Install { 73 mark1 }
+   /BeginPage { pop 66 mark1 }
+   /EndPage { pop pop true } >> setpagedevice
+opos 2 eq (setpagedevice calls Install) assert
+order 0 get 73 eq order 1 get 66 eq and
+    (Install runs before the page begins) assert
+
+% A request naming no Install runs the one already in force, as a request
+% naming no BeginPage does.
+/opos 0 store
+<< /PageSize [612 792] >> setpagedevice
+opos 2 eq order 0 get 73 eq and
+    (a request naming no Install runs the one in force) assert
+
+currentpagedevice /Install known
+    (the page device reports the Install it carries) assert
+
+% A procedure that cannot be run is refused as it is offered, for the reason
+% BeginPage is: finding out afterwards would leave the device already gone.
+fresh
+{ << /OutputDevice /null /Install 42 >> setpagedevice } runcatch
+cerr /typecheck eq (a non-procedure Install is refused) assert
+fresh
+{ << /OutputDevice /null /Install [ 1 2 ] >> setpagedevice } runcatch
+cerr /typecheck eq (a non-executable array Install is refused) assert
+
+% --- what Install may usefully set --------------------------------------
+% The device-dependent parameters stand, because the reinitialisation that
+% follows resets only the device-independent ones; those it sets are undone.
+fresh
+<< /OutputDevice /null
+   /Install { 0.9 setflat 99 45 { pop } setscreen
+              3 setlinewidth 1 0 0 setrgbcolor } >> setpagedevice
+currentflat 0.9 sub abs 0.0001 lt
+    (a flatness Install sets is the one the device renders with) assert
+currentscreen pop pop 99 sub abs 0.0001 lt
+    (a halftone screen Install sets is the one the device renders with) assert
+currentlinewidth 1.0 sub abs 0.0001 lt
+    (a line width Install sets is reinitialised after it) assert
+currentrgbcolor 3 array astore
+    dup 0 get 0 eq exch dup 1 get 0 eq exch 2 get 0 eq and and
+    (a colour Install sets is reinitialised after it) assert
+
+% --- the transformation Install leaves ----------------------------------
+% PLRM 6.2.6: "any new CTM set by the Install procedure becomes the default
+% matrix for the device and will be used by initgraphics".
+/mateq { % m1 m2 . bool
+    /ph.b exch def /ph.a exch def
+    true 0 1 5 {
+        /ph.i exch def
+        ph.a ph.i get ph.b ph.i get sub abs 0.0001 lt and
+    } for
+} bind def
+/scaled { % m . m  (the matrix a 2 2 scale leaves in front of it)
+    dup length array copy
+    dup 0 2 index 0 get 2 mul put
+    dup 1 2 index 1 get 2 mul put
+    dup 2 2 index 2 get 2 mul put
+    dup 3 2 index 3 get 2 mul put
+} bind def
+
+fresh
+<< /OutputDevice /null /Install { } >> setpagedevice
+/basemat matrix defaultmatrix def
+<< /Install { 2 2 scale } >> setpagedevice
+matrix defaultmatrix basemat scaled mateq
+    (a transformation Install leaves becomes the default matrix) assert
+matrix currentmatrix basemat scaled mateq
+    (and the current matrix the device starts with) assert
+initgraphics
+matrix currentmatrix basemat scaled mateq
+    (and the one initgraphics goes back to afterwards) assert
+
+% It is applied to the device's own matrix each time rather than to what the
+% last activation left, so running it again does not scale twice.
+<< /PageSize [612 792] >> setpagedevice
+matrix defaultmatrix basemat scaled mateq
+    (running the same Install again does not compound its matrix) assert
+<< /Install { } >> setpagedevice
+matrix defaultmatrix basemat mateq
+    (replacing Install puts the device's own matrix back) assert
+
+% --- what Install sees --------------------------------------------------
+% It runs after the device is installed, so the page device it reads is the
+% one the request asked for and not the one being replaced.
+/sawsize null def
+fresh
+<< /OutputDevice /null /PageSize [200 300]
+   /Install { /sawsize currentpagedevice /PageSize get store } >> setpagedevice
+sawsize null ne
+    { sawsize 0 get 200 eq sawsize 1 get 300 eq and }{ false } ifelse
+    (Install reads the page device it is being installed for) assert
+
+% A definition Install makes is the program's to keep: the procedure is the
+% program's, and setpagedevice's own working dictionary is not where it goes.
+fresh
+<< /OutputDevice /null /Install { /phinstalled 5 def } >> setpagedevice
+userdict /phinstalled known
+    (a definition Install makes lands in the program's dictionary) assert
+
+% Changing OutputDevice starts from the new device's defaults, so it drops
+% Install with everything else the old device carried.
+/opos 0 store
+<< /OutputDevice /bbox /HWResolution [72 72] >> setpagedevice
+opos 0 eq (changing OutputDevice drops Install with the old device) assert
+
+% A procedure that fails reports its own error rather than something the
+% interpreter invented.
+fresh
+{ << /OutputDevice /null /Install { 1 0 div pop } >> setpagedevice } runcatch
+cerr /undefinedresult eq (an Install that fails reports its own error) assert
+fresh
 
 % -------------------------------------------------------------------------
 % ADJUDICATED against Adobe, and two answers differ on purpose.

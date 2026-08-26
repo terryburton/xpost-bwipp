@@ -907,11 +907,14 @@ end } bind put
 %
 %  A handler that cannot be executed cannot be run at a page boundary, and
 %  finding that out then would leave the page half made; the dictionary is
-%  refused as it is offered instead. The entry refused is named in $error,
-%  as every entry a page-device request is refused over is.
+%  refused as it is offered instead. Install is held to the same rule for
+%  the same reason: it runs with the new device already installed, so a
+%  request offering one that cannot be run would be refused with the
+%  device it was replacing already gone. The entry refused is named in
+%  $error, as every entry a page-device request is refused over is.
 %
 .xpostsys /.checkpagehandlers {  % dict  .  dict
-    [ /BeginPage /EndPage ] {
+    [ /BeginPage /EndPage /Install ] {
         2 copy known {
             2 copy get
             dup xcheck
@@ -996,7 +999,7 @@ end } bind put
 %  is not evidence that nothing wanted it. These are the names of PLRM
 %  Table 6.1, less the ones this interpreter acts on -- PageSize,
 %  HWResolution, ImagingBBox, PageOffset, OutputDevice,
-%  ProcessColorModel, BeginPage, EndPage, and Policies itself.
+%  ProcessColorModel, Install, BeginPage, EndPage, and Policies itself.
 %
 %  A key PLRM does not define is not on it and never becomes an
 %  unsatisfied request: this interpreter's page device takes any key, so
@@ -1028,8 +1031,6 @@ end } bind put
     /SeparationColorNames null    /SeparationOrder null
     /Separations null             /Trapping null
     /TrappingDetails null         /UseCIEColor null
-    % device initialisation
-    /Install null
 >> put
 
 %

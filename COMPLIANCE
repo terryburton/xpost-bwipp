@@ -72,15 +72,24 @@ Level 2 operators
      is written as points takes the size exactly. PageSize reports the
      size that was asked for on both)
  [/] page device parameters (every parameter PLRM 6.2 defines and this
-     interpreter does not act on -- Duplex, NumCopies, Collate, Install,
-     the media selection and roll-fed groups, the separation and
-     trapping keys -- is a request it cannot satisfy, and the recovery
-     policies answer for it. There is no media selection behind them:
+     interpreter does not act on -- Duplex, NumCopies, Collate, the
+     media selection and roll-fed groups, the separation and trapping
+     keys -- is a request it cannot satisfy, and the recovery policies
+     answer for it. There is no media selection behind them:
      with no InputAttributes and no trays, a page is made at whatever
      size is asked for, so the PageSize codes 3 to 7, which choose
      another medium and fit the page to it, do not arise, and a size no
      page can be built at is refused by the device rather than by
      policy)
+ [X] Install (run on every activation of a page device, after the
+     device is installed in the graphics state and before the page is
+     erased and the state reinitialised, so a device-dependent parameter
+     it sets stands and a device-independent one is undone, and a
+     transformation it leaves becomes the device's default matrix. A
+     procedure that is not executable is refused by setpagedevice. A
+     request whose Install fails stays in force, so the procedure runs
+     again on the next activation, where one reference interpreter puts
+     the page device the request replaced back and the other does not)
  [X] BeginPage, EndPage (called with the count of pages the device has
      transmitted, EndPage also with the reason -- 0 showpage, 1 copypage,
      2 the device going away -- and its boolean decides whether the page

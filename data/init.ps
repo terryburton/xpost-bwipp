@@ -3087,6 +3087,50 @@ currentglobal true setglobal
                 % too, since they described the device being retired.
                 //.xpostsys /.initdevicegstate get exec
 
+                % PLRM 6.2.6: the page device's Install procedure runs once
+                % the device is set up and installed in the graphics state,
+                % and before the page is erased and the graphics state
+                % reinitialised. It is the place a program sets the
+                % device-dependent parameters that describe how this device
+                % renders -- the halftone screen, the colour rendering
+                % dictionary, the flatness -- since the reset above has just
+                % put them back to their defaults and the reinitialisation
+                % below leaves them where the procedure puts them.
+                %
+                % The procedure run is the accumulated one and not this
+                % request's, so a request naming no Install runs the one
+                % already in force; and it runs before the page begins,
+                % which is where BeginPage is run.
+                %
+                % The working dictionary comes off the dictionary stack
+                % while it runs. The procedure is the program's, so a
+                % definition it makes is the program's to keep, and one made
+                % into this operator's scratch dictionary would go when the
+                % operator returned.
+                /Install //.xpostsys /.pagehandler get exec
+                dup null eq { pop }{
+                    newdev exch currentdict 3 1 roll end  % wd newdev proc
+                    exec
+
+                    % PLRM 6.2.6: the transformation matrix is the one
+                    % device-independent parameter the procedure can
+                    % usefully set, because what it leaves becomes the
+                    % device's default matrix -- which is what the
+                    % reinitialisation that follows sets the current one
+                    % from, and what initgraphics goes back to ever after.
+                    % The matrix is made in local VM, a device being a
+                    % local object and this one of its own.
+                    currentglobal false setglobal exch
+                    /defaultmatrix matrix currentmatrix put
+                    setglobal
+
+                    % Every other device-independent parameter goes back to
+                    % its standard value, which is where a line width, a
+                    % colour or a path the procedure left behind is undone.
+                    initgraphics
+                    begin
+                } ifelse
+
                 % The page a device is installed on starts clear: resetting the
                 % graphics state does not touch raster memory, so without this
                 % the job paints onto whatever the buffer was created holding,
