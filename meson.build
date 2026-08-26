@@ -3183,6 +3183,10 @@ test('ioblock',
   find_program('tests/run-ioblock-test.sh'),
   args: [ xpost_exe ],
   suite: cost_fast,
+  # two waits of its own, each bounded well inside this: a run that
+  # reaches the limit has hung rather than been slow, and the default
+  # sixty seconds is under what the test's own bounds already allow
+  timeout: 180,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
 # Every mutating operator against restore. Whether an operator records

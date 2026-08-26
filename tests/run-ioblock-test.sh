@@ -47,10 +47,14 @@ flush
 PS
 sed -i "s|PIPE|$work/p|; s|GO|$work/go|" "$work/block.ps"
 
-# the writer opens its end at once (a fifo open blocks until both ends are
-# open), then holds the byte back until the child has said it ran
+# The writer opens its end at once, read-write rather than write-only: a
+# write-only open of a fifo waits for a reader, and on at least one
+# platform that wait comes back EINTR when the shell is signalled, which
+# leaves the fifo with no writer and the reader waiting for ever. Opened
+# read-write it does not wait at all, and still counts as the writer the
+# reader is waiting for.
 (
-    exec 3>"$work/p"
+    exec 3<>"$work/p"
     i=0
     while [ ! -f "$work/go" ] && [ $i -lt 160 ]; do
         i=$((i + 1))
@@ -90,8 +94,11 @@ echo "a blocked read let the forked context run"
 
 # ---- with nothing else to run, the read sleeps ------------------------
 
-if ! command -v /usr/bin/time >/dev/null 2>&1; then
-    echo "SKIP: no /usr/bin/time to measure the wait with"
+# The processor time is read from time(1), whose format option is not the
+# same everywhere: where the one written here is not understood, the half
+# that needs it is passed over rather than guessed at.
+if ! /usr/bin/time -f '%U %S' -o /dev/null true >/dev/null 2>&1; then
+    echo "SKIP: time(1) here does not take the format this reads"
     echo "SUCCESS: a blocked read yields when it can (the sleep half skipped)"
     exit 0
 fi
@@ -107,7 +114,7 @@ PS
 sed -i "s|PIPE|$work/q|" "$work/lone.ps"
 
 (
-    exec 3>"$work/q"
+    exec 3<>"$work/q"
     sleep 2
     printf 'Y' >&3
     exec 3>&-
