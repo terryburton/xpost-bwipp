@@ -4914,6 +4914,24 @@ test('page-extent',
          'ASAN_OPTIONS': asan_answers_null },
   suite: cost_fast)
 
+# A page that is not a whole number of the device's pixels. PLRM 6.2 puts
+# the far corner of the page at user space (width, height) and gives an
+# imaging bounding box of null the largest box possible for that page;
+# where the page is pixels and its corner is not on one, those two cannot
+# both hold, and PLRM 6.2.7 describes a medium smaller than the page,
+# which clips it, and one at least as large, which does not. The medium
+# here is the larger: a device holding pixels rounds the page up to whole
+# ones and nothing the page admits falls off it, while a device writing
+# points takes the page exactly. Asked of the whole roster, because which
+# of the two a device owes is a property of how it holds a page, and the
+# script reads that off the running device rather than from a list of
+# names.
+test('page-medium',
+  find_program('tests/run-page-medium-test.sh'),
+  args: [ xpost_exe, files('tests/page_medium_test.ps') ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast)
+
 # The same refusal reached from the other side. Above, a program asks for
 # the page and catches what comes back; here the page comes from the
 # command line, before any program is read, so the only answers are the

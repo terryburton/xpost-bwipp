@@ -404,6 +404,7 @@ tests/oversize_page_test.ps \
 tests/page_cover_test.ps \
 tests/page_extent_test.ps \
 tests/page_handlers_test.ps \
+tests/page_medium_test.ps \
 tests/page_semantics_test.c \
 tests/path_bounds_test.ps \
 tests/path_confine_test.c \
@@ -570,6 +571,7 @@ tests/run-dps-test.sh \
 tests/run-ioblock-test.sh \
 tests/run-job-page-test.sh \
 tests/run-page-extent-test.sh \
+tests/run-page-medium-test.sh \
 tests/run-startup-page-test.sh \
 tests/run-thin-stroke-test.sh \
 tests/run-token-limit-test.sh \

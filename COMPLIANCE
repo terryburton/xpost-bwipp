@@ -55,7 +55,14 @@ Level 2 operators
      PageOffset, ImagingBBox; other keys reach the device as features.
      A device keeping its page as rows keeps only the rows an imaging
      bounding box reaches, so a mark painted outside the box a program
-     declared is not rendered)
+     declared is not rendered. A page size that is not a whole number of
+     the device's pixels is taken as the next whole pixel in each
+     direction, so the medium is at most one pixel larger than the page
+     in each and no part of the page falls off it, where the reference
+     interpreters take the nearest whole pixel and let a page rounded
+     down lose its far edge; a device whose page is written as points
+     takes the size exactly. PageSize reports the size that was asked for
+     on both)
  [X] BeginPage, EndPage (called with the count of pages the device has
      transmitted, EndPage also with the reason -- 0 showpage, 1 copypage,
      2 the device going away -- and its boolean decides whether the page

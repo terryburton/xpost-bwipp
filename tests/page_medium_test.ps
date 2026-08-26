@@ -1,0 +1,134 @@
+% What a device makes of a page that is not a whole number of its pixels.
+%
+% PLRM 6.2 gives PageSize the dimensions of the medium a page description
+% assumed, with the page's lower-left and upper-right corners at user
+% space (0, 0) and (width, height), and gives an ImagingBBox of null the
+% largest bounding box possible for that page. A page whose far corner
+% does not land on a pixel boundary cannot be both of those at once on a
+% device whose page is pixels: the medium is a whole number of them and
+% the page is not.
+%
+% PLRM 6.2.7 describes both ways out, for a device choosing a medium
+% for a page no medium is: a medium smaller than the page, of which it
+% says the page image is clipped, and a medium at least as large in both
+% dimensions, of which it says nothing is lost. Either leaves the page
+% unadjusted with the default user space on the medium's lower-left
+% corner.
+%
+% The medium here is the larger. A device whose page is pixels rounds the
+% page up to whole ones, so its medium is at most one pixel wider and one
+% taller than the page that was asked for and no part of that page falls
+% off it. A device whose page is written as points has no pixels to round
+% to and takes the page exactly. PageSize reports what was asked for
+% either way.
+%
+% The reference interpreters take the nearest whole pixel rather than the
+% next, so a page that rounds down leaves them a medium smaller than the
+% page and the far edge of the page is clipped away. Both answers are
+% inside PLRM 6.2.7 and neither departs from it, so the difference is one
+% to know about rather than one to correct; an interpreter changed to the
+% other answer would fail the assertion below about the page being inside
+% the clip, which is the assertion that says what changing it gives up.
+%
+% What is held below is the pair of answers, and the one thing true of
+% both: the page a program declared lies inside the default clipping
+% path, so nothing the program could legitimately paint has nowhere to
+% land.
+%
+% Run against a live device (-d <dev>) by run-page-medium-test.sh.
+
+/failures 0 def
+/tag () def
+/fail {                                            % (what)  .  -
+    /failures failures 1 add store
+    (FAIL: ) print tag print ( : ) print print (\n) print flush
+} bind def
+/assert { exch { pop }{ fail } ifelse } bind def   % bool (what)  .  -
+
+% Two reals are the same number when the difference between them is
+% smaller than anything this test is about. The smallest thing it is
+% about is a pixel at the finest resolution it asks at, and the tolerance
+% is far below that: what it absorbs is the last bits of a real, not a
+% pixel.
+/eps 0.002 def
+/near { sub abs eps lt } bind def                  % a b  .  bool
+
+% A device whose page is written as points rather than held as pixels
+% says so by drawing its glyphs as outlines: it has no pixel grid to put
+% them on, and so none to round a page to either.
+/points? { DEVICE /VectorGlyphs known } bind def
+
+% The default clipping path in default user space. initclip first, so
+% what is measured is the device's own boundary and not a clip some
+% earlier part of the run left standing.
+/pagebox { initclip clippath pathbbox } bind def   % -  .  llx lly urx ury
+
+% Ask for one page and hold what the device made of it.
+%
+%   w h rx ry (name)  .  -
+%
+% What every device owes: the page asked for is reported back unchanged,
+% the default clip starts at the origin, and the whole of that page is
+% inside it. What a device whose page is pixels owes besides: the medium
+% is the page rounded up to whole pixels, so it reaches at least as far
+% as the page and less than one pixel past it. What a device whose page
+% is points owes besides: the medium is the page.
+/onepage {                                         % w h rx ry (name)  .  -
+    10 dict begin
+    /tag exch store
+    /ry exch def
+    /rx exch def
+    /h exch def
+    /w exch def
+
+    << /PageSize [ w h ] /HWResolution [ rx ry ] /ImagingBBox null >>
+    setpagedevice
+
+    /got currentpagedevice /PageSize get def
+    got 0 get w near  got 1 get h near and
+    (the page size reported is the page size asked for) assert
+
+    pagebox
+    /ury exch def /urx exch def /lly exch def /llx exch def
+
+    llx 0 near  lly 0 near and
+    (the default clip starts at the origin) assert
+
+    % True of every device, and the whole of what the rounding is for.
+    urx w eps sub ge  ury h eps sub ge and
+    (the page asked for is inside the default clip) assert
+
+    points? {
+        urx w near  ury h near and
+        (a page written as points is the page asked for) assert
+    }{
+        % One pixel of the medium, in points, on each axis.
+        /px 72 rx div def
+        /py 72 ry div def
+        urx w px add lt  ury h py add lt and
+        (the medium is less than one pixel past the page) assert
+        urx rx mul 72 div dup round near
+        ury ry mul 72 div dup round near and
+        (the medium is a whole number of pixels) assert
+    } ifelse
+
+    end
+} bind def
+
+% A page that is not a whole number of pixels on either axis, at a
+% resolution where one pixel is a point and at one where it is much less
+% than a point. The second is what tells a device that rounds the page
+% from one that rounds nothing: the two answers differ by a pixel there
+% and by a point at the coarse resolution.
+107.3 71.7  72  72 (72dpi) onepage
+107.3 71.7 300 300 (300dpi) onepage
+
+% The control. A page that is already whole pixels gains none: rounding
+% up is what the fractional page needs and this one must not feel it.
+108 72 72 72 (whole) onepage
+
+failures 0 eq
+{ (SUCCESS\n) print }
+{ (FAILURES: ) print failures 20 string cvs print (\n) print }
+ifelse
+flush
