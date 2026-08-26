@@ -175,7 +175,7 @@ own    refusal_report_test.ps                 2
 own    reloc_stress_test.ps                   2
 own    render_classes_test.ps                 14
 own    save_restore_matrix_test.ps            1
-own    scanner_eof_test.ps                    2
+own    scanner_eof_test.ps                    4
 own    semantics_test.ps                      32
 own    setdash_finite_test.ps                 1
 own    setpagedevice_failure_test.ps          1
