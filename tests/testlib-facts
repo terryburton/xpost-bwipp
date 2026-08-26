@@ -72,7 +72,7 @@ own    blit_access_test.ps                    2
 own    blit_range_test.ps                     3
 own    build_personality_test.ps              1
 own    callback_reentry_test.ps               4
-own    cid_show_test.ps                       9
+own    cid_show_test.ps                       11
 own    clip_region_test.ps                    2
 own    colorspace_cycle_test.ps               1
 own    colorspace_matrix_test.ps              1

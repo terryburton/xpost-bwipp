@@ -134,6 +134,16 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         counttomark array astore exch pop
         /.notdefranges exch def
     }
+
+    %  The same mapping written one code at a time rather than as ranges
+    %  (PLRM 8.2, p.539 and p.579; PLRM 5.11.4). A notdef mapping is what
+    %  a CMap offers when a code selects a CID the descendant has no glyph
+    %  for; it is recorded here as the range form beside it is.
+    /beginnotdefchar { pop mark }  % int  .  mark
+    /endnotdefchar {  % mark code cid ...  .  -
+        counttomark array astore exch pop
+        /.notdefchars exch def
+    }
     /begincidchar { pop mark }  % int  .  mark
     /endcidchar {  % mark code cid ...  .  -
         counttomark array astore exch pop
@@ -143,6 +153,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % Single-descendant jobs select font 0; the association of later
     % ranges with other descendants is not kept.
     /usefont { pop }  % int  .  -
+
+    %  A transformation to use with one descendant (PLRM 8.2, p.539 and
+    %  p.580; PLRM 5.11.4). The font number goes the way usefont's does --
+    %  a single-descendant job has only font 0 to apply it to -- so the
+    %  matrix is taken and not applied. Taking it is what keeps a CMap
+    %  that carries one readable: left undefined, the matrix and the
+    %  operator name would be executed as though they were a program.
+    /beginusematrix { pop mark }  % fontnum  .  mark
+    /endusematrix { cleartomark }  % mark matrix  .  -
 
     % Adopt the mapping of another CMap. Its code spaces, CID ranges
     % and single-CID assignments join those of the CMap under
@@ -285,6 +304,59 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } if
     end
 } put
+
+%
+%  The FontSetInit procedure set (PLRM Table 3.10), whose one documented
+%  operator is StartData (PLRM 8.2; PLRM 5.8, "FontSet Resources", p.345).
+%  PLRM says outright that StartData is the only entry of this set that is
+%  part of the language and that the rest are private, so this set holds
+%  the one and no invented neighbours.
+%
+%  A FontSet resource file is minimal PostScript wrapped around binary
+%  font data: the program says how many bytes follow and StartData reads
+%  them, builds the FontSet and registers it under the given name.
+%
+%  WHAT THIS DOES AND DOES NOT DO -- a stated deviation. It reads the
+%  bytes and defines nothing. This build cannot assemble a font set out of
+%  them: the data is a compact font format container, and nothing here
+%  reads one.
+%
+%  The reading is the whole of what it can usefully do. The data sits in
+%  the program's own file, so a StartData that did not consume it would
+%  leave the interpreter reading font bytes as PostScript and lose
+%  everything after the block, not just the font. Having consumed them the
+%  file goes on being a program.
+%
+%  It does NOT raise. Raising would be the louder answer and a worse one:
+%  the error abandons the rest of the job, which is exactly what consuming
+%  the bytes was for, so the two together cancel out. A program that asks
+%  for a font from the set is told at the asking -- findresource answers
+%  undefinedresource for a FontSet that was never defined, and findfont
+%  the same for a font that was to have come from one -- which is where a
+%  program can do something about it.
+%
+/FontSetInit <<
+    %  key nbytes StartData  .  -
+    %  key nbytes mastername StartData  .  -   (Chameleon descriptors)
+    /StartData {
+        4 dict begin
+        % the three-operand form names the master font; it is read and
+        % discarded with the rest
+        dup type /integertype ne { pop } if
+        /n exch def
+        /key exch def
+        n type /integertype ne
+            { /StartData cvx /typecheck signalerror } if
+        n 0 lt
+            { /StartData cvx /rangecheck signalerror } if
+
+        % Take the declared bytes out of the program's own file, so what
+        % follows them is read as the PostScript it is.
+        currentfile n 0 gt { n string readstring pop pop }{ pop } ifelse
+        key pop
+        end
+    }
+>> /ProcSet defineresource pop
 
 /BitmapFontInit <<
     %  metrics bitmap cid cidfont addglyph  .  -

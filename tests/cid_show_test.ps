@@ -427,6 +427,41 @@ t4count 0 eq
 0 255 T4F BFI /removeglyphs get exec
 (A) t4ink 0 eq (a removed glyph marks nothing) check
 
+% --- the rest of PLRM Table A.1's CIDInit set, and FontSetInit ---------
+%
+% beginnotdefchar/endnotdefchar map single codes where the range forms
+% beside them map spans (PLRM 8.2 p.539 and p.579; PLRM 5.11.4), and
+% beginusematrix/endusematrix carry a transform for one descendant
+% (p.539 and p.580). A CMap that uses any of them has to build.
+
+{ /CIDInit /ProcSet findresource begin
+  10 dict begin
+    begincmap
+    /CMapName /T4NDCMap def
+    /CIDSystemInfo << /Registry (T) /Ordering (T4) /Supplement 0 >> def
+    1 begincodespacerange <00> <FF> endcodespacerange
+    1 begincidrange <00> <FF> 0 endcidrange
+    1 beginnotdefchar <07> 0 endnotdefchar
+    1 beginnotdefrange <00> <06> 0 endnotdefrange
+    0 usefont
+    0 beginusematrix [ 1 0 0 1 0 0 ] endusematrix
+    endcmap
+    CMapName currentdict end /CMap defineresource pop
+  end } stopped not
+    (a CMap using every CIDInit mapping form builds) check
+clear
+
+% FontSetInit's StartData is the one operator of that set PLRM documents
+% (PLRM 8.2; PLRM 5.8 p.345). This build cannot assemble a font set out
+% of the binary data, so it reads the declared bytes and defines nothing
+% -- which is what lets the file go on being a program. The set is then
+% reported absent where a program asks for it, not where it was sent.
+/FontSetInit /ProcSet findresource /StartData known
+    (FontSetInit carries StartData) check
+{ /NoSuchSet /FontSet findresource } stopped
+    (a FontSet that was never built is not found) check
+clear
+
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
 quit
