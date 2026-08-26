@@ -90,10 +90,95 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 .xpost_DSCWRITE /.registersep undef
 
 %
-%  No image consumer either: sampled images paint through the
-%  ordinary methods rather than reference objects Emit never writes.
+%  Take a whole sampled image and write it as one, rather than letting the
+%  paint machinery decompose it into fills.
 %
-.xpost_DSCWRITE /PaintImage undef
+%  This device decomposes what LanguageLevel 1 cannot say -- shadings and
+%  patterns have no operator there, so they become the fills they resolve
+%  to. An image is not in that class: image and colorimage ARE
+%  LanguageLevel 1, and decomposing one is throwing away an operator the
+%  reader already has. It is also the case where decomposing costs most,
+%  the fills being per sample: a 64 by 64 image measured 339KB of them
+%  against 25KB for the page that drew it.
+%
+%  The decode is applied here rather than emitted, as the SVG writer does
+%  and for the same reason: the operand form of image carries no Decode,
+%  and the operand form is what keeps this to LanguageLevel 1.
+%
+.xpost_DSCWRITE /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
+{ {diint didec dirows dim dinc dih diw}{exch def}forall
+
+    % one byte-to-byte table per component, so the samples go out decoded
+    /diluts [ 0 1 dinc 1 sub { /c exch def
+        /dilt 256 string def
+        0 1 255 { /v exch def
+            dilt v
+            v 255 div
+            didec c 2 mul 1 add get didec c 2 mul get sub mul
+            didec c 2 mul get add
+            //.xpostsys /.c255 get exec
+            put
+        } for dilt
+    } for ] def
+    /dihex 2 string def
+
+    (q\n) .put
+
+    % a rectangular clip travels with the paint; the painting operators
+    % arrive pre-clipped and an image does not
+    //.internaldict /.cliprect get exec {
+        /dicy1 exch def /dicx1 exch def /dicy0 exch def /dicx0 exch def
+        dicx0 .pdfnum ( ) .put dicy0 .pdfnum ( ) .put
+        dicx1 dicx0 sub .pdfnum ( ) .put
+        dicy1 dicy0 sub .pdfnum ( re\nW n\n) .put
+    } if
+
+    % image space to device space, so what follows draws in samples
+    dim 0 get .pdfnum ( ) .put dim 1 get .pdfnum ( ) .put
+    dim 2 get .pdfnum ( ) .put dim 3 get .pdfnum ( ) .put
+    dim 4 get .pdfnum ( ) .put dim 5 get .pdfnum ( cm\n) .put
+
+    % The matrix above put user space in samples, and the page opened with
+    % the flip that carries y-down device units to the page -- so image
+    % space and user space already agree here and the image matrix is the
+    % identity. A second flip would stand the picture on its head.
+    %
+    % The samples are READ FROM THE FILE rather than carried in a string
+    % literal. LanguageLevel 1 has no filters at all -- filter is a
+    % LanguageLevel 2 operator, so ASCIIHexDecode is not available to a
+    % reader held to 1 -- but currentfile and readhexstring are there, and
+    % between them they are the level's own way of streaming samples.
+    %
+    % A literal would also not hold one. A composite object takes at most
+    % 65535 elements here, so the hex of anything past about a hundred
+    % samples square is a string the scanner refuses: the picture would
+    % emit and then fail to be read back. Streaming has no such bound.
+    (/dib ) .put diw dinc mul 20 string cvs .put ( string def\n) .put
+    diw 20 string cvs .put ( ) .put
+    dih 20 string cvs .put
+    ( 8 [ 1 0 0 1 0 0 ] { currentfile dib readhexstring pop } ) .put
+    dinc 1 eq
+        { (image\n) .put }
+        { (false ) .put dinc 20 string cvs .put ( colorimage\n) .put }
+    ifelse
+
+    % the samples, decoded, wrapped so no line runs away
+    /dicol 0 def
+    0 1 dih 1 sub { /diy exch def
+        /dirow dirows diy get def
+        0 1 dirow length 1 sub { /dii exch def
+            diluts dii dinc mod get dirow dii get get
+            /dib2 exch def
+            dihex 0 (0123456789ABCDEF) dib2 -4 bitshift get put
+            dihex 1 (0123456789ABCDEF) dib2 15 and get put
+            dihex .put
+            /dicol dicol 1 add def
+            dicol 32 ge { (\n) .put /dicol 0 def } if
+        } for
+    } for
+    dicol 0 gt { (\n) .put } if
+    (Q\n) .put
+} //.indict exec } put
 
 %
 %  A showpage emits the page, and one writer writes it either way: without a

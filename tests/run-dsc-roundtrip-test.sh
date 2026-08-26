@@ -119,5 +119,54 @@ grep -q '^%%DocumentMedia:' "$work/out.dsc" || {
     echo "      consumer that reads the comments cannot tell the paper size"
     fail=1; }
 
+# --- a sampled image goes out as one, and comes back the same ---------
+#
+# image and colorimage are LanguageLevel 1 operators, so this device emits
+# them rather than decomposing a picture into per-sample fills. Two things
+# have to hold and only one of them is about size.
+#
+# The samples are streamed with currentfile and readhexstring, which is
+# how LanguageLevel 1 carries them: it has no filters at all, and a hex
+# string literal long enough for a real picture is one the scanner
+# refuses -- a composite object holds at most 65535 elements. An image
+# emitted that way writes cleanly and then cannot be read back, so the
+# picture here is deliberately past that bound.
+cat > "$work/img.ps" <<'IMGEOF'
+<< /PageSize [140 140] >> setpagedevice
+gsave 10 10 translate 120 120 scale /DeviceRGB setcolorspace
+/hb 360 string def
+120 120 8 [120 0 0 -120 0 120] { currentfile hb readhexstring pop } false 3 colorimage
+IMGEOF
+awk 'BEGIN{ srand(7); for (r = 0; r < 120; r++) {
+        line = ""
+        for (c = 0; c < 360; c++) line = line sprintf("%02X", int(rand()*256))
+        print line } }' >> "$work/img.ps"
+printf 'grestore showpage\n' >> "$work/img.ps"
+
+XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d dscwrite -o "$work/img.dsc" \
+    "$work/img.ps" </dev/null 2>/dev/null
+if [ ! -s "$work/img.dsc" ]; then
+    echo "FAILURES: the DSC writer emitted nothing for a sampled image"
+    fail=1
+else
+    grep -q 'colorimage' "$work/img.dsc" || {
+        echo "FAILURES: the image went out as fills rather than as an image"
+        echo "      operator, which LanguageLevel 1 has and which is the"
+        echo "      whole reason not to decompose one"
+        fail=1; }
+    grep -q 'readhexstring' "$work/img.dsc" || {
+        echo "FAILURES: the samples are not streamed. A hex literal cannot"
+        echo "      hold a picture of this size: 65535 is the most a"
+        echo "      composite object takes, and the scanner refuses more"
+        fail=1; }
+    # and it reads back -- which is what a literal would have failed
+    if ! XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d bbox -o /dev/null \
+            "$work/img.dsc" </dev/null >/dev/null 2>&1; then
+        echo "FAILURES: the emitted image does not read back"
+        fail=1
+    fi
+fi
+
 [ "$fail" = 0 ] || exit 1
-echo "SUCCESS (the emitted document runs back to the same marks: $want)"
+echo "SUCCESS (the emitted document runs back to the same marks: $want," \
+     "and a sampled image goes out as one)"
