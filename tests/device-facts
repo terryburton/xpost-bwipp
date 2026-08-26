@@ -614,6 +614,7 @@ method .maxmin bbox bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage dscwrite pdfwrite svgwrite
+method PaintStencil dscwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
 method .pdfoverprint dscwrite pdfwrite

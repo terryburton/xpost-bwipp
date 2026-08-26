@@ -1750,6 +1750,28 @@ setglobal
             putinterval
         } loop
 
+        % A device that consumes a whole stencil -- a writer whose output
+        % language has one -- takes the bits and the image-to-device
+        % matrix and paints nothing here. The runs below are how a
+        % stencil reaches a device that has no such thing, and they cost
+        % a mark per run: bitmap text through a vector writer comes out
+        % as thousands of little paths where the language it is written
+        % in could have said imagemask once.
+        %
+        % Offered before the matrix is concatenated, because what the
+        % device wants is the matrix as the caller gave it, not the
+        % state this procedure is about to put the graphics state into.
+        DEVICE /PaintStencil known {
+            % the same transform an image is handed: sample space to
+            % device space, which is the image matrix undone and the
+            % current one applied
+            width height polarity
+            mat matrix invertmatrix matrix currentmatrix matrix concatmatrix
+            buf interp
+            DEVICE dup /PaintStencil get exec
+            true //.setpagemarked exec
+        }{
+
         % Invert into a fresh matrix: the operand matrix belongs to
         % the caller, who may reuse it (a Type 3 font mutating one
         % shared matrix per glyph is the classic case).
@@ -1822,6 +1844,7 @@ setglobal
         paintpat { //.xpostsys /.patternfill get exec } if
         } ifelse
         } if
+        } ifelse
         end
     grestore
     } null 0 //.callout exec

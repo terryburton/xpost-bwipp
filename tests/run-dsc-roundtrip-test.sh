@@ -199,6 +199,58 @@ else
     box "$work/img.dsc" "the read-back run over the emitted image" || fail=1
 fi
 
+# --- a stencil goes out as a stencil ----------------------------------
+#
+# imagemask is a LanguageLevel 1 operator, so a stencil has a way of being
+# written down and does not have to be decomposed into the runs a device
+# without one is painted through. That matters most where stencils are
+# most common: a Type 3 bitmap font paints one per glyph, and a page of
+# them came out as thousands of little rectangles.
+#
+# Unlike the sampled image above, this one IS held to the pixel. A stencil
+# is bits and a colour, with no decode, no interpolation and no rounding
+# through decimal text -- so the emission either lands on the same pixels
+# or it is wrong.
+cat > "$work/mask.ps" <<'MASKEOF'
+<< /PageSize [80 80] >> setpagedevice
+0 setgray
+gsave 10 10 translate 60 60 scale
+8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask
+grestore
+showpage
+MASKEOF
+
+if ! emit "$work/mask.ps" "$work/mask.dsc" "the DSC writer over a stencil"; then
+    fail=1
+elif [ ! -s "$work/mask.dsc" ]; then
+    echo "FAILURES: the DSC writer emitted nothing for a stencil"
+    fail=1
+else
+    grep -q 'imagemask' "$work/mask.dsc" || {
+        echo "FAILURES: the stencil went out as fills rather than as the"
+        echo "      imagemask LanguageLevel 1 has for exactly this"
+        fail=1; }
+    _out=$(XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d ppm -o "$work/direct.ppm" \
+           "$work/mask.ps" </dev/null 2>&1)
+    _st=$?
+    verdict_run "$_st" "$_out" "the raster run over the stencil source" || fail=1
+    _out=$(XPOST_NO_VM_IMAGE=1 "$xpost" -q $ns -d ppm -o "$work/backm.ppm" \
+           "$work/mask.dsc" </dev/null 2>&1)
+    _st=$?
+    verdict_run "$_st" "$_out" "the raster run over the emitted stencil" || fail=1
+    if [ -s "$work/direct.ppm" ] && [ -s "$work/backm.ppm" ]; then
+        cmp -s "$work/direct.ppm" "$work/backm.ppm" || {
+            echo "FAILURES: the emitted stencil does not paint the pixels the"
+            echo "      stencil painted. A stencil is bits and a colour, so"
+            echo "      there is nothing here for a rounding to explain."
+            fail=1; }
+    else
+        echo "FAILURES: one of the stencil renders produced no raster, so the"
+        echo "      comparison below would compare nothing"
+        fail=1
+    fi
+fi
+
 [ "$fail" = 0 ] || exit 1
 echo "SUCCESS (the emitted document runs back to the same marks: $want," \
-     "and a sampled image goes out as one)"
+     "a sampled image goes out as one, and a stencil as a stencil)"

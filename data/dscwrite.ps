@@ -181,6 +181,71 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } //.indict exec } put
 
 %
+%  A stencil, as the stencil the language already has.
+%
+%  imagemask is a LanguageLevel 1 operator, so what arrives here goes out
+%  as itself rather than as the runs it would otherwise be decomposed
+%  into. Bitmap text is where that tells: a Type 3 font paints one stencil
+%  per glyph, and a page of it came out as thousands of little rectangles
+%  where one imagemask says the same thing.
+%
+%  The bits are the caller's, packed one row to a byte boundary, which is
+%  the packing imagemask reads -- so they are written out as they stand
+%  and no repacking is needed. The current colour is already set on the
+%  page by whatever painted last, exactly as it is for the runs.
+%
+.xpost_DSCWRITE /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
+{ {dsint dsdata dsm dspol dsh dsw}{exch def}forall
+    /dshex 2 string def
+
+    (q\n) .put
+
+    % imagemask paints the current colour, which is the graphics state's
+    % and not an operand: a stencil's bits say where, and the colour says
+    % what. The painting path takes it from the state through rectfill,
+    % so this takes it from the same place.
+    /dsnc .ncomps def
+    /dsg graphicsdict /currgstate get def
+    dsg /colorcomp1 get
+    dsnc 1 gt { dsg /colorcomp2 get dsg /colorcomp3 get } if
+    dsnc 4 eq { dsg /colorcomp4 get } if
+    .pdffillcolor
+
+    % a rectangular clip travels with the paint, as it does for an image
+    //.internaldict /.cliprect get exec {
+        /dscy1 exch def /dscx1 exch def /dscy0 exch def /dscx0 exch def
+        dscx0 .pdfnum ( ) .put dscy0 .pdfnum ( ) .put
+        dscx1 dscx0 sub .pdfnum ( ) .put
+        dscy1 dscy0 sub .pdfnum ( re\nW n\n) .put
+    } if
+
+    % image space to device space, so what follows draws in samples
+    dsm 0 get .pdfnum ( ) .put dsm 1 get .pdfnum ( ) .put
+    dsm 2 get .pdfnum ( ) .put dsm 3 get .pdfnum ( ) .put
+    dsm 4 get .pdfnum ( ) .put dsm 5 get .pdfnum ( cm\n) .put
+
+    % streamed for the same reason an image's samples are: a hex literal
+    % long enough for a real stencil is one the scanner refuses
+    (/dsb ) .put dsw 7 add 8 idiv 20 string cvs .put ( string def\n) .put
+    dsw 20 string cvs .put ( ) .put
+    dsh 20 string cvs .put ( ) .put
+    dspol { (true) }{ (false) } ifelse .put
+    ( [ 1 0 0 1 0 0 ] { currentfile dsb readhexstring pop } imagemask\n) .put
+
+    /dscol 0 def
+    0 1 dsdata length 1 sub { /dsi exch def
+        /dsb2 dsdata dsi get def
+        dshex 0 (0123456789ABCDEF) dsb2 -4 bitshift get put
+        dshex 1 (0123456789ABCDEF) dsb2 15 and get put
+        dshex .put
+        /dscol dscol 1 add def
+        dscol 32 ge { (\n) .put /dscol 0 def } if
+    } for
+    dscol 0 gt { (\n) .put } if
+    (Q\n) .put
+} //.indict exec } put
+
+%
 %  A showpage emits the page, and one writer writes it either way: without a
 %  %d in the output name the pages accumulate into the one DSC program opened
 %  at Create and Destroy closes it, and with a %d every page is a program of
