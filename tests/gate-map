@@ -188,6 +188,7 @@ device test raster-*
 device test render-*
 device test setpagedevice-failure
 device test setpagedevice-paramcap
+device test setpagedevice-policies
 device test startup-device
 device test startup-page
 device test stencil-mask-size

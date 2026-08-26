@@ -1,0 +1,163 @@
+%!testlib
+% Recovery policies for unsatisfied page-device requests, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 6.2.7: a request naming a feature the device does not provide is
+% not simply dropped. setpagedevice consults the Policies dictionary --
+% itself a page-device parameter -- for the code governing that feature:
+% 0 abandons the whole request with a configurationerror, 1 ignores the
+% one parameter and carries on, 2 asks a human operator. A device with no
+% operator to ask answers 2 the way it answers 0. PolicyNotFound governs
+% every key the dictionary does not name, and PolicyReport is run once at
+% the end of a request that had to consult any of it.
+%
+% What this interpreter cannot satisfy is a page-device parameter PLRM
+% defines and it provides no behaviour for -- Duplex, NumCopies, Collate
+% and the rest -- and a request naming an output device it cannot make.
+% A key PLRM does not define is not an unsatisfied request: it is a
+% device feature, and it reaches the device as one.
+%
+% The readers below answer null for something that is not there, rather
+% than raising: a run of this suite against an interpreter carrying none
+% of this has to report every case it fails, and a case that raises
+% outside `outcome` takes the rest of the file with it.
+
+/policies {                             % -  .  dict|null
+    currentpagedevice /Policies 2 copy known { get }{ pop pop null } ifelse
+} bind def
+/policy {                               % name  .  any|null
+    policies dup null eq { exch pop }{
+        exch 2 copy known { get }{ pop pop null } ifelse
+    } ifelse
+} bind def
+/pagedevice {                           % name  .  any|null
+    currentpagedevice exch 2 copy known { get }{ pop pop null } ifelse
+} bind def
+/infoat {                               % index  .  any|null
+    $error /errorinfo get dup type /arraytype ne { pop pop null }{
+        exch 2 copy exch length lt { get }{ pop pop null } ifelse
+    } ifelse
+} bind def
+
+/reports 0 def
+/lastreport null def
+/watch { << /PolicyReport
+    { /lastreport exch store /reports reports 1 add store } >> } bind def
+
+% ---- the dictionary itself
+
+policies type /dicttype eq (a page device carries a Policies dictionary) assert
+/PolicyNotFound policy 1 eq
+    (an unnamed parameter is ignored by default) assert
+/OutputDevice policy 0 eq
+    (a device this interpreter cannot make is an error by default) assert
+/PageSize policy 0 eq
+    (a page size that cannot be honoured is an error by default) assert
+/PolicyReport policy dup null ne exch xcheck and
+    (the default PolicyReport is executable) assert
+
+% Changes to Policies are cumulative and merge one level down, so a
+% request naming one entry leaves the others standing (PLRM 6.1.1).
+{ << /Policies << /Aaa 1 >> >> setpagedevice
+  << /Policies << /Bbb 2 >> >> setpagedevice } (Policies may be requested) works
+/Aaa policy 1 eq /Bbb policy 2 eq and
+    (Policies entries accumulate across requests) assert
+/PolicyNotFound policy null ne
+    (a Policies request does not displace the entries already there) assert
+
+% The dictionary a request hands over is copied, not adopted: a program
+% keeping a reference to it cannot rewrite the policies in force.
+/mine << /Ccc 1 >> def
+{ << /Policies mine >> setpagedevice } (a Policies dictionary is accepted) works
+policies mine eq not (the requested Policies dictionary is copied) assert
+
+% ---- what a Policies dictionary may say
+
+{ << /Policies 5 >> setpagedevice }
+    /typecheck (a Policies that is not a dictionary is refused) raises
+{ << /Policies << /Ddd (one) >> >> setpagedevice }
+    /typecheck (a policy that is not an integer is refused) raises
+{ << /Policies << /Ddd 99 >> >> setpagedevice }
+    /rangecheck (a policy code that is not one of the three is refused) raises
+{ << /Policies << /PolicyNotFound 99 >> >> setpagedevice }
+    /rangecheck (an out-of-range PolicyNotFound is refused) raises
+{ << /Policies << /PageSize 3 >> >> setpagedevice }
+    (PageSize takes the wider set of codes) works
+{ << /Policies << /PageSize 8 >> >> setpagedevice }
+    /rangecheck (a PageSize code beyond the set is refused) raises
+{ << /Policies << /PolicyReport 5 >> >> setpagedevice }
+    /typecheck (a PolicyReport that cannot be run is refused) raises
+
+% ---- an unsatisfied request
+
+% The default policy ignores it: the request stands, and the parameter is
+% absent from the page device afterwards, this interpreter having no such
+% feature to report a value for.
+{ << /Duplex true >> setpagedevice }
+    (a request for a feature this interpreter has not is accepted) works
+currentpagedevice /Duplex known not
+    (an ignored parameter is absent from the page device) assert
+
+% Policy 0 abandons the whole request, and says which entry it could not
+% meet in $error (PLRM 3.11, 8.2 configurationerror).
+{ << /Duplex true /Policies << /Duplex 0 >> >> setpagedevice }
+    /configurationerror (policy 0 refuses the request) raises
+0 infoat /Duplex eq 1 infoat true eq and
+    (errorinfo carries the key and the value requested) assert
+
+% A request revises Policies before its other parameters are looked at,
+% which is what let the case above govern its own Duplex entry.
+% Policy 2 wants a human operator, and there is none to ask.
+{ << /Collate true /Policies << /Collate 2 >> >> setpagedevice }
+    /configurationerror (policy 2 has no operator to ask) raises
+
+% Nothing of a refused request is kept -- neither its other parameters
+% nor its revisions to Policies (PLRM 6.2.7).
+{ << /PageSize [612 792] >> setpagedevice } (a page size is set) works
+{ << /PageSize [200 300] /Tumble true /Policies << /Tumble 0 >> >> setpagedevice }
+    /configurationerror (the refusal comes out of the request) raises
+/PageSize pagedevice dup null ne { 0 get 612 eq }{ pop false } ifelse
+    (a refused request leaves the page size undisturbed) assert
+/Tumble policy null eq
+    (a refused request leaves Policies undisturbed) assert
+
+% ---- PolicyReport
+
+{ << /Policies watch >> setpagedevice } (a PolicyReport is accepted) works
+/reports 0 store
+{ << /PageSize [612 792] >> setpagedevice } (a satisfiable request runs) works
+reports 0 eq (a request that is satisfied runs no PolicyReport) assert
+{ << /NumCopies 3 /Jog 1 >> setpagedevice } (an unsatisfiable request runs) works
+reports 1 eq (a request that was not runs PolicyReport once) assert
+lastreport type /dicttype eq (PolicyReport is handed a dictionary) assert
+lastreport type /dicttype eq {
+    lastreport /NumCopies 2 copy known { get }{ pop pop null } ifelse 1 eq
+    lastreport /Jog 2 copy known { get }{ pop pop null } ifelse 1 eq and
+    lastreport length 2 eq and
+}{ false } ifelse
+    (it names each unsatisfied parameter and the code that governed it) assert
+
+% ---- the output device
+
+{ << /OutputDevice /nosuchdevice >> setpagedevice }
+    /configurationerror (a device this interpreter cannot make is refused) raises
+0 infoat /OutputDevice eq
+    (and says so as an unsatisfied OutputDevice request) assert
+{ << /OutputDevice /nosuchdevice /Policies << /OutputDevice 1 >> >> setpagedevice }
+    (policy 1 ignores the name and keeps the current device) works
+/OutputDevice pagedevice /nosuchdevice ne
+    (the device that could not be made is not recorded) assert
+
+% ---- a key PLRM does not define
+
+% Device features are how a program reaches a driver's own knobs, so a
+% key outside PLRM's page-device parameters is not an unsatisfied
+% request: it is stored and handed to the device.
+/reports 0 store
+{ << /TextAlphaBits 4 >> setpagedevice }
+    (a device feature is not an unsatisfied request) works
+/TextAlphaBits pagedevice 4 eq
+    (a device feature is kept on the page device) assert
+reports 0 eq (and no policy was consulted for it) assert
+
+verdict

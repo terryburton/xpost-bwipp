@@ -13,11 +13,12 @@ The default vocabulary. Wherever a published language specification
 names a concept, that name is used:
 
   - The PostScript Language Reference Manual (3rd ed.): setpagedevice
-    and its parameters /PageSize, /HWResolution, /PageOffset and
-    /ProcessColorModel (PLRM3 section 6.2; /ProcessColorModel appears
-    among the colour-separation page device parameters alongside
-    /Separations and /SeparationColorNames); the /Separation and
-    /DeviceN colour spaces; the %stdout special file.
+    and its parameters /PageSize, /HWResolution, /PageOffset,
+    /ProcessColorModel and /Policies (PLRM3 section 6.2;
+    /ProcessColorModel appears among the colour-separation page device
+    parameters alongside /Separations and /SeparationColorNames, and
+    /Policies carries the recovery policies of section 6.2.7); the
+    /Separation and /DeviceN colour spaces; the %stdout special file.
 
   - The PDF specification (ISO 32000): the content-stream operators
     the pdfwrite device emits (cs/scn, k/K, rg/RG, path operators),

@@ -2749,7 +2749,14 @@ currentglobal true setglobal
                 % machinery reads it as, refused where the request naming it can
                 % still be told about it.
                 dup //.xpostsys /.checkpagefeatures get exec pop
-                17 dict begin
+
+                % And the recovery policies the request revises, held to the
+                % codes PLRM 6.2.7 defines for them. A policy is consulted
+                % only where something else could not be met, so a misspelled
+                % one left to be read then would be found missing at the one
+                % moment a program most needs the answer.
+                dup //.xpostsys /.checkpagepolicies get exec pop
+                28 dict begin
                 /pd exch def
 
                 % PLRM 6.2.6: an operator that deactivates the page device calls
@@ -2774,23 +2781,111 @@ currentglobal true setglobal
                     } if
                 } if
 
+                % PLRM 6.2.7: the revisions a request makes to Policies take
+                % effect before the rest of it is looked at, so what governs
+                % this request is the policies in force as this request leaves
+                % them. They are settled before the merge below because one of
+                % the questions they answer -- whether the request may have the
+                % output device it names -- decides how that merge goes.
+                /policies
+                    graphicsdict /.pagedevice 2 copy known {
+                        get /Policies 2 copy known { get }
+                        { pop pop //.xpostsys /.defaultpolicies get exec } ifelse
+                    }{ pop pop //.xpostsys /.defaultpolicies get exec } ifelse
+                    pd //.xpostsys /.mergepolicies get exec
+                def
+
+                % Each parameter of this request that could not be satisfied,
+                % against the code that governed it, for the PolicyReport this
+                % request ends with.
+                /report 8 dict def
+
+                % A parameter this interpreter cannot provide, under a policy
+                % that will not have it ignored. Code 0 abandons the request,
+                % and code 2 -- interact with a human operator -- abandons it
+                % too, there being no operator to ask and no panel to ask on,
+                % which PLRM 6.2.7 gives as what a device without one does.
+                % Both name the entry in $error first (PLRM 8.2).
+                %
+                % The working dictionary closes before the error is raised, so
+                % a program that catches the refusal is not left standing in
+                % it.
+                /refuse {  % key value  .  -
+                    end //.xpostsys /.setpageinfo get exec
+                    /setpagedevice cvx /configurationerror signalerror
+                } def
+
+                % A request naming an output device this interpreter cannot
+                % make is an unsatisfied request for OutputDevice. Ignoring it
+                % keeps the device already installed, so the request goes on as
+                % one that named no device at all -- which is why it is settled
+                % here, ahead of the merge that a device change would empty.
+                /keepdev false def
+                pd /OutputDevice 2 copy known {
+                    get dup //.xpostsys /.devicemakers get exch known
+                    { pop }{
+                        policies /OutputDevice //.xpostsys /.policyfor get exec
+                        1 eq {
+                            /keepdev true store
+                            report /OutputDevice 1 put
+                            pop
+                        }{ /OutputDevice exch refuse } ifelse
+                    } ifelse
+                }{ pop pop } ifelse
+
                 % Requests merge with the accumulated parameters, except that
                 % switching OutputDevice reinstalls the new device's defaults:
                 % nothing carries across a device change.
-                /merged
+                /switching
+                keepdev not
                 pd /OutputDevice 2 copy known {
                     get graphicsdict /.pagedevice 2 copy known {
                         get /OutputDevice 2 copy known
                         { get }{ pop pop null } ifelse
                     }{ pop pop null } ifelse ne
                 }{ pop pop false } ifelse
+                and def
+                /merged switching
                 { pd length 8 add dict }
                 { graphicsdict /.pagedevice 2 copy known
                     { get dup length pd length add dict copy }
                     { pop pop pd length 8 add dict }
                     ifelse }
                 ifelse def
-                pd { merged 3 1 roll put } forall
+                pd {
+                    1 index /Policies eq
+                    2 index /OutputDevice eq keepdev and or
+                    { pop pop }{ merged 3 1 roll put } ifelse
+                } forall
+
+                % Policies is merged rather than replaced, and a device change
+                % starts from this interpreter's own again: nothing carries
+                % across one, these no more than the rest.
+                merged /Policies
+                    switching
+                    { //.xpostsys /.defaultpolicies get exec pd
+                      //.xpostsys /.mergepolicies get exec }
+                    { policies } ifelse
+                put
+                /policies merged /Policies get store
+
+                % PLRM 6.1.1: a request naming a page-device parameter this
+                % interpreter provides no behaviour for cannot be satisfied --
+                % whatever value it asks for, one turning the feature off
+                % included -- and the policy governing it says what becomes of
+                % it. Ignoring one leaves it off the page device, there being
+                % no value of this interpreter's own to report for a feature it
+                % has not.
+                pd {
+                    1 index //.xpostsys /.pagedeviceabsent get exch known {
+                        policies 2 index //.xpostsys /.policyfor get exec
+                        1 eq {
+                            merged 2 index undef
+                            report 2 index 1 put
+                            pop pop
+                        }{ refuse } ifelse
+                    }{ pop pop } ifelse
+                } forall
 
                 % A request may name any keys, and every one accumulates: each
                 % call merges its request into the page-device dictionary the last
@@ -2811,6 +2906,9 @@ currentglobal true setglobal
                     graphicsdict /.outputdevice 2 copy known
                     { get }{ pop pop /pgm } ifelse
                 } ifelse def
+                % The device the request named was held to the roster above.
+                % This holds the one the run itself settled on, which a request
+                % naming no device inherits.
                 //.xpostsys /.devicemakers get dev known not {
                     end /setpagedevice cvx /rangecheck signalerror
                 } if
@@ -2862,6 +2960,7 @@ currentglobal true setglobal
                     2 index /HWResolution eq or
                     2 index /OutputFile eq or
                     2 index /PageOffset eq or
+                    2 index /Policies eq or
                     { pop pop }{ feat 3 1 roll put } ifelse
                 } forall
 
@@ -2983,14 +3082,35 @@ currentglobal true setglobal
                 % action before returning (PLRM 6.2.6).
                 0 //.xpostsys /.setpageno get exec
                 //.xpostsys /.beginpage get exec
+
+                % PLRM 6.2.7: a request that had to consult the recovery
+                % policies ends by running PolicyReport over a dictionary
+                % naming each parameter it could not satisfy and the code that
+                % governed it. A request that met everything it asked for runs
+                % nothing.
+                %
+                % It runs after the page device is installed and its BeginPage
+                % has run, so a report may read the device it is reporting on,
+                % and outside the working dictionary, so a definition it makes
+                % lands in the program's own.
+                report length 0 gt
+                policies /PolicyReport known and
+                { report policies /PolicyReport get }
+                { null null } ifelse
                 end
+                dup null eq { pop pop }{ exec } ifelse
             } //.defop exec
 
+            % PLRM 6.1.1: what a device reports carries an entry for every
+            % page-device parameter it supports, so the recovery policies are
+            % there before a program has asked for anything -- the ones a
+            % first request merges its own into.
             /currentpagedevice [ ] {  % -  .  dict
                 graphicsdict /.pagedevice 2 copy known { get
                     dup length 1 add dict copy
                 }{ pop pop
-                    << /PageSize [ DEVICE /dimensions get aload pop ] >>
+                    << /PageSize [ DEVICE /dimensions get aload pop ]
+                       /Policies //.xpostsys /.defaultpolicies get exec >>
                 } ifelse
             } //.defop exec
             end  % Systemdict

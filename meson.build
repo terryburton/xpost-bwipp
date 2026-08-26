@@ -5226,6 +5226,17 @@ test('setpagedevice-paramcap',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# Recovery policies for page-device requests this interpreter cannot satisfy
+# (PLRM 6.2.7). The Policies dictionary says what becomes of each: an error
+# that abandons the whole request, or the parameter ignored and the request
+# carried through. PolicyReport is run at the end of a request that had to
+# consult any of it.
+test('setpagedevice-policies',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/setpagedevice_policies_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The page device's imaging bounding box (PLRM 6.2). A program declaring one
 # asserts that it paints no marks outside it, and PLRM leaves a device free to
 # render or to drop the marks that do fall outside -- which is what lets a

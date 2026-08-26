@@ -176,6 +176,20 @@ instead. Nothing else can hold more than one page in a file, so for the
 rasters and for svgwrite a %d gives a file per page and a fixed name
 keeps the last page, every page having rewritten the one file.
 
+A page-device parameter the specification defines and this interpreter
+does not provide -- /Duplex, /NumCopies, /Collate, the media selection
+keys and the rest -- is a request it cannot satisfy. What becomes of one
+is the /Policies dictionary's answer, itself a page-device parameter:
+the standing answer ignores the parameter and carries the rest of the
+request through, and a program that would rather be told writes
+
+    << /Duplex true /Policies << /Duplex 0 >> >> setpagedevice
+
+which raises configurationerror on a device that cannot duplex. Naming a
+device this interpreter cannot make is refused that way whether or not
+the request asks for it. A key the specification does not define is not
+one of these: it is a device feature, and reaches the device as one.
+
 The compiled codecs take four tuning keys, asked for with
 setpagedevice like any other device feature and accumulated the same
 way -- later requests on the same device merge over earlier ones, and

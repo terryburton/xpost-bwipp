@@ -29,6 +29,7 @@ rows are fine for a different reason: .endpage names
 # helper                    names
 .checkpagefeatures          setpagedevice
 .checkpagehandlers          setpagedevice
+.checkpagepolicies          setpagedevice
 .cidface                    show
 .crdinv3                    setcolor
 .crdtable                   setcolor

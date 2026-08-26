@@ -52,17 +52,30 @@ Level 2 operators
  [X] setcolorspace (all colour-space families; colour rendering dictionaries
      are recorded, not applied)
  [X] setpagedevice (OutputDevice, PageSize, HWResolution, OutputFile,
-     PageOffset, ImagingBBox; other keys reach the device as features.
-     A device keeping its page as rows keeps only the rows an imaging
-     bounding box reaches, so a mark painted outside the box a program
-     declared is not rendered. A page size that is not a whole number of
-     the device's pixels is taken as the next whole pixel in each
-     direction, so the medium is at most one pixel larger than the page
-     in each and no part of the page falls off it, where the reference
-     interpreters take the nearest whole pixel and let a page rounded
-     down lose its far edge; a device whose page is written as points
-     takes the size exactly. PageSize reports the size that was asked for
-     on both)
+     PageOffset, ImagingBBox, Policies; other keys reach the device as
+     features, where PLRM 6.1.1 has a device recognise no key it has no
+     feature for -- so a key the specification does not define is never
+     an unsatisfied parameter request here, and a print job can expand
+     the set of keys a page device carries. A device keeping its page as
+     rows keeps only the rows an imaging bounding box reaches, so a mark
+     painted outside the box a program declared is not rendered. A page
+     size that is not a whole number of the device's pixels is taken as
+     the next whole pixel in each direction, so the medium is at most one
+     pixel larger than the page in each and no part of the page falls off
+     it, where the reference interpreters take the nearest whole pixel
+     and let a page rounded down lose its far edge; a device whose page
+     is written as points takes the size exactly. PageSize reports the
+     size that was asked for on both)
+ [/] page device parameters (every parameter PLRM 6.2 defines and this
+     interpreter does not act on -- Duplex, NumCopies, Collate, Install,
+     the media selection and roll-fed groups, the separation and
+     trapping keys -- is a request it cannot satisfy, and the recovery
+     policies answer for it. There is no media selection behind them:
+     with no InputAttributes and no trays, a page is made at whatever
+     size is asked for, so the PageSize codes 3 to 7, which choose
+     another medium and fit the page to it, do not arise, and a size no
+     page can be built at is refused by the device rather than by
+     policy)
  [X] BeginPage, EndPage (called with the count of pages the device has
      transmitted, EndPage also with the reason -- 0 showpage, 1 copypage,
      2 the device going away -- and its boolean decides whether the page

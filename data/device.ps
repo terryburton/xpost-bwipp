@@ -890,18 +890,37 @@ end } bind put
 } put
 
 %
+%  Which entry of a page-device request an error is about. PLRM 3.11 has
+%  an operator that takes a parameter dictionary leave the key and the
+%  value of the entry it could not accept in $error, as a two-element
+%  array, for the handler to report beside the error; PLRM 8.2 requires
+%  it of configurationerror in particular.
+%
+%  $error is reached by name rather than by a frozen reference: it is a
+%  name in systemdict for a dictionary that lives in local VM, and this
+%  file's procedures are global.
+%
+.xpostsys /.setpageinfo {  % key value  .  -
+    2 array astore $error exch /errorinfo exch put
+} put
+
+%
 %  A handler that cannot be executed cannot be run at a page boundary, and
 %  finding that out then would leave the page half made; the dictionary is
-%  refused as it is offered instead.
+%  refused as it is offered instead. The entry refused is named in $error,
+%  as every entry a page-device request is refused over is.
 %
 .xpostsys /.checkpagehandlers {  % dict  .  dict
     [ /BeginPage /EndPage ] {
         2 copy known {
             2 copy get
             dup xcheck
-            exch type dup /arraytype eq exch /packedarraytype eq or
-            and not { /setpagedevice cvx /typecheck signalerror } if
-            pop
+            1 index type dup /arraytype eq exch /packedarraytype eq or
+            and not {
+                //.setpageinfo exec
+                /setpagedevice cvx /typecheck signalerror
+            } if
+            pop pop
         }{ pop } ifelse
     } forall
 } put
@@ -931,11 +950,180 @@ end } bind put
 .xpostsys /.checkpagefeatures {  % dict  .  dict
     [ /TextAlphaBits /png_compression_level /png_interlaced /jpeg_quality ] {
         2 copy known {
-            2 copy get type /integertype ne
-                { /setpagedevice cvx /typecheck signalerror } if
+            2 copy get
+            dup type /integertype ne {
+                //.setpageinfo exec
+                /setpagedevice cvx /typecheck signalerror
+            } if
+            pop
         } if
         pop
     } forall
+} put
+
+%
+%  The recovery policies a page device carries before a program asks for
+%  any (PLRM 6.2.7, Table 6.9). A parameter the dictionary does not name
+%  is governed by PolicyNotFound, which ignores it: that is the usual
+%  answer, and it is what lets a page description written for a press
+%  print here at all rather than stopping at the first tray it names.
+%
+%  An output device this interpreter cannot make and a page size it
+%  cannot honour are errors instead, because there is no ignoring either
+%  -- a page has to be made on something, of some size, and a program
+%  cannot see which was chosen for it.
+%
+%  A fresh dictionary each time it is asked for. The Policies a page
+%  device carries is merged into by every request and reverted by a
+%  restore, so no two devices may hold the same one.
+%
+.xpostsys /.defaultpolicies {  % -  .  dict
+    << /PolicyNotFound 1 /PageSize 0 /OutputDevice 0 /PolicyReport { pop } >>
+} put
+
+%
+%  The page-device parameters PLRM 6.2 defines that this interpreter
+%  provides no behaviour for. PLRM 6.1.1 has setpagedevice not recognise
+%  a request naming a feature the device has not -- whatever value it
+%  asks for, a request to turn one off included -- and consult the
+%  recovery policies instead. So each name here is an unsatisfied
+%  request, and the Policies dictionary says what becomes of it.
+%
+%  A roster rather than something deduced, because there is nothing here
+%  to deduce it from: every key of a request the page machinery does not
+%  read itself is handed to the device as a feature, which is how a
+%  driver's own knobs are reached, so a key going unread by the machinery
+%  is not evidence that nothing wanted it. These are the names of PLRM
+%  Table 6.1, less the ones this interpreter acts on -- PageSize,
+%  HWResolution, ImagingBBox, PageOffset, OutputDevice,
+%  ProcessColorModel, BeginPage, EndPage, and Policies itself.
+%
+%  A key PLRM does not define is not on it and never becomes an
+%  unsatisfied request: this interpreter's page device takes any key, so
+%  a name outside the specification is a device feature and reaches the
+%  device as one.
+%
+.xpostsys /.pagedeviceabsent <<
+    % media selection
+    /DeferredMediaSelection null  /InputAttributes null
+    /InsertSheet null             /LeadingEdge null
+    /ManualFeed null              /MediaClass null
+    /MediaColor null              /MediaPosition null
+    /MediaType null               /MediaWeight null
+    /TraySwitch null
+    % roll-fed media
+    /AdvanceDistance null         /AdvanceMedia null
+    /CutMedia null                /Orientation null
+    /RollFedMedia null
+    % page image placement
+    /Duplex null                  /ImageShift null
+    /Margins null                 /MirrorPrint null
+    /NegativePrint null           /Tumble null
+    % page delivery
+    /Collate null                 /Jog null
+    /NumCopies null               /OutputAttributes null
+    /OutputFaceUp null            /OutputType null
+    % colour support
+    /MaxSeparations null          /PageDeviceName null
+    /SeparationColorNames null    /SeparationOrder null
+    /Separations null             /Trapping null
+    /TrappingDetails null         /UseCIEColor null
+    % device initialisation
+    /Install null
+>> put
+
+%
+%  What a Policies dictionary offered to setpagedevice may say, refused
+%  where it says anything else. Read as the request is offered, before
+%  any of it is acted on, for the reason the feature check above is: a
+%  policy is consulted only when something else could not be met, so a
+%  misspelled code left to be read then would be a code found missing at
+%  the one moment the program most needs the answer.
+%
+%  Each entry but PolicyReport is one of the codes PLRM Table 6.9
+%  defines: 0 to raise a configurationerror, 1 to ignore the parameter,
+%  2 to ask a human operator. PageSize takes the wider set, 0 to 7, which
+%  names the compromises available where media are chosen from a tray.
+%  PolicyReport is a procedure, and one that cannot be run is refused
+%  here rather than at the end of the request that needed it, which is
+%  where the two page handlers are refused and for the same reason.
+%
+%  Each entry stays on the operand stack while it is read rather than
+%  being given a name. A name holding a procedure runs it when the name
+%  is read, and one of these entries is a procedure -- so a PolicyReport
+%  named here would be run by the check meant to decide whether it can be
+%  run at all.
+%
+.xpostsys /.checkpagepolicies {  % dict  .  dict
+    dup /Policies 2 copy known {
+        get 2 dict begin
+        /pol exch def
+        pol type /dicttype ne {
+            /Policies pol end //.setpageinfo exec
+            /setpagedevice cvx /typecheck signalerror
+        } if
+        pol {                                   % key value
+            exch dup /PolicyReport eq {         % value key
+                pop
+                dup xcheck
+                1 index type dup /arraytype eq exch /packedarraytype eq or
+                and not {
+                    /Policies pol end //.setpageinfo exec
+                    /setpagedevice cvx /typecheck signalerror
+                } if
+                pop
+            }{                                  % value key
+                exch                            % key value
+                dup type /integertype ne {
+                    /Policies pol end //.setpageinfo exec
+                    /setpagedevice cvx /typecheck signalerror
+                } if
+                dup 0 lt
+                2 index /PageSize eq { 7 }{ 2 } ifelse
+                2 index exch gt
+                or {
+                    /Policies pol end //.setpageinfo exec
+                    /setpagedevice cvx /rangecheck signalerror
+                } if
+                pop pop
+            } ifelse
+        } forall
+        end
+    }{ pop pop } ifelse
+} put
+
+%
+%  The code governing one page-device parameter: the one the Policies
+%  dictionary carries for it, or the one PolicyNotFound carries for every
+%  parameter it does not name (PLRM 6.2.7).
+%
+.xpostsys /.policyfor {  % policies key  .  int
+    2 copy known { get }{ pop
+        /PolicyNotFound 2 copy known { get }{ pop pop 1 } ifelse
+    } ifelse
+} put
+
+%
+%  Changes to a Policies dictionary are cumulative and merge one level
+%  down (PLRM 6.1.1): the entries a request names join those already in
+%  force rather than displacing the dictionary that holds them.
+%
+%  The answer is a fresh dictionary, neither of the two handed over. The
+%  page device's own has to be revertible by a restore, which wants the
+%  slot pointed at a dictionary a save saw; and a program that keeps a
+%  reference to the dictionary it asked with must not be able to rewrite
+%  the policies in force afterwards.
+%
+.xpostsys /.mergepolicies {  % policies request  .  policies
+    4 dict begin
+    /request exch def
+    /base exch def
+    /extra request /Policies 2 copy known { get }{ pop pop 0 dict } ifelse def
+    /out base length extra length add dict def
+    base { out 3 1 roll put } forall
+    extra { out 3 1 roll put } forall
+    out
+    end
 } put
 
 %

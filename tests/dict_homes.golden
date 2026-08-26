@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 397
+entries 403
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -142,6 +142,7 @@ entries 397
 .xpostsys /.crdtable
 .xpostsys /.cierender
 .xpostsys /.armdevrequest
+.xpostsys /.checkpagepolicies
 .xpostsys /.classcopydict
 .xpostsys /.clipbig
 .xpostsys /.clipmeet
@@ -180,6 +181,7 @@ entries 397
 .xpostsys /.customcolorspace
 .xpostsys /.devicefor
 .xpostsys /.decode
+.xpostsys /.defaultpolicies
 .xpostsys /.defcategory
 .xpostsys /.defop
 .xpostsys /.defopin
@@ -289,6 +291,7 @@ entries 397
 .xpostsys /.maskcapture
 .xpostsys /.marktransfer
 .xpostsys /.mcscale
+.xpostsys /.mergepolicies
 .xpostsys /.meshsh
 .xpostsys /.min
 .xpostsys /.mrdalign
@@ -310,6 +313,7 @@ entries 397
 .xpostsys /.num2str
 .xpostsys /.opsigs
 .xpostsys /.outlinepath
+.xpostsys /.pagedeviceabsent
 .xpostsys /.pagefilename
 .xpostsys /.pagehandler
 .xpostsys /.pagemarked
@@ -332,6 +336,7 @@ entries 397
 .xpostsys /.pmix
 .xpostsys /.playdrop
 .xpostsys /.playparams
+.xpostsys /.policyfor
 .xpostsys /.polybounds
 .xpostsys /.polytopath
 .xpostsys /.radialsh
@@ -362,6 +367,7 @@ entries 397
 .xpostsys /.screenlattice
 .xpostsys /.sepconv
 .xpostsys /.setclipregion
+.xpostsys /.setpageinfo
 .xpostsys /.setpagemarked
 .xpostsys /.setpageno
 .xpostsys /.setpagesent
