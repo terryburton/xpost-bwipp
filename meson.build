@@ -834,7 +834,8 @@ san = '@0@'.format(get_option('b_sanitize'))
 if not san.contains('none')
   add_test_setup('sanitized',
     timeout_multiplier: 10,
-    env: [ 'RENDER_TIMEOUT=2400', 'XPOST_NO_VM_IMAGE=1' ],
+    env: [ 'RENDER_TIMEOUT=2400', 'VM_GROWTH_TIMEOUT=6000',
+           'XPOST_NO_VM_IMAGE=1' ],
     is_default: true)
 else
   add_test_setup('loaded',
@@ -5426,11 +5427,19 @@ test('check-device-destroy',
 # process, and hands the next lifetime whatever the teardown freed. Every
 # such variable is held to saying what becomes of it, over a population
 # derived from the source rather than listed.
+# The limit is named because the default is not enough for it everywhere.
+# This walks every static in the library and every line that declares one,
+# which is a few seconds where processes are cheap and 46.73 seconds on the
+# msys2 runner -- measured there, on a run that passed. Against the sixty
+# seconds the default and its multiplier come to, that leaves no margin at
+# all, and the next run took 60.19 and was killed. A test killed by a clock
+# reports the same red as a test that found a defect.
 test('check-library-lifetime',
   find_program('tests/check-library-lifetime.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir() ])
+  args: [ meson.current_source_dir() ],
+  timeout: 300)
 
 # Part of several cache keys is a number a counter handed out, and such a
 # cache is exactly as good as the promise that no number is handed out

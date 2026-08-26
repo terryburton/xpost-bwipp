@@ -66,8 +66,18 @@ export XPOST_DATA_DIR
 # to terminate. Set well above what the corpus needs -- it sweeps in under a
 # minute on the machine this was written on, an address-sanitized build with
 # leak checking multiplies that, a shared runner is slower again -- so a slow
-# host is not raced. Honoured with the system's timeout where there is one and
-# a background sleeper where there is not (the base system of macOS has none).
+# host is not raced.
+#
+# Instrumentation multiplies it by more than the margin covers, though, and
+# the limit here is the script's own: meson's timeout multiplier scales the
+# time meson allows the test and says nothing to what the test allows itself,
+# so under a sanitizer this expired first and reported a corpus that had
+# measured nothing rather than a build that was slow. It is named in the
+# environment for that reason, as the render limit beside it is, and the
+# sanitized setup raises it there.
+#
+# Honoured with the system's timeout where there is one and a background
+# sleeper where there is not (the base system of macOS has none).
 if command -v timeout > /dev/null 2>&1; then
     xg_limit() { _lim=$1; shift; timeout "$_lim" "$@"; }
 elif command -v gtimeout > /dev/null 2>&1; then
@@ -134,7 +144,7 @@ if [ "$nrun" -lt 50 ]; then
 fi
 
 # Run the whole corpus as one job server.
-xg_limit 600 "$xpost" -q --no-sandbox -d null --jobserver \
+xg_limit "${VM_GROWTH_TIMEOUT:-600}" "$xpost" -q --no-sandbox -d null --jobserver \
     < "$work/stream" > "$work/out" 2>"$work/err"
 
 # A collection that cannot find an entity's table row is following a dangling

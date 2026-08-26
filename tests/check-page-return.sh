@@ -77,6 +77,28 @@ if ! grep -q '^#define HAVE_MMAP' "$build/config.h"; then
     exit 77
 fi
 
+# An address-sanitized build does not hand a freed block back to the system
+# either: the sanitizer holds it in a quarantine so that a read of it is
+# still reported, and its quarantine is larger than everything this streams.
+# Resident memory therefore cannot fall however correctly the boundary
+# retires the device, which is the same shape of skip as the two above --
+# a build being asked a question it does not have.
+#
+# Measured rather than supposed. The forty-job probe grows 8410 pages under
+# the default quarantine and is flat (-2 pages) with the quarantine set to a
+# megabyte, on the same build and the same binary: nothing is retained that
+# the interpreter retained.
+#
+# Read off the binary, which is what the build is, rather than off the
+# option, which is only what was asked for.
+if ldd "$xpost" 2>/dev/null | grep -q 'libasan' ||
+   nm -D "$xpost" 2>/dev/null | grep -q '__asan_init'; then
+    echo "SKIP: this build is address-sanitized, and the sanitizer holds every"
+    echo "      freed block in a quarantine rather than returning it, so"
+    echo "      resident memory cannot fall for the boundary to be held to"
+    exit 77
+fi
+
 XPOST_DATA_DIR="$src/data"
 export XPOST_DATA_DIR
 
