@@ -375,7 +375,13 @@ Xpost_Check_Stack _check_stack_funcs[] = {
    Derived afresh at every use: an allocation may grow the memory file,
    which moves it, so an address taken before one still stands but a
    pointer does not. */
-static unsigned char *_optab_at(Xpost_Memory_File *gl, unsigned int off)
+/* A byte of the table, named by its offset from the table's start.
+
+   void * rather than unsigned char *, as xpost_vm_ptr is for the arena:
+   every caller wants it as something else -- a row, a run of signatures,
+   a run of type bytes -- and a cast at each of them is a cast that can be
+   got wrong at each of them. */
+static void *_optab_at(Xpost_Memory_File *gl, unsigned int off)
 {
     return gl->optab + off;
 }
