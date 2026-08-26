@@ -408,7 +408,7 @@ entries 403
 .xpostsys /.withspacebody
 .xpostsys /.wrapwithsig
 .xpostsys /.zeros
-.xpostsys /ColorConversion
+.xpostsys /ColorConversionDict
 .xpostsys /CopypageSemanticsDict
 .xpostsys /ShowpageSemanticsDict
 .xpostsys /cpath

@@ -2419,7 +2419,7 @@ void _face_setup(Xpost_Context *ctx,
 }
 
 /* Resolve the current colour into the device's native space, applying
-   the same source-to-destination conversions as the ColorConversion
+   the same source-to-destination conversions as the ColorConversionDict
    table in color.ps (gray by NTSC luminosity, CMYK composed by
    additive complement, RGB to CMYK with full black generation and
    undercolor removal), so glyphs mark in exactly the colour a fill

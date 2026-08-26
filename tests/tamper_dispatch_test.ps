@@ -86,7 +86,7 @@ nbad 0 eq (no internal dispatch dictionary stores an executable name) assert
 
 % --- the nested-table bound-ness sweep: a procedure stored inside a NESTED
 %     dispatch dictionary (a table within a table, like the per-space entries
-%     of ColorConversion) must not carry an executable name that resolves to
+%     of ColorConversionDict) must not carry an executable name that resolves to
 %     a standard operator. The lockdown's .bindscope descends recursively, so
 %     these are frozen structurally; a regression to fixed-depth descent, or
 %     a new nested table added without a per-procedure bind, resurfaces here.

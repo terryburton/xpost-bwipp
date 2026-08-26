@@ -1303,7 +1303,7 @@ end
     cvr dup 0.0 lt { pop 0.0 } if dup 1.0 gt { pop 1.0 } if
 } put
 
-.xpostsys /ColorConversion <<  % <</dest <</source {source-to-dest conversion}>> >>
+.xpostsys /ColorConversionDict <<  % <</dest <</source {source-to-dest conversion}>> >>
     /DeviceGray <<
         /DeviceGray {  % -  .  gray
             graphicsdict /currgstate get /colorcomp1 get
@@ -1398,7 +1398,7 @@ end
 %  space it is actually in.
 %
 /currentgray [ ] {  % -  .  gray
-    //ColorConversion /DeviceGray get
+    //ColorConversionDict /DeviceGray get
         graphicsdict /currgstate get /colorspace get
         get exec
 } .defop
@@ -1420,7 +1420,7 @@ end
 %  it is actually in.
 %
 /currentrgbcolor [ ] {  % -  .  r g b
-    //ColorConversion /DeviceRGB get
+    //ColorConversionDict /DeviceRGB get
         graphicsdict /currgstate get /colorspace get
         get exec
 } .defop
@@ -1494,7 +1494,7 @@ end
 %  it is actually in.
 %
 /currentcmykcolor [ ] {  % -  .  c m y k
-    //ColorConversion /DeviceCMYK get
+    //ColorConversionDict /DeviceCMYK get
         graphicsdict /currgstate get /colorspace get
         get exec
 } .defop
