@@ -445,9 +445,21 @@ void xpost_context_glob_release(Xpost_Context *ctx, unsigned int id)
     free(globbuf);
 }
 
-/* destroy context
-FIXME: delete cid from CTXLIST, destroy memory file when empty
- */
+/* Take a context apart, and with it the two memory files it names.
+
+   Only the interpreter's own context reaches here. xpost_destroy declines
+   any other by name, because a forked context shares both memory files
+   with its parent and taking one apart under a live sibling would pull the
+   arena out from under it. So the files are released exactly once, by the
+   context that outlives every fork of it.
+
+   A context that has ended keeps its number in the context list rather
+   than being taken out of it. What reads that list is the collector,
+   walking the contexts that share a memory file, and it passes over a slot
+   whose state is C_FREE -- so a number naming a context that has ended
+   costs the walk one comparison and can name nothing a sweep would take.
+   Removing it would buy that comparison back at the price of closing a
+   hole in a list every collection reads. */
 void xpost_context_exit(Xpost_Context *ctx)
 {
     unsigned int i;
