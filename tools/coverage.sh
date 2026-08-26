@@ -34,12 +34,14 @@
 # worth anyone's effort -- is declared as data below, applied to the
 # rankings, and printed from the same declaration.
 #
-# The report is written to standard output. To refresh the two checked-in
-# baselines, one per object width:
+# The report is written to standard output and is not kept in the tree: a
+# checked-in coverage report is a snapshot that goes stale with the next
+# test and reads as current. Run it when the question is being asked, one
+# run per object width:
 #
-#     tools/coverage.sh bcov full > doc/COVERAGE.md
+#     tools/coverage.sh bcov full
 #     meson setup bcovlarge -Db_coverage=true -Dlarge-object=true
-#     tools/coverage.sh bcovlarge full > doc/COVERAGE-large.md
+#     tools/coverage.sh bcovlarge full
 #
 #   $1     build directory to use (default: bcov). A directory that is not
 #          there is configured only under that default name, and only at the
@@ -345,9 +347,9 @@ grep -Ev "^src/[a-z]*/($discount_re)\|" "$work/files.u" > "$work/files.r" || :
 nguardr=$(wc -l < "$work/never.r" | tr -d ' ')
 
 case $width in
-    wide) record='doc/COVERAGE-large.md'; setup='meson setup bcovlarge -Db_coverage=true -Dlarge-object=true'
+    wide) record='the wide report'; setup='meson setup bcovlarge -Db_coverage=true -Dlarge-object=true'
           bdir='bcovlarge' ;;
-    *)    record='doc/COVERAGE.md'; setup='meson setup bcov -Db_coverage=true'
+    *)    record='the report'; setup='meson setup bcov -Db_coverage=true'
           bdir='bcov' ;;
 esac
 
@@ -355,7 +357,7 @@ printf '# Test coverage (%s build)\n\n' "$widthname"
 printf 'How much of the C sources the test suite executes, and what it never\n'
 printf 'makes them do. Regenerate with\n\n'
 printf '    %s\n' "$setup"
-printf '    tools/coverage.sh %s %s > %s\n\n' "$bdir" "$profile" "$record"
+printf '    tools/coverage.sh %s %s    (%s)\n\n' "$bdir" "$profile" "$record"
 printf '(needs gcov; takes a few minutes, since it builds an instrumented tree\n'
 printf 'and runs the profile in it. The setup line is not optional: only a\n'
 printf 'default `bcov` is configured on the caller'"'"'s behalf, and a directory\n'

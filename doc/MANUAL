@@ -27,13 +27,13 @@ the behavioural deviations and the implementation limits; doc/COMPAT
 says where each user-visible name comes from.
 
 How much is tested is a fair question to ask of an interpreter. The
-suite is 377 tests, run at both of the object widths the tree builds at;
+suite is 432 tests, run at both of the object widths the tree builds at;
 doc/GATING.md says which run answers which question. Beside it are
 corpora of real programs, fetched rather than committed, rendered and
-compared page by page (tests/corpus/README.md). doc/COVERAGE.md and
-doc/COVERAGE-large.md report how much of the C sources a full run
-executes, one per object width, and are explicit that executing a line
-is not the same as pinning down what it does.
+compared page by page (tests/corpus/README.md). tools/coverage.sh
+reports how much of the C sources a full run executes, one report per
+object width, and is explicit that executing a line is not the same as
+pinning down what it does.
 
 
 == Getting the source ==

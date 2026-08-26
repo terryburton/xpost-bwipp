@@ -156,7 +156,6 @@ answers which question.
 | `doc/xpost_design.dox` | how it works: the module map, the memory, the object, the operators, the devices, the recorded page and the band loop. The Design page of the generated reference |
 | `doc/xpost_roots.dox` | what the garbage collector marks from, and which bank each root lives in |
 | `doc/COMPAT` | where each user-visible name comes from |
-| `doc/COVERAGE.md`, `doc/COVERAGE-large.md` | how much of the C sources a full run executes, one per object width |
 | `COMPLIANCE` | operator by operator: implemented, partly, or not; then the behavioural deviations and the implementation limits |
 | `doc/xpost_dicts.dox` | every dictionary the interpreter carries, and what belongs in it |
 

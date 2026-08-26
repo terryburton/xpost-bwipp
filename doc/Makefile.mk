@@ -36,8 +36,6 @@ endif
 EXTRA_DIST += \
 doc/COMPAT \
 doc/CONTRIBUTING.md \
-doc/COVERAGE.md \
-doc/COVERAGE-large.md \
 doc/GATING.md \
 doc/MANUAL \
 doc/Doxyfile \
@@ -46,10 +44,8 @@ doc/xpost_design.dox \
 doc/xpost_roots.dox \
 doc/xpost_dicts.dox \
 doc/m.pic \
-doc/m.ps \
 doc/mtab.eps \
 doc/mtab.png \
 doc/s.pic \
-doc/s.ps \
 doc/stack.eps \
 doc/stack.png

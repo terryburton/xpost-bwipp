@@ -163,8 +163,9 @@ like coverage.
 **Sabotage what you have just written.** A new test or guard that passes
 proves nothing until the thing it is supposed to catch has been put in
 front of it and it has failed. Break the code, watch it go red, put the
-code back. `doc/COVERAGE.md` ranks the untested code by consequence and
-puts first the guards nothing has ever made refuse -- conditions the
+code back. `tools/coverage.sh` writes a report that ranks the untested
+code by consequence and puts first the guards nothing has ever made
+refuse -- conditions the
 suite reaches by the hundred million and never once makes come out the
 other way -- because the refusing side of a guard is the whole point of
 it. A dictionary-growth use-after-free was found on the far side of one

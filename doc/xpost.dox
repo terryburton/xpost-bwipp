@@ -16,8 +16,9 @@
  * xpost is a PostScript LanguageLevel 3 interpreter, built as a shared
  * library (libxpost) with a command-line interpreter and an embedding
  * example on top of it. README.md at the tree root describes what it
- * implements, its output devices, and how it is tested; doc/COMPAT
- * records the deviations from the published language.
+ * implements, its output devices, and how it is tested. doc/COMPAT
+ * records where each user-visible name comes from, and COMPLIANCE at the
+ * tree root records the deviations from the published language.
  *
  * @section xpost_compilation Compilation and installation
  *
