@@ -333,6 +333,100 @@ cs.n 2 eq (the procedure ran once per decoded character) check
 C inkof 0 gt (the glyph the procedure showed marks the page) check
 C S differs 0 eq (and is the glyph the walk paints) check
 
+% --- Type 4 CIDFonts and the BitmapFontInit procedure set ---------------
+%
+% PLRM 5.11: a Type 4 CIDFont carries no glyph descriptions at all. Its
+% glyphs are device pixel arrays loaded one at a time by addglyph, painted
+% as stencil masks, and taken away again by removeglyphs and removeall.
+% PLRM Table 3.10 puts the three operators in the BitmapFontInit procedure
+% set rather than in systemdict, so they are reached through it.
+%
+% The glyph is a hollow 8x8 box: 8 bits on the top row, two on each of six
+% middle rows, 8 on the bottom -- 28 in all, which is what the page must
+% carry once for one glyph and twice for two.
+
+/BFI /BitmapFontInit /ProcSet findresource def
+/T4BOX <FF818181818181FF> def
+/T4MX [ 8 0 0 0 8 8 ] def
+
+8 dict begin
+  /CIDFontName /T4Test def
+  /CIDFontType 4 def
+  /CIDSystemInfo << /Registry (T) /Ordering (T4) /Supplement 0 >> def
+  /FontMatrix [1 0 0 1 0 0] def
+  /FontBBox [0 0 8 8] def
+  /CIDCount 256 def
+CIDFontName currentdict end /CIDFont defineresource /T4F exch def
+
+/CIDInit /ProcSet findresource begin
+10 dict begin
+  begincmap
+  /CMapName /T4TestCMap def
+  /CIDSystemInfo << /Registry (T) /Ordering (T4) /Supplement 0 >> def
+  1 begincodespacerange <00> <FF> endcodespacerange
+  1 begincidrange <00> <FF> 0 endcidrange
+  endcmap
+  CMapName currentdict end /CMap defineresource pop
+end
+/T4T0 /T4TestCMap [ /T4Test ] composefont pop
+
+% the operators are in the procedure set and not in systemdict
+systemdict /addglyph known not (addglyph is not in systemdict) check
+BFI /addglyph known (addglyph is in the BitmapFontInit set) check
+BFI /removeall known (removeall is in the BitmapFontInit set) check
+BFI /removeglyphs known (removeglyphs is in the BitmapFontInit set) check
+
+% what each refuses. The metrics are setcachedevice's six numbers or
+% setcachedevice2's ten; the bitmap has to fill the box they describe;
+% the CID has to be one the font declares; and all three want a Type 4.
+{ T4MX T4BOX 65 T4F BFI /addglyph get exec } stopped not
+    (addglyph takes a glyph) check
+{ [ 8 0 0 ] T4BOX 66 T4F BFI /addglyph get exec } stopped
+    (addglyph refuses metrics that are neither six nor ten) check
+{ T4MX <FF> 67 T4F BFI /addglyph get exec } stopped
+    (addglyph refuses a bitmap too short for its box) check
+{ T4MX T4BOX 9999 T4F BFI /addglyph get exec } stopped
+    (addglyph refuses a CID the font does not declare) check
+{ T4MX T4BOX 1 << /CIDFontType 2 >> BFI /addglyph get exec } stopped
+    (addglyph refuses a font that is not Type 4) check
+{ T4F BFI /removeall get exec } stopped not
+    (removeall takes a Type 4 font) check
+{ 9 2 T4F BFI /removeglyphs get exec } stopped
+    (removeglyphs refuses a range that runs backwards) check
+{ 0 255 T4F BFI /removeglyphs get exec } stopped not
+    (removeglyphs takes a range) check
+clear
+
+% and what it paints. The count is read back off the page rather than
+% asserted from the outside: a glyph that did not arrive marks nothing,
+% and one painted twice marks twice.
+/t4count { % -  .  int   -- dark samples on the page
+    /t4n 0 def
+    DEV /ImgData get { { 128 lt { /t4n t4n 1 add store } if } forall } forall
+    t4n
+} bind def
+/t4ink { % (str)  .  int
+    erasepage
+    gsave /T4T0 findfont 1 scalefont setfont 20 20 moveto show grestore
+    t4count
+} def
+
+T4MX T4BOX 65 T4F BFI /addglyph get exec
+(A) t4ink 28 eq (a Type 4 glyph paints its bitmap) check
+(AA) t4ink 56 eq (each glyph advances the point by its own width) check
+
+% charpath over a Type 4 font has no effect (PLRM 5.11): there is no
+% outline to take, and it must not paint the bitmap instead.
+erasepage
+gsave /T4T0 findfont 1 scalefont setfont
+newpath 20 20 moveto (A) true charpath fill grestore
+t4count 0 eq
+    (charpath over a Type 4 font marks nothing) check
+
+% removed glyphs stop painting
+0 255 T4F BFI /removeglyphs get exec
+(A) t4ink 0 eq (a removed glyph marks nothing) check
+
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
 quit

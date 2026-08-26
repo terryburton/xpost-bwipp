@@ -179,6 +179,189 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 >> /ProcSet defineresource pop
 
 %
+%  The BitmapFontInit procedure set (PLRM Table 3.10 and Table A.1), which
+%  is how a Type 4 CIDFont is filled.
+%
+%  A Type 4 CIDFont carries no glyph descriptions at all (PLRM 5.11, "Type
+%  4 CIDFonts"): its glyphs arrive one at a time from addglyph, already
+%  rendered as device pixel arrays, and are painted as stencil masks. PLRM
+%  says the result is essentially what a Type 3 font's BuildGlyph produces
+%  by calling imagemask, and that is the route they take here -- so the
+%  cache the painting machinery already keeps for repeated stencils serves
+%  them without being told they are glyphs.
+%
+%  WHERE THE BITMAPS ARE KEPT, and what that costs. PLRM has them go
+%  straight into the font cache rather than into virtual memory, and gives
+%  the reason: a Type 4 font is meant to cost only its dictionary, where
+%  the equivalent Type 3 font pays for every bitmap twice, once in VM and
+%  again in the cache. These are kept in virtual memory, in a table beside
+%  the font rather than in it -- defineresource leaves a registered font
+%  read-only, so there is nowhere in the font to put them, which is the
+%  same reason PLRM gives for not putting them there. The saving PLRM
+%  describes is therefore not had; the behaviour is: glyphs paint, the two
+%  removers take them away again, and charpath over them marks nothing,
+%  because there is no outline to take.
+%
+%  The table is keyed by the font dictionary itself, so two fonts of one
+%  CIDFontName do not share glyphs, and lives in the local scratch
+%  dictionary, so a job's glyphs go when the job does.
+%
+.xpostsys /.t4store {  % -  .  dict
+    .gscratch /.t4glyphs 2 copy known
+        { get }
+        { 8 dict dup 4 1 roll put } ifelse
+} put
+
+%  The glyph table of one Type 4 CIDFont, made on first use.
+%
+%  Keyed by CIDFontName and not by the dictionary, because composefont
+%  takes a working copy of every descendant: keyed by identity, glyphs
+%  added before the font was composed would be invisible to the composite
+%  and glyphs added after it invisible to the original. The name is what
+%  both copies agree on, and is what defineresource registered the font
+%  under in the first place. A font with no CIDFontName falls back to
+%  itself, which is the best identity there is for one.
+.xpostsys /.t4glyphs {  % cidfont  .  dict
+    /CIDFontName 2 copy known { get }{ pop } ifelse
+    //.xpostsys /.t4store get exec
+    exch 2 copy known
+        { get }
+        { 2 copy 32 dict put get } ifelse
+} put
+
+%  A Type 4 CIDFont, or the error PLRM names for anything else.
+.xpostsys /.t4font {  % any /op  .  cidfont
+    exch dup type /dicttype ne
+        { pop cvx /invalidfont signalerror } if
+    dup /CIDFontType 2 copy known { get }{ pop pop -1 } ifelse 4 ne
+        { pop cvx /invalidfont signalerror } if
+    exch pop
+} put
+
+%
+%  Paint one Type 4 glyph: the bitmap addglyph left for this CID, as a
+%  stencil mask at the current point, and the current point moved on by
+%  the width the metrics declare.
+%
+%  The bitmap is a device pixel array (PLRM 5.11), so it is painted under
+%  a transform of its own rather than under the font's: the current point
+%  goes to device space, the mask is laid there one bit to one pixel with
+%  its corner at (llx, lly), and the width is carried back through the
+%  font matrix so the advance is in the text space the caller is writing
+%  in. A glyph the font has not been given marks nothing and advances
+%  nothing.
+%
+.xpostsys /.t4show {  % cidfont cid  .  -
+    8 dict begin
+    /cid exch def
+    /f exch def
+    /g f //.xpostsys /.t4glyphs get exec def
+    g cid known {
+        /e g cid get def
+        /mx e 0 get def
+        /bm e 1 get def
+        /llx mx 2 get def /lly mx 3 get def
+        /w mx 4 get llx sub cvi def
+        /h mx 5 get lly sub cvi def
+        w 0 gt h 0 gt and
+        .gscratch /.t4nopaint known not and {
+            gsave
+                currentpoint translate
+                f /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
+                concat
+                llx lly translate
+                % one sample to one unit of glyph space, which is one
+                % device pixel under the transform the font was drawn for
+                % (PLRM 5.11)
+                w h true [ 1 0 0 -1 0 h ] bm imagemask
+            grestore
+        } if
+        % the advance is the metrics', carried into text space
+        currentpoint
+        mx 0 get mx 1 get
+        f /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
+        dtransform
+        3 -1 roll add 3 1 roll add exch moveto
+    } if
+    end
+} put
+
+/BitmapFontInit <<
+    %  metrics bitmap cid cidfont addglyph  .  -
+    %
+    %  The metrics are setcachedevice's six numbers or setcachedevice2's
+    %  ten (PLRM 8.2). The bitmap is one bit per pixel, rows starting on a
+    %  byte boundary, painted with its (0,0) corner at (llx, lly).
+    /addglyph {
+        6 dict begin
+        /f exch /addglyph //.xpostsys /.t4font get exec def
+        /cid exch def
+        /bm exch def
+        /mx exch def
+        cid type /integertype ne { /addglyph cvx /typecheck signalerror } if
+        bm type /stringtype ne { /addglyph cvx /typecheck signalerror } if
+        mx type dup /arraytype ne exch /packedarraytype ne and
+            { /addglyph cvx /typecheck signalerror } if
+        mx length dup 6 ne exch 10 ne and
+            { /addglyph cvx /rangecheck signalerror } if
+        mx { type dup /integertype ne exch /realtype ne and
+             { /addglyph cvx /typecheck signalerror } if } forall
+
+        % A CID outside what the font declares names no glyph.
+        cid 0 lt
+        f /CIDCount 2 copy known { get }{ pop pop 0 } ifelse
+            dup 0 gt { cid le }{ pop false } ifelse
+        or { /addglyph cvx /rangecheck signalerror } if
+
+        % The box the metrics give, and the bitmap that has to fill it.
+        /llx mx 2 get def /lly mx 3 get def
+        /urx mx 4 get def /ury mx 5 get def
+        urx llx lt ury lly lt or
+            { /addglyph cvx /rangecheck signalerror } if
+        /w urx llx sub cvi def
+        /h ury lly sub cvi def
+        bm length w 7 add 8 idiv h mul lt
+            { /addglyph cvx /rangecheck signalerror } if
+
+        % Replaces the bitmap already there for that character, if any.
+        f //.xpostsys /.t4glyphs get exec
+        cid [ mx bm ] put
+        end
+    }
+
+    %  cidfont removeall  .  -
+    /removeall {
+        2 dict begin
+        % the table first, then the name to bind it to: a literal name
+        % pushed ahead of the operands would be read as one of them
+        /removeall //.xpostsys /.t4font get exec
+        //.xpostsys /.t4glyphs get exec /g exch def
+        % the keys are read out before any is removed: a dictionary being
+        % walked is not a dictionary to delete from
+        [ g { pop } forall ] { g exch undef } forall
+        end
+    }
+
+    %  firstcid lastcid cidfont removeglyphs  .  -
+    %
+    %  No error arises from a reference to a glyph that is not there
+    %  (PLRM 8.2); only the range itself is held to.
+    /removeglyphs {
+        4 dict begin
+        /removeglyphs //.xpostsys /.t4font get exec
+        //.xpostsys /.t4glyphs get exec /g exch def
+        /last exch def
+        /first exch def
+        first type /integertype ne last type /integertype ne or
+            { /removeglyphs cvx /typecheck signalerror } if
+        last first lt first 0 lt or
+            { /removeglyphs cvx /rangecheck signalerror } if
+        first 1 last { g exch undef } for
+        end
+    }
+>> /ProcSet defineresource pop
+
+%
 %  The composite show machinery lives in the private global namespace,
 %  reached across files by a frozen //.xpostsys reference, so a program
 %  cannot see or disturb it. composefont and cshow below are public.
@@ -499,7 +682,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                 } if
             } ifelse
         } if
-        gid gproc
+        % A Type 4 descendant has no glyph descriptions to route: its
+        % glyphs are the bitmaps addglyph left, painted as stencil masks
+        % (PLRM 5.11). A CID with nothing loaded marks nothing, which is
+        % what a font whose glyph has not been sent yet has to do.
+        desc /CIDFontType 2 copy known { get 4 eq }{ pop pop false } ifelse {
+            desc gid //.t4show exec
+        }{
+            gid gproc
+        } ifelse
         /fc 0 def
         0 1 w 1 sub { str p 3 -1 roll add get fc 256 mul add /fc exch def } for
         fc .showhook

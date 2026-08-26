@@ -1473,9 +1473,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /cpfont exch def
     cpfont //.fontroute exec /composite eq {
         cpfont /FMapType 2 copy known { get 9 eq }{ pop pop false } ifelse {
-            cpfont cpstr
-            { //.glyphcharpath exec }
-            //.xpostsys /.cmapwalk get exec
+            % A Type 4 descendant has no outline to take, and PLRM 5.11
+            % says charpath over one has no effect. The walk is told so
+            % here rather than asked to guess from the procedure it was
+            % given: the glyph still advances the point, as it does for a
+            % Type 3 base font, and marks nothing.
+            .gscratch /.t4nopaint true put
+            { cpfont cpstr
+              { //.glyphcharpath exec }
+              //.xpostsys /.cmapwalk get exec
+            } stopped
+            .gscratch /.t4nopaint undef
+            { stop } if
         }{
             cpstr stringwidth rmoveto
         } ifelse
