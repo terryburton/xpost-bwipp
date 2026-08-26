@@ -7,8 +7,10 @@ file, because a stale backlog is read as a live one and stops anyone
 looking.
 
 So it is kept as what it honestly is -- the 2016 list, checked item by
-item against the tree on 2026-08-14, each item marked with where it
-stands and where to look. It is not maintained as work arrives and never
+item against the tree on 2026-08-14 and again on 2026-08-26, each item
+marked with where it stands and where to look. The second pass was worth
+making: three of the entries the first had marked open or accurate had
+stopped being either, one of them the day after it was written. It is not maintained as work arrives and never
 was, so an item's absence from it says nothing whatever.
 
 ## Short term (as of 2016)
@@ -32,7 +34,7 @@ for the local one, 0 turns it on again, and 1 and 2 perform an immediate
 collection of the local bank or of both (PLRM 8.2). `doc/ROOTS` says what
 a collection marks from.
 
-**More unit tests.** The suite is 316 tests at two object widths, with
+**More unit tests.** The suite is 430 tests at two object widths, with
 corpora of real programs beside it. Retired as an item: it named no
 particular gap, and `doc/COVERAGE.md` ranks the ones that exist by
 consequence, which is the form that can actually be worked from.
@@ -44,8 +46,11 @@ builds an instrumented tree, runs a named profile in it and writes
 **Documentation on the web site.** Nothing in this tree can answer this
 one; it is about a site, not about the source.
 
-**Visual Studio installer.** Open. `visual_studio/` carries project
-files for vc10, vc12 and vc14 and no installer.
+**Visual Studio installer.** Settled the other way, and no longer
+possible to want: the `visual_studio/` directory this described was
+deleted on 2026-08-15 ("build: delete three artefacts no build has read
+for a decade"), the day after the entry was written, and MSVC is not a
+supported toolchain. Windows is built with msys2/mingw, which CI covers.
 
 ## Longer term (as of 2016)
 
@@ -55,16 +60,19 @@ are still there. `doc/INTERNALS` explains why the internal matrix is
 the transpose of the PLRM's.
 
 **Remove optab from VM, thus removing all pointers; remove
-`xpost_free_realloc()`.** Open on both halves. The operator table is
-still a special entity of global virtual memory
-(`XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE`), and `xpost_free_realloc`
-is still in `src/lib/xpost_free.[ch]`.
+`xpost_free_realloc()`.** Half done. `xpost_free_realloc` is gone, taken
+out when an operator's signatures moved inside the table that names them.
+The operator table is still a special entity of global virtual memory
+(`XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE`), so the first half stands.
 
 **Extensible search for the PostScript init files, or resource-compile
-them into the executable.** Partly. `-I DIR` adds a resource search
-directory for what a program asks for; the files the interpreter boots
-from are still read from the data directory, found by the search
-described in `doc/INTERNALS`.
+them into the executable.** Partly, and the second half has been answered
+another way. `-I DIR` adds a resource search directory for what a program
+asks for, and the files the interpreter boots from are still read from
+the data directory. What compiling them in was for -- not paying to build
+the language on every run -- is what the image of virtual memory now
+does: a run reads the language back instead of assembling it, in about a
+sixth of the time. See "The image of virtual memory" in `doc/INTERNALS`.
 
 **Anti-aliasing, Porter/Duff compositing, an alpha channel, and the
 `/DeviceN` colour space.** Three of the four are done. `/DeviceN` is
