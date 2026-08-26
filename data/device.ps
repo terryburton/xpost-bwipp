@@ -1167,8 +1167,28 @@ end } bind put
         % ran, so the verdict does not depend on what the caller happened to
         % have below, and a handler that empties the stack is caught too.
         count /base exch def
-        //.pageno exec reason
-        h exec
+
+        % The handler is the program's, so it runs with this dictionary off
+        % the dictionary stack: a definition it makes is the program's to
+        % keep and lands in the dictionary the program has current, and the
+        % names kept here are neither in its way nor there for it to read.
+        %
+        % The dictionary goes back on from the procedure that runs the
+        % handler -- which is on the execution stack throughout -- and not
+        % from the operand stack, which the handler is free to leave any way
+        % it likes, empty included. A handler that raises never reaches the
+        % step that puts it back, so the dictionary stack is then as deep as
+        % the caller left it, which is what a caller swallowing the failure
+        % needs.
+        %
+        % That procedure is built here and never bound, so the two operators
+        % it runs are taken from systemdict as values rather than written as
+        % names it would look up: a program may define either name over the
+        % standard one.
+        [ //.pageno exec reason /h load systemdict /exec get
+          currentdict systemdict /begin get ] cvx
+        end exec
+
         count base 1 add eq
         dup { pop dup type /booleantype eq } if
     } ifelse

@@ -2788,9 +2788,18 @@ currentglobal true setglobal
                 % page is ending regardless, so a failure is read as the standard
                 % answer and the handover goes ahead. showpage and copypage do let
                 % such a failure out, where the program can catch it and try again.
+                %
+                % What the call left behind is dropped by counting back to
+                % where the operand stack stood rather than back to a mark:
+                % the handler is the program's and may empty the stack, a
+                % mark included, and the operator would then fail over the
+                % mark it could not find -- which is the device stuck behind
+                % its handler again, by the other road.
                 /xmit false def
-                mark { 2 //.xpostsys /.endpage get exec /xmit exch store }
-                stopped { } if cleartomark
+                /xbase count def
+                { 2 //.xpostsys /.endpage get exec /xmit exch store }
+                stopped { } if
+                count xbase sub dup 0 gt { { pop } repeat }{ pop } ifelse
                 xmit {
                     /DEVICE where { pop
                         DEVICE type /dicttype eq { DEVICE //.xpostsys /.transmitpage get exec } if
@@ -3113,11 +3122,27 @@ currentglobal true setglobal
                 % while it runs. The procedure is the program's, so a
                 % definition it makes is the program's to keep, and one made
                 % into this operator's scratch dictionary would go when the
-                % operator returned.
+                % operator returned; and the names kept there are neither in
+                % the procedure's way nor there for it to read.
+                %
+                % The dictionary comes back on from the procedure that runs
+                % it -- which is on the execution stack throughout -- and not
+                % from the operand stack: the procedure is the program's and
+                % may leave that stack any way it likes, empty included, and
+                % the operator is not finished with the dictionary. A
+                % procedure that raises never reaches the step that puts it
+                % back, and the operator's own unwinding closes what the
+                % request opened.
+                %
+                % That procedure is built here and never bound, so the two
+                % operators it runs are taken from systemdict as values
+                % rather than written as names it would look up: a program
+                % may define either name over the standard one.
                 /Install //.xpostsys /.pagehandler get exec
                 dup null eq { pop }{
-                    newdev exch currentdict 3 1 roll end  % wd newdev proc
-                    exec
+                    [ exch systemdict /exec get
+                      currentdict systemdict /begin get ] cvx
+                    end exec
 
                     % PLRM 6.2.6: the transformation matrix is the one
                     % device-independent parameter the procedure can
@@ -3127,15 +3152,14 @@ currentglobal true setglobal
                     % from, and what initgraphics goes back to ever after.
                     % The matrix is made in local VM, a device being a
                     % local object and this one of its own.
-                    currentglobal false setglobal exch
-                    /defaultmatrix matrix currentmatrix put
+                    currentglobal false setglobal
+                    newdev /defaultmatrix matrix currentmatrix put
                     setglobal
 
                     % Every other device-independent parameter goes back to
                     % its standard value, which is where a line width, a
                     % colour or a path the procedure left behind is undone.
                     initgraphics
-                    begin
                 } ifelse
 
                 % The page a device is installed on starts clear: resetting the
@@ -3145,12 +3169,13 @@ currentglobal true setglobal
                 erasepage
                 off aload pop translate
 
-                % The page count belongs to the device, so an activation starts it
-                % again at zero, and setpagedevice calls BeginPage as its last
-                % action before returning (PLRM 6.2.6).
+                % The page count belongs to the device, so an activation starts
+                % it again at zero.
                 0 //.xpostsys /.setpageno get exec
-                //.xpostsys /.beginpage get exec
 
+                % PLRM 6.2.6: BeginPage is setpagedevice's last action before
+                % returning, save for the report below.
+                %
                 % PLRM 6.2.7: a request that had to consult the recovery
                 % policies ends by running PolicyReport over a dictionary
                 % naming each parameter it could not satisfy and the code that
@@ -3158,15 +3183,32 @@ currentglobal true setglobal
                 % nothing.
                 %
                 % It runs after the page device is installed and its BeginPage
-                % has run, so a report may read the device it is reporting on,
-                % and outside the working dictionary, so a definition it makes
-                % lands in the program's own.
+                % has run, so a report may read the device it is reporting on.
+                %
+                % Both are the program's procedures, and both run with the
+                % working dictionary already off the dictionary stack: a
+                % definition either makes is the program's to keep, and the
+                % names kept here are neither in their way nor there for them
+                % to read.
+                %
+                % Where a report is due, the dictionary it reports and the
+                % procedure that reads it travel in the procedure that runs
+                % BeginPage -- on the execution stack -- rather than on the
+                % operand stack, which BeginPage is free to leave any way it
+                % likes, empty included. That procedure is built here and
+                % never bound, so the exec it runs is taken from systemdict as
+                % a value rather than written as a name it would look up: a
+                % program may define that name over the standard one. A
+                % request that has nothing to report needs none of this, and
+                % builds nothing.
                 report length 0 gt
                 policies /PolicyReport known and
-                { report policies /PolicyReport get }
-                { null null } ifelse
-                end
-                dup null eq { pop pop }{ exec } ifelse
+                { [ //.xpostsys /.beginpage get systemdict /exec get
+                    report policies /PolicyReport get systemdict /exec get
+                  ] cvx
+                  end exec }
+                { end //.xpostsys /.beginpage get exec }
+                ifelse
             } //.defop exec
 
             % PLRM 6.1.1: what a device reports carries an entry for every

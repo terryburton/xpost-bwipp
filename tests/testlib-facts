@@ -162,7 +162,7 @@ own    operator_identity_test.ps              1
 own    oversize_page_test.ps                  2
 own    printobject_overflow_test.ps           1
 own    page_extent_test.ps                    2
-own    page_handlers_test.ps                  5
+own    page_handlers_test.ps                 13
 own    path_bounds_test.ps                    2
 own    path_recycle_test.ps                   1
 own    path_walk_cost_test.ps                 1

@@ -314,6 +314,150 @@ fresh
 cerr /undefinedresult eq (an Install that fails reports its own error) assert
 fresh
 
+% --- the dictionary a handler runs in ------------------------------------
+% PLRM 6.2.6 has the interpreter call these procedures at the points it
+% describes; the procedures are the program's, so what one defines is the
+% program's to keep and lands in the dictionary the program has current.
+% The operator's own working dictionary is off the dictionary stack while
+% a handler runs, so the names it keeps there are neither in the handler's
+% way nor available for the handler to read or shadow.
+/depth0 countdictstack def
+/bpdepth -1 def /bpsaw true def
+/epdepth -1 def /epsaw true def
+fresh
+<< /OutputDevice /null
+   /BeginPage { pop /bpdef 1 def
+                /bpdepth countdictstack store
+                /bpsaw currentdict /merged known
+                       currentdict /pd known or
+                       currentdict /dev known or store }
+   /EndPage   { pop pop /epdef 1 def
+                /epdepth countdictstack store
+                /epsaw currentdict /reason known
+                       currentdict /base known or
+                       currentdict /h known or store
+                true } >> setpagedevice
+userdict /bpdef known
+    (a definition BeginPage makes lands in the program's dictionary) assert
+bpdepth depth0 eq
+    (BeginPage runs at the dictionary stack depth it was called from) assert
+bpsaw not
+    (BeginPage cannot read the operator's own names) assert
+showpage
+userdict /epdef known
+    (a definition EndPage makes lands in the program's dictionary) assert
+epdepth depth0 eq
+    (EndPage runs at the dictionary stack depth it was called from) assert
+epsaw not
+    (EndPage cannot read the operator's own names) assert
+
+% --- a handler may leave the operand stack any way it likes --------------
+% What the operator still has to do when a handler returns travels with the
+% procedure that ran it rather than on the operand stack, so a handler that
+% empties the stack or leaves things on it does not take the operator's own
+% work with it.
+/spdok false def
+fresh
+{ << /OutputDevice /null /PageSize [200 300] /BeginPage { clear } >> setpagedevice
+  /spdok true store } stopped pop clear
+spdok (a BeginPage that empties the operand stack does not stop the request) assert
+currentpagedevice /PageSize get 0 get 200 eq
+    (and the request that ran it took effect) assert
+
+/bpjunkok false def
+fresh
+{ << /OutputDevice /null /BeginPage { pop 1 2 3 } >> setpagedevice
+  /bpjunkok true store } stopped pop clear
+bpjunkok (a BeginPage that leaves things on the operand stack does not stop the request) assert
+
+/instok false def
+fresh
+{ << /OutputDevice /null /PageSize [220 310] /Install { clear } >> setpagedevice
+  /instok true store } stopped pop clear
+instok (an Install that empties the operand stack does not stop the request) assert
+currentpagedevice /PageSize get 0 get 220 eq
+    (and the request that ran it took effect) assert
+
+/instjunkok false def
+fresh
+{ << /OutputDevice /null /Install { 1 2 3 } >> setpagedevice
+  /instjunkok true store } stopped pop clear
+instjunkok (an Install that leaves things on the operand stack does not stop the request) assert
+
+% The interpreter hands Install nothing: PLRM 6.2.6 gives it no operand,
+% and the operator's own working is not left on the stack for it to read.
+% The count is taken before the name it is stored under is pushed.
+/instcount -1 def
+fresh
+clear
+<< /OutputDevice /null /Install { count /instcount exch store } >> setpagedevice
+instcount 0 eq (Install runs over an operand stack the operator left alone) assert
+% BeginPage is handed the page count and nothing else (PLRM 6.2.6).
+/bpcount -1 def
+fresh
+clear
+<< /OutputDevice /null /BeginPage { count /bpcount exch store pop } >> setpagedevice
+bpcount 1 eq (BeginPage is handed its page count and nothing else) assert
+
+% --- a handler that fails leaves the dictionary stack where it was -------
+fresh
+{ << /OutputDevice /null /BeginPage { pop 1 0 div pop } >> setpagedevice } stopped pop clear
+countdictstack depth0 eq
+    (a BeginPage that fails leaves the dictionary stack where it was) assert
+fresh
+{ << /OutputDevice /null /Install { 1 0 div pop } >> setpagedevice } stopped pop clear
+countdictstack depth0 eq
+    (an Install that fails leaves the dictionary stack where it was) assert
+
+% The device handover swallows a failing EndPage so the device can always
+% be replaced; what the handler left open must be closed just the same, or
+% every swallowed failure leaves the dictionary stack one deeper and the
+% program ends up defining into a dictionary that is not its own.
+fresh
+<< /OutputDevice /null /EndPage { pop pop 1 0 div pop true } >> setpagedevice
+/replacedf false def
+{ << /OutputDevice /null /EndPage { pop pop true } >> setpagedevice
+  /replacedf true store } stopped pop clear
+replacedf (a device whose EndPage fails can still be replaced) assert
+countdictstack depth0 eq
+    (and the swallowed failure leaves the dictionary stack where it was) assert
+
+fresh
+<< /OutputDevice /null /EndPage { pop pop clear true } >> setpagedevice
+/replacedc false def
+{ << /OutputDevice /null /EndPage { pop pop true } >> setpagedevice
+  /replacedc true store } stopped pop clear
+replacedc
+    (a device whose EndPage empties the operand stack can still be replaced) assert
+countdictstack depth0 eq
+    (and that handover leaves the dictionary stack where it was) assert
+
+% --- the report a request ends with -------------------------------------
+% PLRM 6.2.7: a request that had to consult the recovery policies runs
+% PolicyReport last of all, after the BeginPage that PLRM 6.2.6 makes
+% setpagedevice's last action; and it is the program's procedure too, so
+% it runs in the program's own dictionary.
+/prorder 4 string def
+/propos 0 def
+/prmark { prorder propos 3 -1 roll put /propos propos 1 add store } bind def
+/prdepth -1 def
+fresh
+/propos 0 store
+<< /OutputDevice /null
+   /BeginPage { pop 1 prmark }
+   /NumCopies 3
+   /Policies << /PolicyReport { pop 2 prmark /prdef 1 def
+                                /prdepth countdictstack store } >> >> setpagedevice
+propos 2 eq (a request that could not be met runs BeginPage and a report) assert
+propos 2 eq { prorder 0 get 1 eq prorder 1 get 2 eq and }{ false } ifelse
+    (the report runs after BeginPage) assert
+userdict /prdef known
+    (a definition PolicyReport makes lands in the program's dictionary) assert
+prdepth depth0 eq
+    (PolicyReport runs at the dictionary stack depth it was called from) assert
+
+fresh
+
 % -------------------------------------------------------------------------
 % ADJUDICATED against Adobe, and two answers differ on purpose.
 %
