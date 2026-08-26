@@ -80,6 +80,18 @@ mark { (no.such.file.xyz) (r) file } stopped
 cleartomark
 /Generic /Category findresource type /dicttype eq (resources work) assert
 
+% resourceforall hands each instance to a procedure the program supplied, and
+% it runs that procedure through the interpreter's callout bracket. The
+% bracket belongs to the language and not to the graphics, so this has to
+% work in a configuration that never loads the graphics -- a bracket
+% reachable only once the graphics are in would leave resourceforall raising
+% undefined here, and nothing else looks in this configuration for it.
+/rfcount 0 def
+(*) { pop /rfcount rfcount 1 add def } 128 string /Filter resourceforall
+rfcount 0 gt (resourceforall reaches its instances without graphics) assert
+(*) { pop /rfcount rfcount 1 add def } 128 string /IODevice resourceforall
+rfcount 0 gt (an implicit category enumerates without graphics) assert
+
 % a program may freely define the now-absent graphics names for its own use
 /ravec { 42 } def ravec 42 eq (program may use a freed helper name) assert
 

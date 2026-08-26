@@ -306,4 +306,37 @@ clear
 } forall
 missingimplicit 0 eq (the implicit resource categories are all there) assert
 
+
+% --- the procedure runs in the program's own context ------------------
+%
+% resourceforall is implemented in PostScript and needs a dictionary of its
+% own to enumerate out of. That dictionary is the interpreter's, and the
+% program's procedure must not be standing in it: a name the procedure
+% defines belongs to the program and has to land where the program will
+% look for it, and the machinery's own members must not be in reach of a
+% name the procedure resolves. Both are invisible unless asked -- a
+% definition that lands in a dictionary about to be discarded raises
+% nothing, it just is not there afterwards.
+/dsdepth countdictstack def
+/rfdepth -1 def
+/rfcurrent false def
+/rfprivate true def
+/rfdefined false def
+(*) { pop
+    /rfdepth countdictstack store
+    /rfcurrent currentdict userdict eq store
+    /rfprivate /.rfbuf where { pop true }{ false } ifelse store
+    /rfdefined true store
+} 60 string /Filter resourceforall
+rfdefined (the procedure ran at all) assert
+rfdepth dsdepth eq (it ran at the dictionary depth its caller had) assert
+rfcurrent (its current dictionary is the caller's, not the machinery's) assert
+rfprivate not (the machinery's own members are out of its reach) assert
+
+% and what it defines is still there once the enumeration is over, which is
+% the same fact from the program's side
+/rfstore 0 def
+(*) { pop /rfstore rfstore 1 add def } 60 string /Filter resourceforall
+rfstore 0 gt (what the procedure defined outlived the enumeration) assert
+
 verdict

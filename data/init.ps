@@ -268,6 +268,41 @@ userdict /.xpostsys get .setglobalprivatedict
 } put
 
 %
+%  The callout boundary alone, for a caller that hands control to the
+%  program part-way through a body of its own: a Type 3 glyph's build
+%  procedure, a transfer function or spot function being sampled, a
+%  colour space's conversion, a pattern's PaintProc, or the procedure
+%  resourceforall runs over each instance. The bracket around such a body
+%  is the caller's, and what it does about the graphics state and the
+%  dictionary stack is the caller's business; only this much of it
+%  belongs to the program.
+%
+%  So the boundary stands where the program's object runs and nowhere
+%  else. What the caller does before and after -- reading what the
+%  procedure returned, and refusing on it -- is the caller refusing, and
+%  its operands come back. The object runs exactly as exec would run it,
+%  and nothing of this sits on the operand stack while it does.
+%
+%  It is defined here, and not with the other three brackets in
+%  graphics.ps, because two of its callers are the language rather than
+%  the graphics: the resource machinery runs a program's procedure over
+%  every instance, and that has to work in a configuration that never
+%  loads the graphics at all. A bracket reachable only when the graphics
+%  are loaded would leave resourceforall raising undefined under
+%  --no-graphics, which is exactly where nothing else would look for it.
+%  Only the .coexec operator is baked in, so it depends on nothing this
+%  file has not already built.
+%
+%  Fetched out of .xpostsys by cid.ps, color.ps, font.ps, gstate.ps,
+%  halftone.ps, init.ps, path.ps and resource.ps, and running under the
+%  dictionary stack its caller had: it opens no dictionary and closes
+%  none.
+%
+.xpostsys /.pexec {  % obj  .  -
+    { exec } //.coexec
+} put
+
+%
 %  privatedict -- the interpreter's private LOCAL machinery dictionary. Recorded
 %  in the context (where the collector roots it and C reaches it) but never placed
 %  on the dict stack, so a program can neither name nor enumerate its members. It

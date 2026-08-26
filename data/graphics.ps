@@ -351,33 +351,6 @@ systemdict begin
 } def
 
 %
-%  The boundary alone, for a caller that hands control to the program
-%  part-way through a body of its own: a Type 3 glyph's build procedure,
-%  a transfer function being sampled, a spot function being sampled, a
-%  colour space's conversion. The bracket around such a body is the
-%  caller's, and what it does about the graphics state and the dictionary
-%  stack is the caller's business; only this much of it belongs to the
-%  program.
-%
-%  So the boundary stands where the program's object runs and nowhere
-%  else. What the caller does before and after -- reading what the
-%  procedure returned, and refusing on it -- is the caller refusing, and
-%  its operands come back.
-%
-%  The object runs exactly as exec would run it, and nothing of this sits
-%  on the operand stack while it does.
-%
-%  A helper, fetched out of .xpostsys by cid.ps, color.ps, font.ps,
-%  gstate.ps, init.ps, path.ps and resource.ps, and running under the
-%  dictionary stack its caller had: it opens no dictionary and closes
-%  none. Only the .coexec operator is baked in, so where it stands in
-%  this file is free.
-%
-/.pexec {  % obj  .  -
-    { exec } //.coexec
-} def
-
-%
 %  --- running a body with a dictionary current ------------------------
 %
 %  The other bracket, and the smaller one. A body that opens a dictionary
