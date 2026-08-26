@@ -958,7 +958,9 @@ WARN_LOGFILE           =
 INPUT                  = src/bin \
                          src/lib \
                          doc/xpost.dox \
-                         doc/xpost_design.dox
+                         doc/xpost_design.dox \
+                         doc/xpost_roots.dox \
+                         doc/xpost_dicts.dox
 
 # This tag can be used to specify the character encoding of the source files
 # that Doxygen parses. Internally Doxygen uses the UTF-8 encoding. Doxygen uses

@@ -11,14 +11,19 @@
  * memory for a page is bounded by policy rather than by the page's
  * size; and every structural rule the design states is enforced by a
  * test that fails when the rule is broken, so this description and the
- * tree cannot quietly diverge. doc/INTERNALS is the module map,
- * doc/ROOTS enumerates the collector's root set, doc/MANUAL is the
- * user's side, and doc/GATING.md describes the test architecture the
- * last commitment rests on.
+ * tree cannot quietly diverge.
+ *
+ * Two companion pages carry the enumerations this one refers to rather
+ * than repeats: @subpage xpost_roots, the garbage collector's root set
+ * bank by bank, and @subpage xpost_dicts, which dictionary every name
+ * lives in and the rule for adding one. doc/MANUAL is the user's side,
+ * and doc/GATING.md describes the test architecture the last commitment
+ * rests on.
  *
  * @section design_toc Contents
  *
  * @li @ref design_langsplit
+ * @li @ref design_modules
  * @li @ref design_boot
  * @li @ref design_objects
  * @li @ref design_vm
@@ -48,7 +53,10 @@
  * @li @ref design_dsc
  * @li @ref design_testing
  * @li @ref design_perf
+ * @li @ref design_practice
  * @li @ref design_distinctives
+ * @li @ref xpost_roots
+ * @li @ref xpost_dicts
  *
  * @section design_langsplit What is C and what is PostScript
  *
@@ -121,6 +129,97 @@
  * makes further contexts inside the same interpreter; a fork shares
  * both memory files and gets stacks of its own.
  *
+ * @section design_modules The modules, and how they layer
+ *
+ * Two module sets, one per language. Every C source opens with a doxygen
+ * block naming itself and saying what it holds -- the file list of this
+ * reference is generated from those, and a guard
+ * (tests/check-file-purpose.sh) fails a source that carries no such block,
+ * so the map below cannot fall behind the tree without something going
+ * red.
+ *
+ * The C side layers from the arena upward, and the dependency runs one
+ * way: the core knows nothing of objects, objects know nothing of
+ * operators, and the operator modules know nothing of each other.
+ *
+ * @verbatim
+ * core        xpost_memory     the arena, and the table that indexes it
+ *             xpost_stack      the segmented stacks
+ *             xpost_save       save and restore
+ *             xpost_free       the free lists
+ *             xpost_garbage    the collector  (+ _diag, what it reports)
+ *             xpost_handle     naming a block that is not in virtual memory
+ *             xpost_vm_image   a context's virtual memory as one file
+ *
+ * objects     xpost_object     tags, and the simple constructors
+ *             xpost_array      a run of objects in the arena
+ *             xpost_string     a run of bytes in the arena
+ *             xpost_dict       the hash table every name is looked up in
+ *             xpost_name       the trees that give each name a number
+ *             xpost_file       disk files, and the filters over one
+ *             xpost_operator   the operator table, in row order
+ *
+ * run         xpost_interpreter  the main loop
+ *             xpost_context      the stacks, the two banks, the roots
+ *             xpost_error        raising, and the record a handler reads
+ *             xpost_main         starting a run and taking it down
+ *             xpost_log          where the interpreter's own messages go
+ *             xpost_compat       what the hosts disagree about (+ _posix,
+ *                                _win32)
+ *
+ * operators   xpost_oplib      asks each module below to install what it owns
+ *             xpost_op_stack   xpost_op_boolean  xpost_op_control
+ *             xpost_op_math    xpost_op_array    xpost_op_string
+ *             xpost_op_dict    xpost_op_type     xpost_op_save
+ *             xpost_op_file    xpost_op_token    xpost_op_misc
+ *             xpost_op_path    xpost_op_matrix   xpost_op_font
+ *             xpost_op_param   xpost_op_context  xpost_op_packedarray
+ *
+ * imaging     xpost_span       a row of pixels a paint covers
+ *             xpost_matrix     the transformations a graphics state holds
+ *             xpost_font       faces, glyphs, and the rendered-glyph cache
+ *             xpost_record     the recorded page
+ *             xpost_spill      the scratch file such a page may go to
+ *             xpost_strbuf     a growing byte buffer, outside virtual memory
+ *
+ * devices     xpost_dev_generic  what every other device inherits from
+ *             xpost_dev_driver   loads a device by name
+ *             xpost_dev_record   keeps the marks instead of the pixels
+ *             xpost_dev_raster   the embedder's rasters, per pixel layout
+ *             xpost_dev_bgr      the BGR raster
+ *             xpost_dev_png      PNG, with and without alpha
+ *             xpost_dev_jpeg     JPEG
+ *             xpost_dev_xcb      the X11 window, through XCB
+ *             xpost_dev_win32    the Windows window
+ *
+ * dsc         xpost_dsc_parse    reads the structuring comments
+ *             xpost_dsc_file     gets a file's bytes to that reader
+ *
+ * programs    xpost              the command-line interpreter
+ *             xpost_dsc          prints what the comments say
+ *             xpost_view         puts a rendered page in a window
+ *                                (+ _xcb, _win32 back ends)
+ *             xpost_client       drives the interpreter as a library
+ * @endverbatim
+ *
+ * The PostScript side is twenty-eight files in the data directory, loaded
+ * through one module loader. init.ps builds the machinery and loads
+ * err.ps, the sort and resource machinery (qsort.ps, resource.ps) and the
+ * job layer; graphics.ps, when first asked for, loads the graphics
+ * language in a fixed order -- device, gstate, halftone, color, path,
+ * clip, paint, font, cid, pattern, shade -- and the device layer loads the
+ * imaging core (image.ps), the structural devices (nulldev.ps, bboxdev.ps,
+ * recorddev.ps), the raster format classes (pgmimage, ppmimage, pbmimage,
+ * tiffimage) and the vector writers (pdfwrite, svgwrite, dscwrite).
+ * prepr.ps is the pre-parser the scanner's binary token work uses. The
+ * order is load-bearing where a module bakes a reference to another's
+ * helper, which is why it is stated once, in graphics.ps, rather than
+ * discovered per file.
+ *
+ * Neither set has a unit-test main() left in it: the six that once lived
+ * behind @c TESTMODULE_* symbols are gone, and every test that runs is in
+ * tests/.
+ *
  * @section design_boot Booting, and fast initialisation from an image
  *
  * A cold boot interprets about a megabyte and a third of PostScript --
@@ -144,6 +243,26 @@
  * first context a process makes. XPOST_VM_IMAGE names the file to
  * read, XPOST_VM_IMAGE_WRITE the file to write, and
  * XPOST_NO_VM_IMAGE turns reading off without moving the file.
+ *
+ * A run told nothing looks in two places -- beside the boot files, then
+ * in the user's cache directory (@c XDG_CACHE_HOME or @c $HOME/.cache,
+ * @c LOCALAPPDATA on Windows) -- and, finding neither, writes the
+ * second. The first is an installation's: built once by whoever
+ * assembled it, out of the files sitting beside it, read by every run
+ * on the machine and never written by one. The second is a cache in the
+ * ordinary sense, and deleting it costs the time it would have saved.
+ * The file's name carries the object width and the configuration,
+ * because those decide what the bytes mean and which language was
+ * built, and deliberately not the identity of the build, so two builds
+ * of one width and configuration take turns at one file rather than
+ * each leaving one behind for ever. A run that built the language
+ * writes through a file named for its own process and moves it onto the
+ * name, so another run finds a whole image or none. The suite sets
+ * XPOST_NO_VM_IMAGE throughout: which of the two ways a run comes up
+ * would otherwise depend on whether a file happened to be sitting in
+ * the cache, and a suite whose subject is the language must not answer
+ * differently for that reason. The image has tests of its own, which
+ * say where their image is.
  *
  * What an image does not carry is as much of the design as what it
  * does. Host state is excluded by construction: where this process
@@ -442,7 +561,7 @@
  * @section design_gc Garbage collection
  *
  * The collector is mark-sweep over the memory files, with the root
- * set enumerated bank by bank in doc/ROOTS: the save stack of each
+ * set enumerated bank by bank in @ref xpost_roots -- the save stack of each
  * bank, the stacks of every context sharing it, and the special
  * entities. The mark phase walks an explicit worklist rather than the
  * C stack, so a deep object graph costs queue entries rather than
@@ -464,10 +583,12 @@
  * a local-only collection, by tests/check-global-local-anchors.sh.
  *
  * Collections are paced two ways, both cheap to ask. Bytes: an
- * allocation debit against a threshold (four megabytes by default --
- * a measured value: wall time is flat from about a megabyte up, and
- * a much larger threshold buys no time while holding several times
- * the memory; XPOST_GC_THRESHOLD and @c setvmthreshold override it). Entity numbers: past a table-size watermark, a
+ * allocation debit against a threshold
+ * (XPOST_GARBAGE_COLLECTION_THRESHOLD, four megabytes by default -- a
+ * measured value: wall time is flat from about a megabyte up, and a
+ * much larger threshold buys no time while holding several times the
+ * memory; XPOST_GC_THRESHOLD and @c setvmthreshold override it).
+ * Entity numbers: past a table-size watermark, a
  * per-allocation budget is spent so a job that churns rows without
  * churning many bytes still collects before the table saturates.
  * Either way the allocator only marks a collection pending; it is
@@ -480,11 +601,12 @@
  * @section design_free The free list
  *
  * Storage a collection recovers goes on free lists bucketed by size
- * class: sixteen buckets, each covering a doubling of sizes, heads
- * kept in the FREE special entity's data area. Freeing pushes in
+ * class: sixteen buckets (XPOST_FREE_NBUCKETS), each covering a
+ * doubling of sizes, heads kept in the FREE special entity's data
+ * area. Freeing pushes in
  * constant time. An allocation searches its own class best-fit but
- * examines at most eight entries there before taking a guaranteed
- * fit from a higher bucket or fresh space -- the bound matters:
+ * examines at most eight entries there (XPOST_FREE_SCAN_LIMIT) before
+ * taking a guaranteed fit from a higher bucket or fresh space -- the bound matters:
  * without one the cost of allocating is proportional to everything
  * the job has ever released, a quadratic product on churny jobs, and
  * with it an allocation's search is constant. An oversized block serves a smaller request by
@@ -541,8 +663,10 @@
  * costs is the fault to fill it back in, paid by whichever later
  * allocation touches it. Storage is returned a page at a time,
  * which is not the grain the region is handed out in (on Windows the
- * two differ sixteenfold), and the two grains are kept as separate
- * numbers.
+ * two differ sixteenfold, the region being handed out in
+ * allocation-granularity units), and the two grains are kept as
+ * separate numbers -- @c xpost_memory_page_size and
+ * @c xpost_memory_return_grain.
  *
  * Compaction happens only at the interpreter's outermost loop, never
  * inside the operator that asked: moving the arena invalidates every
@@ -772,8 +896,11 @@
  * stacks, and the current path are the child's, while VM -- and so
  * userdict and every composite -- is shared. Context identifiers are
  * issued so a slot can be reused while every identifier in the
- * process's history stays unique, and a context-typed handle carries
- * one so a program cannot forge it from a number.
+ * process's history stays unique: they run from one, and a context's
+ * seat in the table is @c (cid-1) modulo the table's size, so the
+ * allocator steps the counter on until that lands on an empty seat. A
+ * context-typed handle carries an identifier so a program cannot forge
+ * one from a number.
  *
  * Scheduling is cooperative -- concurrency, not preemption. A context
  * runs until it yields, blocks on I/O, or returns from its top-level
@@ -819,6 +946,32 @@
  * instance is a copy of its class with the page's dimensions and
  * the run's requests written over it.
  *
+ * The suite is small enough to state. Taking the 8-bit grayscale class
+ * as the example -- colour differs only in how many colour values each
+ * procedure is handed:
+ *
+ * @verbatim
+        width height CLASS  Create    ->  instance
+                val x y DEV  PutPix    ->  -
+                    x y DEV  GetPix    ->  val
+        val x1 y1 x2 y2 DEV  DrawLine  ->  -
+   val x y width height DEV  DrawRect  ->  -
+   val x y width height DEV  FillRect  ->  -
+            val polygon DEV  FillPoly  ->  -
+                        DEV  Emit      ->  -
+                        DEV  Destroy   ->  -
+@endverbatim
+ *
+ * with the unoverridden implementations resolving downward: DrawLine
+ * walks a Bresenham DDA through PutPix, and FillRect and FillPoly draw
+ * a line per scanline. So a class that overrides nothing but PutPix is
+ * already a working device, and one that overrides the span-level
+ * methods is a fast one. Create builds the raster as @c /ImgData, an
+ * array of one string per scanline, priced before any of it is built;
+ * an embedder wanting the pixels can override @c Emit and read that
+ * array. A device may also implement @c /Flush, which puts out whatever
+ * it has buffered so the output keeps step with the program.
+ *
  * The compiled drivers -- PNG, JPEG, the embedder's raster and BGR
  * buffers, the window devices -- install C operators over the same
  * shape: each overrides the marking methods (pixel put and blend,
@@ -848,6 +1001,15 @@
  * from the moment it is issued, and is given back when the entity
  * carrying the handle is reclaimed, from whichever of the three
  * routes reaches it first (the sweep, an explicit free, teardown).
+ * The window drivers load in two halves for a reason worth stating,
+ * because it is the general shape of a compiled device built on a
+ * PostScript one: loading installs a maker, and the maker's Create runs
+ * the base class's Create -- which may itself be PostScript -- before
+ * overriding the drawing methods on the instance it gets back. C cannot
+ * call into the interpreter and carry on down the same C frame, so each
+ * half ends where the interpreter takes over and the rest is a
+ * continuation the interpreter calls next.
+ *
  * No raw pointer is ever held in a
  * device dictionary, and the same property is what makes VM images
  * refusable: an image is declined at the write if any entity carries
@@ -984,10 +1146,27 @@
  * the device resolves clips, outlines and page resets into those
  * five before they arrive; a recorder declaring more would put
  * marks beyond the record's reach. An entry is one of nine kinds:
- * the five marks, a placed picture, a screen cell, a glyph mask,
- * and a placed drawing (a form). Every entry carries the run of
- * rows it can reach, conservatively, so a band replay visits only
- * the entries whose range meets the band.
+ *
+ * @verbatim
+   PUTPIX    <colour> x y
+   BLENDPIX  <colour> coverage x y
+   DRAWLINE  <colour> x1 y1 x2 y2
+   FILLRECT  <colour> x y w h
+   FILLPOLY  <colour> n, then n pairs
+   IMAGE     which picture, placed by its own transform
+   SCREEN    which threshold cell
+   GLYPH     which coverage mask, then x y
+   PLACE     which drawing, then dx dy
+@endverbatim
+ *
+ * Every entry carries the run of rows it can reach, and that range
+ * must be a conservative superset: a visit too many costs time, while
+ * a mark judged out of a band it touches is simply absent from the
+ * page. A band replay visits only the entries whose range meets the
+ * band. A record is fixed to the resolution it was made at -- its
+ * coordinates are device space, the clip already resolved into them
+ * above the device -- so replaying it at another scale would give a
+ * scaled copy of the same pixels rather than a re-rendering.
  *
  * Bulk pixels follow one rule: a bitmap produced once is held once
  * and re-emitted per band. A picture is one entry naming its
@@ -999,33 +1178,114 @@
  * covering rectangle), which is what keeps @c copypage's
  * transmit-without-erase meaning what it says.
  *
+ * Which classes will take a banded page is a declaration, and silence
+ * means no. The PostScript raster formats declare it -- grayscale,
+ * colour and the bilevel and TIFF copies of them -- and so do PNG and
+ * JPEG. Three kinds of device take it back out: the embedder's raster
+ * and BGR buffers, whose page is the caller's and whole by contract;
+ * the window devices, whose drivers write the page whole; and every
+ * compiled device keeping a raster of its own. The alpha PNG device
+ * takes it back out for a reason of its own, and the reason is worth
+ * stating because it is a limit of the mechanism rather than a
+ * preference: a page arrives in bands by being recorded and played
+ * back, a record writes a page reset down as a rectangle in the colour
+ * the page clears to, and the page this device clears to is transparent
+ * rather than any colour -- so the reset that makes it what it is does
+ * not survive the round trip. Its writer takes a page a band at a time
+ * regardless, which is exercised with no record in front of it.
+ *
+ * The declaration and the routing are a pair. A separate roster says
+ * which devices a record may be played into, and a device that
+ * declares a banded page while appearing in no route promises an
+ * arrival no budget can give it. A guard holds the two together by
+ * asking a running interpreter what each class declares, rather than
+ * reading it off a driver's source: a class is built and not spelled,
+ * and one driver body here makes two classes that answer differently.
+ * What a row costs is declared the same way, and a copy must restate
+ * it rather than inherit it -- a budget divided by a number nobody
+ * restated buys a band of some other height than the one it paid for.
+ *
  * Whether a page bands at all is one number against another. A
  * class declares what a row of its raster costs; a run has a byte
- * budget (four megabytes unless \--band-bytes names another --
- * above the ordinary sheets' rasters, so letter and A4 paint
- * directly and a tall strip bands); the band height is the budget
+ * budget (four megabytes unless \--band-bytes names another); the
+ * band height is the budget
  * over the row cost, and a page bands exactly when the budget buys
- * fewer rows than the page has. The decision is taken where a
- * device is made, at the page that device is to hold. None of this
- * is a page-device parameter -- the language bars a program from
- * choosing how many times its marks are played -- but a program may
- * ask: @c currentsystemparams reports the budget and the band
- * height in force. An /ImagingBBox declaration narrows the page to
- * the rows it can reach on both routes, whole rows being what a
- * row-holding device can drop.
+ * fewer rows than the page has, so it bands the moment it would need
+ * a second band and never bands into one. The decision is taken where
+ * a device is made, at the page that device is to hold -- for the
+ * device a run opens with, and again for every page-device request
+ * that makes another -- and never between two of them, because a page
+ * description states its page by declaring it, and weighing only the
+ * page a run opened at would hold every page a job asked for whole.
+ *
+ * At four megabytes the ordinary sheets are painted directly: letter
+ * is 612 by 792 at three bytes a pixel, or 1,454,112 bytes; A4 is
+ * 1,502,970 and A3 is 3,008,466. What the bound is for is untouched by
+ * those -- a 612 by 40,000 strip costs 73,440,000 bytes held whole,
+ * and is held in 2,178 rows of that instead. A run naming a budget
+ * below the ordinary figures is what bands an ordinary sheet. The
+ * comparison is a page's raster against the budget, so what holding
+ * the marks instead costs is not in it: neither the record, nor the
+ * objects a replay builds afresh for each band. The number was put
+ * above the largest ordinary sheet's raster and rounded up; where the
+ * two costs actually cross has not been measured, so it is a free
+ * parameter with a reason for its size and no reading behind its
+ * value.
+ *
+ * None of this is a page-device parameter, and none may become one:
+ * PLRM Appendix G bars @c banddevice from a page description, so a
+ * program may not choose how many times its marks are played. What
+ * chooses is the invocation. Being told is the other half, and is
+ * allowed: @c currentsystemparams reports the budget as
+ * /MaxBandBytes and the rows it bought on the device now being
+ * painted into as /CurBandHeight, which is 0 where that device holds
+ * the page whole. @c setsystemparams recognises no parameter at all,
+ * so neither can be written back. An /ImagingBBox declaration (PLRM 6.2, by which a
+ * program asserts it paints nothing outside four numbers, and marks
+ * that do "may or may not be rendered") narrows the page to the rows
+ * it can reach, on both routes. It is not a clip: the page is the size
+ * /PageSize named and the default clipping path is still the whole of
+ * it. Whole rows are what a row-holding device can drop, so what a box
+ * buys is the rows above its top edge and below its bottom edge, and
+ * dropping them is the one answer of the two PLRM permits that both
+ * routes can give. The run is computed once, where a device is about
+ * to be made; the route is then weighed on the rows a device would
+ * actually hold rather than on the page's height, so a box that brings
+ * the raster under the budget hands the page to the device
+ * directly.
  *
  * The band loop moves one raster rather than making one per band --
  * a retired device's rows are not given back, so a device per band
  * would end the loop holding the whole page. The rows array stays
  * the height of the page and the band's rows are the only ones with
  * width, so the row blitter needs no offset arithmetic and a
- * zero-width row is how a device says it holds no pixels there. A
- * band whose only mark is the page's own clearing colour, covering
- * it entirely, is not materialised at all. Replay is batched -- a
- * few hundred compiled marking calls per turn of the interpreter,
- * so collections and interrupts still get their safe point -- and a
- * method that is a procedure rather than an operator is played by
- * the interpreter itself, at two turns per mark.
+ * zero-width row is how a device says it holds no pixels there. What
+ * that costs is one object slot per row of the page. What a device
+ * must keep between bands cannot live in the rows, since those move,
+ * so the file and how far down the page it has reached are kept
+ * beside them; and a page goes out through three hooks rather than
+ * one writer -- a head, a per-band sink and a tail -- with both routes
+ * going through the same three, so the same bytes come out of one
+ * statement rather than two that agree. A banding Emit is called once
+ * per band with the rows the device holds at that moment, and once
+ * more at the end with none, to say the page is finished.
+ *
+ * A band whose only mark is the page's own clearing colour, covering
+ * it entirely, is not materialised at all. The test cannot be whether
+ * anything reaches the band -- a recorder declares no Erase, so
+ * clearing the page reaches it as a rectangle covering the page, and
+ * every band of every page is reached by a mark. What is asked is
+ * whether the last mark reaching the run is a rectangle, in the colour
+ * the page was cleared to, covering every row of the run and the whole
+ * width. What a skipped band saves is time and not memory: the raster
+ * was priced and taken at Create.
+ *
+ * Replay is batched -- five hundred and twelve compiled marking calls
+ * per turn of the interpreter (XPOST_REPLAY_BATCH), so collections and
+ * interrupts still get their safe point -- and a method that is a
+ * procedure rather than an operator is played by the interpreter
+ * itself, at two turns per mark. A glyph mask is the one entry a batch
+ * can end in the middle of, and it resumes at the pixel it stopped at.
  *
  * The correctness contract is byte identity: every gate that
  * compares pages renders the same page whole and in bands, down to
@@ -1042,10 +1302,17 @@
  *
  * A record is held in memory while it is worth less than the raster
  * banding saves, and goes to a scratch file past that
- * (\--spill=auto|never|always). The weighing is O(1): a running
+ * (\--spill=auto|never|always). What the run asked for and where the
+ * page in hand actually has its marks are reported separately, by
+ * @c currentsystemparams as /RecordSpill and /CurRecordSpill, because
+ * they can differ: a run that asked to be weighed, on a machine that
+ * will take no scratch file, reports auto and refused. A record that
+ * saves nothing is never spilled under auto -- it has no raster to be
+ * worth more than. The weighing is O(1): a running
  * count of the record's blocks maintained as they are taken and
- * given up, asked every sixty-four marks and at any entry big
- * enough to cross the threshold alone -- never a walk over the
+ * given up, asked every sixty-four marks (RECORD_WEIGH_EVERY) and at
+ * any entry big enough to cross the threshold alone -- a picture, a
+ * coverage mask, a polygon of more than sixty-four operands -- never a walk over the
  * masks and picture tables, which, asked per mark, would multiply
  * to masks-times-marks on a page of text.
  *
@@ -1055,7 +1322,8 @@
  * Whether scratch space exists is settled by making the file and
  * writing to it when the device is made -- a permissions check
  * would answer yes for a full filesystem. One stream in mark order,
- * one write buffer and one read window (64 KiB each): order is what
+ * one write buffer and one read window (64 KiB each, _SPILL_BUFFER
+ * and _SPILL_WINDOW): order is what
  * a record is for, and a chain per band would cost it. What one
  * stream costs is a pass over the file per band; a shallower band
  * is paid in reading rather than in memory. Everything the record
@@ -1069,8 +1337,12 @@
  * every replay after it, and reports @c ioerror rather than
  * @c VMerror: a caller told memory ran out when a filesystem filled
  * looks in the wrong place. A run under @c auto that cannot have a
- * scratch file is told once and goes on holding marks in memory;
- * only @c always makes no-scratch-space fatal.
+ * scratch file is told once, naming the directory and the reason the
+ * system gave, and goes on holding marks in memory; only @c always
+ * makes no-scratch-space fatal. A scratch directory that becomes
+ * unwritable after the file is open cannot reach the record at all:
+ * the descriptor is open, the name went when the file was made, and
+ * directory permissions are not consulted again.
  *
  * @section design_fonts Text
  *
@@ -1156,12 +1428,17 @@
  * deliberately excluded -- and a use is one placement entry, so a
  * drawing placed twenty-five times costs one drawing, and nested
  * forms cost each distinct drawing once rather than their product.
- * Placement is bounded to a stated nesting depth, refused with
- * @c limitcheck past it. A description is captured only where
+ * Placement is bounded to a stated nesting depth (twelve,
+ * XPOST_RECORD_NEST), refused with @c limitcheck past it -- at the
+ * placement and again at the replay. A description is captured only where
  * placing the marks is exactly what painting them would have been:
  * nothing cut on the way in, every mark inside the box the form
- * declares -- both checked, and a form failing either paints afresh
- * at every use. The cache holds thirty-two drawings, evicting the
+ * declares -- the first counted as the description is captured, the
+ * second read back off the record afterwards, and a form failing
+ * either paints afresh at every use. The capture runs under a clip of
+ * the declared box out to whole pixels and one further, which holds a
+ * description that paints outside its declared box to about that box
+ * and leaves one that keeps inside it uncut. The cache holds thirty-two drawings, evicting the
  * oldest capture and destroying its record explicitly, a record not
  * being anything virtual memory would give back.
  *
@@ -1291,6 +1568,108 @@
  * Bounds a gate holds are stated in counts and ratios -- name
  * lookups per span, replay ratio, bytes per row -- because a count
  * survives a loaded machine and a second is a fact about one host.
+ *
+ * @section design_practice Working in the sources
+ *
+ * The conventions a change has to keep, and the knobs it can turn.
+ *
+ * <b>Do not hold a pointer while allocating.</b> This is the coding rule the
+ * indexed design buys its freedom with, and it applies to device operator
+ * functions as much as to the core. Real @c char* pointers into the arena are
+ * available and the device sources use them; what a holder may not then do is
+ * create a composite -- no new array, string or dictionary, no growing a
+ * dictionary past its maxlength, no pushing a stack past its current segment,
+ * no new name (a name allocates both characters and a stack slot) -- because
+ * any of those may grow the memory file and move it. Lines commented
+ * @c //recalc show how to refresh a pointer where one genuinely must be held
+ * across such a call.
+ *
+ * Allocating is not the only thing that invalidates a pointer. Compaction
+ * moves the bytes an entity holds, so every pointer derived from an entity's
+ * recorded address is stale afterwards however it was obtained -- which is
+ * why compaction happens in the outermost loop and nowhere else
+ * (@ref design_return).
+ *
+ * <b>Raw and banked come in pairs.</b> The array, string and dictionary
+ * functions each have two forms: a raw one that is told which memory file to
+ * work in, and a banked one that reads the bank flag out of the object's own
+ * tag and works it out. The raw one carries a @c _memory suffix:
+ *
+ * @verbatim
+ * xpost_array_get_memory(mem, a, i)   raw -- caller names the bank
+ * xpost_array_get(ctx, a, i)          banked -- read off the tag
+ * @endverbatim
+ *
+ * and the same pairing holds for the puts, the constructors, and the string
+ * and dictionary equivalents.
+ *
+ * <b>Say whether a new composite is executable.</b> The constructors return
+ * objects already marked executable, which is rarely what a caller means.
+ * State it rather than inheriting it:
+ *
+ * @verbatim
+ * Xpost_Object arr = xpost_object_cvx(xpost_array_cons(ctx, 12));   executable
+ * Xpost_Object arr = xpost_object_cvlit(xpost_array_cons(ctx, 12)); literal
+ * @endverbatim
+ *
+ * <b>Terminology.</b> A datum in the arena is an @e entity when what is meant
+ * is the bytes themselves, and an @e entry when what is meant is the table row
+ * describing them -- its address, its size, its marks. An @e ent is the index
+ * of that row. The special entities are spelt @c XPOST_MEMORY_TABLE_SPECIAL_FREE
+ * and so on in @c xpost_memory.h, with @c XPOST_MEMORY_COLLECT_START_LOCAL and
+ * @c ..._GLOBAL naming the first row past them in each bank.
+ *
+ * @subsection design_tunables Tunable constants
+ *
+ * @verbatim
+ * XPOST_STACK_SEGMENT_SIZE            xpost_stack.h    objects per segment (1000)
+ * XPOST_FREE_NBUCKETS                 xpost_free.h     size-class buckets (16)
+ * XPOST_FREE_SCAN_LIMIT               xpost_free.h     entries scanned per bucket (8)
+ * XPOST_GARBAGE_COLLECTION_THRESHOLD  xpost_free.h     bytes between collections
+ *                                                      (4,000,000; XPOST_GC_THRESHOLD
+ *                                                      overrides)
+ * XPOST_RECORD_NEST                   xpost_record.h   form placement depth (12)
+ * XPOST_REPLAY_BATCH                  xpost_dev_record.c  marks per replay turn (512)
+ * RECORD_WEIGH_EVERY                  xpost_record.c   marks between spill weighings (64)
+ * @endverbatim
+ *
+ * @subsection design_matrix Matrices
+ *
+ * The PostScript matrix @c [a @c b @c c @c d @c e @c f] is held internally as
+ * the transpose of the diagrams in the PLRM. The results are identical; what
+ * the transpose buys is right-multiplication, which is the natural direction
+ * in C, where PostScript's left-multiplying model is the natural one for its
+ * own reverse-Polish syntax.
+ *
+ * @subsection design_logging Logging
+ *
+ * The interpreter's own messages are governed by @c XPOST_LOG_LEVEL, an
+ * integer: 0 errors, 1 warnings, 2 information, 3 debug. The debug level is
+ * voluminous enough that redirecting it to a file is usually the only way to
+ * read it.
+ *
+ * @subsection design_sourcetree Running out of the source tree
+ *
+ * The five-step search for the data directory (@ref design_langsplit) is what
+ * makes an uninstalled build self-sufficient. Two of the five do that work:
+ * the directory derived from the shared library's own location -- an installed
+ * library looks beside itself for @c ../share/xpost, and failing that tries
+ * @c ../../../data, which is the source tree's data directory from either
+ * @c build/src/lib or @c src/lib/.libs -- and, for a build directory anywhere
+ * else, the source tree's data directory recorded absolutely at configure
+ * time. So an interpreter built and not installed finds the tree's PostScript
+ * files from any working directory, and an edit to one takes effect without
+ * installing anything. An alias is enough to keep one to hand:
+ *
+ * @verbatim
+ * alias xpost="$PWD/build/src/bin/xpost"
+ * @endverbatim
+ *
+ * The same fallback is a trap for anything that reads the tree
+ * programmatically. A guard handed the wrong source root does not fail: it
+ * finds a working tree by one of those routes and reports a perfectly true
+ * result about a tree the caller did not mean. tests/guard-paths.sh exists for
+ * that reason, and doc/CONTRIBUTING.md says how a guard is expected to use it.
  *
  * @section design_distinctives Distinctives
  *

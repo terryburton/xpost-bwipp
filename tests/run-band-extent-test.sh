@@ -12,7 +12,7 @@
 # anything until the marks are played into the device that paints. What
 # settles its extent is the array of rows that device holds the page as,
 # which is the one term still growing with the page once banding bounds
-# the pixels (doc/INTERNALS): the memory that array comes to -- a
+# the pixels (doc/xpost_design.dox): the memory that array comes to -- a
 # quantity, where a composite's length is the range of a field. A build
 # whose field is wide has a wider range and no more memory.
 #

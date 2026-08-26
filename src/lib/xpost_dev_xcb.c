@@ -926,7 +926,7 @@ int loadxcbdevicecont(Xpost_Context *ctx,
 
     /* This device's page does not arrive a band at a time. Its pixels go
        to a display server, which holds them, so a band could be sent as
-       it was finished (doc/INTERNALS) -- but this driver keeps a buffer
+       it was finished (doc/xpost_design.dox) -- but this driver keeps a buffer
        of the page and writes the whole of it, and what a device states
        about itself is what the machinery above it goes by.
 

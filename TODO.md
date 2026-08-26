@@ -31,8 +31,8 @@ through `kshow` and `ashow`, which are implemented
 **GC controls in `xpost_op_param.c:vmreclaim()`.** Done. All five
 operands act: -2 and -1 turn automatic collection off for both banks or
 for the local one, 0 turns it on again, and 1 and 2 perform an immediate
-collection of the local bank or of both (PLRM 8.2). `doc/ROOTS` says what
-a collection marks from.
+collection of the local bank or of both (PLRM 8.2). `doc/xpost_roots.dox` says
+what a collection marks from.
 
 **More unit tests.** The suite is 430 tests at two object widths, with
 corpora of real programs beside it. Retired as an item: it named no
@@ -56,8 +56,8 @@ supported toolchain. Windows is built with msys2/mingw, which CI covers.
 
 **Re-examine the split between `xpost_matrix.c` and `xpost_op_matrix.c`,
 which converts back and forth between matrix formats.** Open. Both files
-are still there. `doc/INTERNALS` explains why the internal matrix is
-the transpose of the PLRM's.
+are still there. `doc/xpost_design.dox` explains why the internal matrix
+is the transpose of the PLRM's.
 
 **Remove optab from VM, thus removing all pointers; remove
 `xpost_free_realloc()`.** Half done. `xpost_free_realloc` is gone, taken
@@ -72,7 +72,8 @@ asks for, and the files the interpreter boots from are still read from
 the data directory. What compiling them in was for -- not paying to build
 the language on every run -- is what the image of virtual memory now
 does: a run reads the language back instead of assembling it, in about a
-sixth of the time. See "The image of virtual memory" in `doc/INTERNALS`.
+sixth of the time. See "Booting, and fast initialisation from an image"
+in `doc/xpost_design.dox`.
 
 **Anti-aliasing, Porter/Duff compositing, an alpha channel, and the
 `/DeviceN` colour space.** Three of the four are done. `/DeviceN` is

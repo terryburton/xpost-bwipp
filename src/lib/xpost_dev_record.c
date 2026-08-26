@@ -21,7 +21,7 @@
  * nothing, so what it costs follows the number of marks rather than the
  * size of the page; its Emit builds a device that does paint, plays
  * every mark into it and puts out that device's page. See
- * doc/INTERNALS for what the record is for and src/lib/xpost_record.h
+ * doc/xpost_design.dox for what the record is for and src/lib/xpost_record.h
  * for what it holds.
  *
  * The class this specialises is data/recorddev.ps, which declares
@@ -497,7 +497,7 @@ static int _mark(Xpost_Context *ctx, Xpost_Object devdic,
        page arrives as a rectangle covering it -- the class declares no
        Erase, which is the rule that keeps a record complete -- and a
        page is cleared as it starts, so a record's lifetime is a page's
-       and not a job's (doc/INTERNALS).
+       and not a job's (doc/xpost_design.dox).
 
        Reading the boundary off the marks rather than off the emission is
        what keeps a page put out twice right: copypage transmits a page
@@ -3133,7 +3133,7 @@ static int _replayplace(Xpost_Context *ctx,
  * one part of a banded page that still grows with the page: one object
  * slot per row of the page, held whether or not the device holds that
  * row's pixels, because a band presents the whole spine and keeps
- * pixels in the rows of its own run (doc/INTERNALS).
+ * pixels in the rows of its own run (doc/xpost_design.dox).
  *
  * So the page is put to two questions and they are not the same one.
  * What can be held is a quantity of memory; what a composite can count

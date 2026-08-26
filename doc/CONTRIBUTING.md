@@ -4,9 +4,11 @@ What this tree expects of a change, written down because most of it is
 not obvious from the files and none of it is enforced by anything a new
 contributor would meet first.
 
-Read `doc/MANUAL` for building and running, `doc/INTERNALS` for how
-the interpreter works, and `doc/GATING.md` for the reference version of
-the test selection this page introduces.
+Read `doc/MANUAL` for building and running, `doc/xpost_design.dox` for
+how the interpreter works -- it is the Design page of the generated
+reference, with the root set and the dictionary layout beside it in
+`doc/xpost_roots.dox` and `doc/xpost_dicts.dox` -- and `doc/GATING.md`
+for the reference version of the test selection this page introduces.
 
 ## Two builds, always
 
@@ -349,7 +351,7 @@ on every call.
 
 ## Changing the C
 
-The one rule that will bite immediately, from `doc/INTERNALS`:
+The one rule that will bite immediately, from `doc/xpost_design.dox`:
 
 > Do Not hold a pointer while allocating.
 

@@ -1611,7 +1611,7 @@ have_charstrings: ;
     {
         /* the constructors answer executable objects; a font's matrix
            is data, so it says so at its construction, as
-           doc/INTERNALS asks of every composite made here */
+           doc/xpost_design.dox asks of every composite made here */
         Xpost_Object fontmatrix = xpost_object_cvlit(xpost_array_cons(ctx, 6));
         real diag = istt ? 1.0f : 0.001f;
         int mi;
@@ -2511,7 +2511,7 @@ int _device_color(Xpost_Context *ctx,
    device that paints is told a pixel at a time because that is what
    painting is, and a device that stores is told a glyph at a time
    because a mark per inked pixel costs it tens of bytes where the page
-   it is escaping costs one to three (doc/INTERNALS).
+   it is escaping costs one to three (doc/xpost_design.dox).
    The raster is narrowed to the pixels the clip region covers, as
    PLRM 7.5.1 has every painting operation meet the region: the whole
    raster is rejected or accepted against the region's bounds first, so

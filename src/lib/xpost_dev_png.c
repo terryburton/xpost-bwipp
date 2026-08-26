@@ -67,7 +67,7 @@ XPOST_DEV_ASSERT_BLOCK_PRECEDES_RASTER(png, Xpost_Png_Buffer, block, data);
    pages is the raster and the two settings the pages are written under.
 
    A page arriving a band at a time is written across several Emit calls
-   (doc/INTERNALS), and the file and the writer outlive each of them --
+   (doc/xpost_design.dox), and the file and the writer outlive each of them --
    which is the whole of what makes the filter right at a band's edge. A
    PNG row is filtered against the row before it, and the writer holds
    that row for as long as it is alive, so the device keeps the writer
@@ -1108,7 +1108,7 @@ int _loaddevicecont_common(Xpost_Context *ctx,
        class, which says yes, and a copy carries what it was copied from,
        so a device that had never considered the question would say yes
        by inheritance. Saying it makes the answer this device's own
-       (doc/INTERNALS), and the two classes made here answer
+       (doc/xpost_design.dox), and the two classes made here answer
        differently.
 
        The plain device's page may. Its writer takes one row per call and

@@ -428,7 +428,7 @@ xpost_dev_raster_offset(int x, int y, int stride)
  *
  * A raster costs width times height whatever is painted on it, and what
  * bounds that is holding one run of the page's rows at a time and
- * putting each run out as it is finished (doc/INTERNALS). The run a
+ * putting each run out as it is finished (doc/xpost_design.dox). The run a
  * device is to start on is left for it in the graphics dictionary under
  * /.rasterband, which Create takes; from then on the buffer stands for
  * one run after another and a mark aimed at a row outside the run is

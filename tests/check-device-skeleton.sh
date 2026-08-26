@@ -601,7 +601,7 @@ done
 #     path and the clip shape beside it, ClipPath the clip alone,
 #     DrawRect an outlined rectangle, Erase an instruction to reset its
 #     page. Declining all of them has each resolved, above the device,
-#     into the five the record does hold (doc/INTERNALS).
+#     into the five the record does hold (doc/xpost_design.dox).
 #
 #     So this is the rule the whole design rests on, and the way it
 #     breaks is by someone adding a method for a good local reason: the
@@ -660,7 +660,7 @@ done
 #
 #     Whether a page may arrive a band at a time is /BandedPage, and the
 #     safe answer is silence -- a device that has not thought about it
-#     gets the whole page it expects (doc/INTERNALS). The compiled
+#     gets the whole page it expects (doc/xpost_design.dox). The compiled
 #     devices here are all dict copies of a class that says yes, and a
 #     copy carries what it was copied from, so silence is exactly what
 #     they cannot have: an untouched copy says yes on behalf of a driver

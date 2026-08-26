@@ -37,7 +37,7 @@
 #   call that opened it, which is what made the second page overwrite
 #   the first -- and it is also what a page arriving a band at a time
 #   needs, that page being written by several Emit calls in turn
-#   (doc/INTERNALS). So the exception is tied to the declaration that
+#   (doc/xpost_design.dox). So the exception is tied to the declaration that
 #   earns it: a device keeping a stream says its page may arrive in
 #   bands, and gives the stream back.
 #
@@ -206,7 +206,7 @@ fi
 # the one .transmitpage ran, and doing that is the device working. It
 # reaches one per band besides, where the page it plays into holds a run
 # of the page's rows at a time: such a page is put out once per band and
-# once more to finish it (doc/INTERNALS), which is a count this cannot
+# once more to finish it (doc/xpost_design.dox), which is a count this cannot
 # have an opinion about.
 #
 # What the rule is really about it still keeps, and the keeping is
@@ -281,7 +281,7 @@ fi
 #
 #    A page that arrives a band at a time is written across several Emit
 #    calls -- once per band, and once more at the end to say it is
-#    finished (doc/INTERNALS) -- so its file cannot be opened and closed
+#    finished (doc/xpost_design.dox) -- so its file cannot be opened and closed
 #    within one of them, and the device holds it between them. That is
 #    the one reason to hold a stream, and a device that holds one for any
 #    other is back at the fault this rule was written for: a file opened

@@ -28,8 +28,8 @@ doc: all
 endif
 
 # Everything under doc that a release carries: the documents themselves,
-# and what the doc target above reads -- the Doxyfile, the two .dox
-# sources it names as input, and the figures they draw.
+# and what the doc target above reads -- the Doxyfile, the .dox sources
+# it names as input, and the figures they draw.
 #
 # tests/check-dist-lists.sh holds this list to the directory in both
 # directions, so a document added and not named here fails.
@@ -38,14 +38,13 @@ doc/COMPAT \
 doc/CONTRIBUTING.md \
 doc/COVERAGE.md \
 doc/COVERAGE-large.md \
-doc/DICTIONARIES.md \
 doc/GATING.md \
-doc/INTERNALS \
-doc/ROOTS \
 doc/MANUAL \
 doc/Doxyfile \
 doc/xpost.dox \
 doc/xpost_design.dox \
+doc/xpost_roots.dox \
+doc/xpost_dicts.dox \
 doc/m.pic \
 doc/m.ps \
 doc/mtab.eps \

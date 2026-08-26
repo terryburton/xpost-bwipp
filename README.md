@@ -153,12 +153,12 @@ answers which question.
 | `doc/MANUAL` | using xpost: building it, running it, the devices, the interactive session, and the language by example |
 | `doc/CONTRIBUTING.md` | working on xpost: the gate, the guards, the corpora, and what a commit looks like |
 | `doc/GATING.md` | which test run answers which question |
-| `doc/INTERNALS` | how it works: the module map, the memory, the object, the operators, the devices, the recorded page and the band loop |
-| `doc/ROOTS` | what the garbage collector marks from, and which bank each root lives in |
+| `doc/xpost_design.dox` | how it works: the module map, the memory, the object, the operators, the devices, the recorded page and the band loop. The Design page of the generated reference |
+| `doc/xpost_roots.dox` | what the garbage collector marks from, and which bank each root lives in |
 | `doc/COMPAT` | where each user-visible name comes from |
 | `doc/COVERAGE.md`, `doc/COVERAGE-large.md` | how much of the C sources a full run executes, one per object width |
 | `COMPLIANCE` | operator by operator: implemented, partly, or not; then the behavioural deviations and the implementation limits |
-| `doc/DICTIONARIES.md` | every dictionary the interpreter carries, and what belongs in it |
+| `doc/xpost_dicts.dox` | every dictionary the interpreter carries, and what belongs in it |
 
 ## Support
 

@@ -329,7 +329,7 @@ void xpost_save_restore_snapshot(Xpost_Memory_File *mem)
            discarded post-save contents and the popped saverec was its
            only reference, so return its entity and storage to the free
            list -- the "explicit discarding by restore" the design calls
-           for (doc/INTERNALS). Without it every composite modified
+           for (doc/xpost_design.dox). Without it every composite modified
            under a save leaks an entity until the next collection, which
            the collector only runs on a byte/entity threshold; a job with
            enough save/restore traffic drives the entity counter up

@@ -306,7 +306,7 @@ done
 # mark depends on the screen in force when it was made, and a replay
 # happens once the page is put out. The record now writes a screen down
 # where it changes and puts it back as a replay passes it, so every
-# device that bands takes a record (doc/INTERNALS). A device that
+# device that bands takes a record (doc/xpost_design.dox). A device that
 # cannot in future is named here, with the reason it cannot.
 NORECORD=''
 for d in $present; do
@@ -324,7 +324,7 @@ for d in $present; do
     if [ "$wants" = no ]; then
         note "a record is now played into $d, which is named above as a" \
              "device expected to decline. Either the record now carries" \
-             "the state that stopped it -- say so in doc/INTERNALS and" \
+             "the state that stopped it -- say so in doc/xpost_design.dox and" \
              "take $d out of NORECORD -- or the roster gained an entry it" \
              "cannot honour"
     else
