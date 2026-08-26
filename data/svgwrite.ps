@@ -78,6 +78,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /.svgids 1 dict def
         setglobal
         .svgids /clipid 0 put
+        .svgids /maskid 0 put
+        /.svgmasks 64 dict def  % masks already written, so a repeated glyph is written once
     currentdict
     } //.indict exec } bind
 
@@ -225,6 +227,54 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                 put
             } for silt
         } for ] def
+        % PNG where this build can write one, since that is a format a
+        % reader of this document is required to have (SVG 1.1 4.6), and
+        % the bitmap below where it cannot: a document with a picture
+        % some readers show beats one with no picture at all.
+        [ 0 1 sih 1 sub { /y exch def
+            /sr sirows y get def
+            /sipr siw 3 mul string def
+            0 1 siw 1 sub { /x exch def
+                sinc 1 eq {
+                    /sv siluts 0 get sr x get get def
+                    sipr x 3 mul sv put
+                    sipr x 3 mul 1 add sv put
+                    sipr x 3 mul 2 add sv put
+                }{ sinc 4 eq {
+                    /sk siluts 3 get sr x 4 mul 3 add get get def
+                    sipr x 3 mul
+                        255 siluts 0 get sr x 4 mul get get sk add
+                        dup 255 gt { pop 255 } if sub put
+                    sipr x 3 mul 1 add
+                        255 siluts 1 get sr x 4 mul 1 add get get sk add
+                        dup 255 gt { pop 255 } if sub put
+                    sipr x 3 mul 2 add
+                        255 siluts 2 get sr x 4 mul 2 add get get sk add
+                        dup 255 gt { pop 255 } if sub put
+                }{
+                    sipr x 3 mul       siluts 0 get sr x 3 mul get get put
+                    sipr x 3 mul 1 add siluts 1 get sr x 3 mul 1 add get get put
+                    sipr x 3 mul 2 add siluts 2 get sr x 3 mul 2 add get get put
+                } ifelse } ifelse
+            } for
+            sipr
+        } for ]
+        siw sih //.internaldict /.pngencode get exec
+        {
+            /sipng exch def
+            (<image transform="matrix\() .put
+            sim 0 get .svgnum (,) .put sim 1 get .svgnum (,) .put
+            sim 2 get .svgnum (,) .put sim 3 get .svgnum (,) .put
+            sim 4 get .svgnum (,) .put sim 5 get .svgnum
+            (\)" x="0" y="0" width=") .put siw .svgnum
+            (" height=") .put sih .svgnum
+            (" preserveAspectRatio="none" image-rendering=") .put
+            siint { (auto") }{ (pixelated") } ifelse .put
+            ( xlink:href="data:image/png;base64,) .put
+            sipng { //.internaldict /.base64 get exec .put } forall
+            ("/>\n) .put
+        }{
+
         /sipad siw 3 mul 3 add cvi 4 idiv 4 mul siw 3 mul sub def
         /sirowb siw 3 mul sipad add def
         /sisz 54 sirowb sih mul add def
@@ -236,7 +286,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         (" height=") .put sih .svgnum
         (" preserveAspectRatio="none" image-rendering=") .put
         siint { (auto") }{ (pixelated") } ifelse .put
-        ( href="data:image/bmp;base64,) .put
+        % Referred to through the xlink namespace, which is where the
+        % version this document declares puts it. The bare href a later
+        % version allows is read by some viewers and passed over by
+        % others, and a viewer that passes over it leaves the picture
+        % out of a document it otherwise reads whole.
+        ( xlink:href="data:image/bmp;base64,) .put
 
         % Header: BITMAPFILEHEADER + BITMAPINFOHEADER, little-endian
         /sihdr 54 string def
@@ -304,6 +359,106 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         sibp 0 gt { sibuf 0 sibp getinterval //.internaldict /.base64 get exec .put } if
         /sibp 0 def
         ("/>\n) .put
+        } ifelse
+    } //.indict exec }
+
+    % Take a stencil. SVG has no stencil of its own, so the bits go in
+    % as a mask -- an image whose light samples are the ones that let
+    % paint through -- and the paint is a rectangle of the current
+    % colour drawn through it. That is one element and one image per
+    % distinct stencil, against the fill per run of set samples a device
+    % without this is painted through: a page of bitmap glyphs came out
+    % as thousands of little rectangles.
+    %
+    % The mask is written once and referred to again. Its content is in
+    % the user space of whatever refers to it, and each placement refers
+    % from under its own matrix with the stencil at the same place in
+    % it, so one mask serves every placement of the same bits.
+    /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
+    { {smint smdata smm smpol smh smw}{exch def}forall
+
+        % keyed by a sum over the bits, held inside sixteen bits so the
+        % running total cannot leave the integers, and the candidate
+        % compared in full so a collision costs a comparison
+        /smkey 0 def
+        0 1 smdata length 1 sub {
+            smdata exch get smkey 31 mul add 16#ffff and /smkey exch def
+        } for
+        /smkey smkey smw 131 mul add smh 17 mul add
+               smpol { 1 add } if 16#ffff and def
+        /smid -1 def
+        .svgmasks smkey known {
+            .svgmasks smkey get {
+                aload pop /smcd exch def /smch exch def
+                /smcw exch def /smcp exch def /smci exch def
+                smid 0 lt smcw smw eq and smch smh eq and
+                smcp smpol eq and smcd smdata eq and
+                    { /smid smci def } if
+            } forall
+        } if
+
+        smid 0 lt {
+            /smid .svgids /maskid get def
+            .svgids /maskid smid 1 add put
+            .svgmasks smkey
+                .svgmasks smkey known { .svgmasks smkey get }{ [ ] } ifelse
+                [ exch aload pop [ smid smpol smw smh smdata ] ] put
+
+            /smstride smw 7 add 8 idiv def
+
+            % The mask holds a path and not an image. A raster would have
+            % to be embedded as one of the formats a viewer is required
+            % to have, and the one this device embeds a sampled image as
+            % is not among them (SVG 1.1 4.6: PNG and JPEG are the
+            % required ones), so a stencil written that way would go
+            % blank in a viewer that reads the rest of the document
+            % perfectly well. A path of the set samples is understood
+            % everywhere, and what makes this worth doing is not the
+            % encoding but that it is written once however many times
+            % the stencil is painted.
+            (<mask id="xm) .put smid 20 string cvs .put
+            (" maskUnits="userSpaceOnUse" x="0" y="0" width=") .put smw .svgnum
+            (" height=") .put smh .svgnum
+            ("><path fill="rgb\(100%,100%,100%\)" d=") .put
+            0 1 smh 1 sub { /smy exch def
+                /smx 0 def
+                { smx smw ge { exit } if
+                    % the next run of samples the stencil paints
+                    { smx smw ge { exit } if
+                      smdata smy smstride mul smx 8 idiv add get
+                      7 smx 7 and sub neg bitshift 1 and
+                      smpol { 1 eq }{ 0 eq } ifelse { exit } if
+                      /smx smx 1 add def
+                    } loop
+                    smx smw ge { exit } if
+                    /smrs smx def
+                    { smx smw ge { exit } if
+                      smdata smy smstride mul smx 8 idiv add get
+                      7 smx 7 and sub neg bitshift 1 and
+                      smpol { 1 eq }{ 0 eq } ifelse not { exit } if
+                      /smx smx 1 add def
+                    } loop
+                    (M) .put smrs .svgnum ( ) .put smy .svgnum
+                    (L) .put smx .svgnum ( ) .put smy .svgnum
+                    (L) .put smx .svgnum ( ) .put smy 1 add .svgnum
+                    (L) .put smrs .svgnum ( ) .put smy 1 add .svgnum (Z) .put
+                } loop
+            } for
+            ("/></mask>\n) .put
+        } if
+
+        % the paint: a rectangle of the state's colour through the mask
+        /smg graphicsdict /currgstate get def
+        (<g transform="matrix\() .put
+        smm 0 get .svgnum (,) .put smm 1 get .svgnum (,) .put
+        smm 2 get .svgnum (,) .put smm 3 get .svgnum (,) .put
+        smm 4 get .svgnum (,) .put smm 5 get .svgnum
+        (\)"><rect x="0" y="0" width=") .put smw .svgnum
+        (" height=") .put smh .svgnum
+        (" fill=) .put
+        smg /colorcomp1 get smg /colorcomp2 get smg /colorcomp3 get .svgrgb
+        ( mask="url\(#xm) .put smid 20 string cvs .put
+        (\)"/></g>\n) .put
     } //.indict exec }
 
     % r g b IMAGE . -  ; fill the current path as one path element with
@@ -392,7 +547,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /sy exch def /sx exch def
 
         (<?xml version="1.0" encoding="UTF-8"?>\n) .w
-        (<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width=") .w
+        % The xlink namespace is declared because an image refers to its
+        % content through it. This document says it is SVG 1.1, and that
+        % is where 1.1 puts the reference; the bare href a later version
+        % allows is read by some viewers and passed over by others, which
+        % leaves the picture out of a document they otherwise read whole.
+        (<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width=") .w
         /.wnum {  % num  .  -
             //.num2str exec .w
         } def

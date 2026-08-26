@@ -26,6 +26,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef HAVE_LIBPNG
+# include <png.h>
+#endif
+
 #ifdef HAVE_ZLIB
 # include <zlib.h>
 #endif
@@ -3501,6 +3505,150 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
    is built up in, which lives outside virtual memory so a restore cannot
    tear a half-written file. */
 
+
+/* --- a raster the vector writer can embed ------------------------------
+   What a reader of an SVG document is required to have is PNG and JPEG,
+   and nothing else (SVG 1.1 4.6). So the writer offers PNG where this
+   build has the library that writes it, and falls back to the format it
+   has always written where it does not: a build without the library
+   writes a document some readers show the picture in, rather than no
+   document at all.
+
+   Written through the library rather than by hand. The format is a
+   deflate stream between two checksums, which is little to write and
+   easy to write subtly wrong, and a mistake in it is a file that some
+   readers accept and others reject.
+ */
+
+#ifdef HAVE_LIBPNG
+static void _png_write_cb(png_structp png, png_bytep data, png_size_t len)
+{
+    Xpost_String_Buffer *b = (Xpost_String_Buffer *)png_get_io_ptr(png);
+
+    if (xpost_strbuf_append(b, data, len))
+        png_error(png, "cannot hold the encoded image");
+}
+
+static void _png_flush_cb(png_structp png)
+{
+    (void)png;
+}
+#endif
+
+/* rows w h .pngencode  ->  [ str ... ] true
+                        ->  false
+   Each row is w*3 bytes of red, green and blue, the first row the top
+   one. What comes back is a whole PNG file in pieces, since a string is
+   only as long as the object width allows and a page-sized raster is
+   longer; every piece but the last is a multiple of three, so a caller
+   encoding them to base64 one at a time gets what encoding the whole
+   would have given. A build with no PNG library answers false. */
+static
+int _pngencode(Xpost_Context *ctx, Xpost_Object arr,
+               Xpost_Object wo, Xpost_Object ho)
+{
+#ifdef HAVE_LIBPNG
+    Xpost_String_Buffer out;
+    png_structp png = NULL;
+    png_infop info = NULL;
+    png_bytep *rowp = NULL;
+    int w = wo.int_.val, h = ho.int_.val;
+    int y, ret = 0;
+
+    if (w <= 0 || h <= 0 || arr.comp_.sz < (unsigned int)h)
+        return rangecheck;
+    if ((unsigned long)w > 0x7fffffffUL / 3)
+        return limitcheck;
+
+    memset(&out, 0, sizeof out);
+
+    /* the rows are handed over as pointers into virtual memory, which
+       nothing moves for the length of this call */
+    rowp = malloc((size_t)h * sizeof *rowp);
+    if (!rowp)
+        return VMerror;
+    for (y = 0; y < h; y++)
+    {
+        Xpost_Object s = xpost_array_get(ctx, arr, y);
+
+        if (xpost_object_get_type(s) != stringtype
+            || s.comp_.sz < (unsigned int)(w * 3))
+        {
+            free(rowp);
+            return typecheck;
+        }
+        rowp[y] = (png_bytep)xpost_string_get_pointer(ctx, s);
+    }
+
+    png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png)
+    {
+        free(rowp);
+        return VMerror;
+    }
+    info = png_create_info_struct(png);
+    if (!info)
+    {
+        png_destroy_write_struct(&png, NULL);
+        free(rowp);
+        return VMerror;
+    }
+    if (setjmp(png_jmpbuf(png)))
+    {
+        png_destroy_write_struct(&png, &info);
+        xpost_strbuf_free(&out);
+        free(rowp);
+        return VMerror;
+    }
+
+    png_set_write_fn(png, &out, _png_write_cb, _png_flush_cb);
+    png_set_IHDR(png, info, (png_uint_32)w, (png_uint_32)h, 8,
+                 PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+                 PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png, info);
+    png_write_image(png, rowp);
+    png_write_end(png, NULL);
+    png_destroy_write_struct(&png, &info);
+    free(rowp);
+
+    {
+        size_t pos = 0;
+        int nchunks = (int)((out.len + 47999) / 48000);
+        Xpost_Object result;
+        int k;
+
+        if (nchunks == 0)
+            nchunks = 1;
+        result = xpost_object_cvlit(xpost_array_cons(ctx, nchunks));
+        for (k = 0; k < nchunks; k++)
+        {
+            size_t chunk = out.len - pos;
+
+            if (chunk > 48000)
+                chunk = 48000;
+            ret = xpost_array_put(ctx, result, k,
+                                  xpost_object_cvlit(
+                                      xpost_string_cons(ctx, (unsigned int)chunk,
+                                                        out.s + pos)));
+            if (ret)
+            {
+                xpost_strbuf_free(&out);
+                return ret;
+            }
+            pos += chunk;
+        }
+        xpost_strbuf_free(&out);
+        xpost_stack_push(ctx->lo, ctx->os, result);
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
+    }
+    return 0;
+#else
+    (void)arr; (void)wo; (void)ho;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+    return 0;
+#endif
+}
+
 /* Deflate the concatenation of an array of strings, returning the result as an
    array of <=65535-byte strings (the PostScript string limit) plus a boolean
    that is true when compression happened. Used by the pdfwrite device to write
@@ -4487,6 +4635,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
                              numbertype, numbertype, numbertype, numbertype,
                              numbertype, numbertype, numbertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".base64", (Xpost_Op_Func)_base64, 1, stringtype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pngencode", (Xpost_Op_Func)_pngencode, 3,
+                             arraytype, integertype, integertype); INSTALL;
     op = xpost_operator_cons(ctx, ".writebitrows", (Xpost_Op_Func)_writebitrows, 2,
                              arraytype, filetype); INSTALL;
     op = xpost_operator_cons(ctx, ".writergbrows", (Xpost_Op_Func)_writergbrows, 2,

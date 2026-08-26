@@ -114,6 +114,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /.docinfo 8 dict def    % Document metadata from DOCINFO pdfmarks
         currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
         /.pdfimages 0 array def
+        /.pdfmasks 64 dict def  % masks already filed, so a repeated glyph files once
         /.opused 8 dict def   % Overprint states used on this page -> ExtGState entries
         /.oplast 0 def        % Last overprint state emitted (0 = the default, nothing emitted)
 
@@ -715,6 +716,83 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         (/Im) .put piidx 20 string cvs .put ( Do\nQ\n) .put
     } //.indict exec }
 
+    % Take a stencil: the bits file as an image XObject the same way a
+    % sampled image's rows do, marked as a mask so Emit writes it with
+    % ImageMask rather than a colour space. PDF has the construct the
+    % language has, so a stencil is written down as one rather than
+    % decomposed into a rectangle per run -- which is what a page of
+    % bitmap glyphs came out as.
+    /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
+    { {psint psdata psm pspol psh psw}{exch def}forall
+        % The same mask painted again is the same XObject drawn again:
+        % a page of bitmap glyphs repeats a handful of them, and filing
+        % one per occurrence is what made this dearer than the runs it
+        % replaces. Keyed by a sum over the bits, with the candidates
+        % under a key compared in full, so a collision costs a
+        % comparison and never a wrong glyph.
+        /pskey 0 def
+        0 1 psdata length 1 sub {
+            psdata exch get pskey 31 mul add 16#ffff and /pskey exch def
+        } for
+        /pskey pskey psw 131 mul add psh 17 mul add
+               pspol { 1 add } if 16#ffff and def
+        /pshit -1 def
+        .pdfmasks pskey known {
+            .pdfmasks pskey get {
+                /pscand exch def
+                pshit 0 lt {
+                    /psc .pdfimages pscand get def
+                    psc /w get psw eq psc /h get psh eq and
+                    psc /pol get pspol eq and
+                    psc /rows get 0 get psdata eq and
+                        { /pshit pscand def } if
+                } if
+            } forall
+        } if
+        pshit 0 lt {
+            /psidx .pdfimages length def
+            /.pdfimages [ .pdfimages aload pop
+                << /w psw /h psh /mask true /pol pspol
+                   /rows [ psdata ] /int psint >> ] def
+            .pdfmasks pskey
+                .pdfmasks pskey known { .pdfmasks pskey get }{ [ ] } ifelse
+                [ exch aload pop psidx ] put
+        }{
+            /psidx pshit def
+        } ifelse
+        (q\n) .put
+
+        % A mask paints the colour the graphics state holds, which is
+        % where the painting path takes it from too: the bits say where
+        % and the colour says what.
+        /psnc .ncomps def
+        /psg graphicsdict /currgstate get def
+        psg /colorcomp1 get
+        psnc 1 gt { psg /colorcomp2 get psg /colorcomp3 get } if
+        psnc 4 eq { psg /colorcomp4 get } if
+        .pdffillcolor
+
+        % a rectangular clip travels with the paint, as it does for an
+        % image: the painting operators arrive pre-clipped, these do not
+        //.internaldict /.cliprect get exec {
+            /pscy1 exch def /pscx1 exch def /pscy0 exch def /pscx0 exch def
+            pscx0 .pdfnum ( ) .put pscy0 .pdfnum ( ) .put
+            pscx1 pscx0 sub .pdfnum ( ) .put
+            pscy1 pscy0 sub .pdfnum ( re\nW n\n) .put
+        } if
+
+        % the unit square the XObject is drawn in, mapped to the samples
+        % and then to the device, exactly as a sampled image is placed
+        [ psw 0 0 psh neg 0 psh ] psm matrix concatmatrix
+        dup 0 get .pdfnum ( ) .put
+        dup 1 get .pdfnum ( ) .put
+        dup 2 get .pdfnum ( ) .put
+        dup 3 get .pdfnum ( ) .put
+        dup 4 get .pdfnum ( ) .put
+        5 get .pdfnum ( cm\n) .put
+        (/Im) .put psidx 20 string cvs .put ( Do\nQ\n) .put
+    } //.indict exec }
+
     % r g b IMAGE . -  ; stroke the current path as one content-stream
     % path with the device-space line width and the graphics state's
     % cap, join and miter limit, so joints between segments are drawn
@@ -853,6 +931,17 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             io 20 string cvs .vw ( 0 obj\n) .vw
             (<< /Type /XObject /Subtype /Image /Width ) .vw ime /w get 20 string cvs .vw
             ( /Height ) .vw ime /h get 20 string cvs .vw
+            ime /mask known {
+                % A stencil: one bit to the sample and no colour space,
+                % the colour coming from the state where it is drawn.
+                % A true polarity paints where the sample is one and a
+                % false one where it is zero, which the consumer is told
+                % as the decode [1 0] and [0 1] the language states those
+                % two are the same as (PLRM 4.10.4). The second is what a
+                % mask means by default, so only the first is written.
+                ( /ImageMask true /BitsPerComponent 1) .vw
+                ime /pol get { ( /Decode [1 0]) .vw } if
+            }{
             ( /BitsPerComponent 8 /ColorSpace ) .vw
             ime /nc get dup 1 eq { pop (/DeviceGray) }{
                 4 eq { (/DeviceCMYK) }{ (/DeviceRGB) } ifelse } ifelse .vw
@@ -865,6 +954,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             imid not {
                 ( /Decode [) .vw ime /dec get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
             } if
+            } ifelse
             ime /int get { ( /Interpolate true) .vw } if
             ( /Length ) .vw imlen 20 string cvs .vw
             imf { ( /Filter /FlateDecode) .vw } if
@@ -918,6 +1008,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % start the next page fresh
         currentdict //.internaldict /.pdfreset get exec
         /.pdfimages 0 array def
+        /.pdfmasks 64 dict def
         /.opused 8 dict def
         /.oplast 0 def
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put

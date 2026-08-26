@@ -54,7 +54,13 @@ fail() { echo "FAIL: $1"; exit 1; }
 verdict_run "$status" "$out" "the svg run" || exit 1
 a=$tmp/a.svg; b=$tmp/b.svg
 [ -s "$a" ] || fail "no output"
-grep -q '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="200pt" height="100pt" viewBox="0 0 200 100">' "$a" || fail "svg root"
+grep -q '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200pt" height="100pt" viewBox="0 0 200 100">' "$a" || fail "svg root"
+# An image refers to its content through the xlink namespace, which is
+# where the version this document declares puts it. The bare href a later
+# version allows is passed over by viewers that read the rest of the
+# document, and the picture then goes missing with nothing said.
+grep -q 'xlink:href="data:image/' "$a" || fail "image reference through xlink"
+grep -q ' href="data:image/' "$a" && fail "image referred to by a bare href"
 grep -q '<path fill="rgb(0%,0%,100%)" fill-rule="nonzero" d="M20 80L80 80L80 40L20 40Z"/>' "$a" || fail "filled rect path"
 grep -q '<path fill="none" stroke="rgb(100%,0%,0%)" stroke-width="2" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" d="M100 80L140 50L180 80"/>' "$a" || fail "stroked path"
 grep -q '<path fill="rgb(0%,0%,0%)" d="M[0-9.]* [0-9.]* C' "$a" || fail "glyph outline"
@@ -62,6 +68,10 @@ grep -q '<path fill="rgb(0%,100%,0%)" fill-rule="nonzero" d="M175 30C' "$a" || f
 grep -q 'stroke-width="1"[^>]*d="M140 70C' "$a" || fail "curve-preserving stroke"
 grep -q 'd="M10.1235 95L15.1235 95L15.1235 93L10.1235 93Z"' "$a" || fail "four-decimal coordinates"
 grep -q '<image transform="matrix(' "$a" || fail "sampled image element"
+# PNG where the build can write one -- a format a reader is required to
+# have -- and the bitmap where it cannot
+grep -q 'data:image/png;base64,' "$a" || grep -q 'data:image/bmp;base64,' "$a" \
+    || fail "image data in an embeddable format"
 # every attribute value is a single quoted run: a doubled quote would end the
 # value early and make the document malformed (image-rendering once did)
 grep -q '=""' "$a" && fail "empty/doubled attribute quote"
@@ -71,5 +81,45 @@ grep -qE '"[a-zA-Z-]+="[^"]*"[^ />]' "$a" && fail "malformed attribute run"
 grep -q '</svg>' "$a" || fail "closing tag"
 grep -q 'width="200pt" height="100pt" viewBox="0 0 400 200"' "$b" || fail "144dpi page in points"
 grep -q 'd="M40 160L160 160L160 80L40 80Z"' "$b" || fail "144dpi coordinates"
+
+# --- a stencil goes out as a mask, and a repeated one goes out once ----
+#
+# SVG has no stencil of its own, so the bits go in as a mask -- an image
+# whose light samples are the ones that let paint through -- and the
+# paint is a rectangle of the current colour drawn through it. Without
+# it a stencil is decomposed into a fill per run of set samples, which
+# is what a page of bitmap glyphs came out as.
+#
+# The reuse is the half that makes it worth having: a page of text
+# paints the same few glyphs over and over, and a mask written per
+# occurrence would trade thousands of little fills for thousands of
+# little images.
+c=$tmp/c.svg
+cat > "$tmp/c.ps" <<'CEOF'
+<< /PageSize [64 64] >> setpagedevice
+0 setgray
+gsave  4  4 translate 8 8 scale 8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask grestore
+gsave 20  4 translate 8 8 scale 8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask grestore
+gsave 36  4 translate 8 8 scale 8 8 true [8 0 0 -8 0 8] <0F0F0F0FF0F0F0F0> imagemask grestore
+showpage
+CEOF
+"$xpost" -q -d svgwrite -o "$c" "$tmp/c.ps" </dev/null >/dev/null 2>&1
+[ -s "$c" ] || fail "the SVG writer emitted nothing for a stencil"
+grep -q '<mask id="xm' "$c" || fail "the stencil went out as fills rather than as a mask"
+nm=$(grep -o '<mask id="xm' "$c" | wc -l)
+[ "$nm" = 2 ] || fail "expected 2 masks for 3 placements of 2 distinct stencils, saw $nm"
+nr=$(grep -o 'mask="url(#xm' "$c" | wc -l)
+[ "$nr" = 3 ] || fail "expected 3 placements drawn through a mask, saw $nr"
+grep -q 'mask="url(#xm0)"' "$c" || fail "the repeated stencil does not refer to the first mask"
+# The mask holds a path. A viewer is required to read PNG and JPEG
+# (SVG 1.1 4.6) and nothing else, so a mask carrying any other raster
+# would go blank in a viewer that reads the rest of the document
+# perfectly well -- and a stencil used to come out as paths, which
+# every viewer reads.
+echo "$(sed -n 's/.*<mask id="xm0"\([^!]*\)<\/mask>.*/\1/p' "$c")" | grep -q '<path ' \
+    || fail "the mask does not hold a path"
+sed -n 's/.*<mask id="xm0"\([^!]*\)<\/mask>.*/\1/p' "$c" | grep -q '<image' \
+    && fail "the mask holds a raster, which a viewer is not required to read"
+
 echo SUCCESS
 exit 0

@@ -2829,8 +2829,15 @@ gsave 10 10 translate 40 40 scale
 grestore
 DEVW dup /Emit get exec
 /vw.s (graphics.scratch) (r) file 4096 string readstring pop def
-vw.s (data:image/bmp;base64,) search { pop pop pop true }{ pop false } ifelse
+% PNG where the build can write one and the bitmap format where it
+% cannot; both are embedded the same way, as a data URI the image
+% refers to through the xlink namespace
+vw.s (data:image/png;base64,) search { pop pop pop true }{ pop
+  vw.s (data:image/bmp;base64,) search { pop pop pop true }{ pop false } ifelse
+} ifelse
 (the svg page embeds the bitmap as a data URI) assert
+vw.s (xlink:href=) search { pop pop pop true }{ pop false } ifelse
+(the svg page refers to it through the xlink namespace) assert
 DEVW dup /Destroy get exec
 graphicsdict /currgstate get /device DEV put
 initgraphics

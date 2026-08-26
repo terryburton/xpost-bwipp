@@ -401,3 +401,48 @@ printf '%s\n' "$out" | grep -q 'PRESENT' && { printf '%s\n' "$out" | grep -E 'MI
 n=$(printf '%s\n' "$out" | grep -c '^ok ')
 [ "$n" = 2 ] || { echo "FAIL: expected 2 separation-scale probes, saw $n"; exit 1; }
 echo "separation registry at scale OK"
+
+# --- a stencil goes out as a stencil, and a repeated one goes out once ---
+#
+# imagemask is what the language has for painting a bitmap through the
+# current colour, and PDF has the same construct: an image XObject with
+# ImageMask. Without it a stencil is decomposed into a fill per run of
+# set samples, which is what a page of bitmap glyphs used to come out as.
+#
+# The second half is what makes it worth having. A page of text paints
+# the same few glyphs over and over, and filing one XObject per
+# occurrence would trade thousands of little fills for thousands of
+# little images. The same bits must file once and be drawn many times.
+maskps=$(mktemp)
+maskpdf=$(mktemp)
+cat > "$maskps" <<'MEOF'
+<< /PageSize [64 64] >> setpagedevice
+0 setgray
+% two placements of one stencil, and one of another
+gsave  4  4 translate 8 8 scale 8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask grestore
+gsave 20  4 translate 8 8 scale 8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask grestore
+gsave 36  4 translate 8 8 scale 8 8 true [8 0 0 -8 0 8] <0F0F0F0FF0F0F0F0> imagemask grestore
+showpage
+MEOF
+run_xpost "the stencil run" -d pdfwrite -o "$maskpdf" "$maskps"
+rm -f "$maskps"
+
+if [ ! -s "$maskpdf" ]; then
+    echo "FAIL: the PDF writer emitted nothing for a stencil"; exit 1
+fi
+grep -aq 'ImageMask' "$maskpdf" || {
+    echo "FAIL: the stencil went out as fills rather than as the image"
+    echo "      mask PDF has for exactly this"
+    exit 1; }
+nmask=$(grep -ac 'ImageMask' "$maskpdf")
+[ "$nmask" = 2 ] || {
+    echo "FAIL: expected 2 mask XObjects for 3 placements of 2 distinct"
+    echo "      stencils, saw $nmask -- a repeated stencil is being filed"
+    echo "      once per placement"
+    exit 1; }
+grep -aq '/Decode \[1 0\]' "$maskpdf" || {
+    echo "FAIL: a true polarity is decode [1 0] (PLRM 4.10.4) and the"
+    echo "      emitted mask does not say so"
+    exit 1; }
+rm -f "$maskpdf"
+echo "stencil emission and reuse OK"

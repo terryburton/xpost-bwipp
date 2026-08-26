@@ -614,7 +614,7 @@ method .maxmin bbox bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage dscwrite pdfwrite svgwrite
-method PaintStencil dscwrite
+method PaintStencil dscwrite pdfwrite svgwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
 method .pdfoverprint dscwrite pdfwrite
@@ -693,6 +693,7 @@ state .opused dscwrite pdfwrite
 state OutputFileName every
 state .pdffillcolor dscwrite pdfwrite
 state .pdfimages dscwrite pdfwrite
+state .pdfmasks dscwrite pdfwrite
 state .pdfstrokecolor dscwrite pdfwrite
 state .playclass record
 state .playdev record
@@ -702,6 +703,7 @@ state .playrun record
 state Private bgr dscwrite jpeg pdfwrite png pngalpha raster svgwrite record
 state r svgwrite
 state .svgids svgwrite
+state .svgmasks svgwrite
 state .vecticket dscwrite pdfwrite
 state w dscwrite pdfwrite svgwrite
 state width every
