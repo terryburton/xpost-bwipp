@@ -271,6 +271,7 @@ graphics path data/path.ps
 graphics path data/clip.ps
 graphics path data/color.ps
 graphics path data/gstate.ps
+graphics path data/halftone.ps
 graphics path data/image.ps
 graphics path data/pattern.ps
 graphics path data/shade.ps

@@ -1,0 +1,1405 @@
+%!PS
+%
+% halftone.ps
+%
+% vim: set sw=4 sts=4 tw=72 et:
+%
+% Halftones and screens: what sethalftone and setscreen take, and what a
+% screening device paints through.
+%
+% A halftone says how a continuous tone becomes the marks a device can
+% actually make. This file holds the eight halftone types PLRM Table 7.5
+% defines and the screen triple setscreen takes, what each of them is
+% validated against, the spot-function sampling that turns a procedure
+% into a threshold array, the cell geometry an angled screen resolves to,
+% and the transfer functions a screen carries.
+%
+% It was the larger part of gstate.ps, which is the graphics state proper
+% -- the template, gsave and grestore -- and said so in its own first
+% line while two thirds of it was this. The seam between the two is one
+% reference: findcolorrendering, which stays there, asks currenthalftone,
+% which comes here. It asks by name and not by a frozen reference, so the
+% order these two files load in does not matter to it.
+%
+% Copyright (c) 2013-2016 Michael Joshua Ryan
+% SPDX-License-Identifier: BSD-3-Clause
+%
+
+%
+%  Everything here defines into global VM.
+%
+true setglobal
+
+currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  copy the grey screen to the colour channels: setscreen installs one
+%  screen for every component.
+%
+.xpostsys /.spreadgrayscreen {  % -  .  -
+    graphicsdict /currgstate get
+    dup dup /screenfreq get /redscreenfreq exch put
+    dup dup /screenangle get /redscreenangle exch put
+    dup dup /screenproc get /redscreenproc exch put
+    dup dup /screenfreq get /greenscreenfreq exch put
+    dup dup /screenangle get /greenscreenangle exch put
+    dup dup /screenproc get /greenscreenproc exch put
+    dup dup /screenfreq get /bluescreenfreq exch put
+    dup dup /screenangle get /bluescreenangle exch put
+    dup /screenproc get /bluescreenproc exch put
+} put
+
+%
+%  evaluate a spot function across its halftone cell, once for each
+%  pixel of the cell the screen actually renders through, sampled at
+%  that pixel's centre. The language calls the spot when the screen is
+%  installed and programs lean on the side effects -- the classic
+%  pattern-cell idiom builds its cell there -- so the sampling must
+%  cover the whole cell even though rendering itself stays continuous
+%  tone. It shares the cell geometry with the rendered threshold cell,
+%  so the number of calls and the arguments match what paint later
+%  sees, rather than collapsing to one sample where the cell spans a
+%  single device pixel.
+%  A transfer function maps one number in [0,1] to one number, and is
+%  sampled across that range when it is set. The samples are taken for
+%  their effect on the operand stack: a procedure that leaves anything
+%  other than its one result is not a transfer function.
+%  The procedure being sampled is the program's, and a procedure that
+%  installs a transfer function of its own re-enters this one against the
+%  same three slots, so the sampling runs inside the bracket. Nothing of
+%  the bracket's own sits on the operand stack while the procedure runs,
+%  which the depth check below depends on.
+%  Each sample runs beneath the boundary: what fails in the procedure is
+%  the program's own object failing, so the operand stack goes back to
+%  what the procedure found (PLRM 3.11.1) and the operator that set the
+%  function keeps the operand it consumed. The checks below are the
+%  sampling reading what the procedure returned, and a refusal there is
+%  the operator's own -- it comes after the boundary is gone.
+%  The procedure comes back at the end for the caller to record, out of
+%  the slot it was parked in rather than off a copy the caller left on
+%  the operand stack: a copy left there would be the caller's working
+%  value sitting under the program's procedure, in reach of it, and would
+%  still be there for the caller's caller if the procedure failed.
+%
+
+%
+%  Sample the spot function and leave this call's screen recorded. The
+%  record is what setscreen is mid-use of across the sampling: the spot
+%  function may install a screen of its own, which records over it in the
+%  same graphics state slots, so the record is kept in a slot the bracket
+%  holds and written again when the sampling is done.
+%
+.xpostsys /.ssreckeys [ /.ssrec ] put
+
+%
+%  Install a halftone screen: build its cell and record the frequency,
+%  angle and spot function in the graphics state.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
+.xpostsys /.installscreen {  % freq ang proc  .  -
+    //.xpostsys /.installscreenbody get
+    //.ssreckeys 0
+    //.callout exec
+} put
+
+%
+%  The installation itself. The three operands are parked in a
+%  graphicsdict slot across the sampling and written to the graphics
+%  state afterwards: a spot function may install a screen of its own,
+%  which records over the same slots, so this call's screen is written
+%  last and is the one that stands.
+%
+%  The screen is then spread to every colour component, since setscreen
+%  sets one screen for all of them.
+%
+.xpostsys /.installscreenbody {  % freq ang proc  .  -
+    3 array astore
+    dup graphicsdict exch /.ssrec exch put
+    aload pop
+    //.xpostsys /.samplespot get exec
+    graphicsdict /.ssrec get aload pop
+    graphicsdict /currgstate get exch /screenproc exch put
+    graphicsdict /currgstate get exch /screenangle exch put
+    graphicsdict /currgstate get exch /screenfreq exch put
+    //.spreadgrayscreen exec
+} put
+
+%
+%  The same for the four screens of setcolorscreen, one per component and
+%  each with a cell of its own. A channel's spot function is sampled
+%  across that channel's cell, so a procedure standing in two channels is
+%  two cells and is sampled for each; the grey channel goes first, being
+%  the one currentscreen reports.
+%  The twelve are what setcolorscreen is mid-use of across the sampling,
+%  for the same reason setscreen's three are, and none of them may stand
+%  on the operand stack while a spot function runs. So they are parked in
+%  a record the bracket holds, written to the graphics state before the
+%  sampling so a spot function reads the screen being installed, and
+%  written again after it so this call's screen is the one that stands.
+%
+.xpostsys /.csreckeys [ /.csrec ] put
+
+%
+%  The same for setcolorscreen's four screens, one per component, each
+%  with a cell of its own.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
+.xpostsys /.installcolorscreen {  % rf ra rp gf ga gp bf ba bp kf ka kp  .  -
+    //.xpostsys /.installcolorscreenbody get
+    //.csreckeys 0
+    //.callout exec
+} put
+
+%
+%  The four screens installed in turn. A spot function standing in two
+%  channels is sampled once for each, because the cells differ; the grey
+%  channel goes first, being the one currentscreen reports.
+%
+.xpostsys /.installcolorscreenbody {  % rf ra rp gf ga gp bf ba bp kf ka kp  .  -
+    12 array astore
+    graphicsdict exch /.csrec exch put
+    //.xpostsys /.recordcolorscreen get exec
+    9 //.xpostsys /.csspot get exec
+    0 //.xpostsys /.csspot get exec
+    3 //.xpostsys /.csspot get exec
+    6 //.xpostsys /.csspot get exec
+    //.xpostsys /.recordcolorscreen get exec
+} put
+
+%
+%  Sample the spot function of the channel whose frequency, angle and
+%  procedure lie at i, i+1 and i+2 of the record. A channel with no cell
+%  to sample -- no frequency to give one, or a spot object that is not
+%  something to execute -- is recorded without being sampled.
+%
+.xpostsys /.csspot {  % i  .  -
+    dup graphicsdict /.csrec get exch get
+    exch dup 1 add graphicsdict /.csrec get exch get
+    exch 2 add graphicsdict /.csrec get exch get
+    dup xcheck 3 index 0 gt and
+        { //.xpostsys /.samplespot get exec }
+        { pop pop pop } ifelse
+} put
+
+%
+%  write the record's twelve values into the graphics state, each
+%  component's screen into its own slots.
+%
+.xpostsys /.recordcolorscreen {  % -  .  -
+    graphicsdict /.csrec get aload pop
+    graphicsdict /currgstate get exch /screenproc exch put
+    graphicsdict /currgstate get exch /screenangle exch put
+    graphicsdict /currgstate get exch /screenfreq exch put
+    graphicsdict /currgstate get exch /bluescreenproc exch put
+    graphicsdict /currgstate get exch /bluescreenangle exch put
+    graphicsdict /currgstate get exch /bluescreenfreq exch put
+    graphicsdict /currgstate get exch /greenscreenproc exch put
+    graphicsdict /currgstate get exch /greenscreenangle exch put
+    graphicsdict /currgstate get exch /greenscreenfreq exch put
+    graphicsdict /currgstate get exch /redscreenproc exch put
+    graphicsdict /currgstate get exch /redscreenangle exch put
+    graphicsdict /currgstate get exch /redscreenfreq exch put
+    graphicsdict /currgstate get /halftone null put
+    graphicsdict /currgstate get /halftonetransfer null put
+} put
+
+%
+%  The spot function is the program's, and a screen installed from inside
+%  it re-enters the sampling against the same depth slot, so the sampling
+%  runs inside the bracket. Nothing of the bracket's own sits on the
+%  operand stack while the procedure runs, which the depth comparison
+%  compiled into the program below depends on -- and which is also why a
+%  spot function may leave entries there for the caller to harvest.
+%
+.xpostsys /.sskeys [ /.ssd0 ] put
+
+%
+%  Sample a spot function across its screen cell, which is what turns a
+%  frequency, an angle and a procedure into the threshold order a
+%  halftone is rendered by.
+%
+%  The outer half is the bracket and the inner half the work: the outer
+%  hands the body to .callout with the graphicsdict slots the sampling
+%  parks things in, so a program's procedure that re-enters the
+%  machinery cannot cost the caller what it parked there.
+%
+.xpostsys /.samplespot {  % freq ang proc  .  -
+    //.xpostsys /.samplespotbody get
+    //.sskeys 0
+    //.callout exec
+} put
+
+%
+%  The sampling itself: the lattice for the frequency and angle, the
+%  spot function called at every place in the cell, and the places
+%  ranked by what it returned.
+%
+%  The spot procedure runs against the caller's dictionaries and operand
+%  stack, because programs define counters through it and harvest what
+%  it leaves behind.
+%
+.xpostsys /.samplespotbody {  % freq ang proc  .  -
+    18 dict begin
+    /proc exch def /ang exch def /freq exch def
+    freq ang //.xpostsys /.screenlattice get exec
+    pop
+    /quad exch def /q exch def /L exch def /b exch def /a exch def
+    /.clamparg {  % num  .  num'
+        dup -0.999 lt { pop -0.999 } if
+        dup 0.999 gt { pop 0.999 } if
+    } def
+
+    % The spot procedure must run against the caller's dictionaries
+    % and operand stack: programs define counters through it and
+    % harvest whatever it leaves behind. Each call's own result is
+    % consumed, the way the screen machinery consumes it -- but only
+    % when the procedure left one, so a procedure with no result
+    % cannot cost the caller a stack entry. So the calls may not run
+    % under this private dict, and no loop bookkeeping may sit on the
+    % operand stack while they run: compile each row of samples into
+    % a program and run them after the dict ends. Per sample the
+    % program notes the operand depth in graphicsdict, pushes x y,
+    % runs the procedure, and pops one value if the depth grew.
+    % The procedure runs beneath the boundary, so a failure in it is the
+    % program's own object failing and setscreen keeps the operands it
+    % consumed getting here; the depth bookkeeping either side is the
+    % sampling's own.
+    /ppexec //.pexec def
+    /pexec /exec load def
+    /pget /get load def
+    /pput /put load def
+    /psub /sub load def
+    /pgt /gt load def
+    /pif /if load def
+    /pcount /count load def
+    /ppopproc [ /pop load ] cvx def
+    /gd graphicsdict def
+    /allrows L 2 mul array def
+    0 1 L 1 sub { /y exch def
+        /row L 20 mul array def
+        /i 0 def
+        0 1 L 1 sub { /x exch def
+            /xs x 0.5071 add def
+            /ys y 0.4877 add def
+            /m1 a xs mul b ys mul add q div floor def
+            /m2 a ys mul b xs mul sub q div floor def
+            /xc a m1 0.5 add mul b m2 0.5 add mul sub floor 0.5 add def
+            /yc b m1 0.5 add mul a m2 0.5 add mul add floor 0.5 add def
+            a xs xc sub mul b ys yc sub mul add q div 2 mul
+            dup 1 ge { 2 sub } if dup -1 lt { 2 add } if .clamparg
+            a ys yc sub mul b xs xc sub mul sub q div 2 mul
+            dup 1 ge { 2 sub } if dup -1 lt { 2 add } if .clamparg
+            quad { exch neg } repeat
+
+            % row: gd /.ssd0 count 2 sub put  x y proc .pexec exec
+            %      count gd /.ssd0 get sub 0 gt {pop} if.
+            row i 7 add 3 -1 roll put
+            row i 6 add 3 -1 roll put
+            row i currentdict /gd get put
+            row i 1 add /.ssd0 put
+            row i 2 add currentdict /pcount get put
+            row i 3 add 2 put
+            row i 4 add currentdict /psub get put
+            row i 5 add currentdict /pput get put
+            row i 8 add currentdict /proc get put
+            row i 9 add currentdict /ppexec get put
+            row i 10 add currentdict /pexec get put
+            row i 11 add currentdict /pcount get put
+            row i 12 add currentdict /gd get put
+            row i 13 add /.ssd0 put
+            row i 14 add currentdict /pget get put
+            row i 15 add currentdict /psub get put
+            row i 16 add 0 put
+            row i 17 add currentdict /pgt get put
+            row i 18 add currentdict /ppopproc get put
+            row i 19 add currentdict /pif get put
+            /i i 20 add def
+        } for
+        allrows y 2 mul currentdict /row get cvx put
+        allrows y 2 mul 1 add currentdict /pexec get put
+    } for
+    currentdict /allrows get cvx
+    end
+    exec
+} put
+
+%
+%  The threshold cell of a screening device. A bilevel device that
+%  declares /ScreenPaint takes a cell built from the current screen:
+%  the spot function samples across the cell and the pixels rank by
+%  spot value, the lowest whitening first -- highlight dots open at
+%  the spot minima, and the shadow dot at the maximum darkens last --
+%  so each pixel's threshold is its rank.
+%  The painting machinery refreshes the cell before it marks, so the
+%  screen in force is the one the paint sees.
+%
+
+%
+%  The screen tiles the device plane on a rotated integer lattice:
+%  the angle becomes the nearest rational tangent b/a with the cell
+%  diagonal near the requested frequency, the lattice vectors (a,b)
+%  and (-b,a) map every device pixel into its cell, and the whole
+%  repeating tile ranks together, the lowest spot values whitening
+%  first. An axis-aligned screen falls out as b = 0.
+%
+.xpostsys /.gcd {  % m n  .  g
+    { dup 0 eq { pop exit } if exch 1 index mod } loop
+} put
+
+%
+%  The number of places in a cell that repeats along (W, H2) and
+%  (-W2, H): the determinant of those two vectors, W*H + W2*H2. Every
+%  cell shape the language describes is that one expression with sides
+%  shared or absent. An axis-aligned W by H cell has no second rectangle,
+%  so W2 and H2 are zero and the count is W*H. Two squares of side X and
+%  Y are the rectangles X by X and Y by Y, so it is X*X + Y*Y. A lattice
+%  chosen from a frequency and an angle repeats along (a, b) and (-b, a),
+%  so it is a*a + b*b. Writing them apart is how they come to disagree.
+%
+.xpostsys /.celldet {  % W H W2 H2  .  n
+    mul 3 1 roll mul add
+} put
+
+%
+%  The side of the axis-aligned tile that repeats such a cell. The cell
+%  lattice always contains (d, 0) and (0, d) for d the determinant, so a
+%  tile of that side works, but it is not the smallest: sides that share
+%  a factor describe a smaller cell scaled up, and the tile reduces by
+%  that factor. Zero is answered for a cell with no places at all, which
+%  has no tile -- the caller refuses those rather than dividing by them.
+%
+.xpostsys /.cellside {  % W H W2 H2  .  n
+    3 index 1 index //.gcd exec
+    2 index 4 index //.gcd exec
+    //.gcd exec
+    5 1 roll //.celldet exec
+    dup 0 eq { exch pop }{ exch idiv } ifelse
+} put
+
+%
+%  The lattices a screen is chosen from do not depend on the screen. The
+%  pair (a, b) ranges over the same small square whatever frequency and
+%  angle are asked for; the angle a pair stands for, the size of the cell
+%  it makes, and whether it is usable at all -- a tile no wider than
+%  sixty-four, a cell no smaller than a pixel and a half -- follow from
+%  the pair alone. So the usable ones are worked out once, here, instead
+%  of at every setscreen, and worked out by the same two helpers that
+%  measure the lattice finally chosen, so the search filters on exactly
+%  the quantities it selects by. Each entry is four numbers: a, b, the
+%  angle, and the cell size.
+%
+.xpostsys /.latticecands
+{ 8 dict begin
+    /span 25 def
+    /buf span dup mul 4 mul array def
+    /m 0 def
+    0 1 span 1 sub {
+        /a exch def
+        0 1 span 1 sub {
+            /b exch def
+            a 0 eq b 0 eq and not {
+                /sz a a b b //.celldet exec sqrt def
+                /per a a b b //.cellside exec def
+                per 64 le sz 1.5 ge and {
+                    buf m       a put
+                    buf m 1 add b put
+                    buf m 2 add b a atan dup 90 ge { 90 sub } if put
+                    buf m 3 add sz put
+                    /m m 4 add def
+                } if
+            } if
+        } for
+    } for
+    buf 0 m getinterval
+    end
+} exec put
+
+%
+%  The rotated integer lattice the screen tiles the device plane with:
+%  the angle becomes the nearest rational tangent b/a whose cell
+%  diagonal sits near the requested frequency. (a,b) and (-b,a) are the
+%  lattice vectors, L the side of the repeating tile of L*L pixels,
+%  q = a*a + b*b, and quad the whole quarter turns folded out of the
+%  angle -- the lattice needs the angle only modulo ninety degrees, but
+%  the spot pattern need not share the cell's symmetry, so the quarter
+%  turns rotate the spot's argument instead. An axis-aligned screen
+%  falls out as b = 0.
+%
+%  cand is the angle within the quadrant that the chosen pair actually
+%  stands for, taken from the candidate table rather than worked out
+%  again from a and b. The table folds a quarter turn out of it where the
+%  tangent is vertical, and a second expression that forgot to would call
+%  an axis-aligned screen perpendicular -- which is what a second
+%  expression did. The spot evaluation at install time and the
+%  rendered threshold cell both build from this, so they sample the
+%  same points.
+%
+.xpostsys /.screenlattice {  % freq ang  .  a b L q quad cand
+    16 dict begin
+    /ang exch def /freq exch def
+    /n DEVICE /defaultmatrix get 0 get abs 72 mul freq div
+       round cvi dup 2 lt { pop 2 } if dup 48 gt { pop 48 } if def
+    /th ang 90 div dup floor sub 90 mul def
+    /quad ang 90 div floor cvi 4 mod dup 0 lt { 4 add } if def
+    /cands //.xpostsys /.latticecands get def
+    /besta n def /bestb 0 def /bestcand 0 def /bestscore 1e9 def
+    0 4 cands length 1 sub {
+        /k exch def
+        /score cands k 2 add get th sub abs
+               cands k 3 add get n sub abs n div 30 mul add def
+        score bestscore lt {
+            /bestscore score def
+            /besta cands k get def /bestb cands k 1 add get def
+            /bestcand cands k 2 add get def
+        } if
+    } for
+    /a besta def /b bestb def
+    /q a a b b //.celldet exec def
+    /L a a b b //.cellside exec def
+    a b L q quad bestcand
+    end
+} put
+
+%
+%  Build the cell a screen tiles the device plane with: the angle
+%  becomes the nearest rational tangent, the lattice vectors map every
+%  device pixel into its cell, and the whole repeating tile is ranked
+%  together so the lowest spot values whiten first.
+%
+%  An axis-aligned screen falls out of the same arithmetic with the off-
+%  axis vector at zero.
+%
+.xpostsys /.installscreencell {  % freq ang proc  .  -
+    20 dict begin
+    /proc exch def /ang exch def /freq exch def
+    freq ang //.screenlattice exec
+    pop
+    /quad exch def /q exch def /L exch def /b exch def /a exch def
+    /vals L L mul array def
+
+    % Arguments stay strictly inside (-1 1) whatever their sign: a
+    % program may fold a negation into its spot, and the closed end
+    % of the domain would come back around.
+    /.clamparg {  % num  .  num'
+        dup -0.999 lt { pop -0.999 } if
+        dup 0.999 gt { pop 0.999 } if
+    } def
+    0 1 L 1 sub { /y exch def
+        0 1 L 1 sub { /x exch def
+
+            % The sample point sits at the pixel centre, nudged just
+            % off the symmetric positions, so a symmetric spot orders
+            % its near-equal values by its own topology instead of
+            % leaving runs of exact ties whose sort order, not the
+            % spot, would shape the dot.
+            /xs x 0.5071 add def
+            /ys y 0.4877 add def
+
+            % The cell holding the pixel, and that cell's centre
+            % snapped to the nearest pixel centre: measuring the
+            % argument from the snapped centre rounds each dot about
+            % one pixel rather than squaring it about a corner, and
+            % keeps a table-indexing spot reading the entry under
+            % the pixel, never the seam between two.
+            /m1 a xs mul b ys mul add q div floor def
+            /m2 a ys mul b xs mul sub q div floor def
+            /xc a m1 0.5 add mul b m2 0.5 add mul sub floor 0.5 add def
+            /yc b m1 0.5 add mul a m2 0.5 add mul add floor 0.5 add def
+            count /d0 exch def
+            a xs xc sub mul b ys yc sub mul add q div 2 mul
+            dup 1 ge { 2 sub } if dup -1 lt { 2 add } if .clamparg
+            a ys yc sub mul b xs xc sub mul sub q div 2 mul
+            dup 1 ge { 2 sub } if dup -1 lt { 2 add } if .clamparg
+            quad { exch neg } repeat
+            proc
+            count d0 sub
+            dup 0 le { pop 0 }{ 1 sub { exch pop } repeat } ifelse
+            vals y L mul x add 3 -1 roll put
+        } for
+    } for
+    /idx L L mul array def
+    0 1 idx length 1 sub { dup idx 3 1 roll put } for
+
+    % Equal spot values rank in sample order, so a flat run of the
+    % spot -- a line screen's column, a pattern's plateau -- whitens
+    % coherently instead of in the sort's incidental order.
+    idx { 2 copy vals exch get exch vals exch get
+          2 copy eq { pop pop lt }{ exch lt 3 1 roll pop pop } ifelse
+    } //.xpostsys /qsort get exec
+
+    % When the tile holds several cells, deal the ranks around them:
+    % each cell takes every nth rank in its own value order, so a
+    % shell of equal spot values splits evenly and every cell grows
+    % the same dot, one pixel at a time.
+    /g a abs b abs //.gcd exec def
+    /nc q g idiv g idiv def
+    nc 1 gt {
+        /ap a g idiv def
+        /bp b g idiv def
+        /ctr nc array def
+        0 1 nc 1 sub { ctr exch 0 put } for
+        /idx2 L L mul array def
+        0 1 idx length 1 sub { /r exch def
+            /i idx r get def
+            /ix i L mod def
+            /iy i L idiv def
+            /m1 a ix mul b iy mul add q div floor cvi def
+            /m2 a iy mul b ix mul sub q div floor cvi def
+            /cid ap m1 mul bp m2 mul sub nc mod
+                 dup 0 lt { nc add } if def
+            idx2 ctr cid get nc mul cid add i put
+            ctr cid 2 copy get 1 add put
+        } for
+        /idx idx2 def
+    } if
+    /cell L L mul string def
+
+    % a pixel whitens when the grey level, on the painters' 0..256
+    % halftone scale, reaches its threshold; rank r takes the first
+    % level past r whitened pixels' worth of grey, so an even tint
+    % splits a line screen's cell without a stray pixel and the
+    % extremes stay solid.
+    0 1 idx length 1 sub { /r exch def
+        cell idx r get
+        r 256 mul idx length div cvi 1 add
+        dup 255 gt { pop 255 } if
+        put
+    } for
+    DEVICE /.htfreq freq put
+    DEVICE /.htang ang put
+
+    % Fetched, not looked up: a bare name would run the procedure
+    cell L L currentdict /proc get
+    //.xpostsys /.setscreencell get exec
+    end
+} put
+
+%
+%  The cell a screening device paints through, and what it was built
+%  from. This is the one place a cell is installed, so it is the one
+%  place a device can be told the screen has changed: a device that
+%  declares /ScreenChanged is called here, with itself as its operand.
+%
+%  What asks to be told is a device recording a page to be painted
+%  again. The screen is state a marking call does not carry -- the
+%  device paints through the cell it holds -- so a record that was not
+%  told would replay under whatever screen its target held by then. It
+%  is told where the cell changes rather than per mark, because that is
+%  where a cell is built.
+%
+.xpostsys /.setscreencell {  % cell w h src  .  -
+    DEVICE exch /.htsrc exch put
+    DEVICE exch /.hth exch put
+    DEVICE exch /.htw exch put
+    DEVICE exch /.htcell exch put
+    DEVICE /ScreenChanged known {
+        DEVICE dup /ScreenChanged get exec
+    } if
+} put
+
+%
+%  Bring a screening device's cell up to the screen in force: the
+%  installed halftone dictionary's thresholds or spot function, else
+%  the screen triple, rebuilt only when it has changed.
+%
+.xpostsys /.refreshscreencell {  % -  .  -
+    DEVICE /ScreenPaint known {
+        4 dict begin
+        /ht graphicsdict /currgstate get /halftone get //.xpostsys /.ht5component get exec def
+        ht null ne {
+            ht /Thresholds 2 copy known { get }{ pop pop null } ifelse
+            dup type /stringtype eq {
+                /th exch def
+                DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
+                th eq not {
+                    th ht /Width get ht /Height get th
+                    //.setscreencell exec
+                } if
+            }{
+                pop
+                ht /SpotFunction 2 copy known { get }{ pop pop null } ifelse
+                dup null ne {
+                    /sp exch def
+                    DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
+                    currentdict /sp get eq not {
+                        ht /Frequency 2 copy known { get }{ pop pop 60 } ifelse
+                        ht /Angle 2 copy known { get }{ pop pop 0 } ifelse
+                        currentdict /sp get //.installscreencell exec
+                    } if
+                }{ pop } ifelse
+            } ifelse
+        }{
+            DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
+                graphicsdict /currgstate get /screenproc get eq
+            DEVICE /.htfreq 2 copy known { get }{ pop pop null } ifelse
+                graphicsdict /currgstate get /screenfreq get eq and
+            DEVICE /.htang 2 copy known { get }{ pop pop null } ifelse
+                graphicsdict /currgstate get /screenangle get eq and
+            not {
+                graphicsdict /currgstate get /screenfreq get
+                graphicsdict /currgstate get /screenangle get
+                graphicsdict /currgstate get /screenproc get
+                //.installscreencell exec
+            } if
+        } ifelse
+        end
+    } if
+} put
+
+%
+%  freq angle proc  .  -
+%  freq angle halftonename  .  -
+%  record the halftone screen for every component and evaluate the
+%  spot function across the cell. xpost renders continuous tone, so
+%  the screen does not affect the raster; the parameters are part of
+%  the graphics state and round-trip through currentscreen and
+%  currentcolorscreen
+%  The spot function may be named rather than given.
+%
+/setscreen [ [ /numbertype /numbertype /proctype ]
+             [ /numbertype /numbertype /nametype ] ] {
+    graphicsdict /currgstate get exch /screenproc exch put
+    graphicsdict /currgstate get exch /screenangle exch put
+    graphicsdict /currgstate get exch /screenfreq exch put
+    graphicsdict /currgstate get /halftone null put
+    graphicsdict /currgstate get /halftonetransfer null put
+    //.spreadgrayscreen exec
+    graphicsdict /currgstate get /screenfreq get dup 0 gt {
+        graphicsdict /currgstate get /screenangle get
+        graphicsdict /currgstate get /screenproc get
+        dup xcheck { //.installscreen exec }{ pop pop pop } ifelse
+    }{ pop } ifelse
+} .defop
+
+%
+%  Return the grey channel's screen parameters
+%
+/currentscreen [ ] {  % -  .  freq angle proc
+    graphicsdict /currgstate get /screenfreq get
+    graphicsdict /currgstate get /screenangle get
+    graphicsdict /currgstate get /screenproc get
+} .defop
+
+%
+%  rf ra rp gf ga gp bf ba bp kf ka kp  .  -
+%  record one screen per component and evaluate each component's spot
+%  function across its own cell; the grey channel shares its slots with
+%  setscreen
+%  Each spot function may be named rather than given, as setscreen's
+%  may, so the frequencies and angles are what the shape can pin down.
+%
+/setcolorscreen [ /numbertype /numbertype /anytype
+                  /numbertype /numbertype /anytype
+                  /numbertype /numbertype /anytype
+                  /numbertype /numbertype /anytype ] {
+    //.installcolorscreen exec
+} .defop
+
+%
+%  a type 5 dictionary carries one halftone per colorant: grey
+%  rendering takes its grey component, or the required Default
+%  A type 2 or type 4 carries four screens, one per primary, spelled as
+%  entries prefixed Red, Green, Blue and Gray. This interpreter screens
+%  grey, so the grey screen is the one that reaches a device, and it is
+%  handed on as the single-screen type it corresponds to -- a type 2
+%  becomes a type 1 and a type 4 a type 3. Nothing downstream then knows
+%  there were four.
+%
+.xpostsys /.htgraytriple {  % ht  .  ht'
+    4 dict begin
+    /src exch def
+    src /HalftoneType get 2 eq {
+        /want 1 def
+        /pairs [ [ /Frequency /GrayFrequency ] [ /Angle /GrayAngle ]
+                 [ /SpotFunction /GraySpotFunction ] ] def
+    }{
+        /want 3 def
+        /pairs [ [ /Width /GrayWidth ] [ /Height /GrayHeight ]
+                 [ /Thresholds /GrayThresholds ] ] def
+    } ifelse
+    /out pairs length 1 add dict def
+    out /HalftoneType want put
+    pairs { aload pop src exch get out 3 1 roll put } forall
+    out
+    end
+} put
+
+%
+%  A type 10's cell sits at an angle, and the screens here take an
+%  axis-aligned tile. The two are reconcilable exactly: the cell lattice
+%  is generated by (X, Y) and (-Y, X), whose determinant is the sample
+%  count N, and that lattice contains (N, 0) and (0, N) -- so a tile of
+%  side N repeats the angled cell with nothing lost.
+%
+%  Which sample a device pixel takes follows from the same arithmetic.
+%  The map (x, y) -> (xX + yY) mod N sends both generators to zero and is
+%  onto, so it identifies each pixel's position in the cell and does so
+%  uniquely. Square X's sample (i, j) therefore sits at residue
+%  (iX + jY) mod N and square Y's at ((X+i)X + jY) mod N, which together
+%  cover every residue once.
+%
+.xpostsys /.htangledcell {  % ht  .  ht'
+    12 dict begin
+    /src exch def
+
+    % Two squares of side Xsquare and Ysquare are the case where both
+    % rectangles are square, so the two shapes are read into one set of
+    % sides and the rest of this knows only rectangles.
+    src /HalftoneType get 10 eq {
+        /W src /Xsquare get def /H W def
+        /W2 src /Ysquare get def /H2 W2 def
+    }{
+        /W src /Width get def   /H src /Height get def
+        /W2 src /Width2 get def /H2 src /Height2 get def
+    } ifelse
+    /N W H W2 H2 //.celldet exec def
+    /th src /Thresholds get def
+
+    % The tile that repeats the cell is not N on a side but N reduced by
+    % what the sides share, which .cellside answers for any cell shape.
+    /L W H W2 H2 //.cellside exec def
+
+    % where the cell repeats inside that tile
+    /seen L L mul string def
+    /lpx L L mul array def
+    /lpy L L mul array def
+    /nlp 0 def
+    0 1 L 1 sub {
+        /m exch def
+        0 1 L 1 sub {
+            /n exch def
+            /px m W mul n W2 mul sub L mod dup 0 lt { L add } if def
+            /py m H2 mul n H mul add L mod dup 0 lt { L add } if def
+            seen py L mul px add get 0 eq {
+                seen py L mul px add 1 put
+                lpx nlp px put
+                lpy nlp py put
+                /nlp nlp 1 add def
+            } if
+        } for
+    } for
+
+    % Each threshold stamped at every repeat of its place in the cell,
+    % the first rectangle at the origin and the second beside it.
+    /cell L L mul string def
+    /stamp {                            % sx sy s  .  -
+        /sv exch def /sy exch def /sx exch def
+        0 1 nlp 1 sub {
+            /k exch def
+            cell
+            sy lpy k get add L mod L mul
+            sx lpx k get add L mod add
+            th sv get put
+        } for
+    } bind def
+    0 1 H 1 sub {
+        /j exch def
+        0 1 W 1 sub {
+            /i exch def
+            i j j W mul i add stamp
+        } for
+    } for
+    0 1 H2 1 sub {
+        /j exch def
+        0 1 W2 1 sub {
+            /i exch def
+            W i add  j  W H mul j W2 mul add i add  stamp
+        } for
+    } for
+    /out 4 dict def
+    out /HalftoneType 3 put
+    out /Width L put
+    out /Height L put
+    out /Thresholds cell put
+    src /TransferFunction 2 copy known
+        { get out exch /TransferFunction exch put }{ pop pop } ifelse
+    out
+    end
+} put
+
+%
+%  The component of a halftone dictionary that the grey channel is
+%  rendered by. A HalftoneType 5 dictionary holds one halftone per
+%  colorant, so the /Gray entry is taken, or /Default where there is no
+%  /Gray; any other type is already the component and comes back
+%  unchanged.
+%
+.xpostsys /.ht5component {  % ht  .  ht'
+    dup type /dicttype eq {
+        dup /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse
+        dup 5 eq {
+            pop
+            dup /Gray 2 copy known { get exch pop }{ pop pop
+                dup /Default 2 copy known { get exch pop }{ pop pop } ifelse
+            } ifelse
+        }{
+            dup 2 eq 1 index 4 eq or {
+                pop //.htgraytriple exec
+            }{
+                dup 10 eq exch 16 eq 2 index /Width2 known and or {
+                    //.htangledcell exec
+                } if
+        } ifelse } ifelse
+    } if
+} put
+
+%
+%  a threshold-array halftone may deliver its thresholds through a
+%  file (a filter over the program stream): sethalftone consumes
+%  that data, so read it -- into a string put back in the
+%  dictionary, where a screening device's cell can find it, or
+%  drained when it exceeds a string.
+%
+.xpostsys /.htreadthresholds {  % ht  .  -
+    10 dict begin
+    /ht exch def
+    ht /Thresholds 2 copy known {
+        get dup type /filetype eq {
+            /htw ht /Width 2 copy known { get }{ pop pop 0 } ifelse def
+            /hth ht /Height 2 copy known { get }{ pop pop 0 } ifelse def
+
+            % a type 16 spends two bytes on each threshold; every other
+            % type spends one.
+            /wide ht /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse
+                  16 eq def
+            /httype ht /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse def
+
+            % The four sides the type names, in whatever shape it names
+            % them: two squares are two square rectangles, and a type
+            % that describes no second rectangle has none.
+            /hw2 0 def /hh2 0 def
+            httype 10 eq {
+                /htw ht /Xsquare get def /hth htw def
+                /hw2 ht /Ysquare get def /hh2 hw2 def
+            }{
+                httype 16 eq ht /Width2 known and {
+                    /hw2 ht /Width2 get def /hh2 ht /Height2 get def
+                } if
+            } ifelse
+            /nsamp htw hth hw2 hh2 //.celldet exec def
+            /nbytes nsamp wide { 2 mul } if def
+            nsamp 0 gt nbytes 65535 le and {
+                nbytes string
+                1 index exch readstring pop
+
+                % The cell holds one byte a sample, in C and in the
+                % PostScript screens alike, so a 16-bit threshold is kept
+                % to the precision the cell carries: its high byte. The
+                % reduction is stated rather than silent -- a type 16 and
+                % a type 6 built from the same values screen alike here.
+                wide {
+                    /raw exch def
+                    nsamp string
+                    0 1 nsamp 1 sub {
+                        /i exch def
+                        dup i raw i 2 mul get put
+                    } for
+                } if
+                ht wcheck {
+                    ht /Thresholds 3 -1 roll put
+                }{ pop } ifelse
+            } if
+
+            % Drain whatever the array did not need: sethalftone consumes
+            % the file. readstring leaves the piece it read whether or not
+            % it filled the string, so the last piece is dropped on the way
+            % out as well as on the way round -- but not without bound. A
+            % source that ends where the cell's samples do drains to
+            % nothing; one that goes on decoding far more than any cell can
+            % hold is a decompression bomb, not thresholds, so the drain
+            % stops at a cap the largest cell is already well inside rather
+            % than following the source to the end of an arbitrary stream.
+            0
+            { 1 index 4096 string readstring not { pop exit } if pop
+              1 add dup 16 gt { exit } if } loop
+            pop pop
+        }{ pop } ifelse
+    }{ pop pop } ifelse
+    end
+} put
+
+%
+%  a halftone parameter that has to be a number
+%
+.xpostsys /.htnum {  % obj  .  bool
+    type dup /integertype eq exch /realtype eq or
+} put
+
+%
+%  The tails of the entry names that state an extent. A screen frequency
+%  and the sides of a cell are matched by their ending rather than listed
+%  one by one, so that the per-primary copies a type 2 or a type 4 makes
+%  of them -- RedFrequency, GrayWidth and the rest -- and the second
+%  rectangle's Width2 and Height2 are all covered, and so is a name a
+%  later type coins on the same pattern.
+%
+.xpostsys /.htextentnames
+    [ (Frequency) (Width) (Height) (Xsquare) (Ysquare) (Width2) (Height2) ]
+put
+
+%
+%  and the entries whose names end in one of those without stating one.
+%  Matching by tail reaches a name nobody listed, which is what it is for,
+%  and it reaches this: ActualFrequency is not an extent the program
+%  states but a value the operator WRITES, set to the frequency actually
+%  achieved (PLRM Table 7.4). A program supplies it with anything at all,
+%  nought being the obvious choice, so reading it as an extent refuses the
+%  dictionary the specification asks for.
+%
+%  Whole names, not tails: the point is to name the exceptions exactly.
+%  A type 5's colorants cannot need one -- their values are dictionaries
+%  and nothing here looks at a value that is not a number.
+%
+.xpostsys /.htextentexempt [ (ActualFrequency) ] put
+
+%
+%  Every entry stating an extent must state a positive one. A side of
+%  zero or less encloses no area and a frequency of zero or less names no
+%  screen, and a cell with no places in it cannot be screened with; PLRM
+%  gives these entries a type but no bound, so the bound is the one both
+%  of the interpreters this is measured against apply, refusing the
+%  dictionary rather than building an empty cell from it.
+%
+%  The rule is put to the dictionary rather than to a list of keys per
+%  type, and .htvalidate asks it once after the type has had its say, so
+%  every type is held to it -- including a type 5's components, which
+%  .htvalidate reaches by calling itself. An entry whose value is not a
+%  number is left to the type's own check, which names it a typecheck.
+%
+.xpostsys /.htextent {  % ht  .  -
+    4 dict begin
+    /bad false def
+    {
+        dup //.htnum exec
+        { 0 le }{ pop false } ifelse
+        {
+            60 string cvs /nm exch def
+            /skip false def
+            //.htextentexempt {
+                nm eq { /skip true def } if
+            } forall
+            skip not {
+            //.xpostsys /.htextentnames get {
+                /sfx exch def
+                nm length sfx length ge {
+                    nm nm length sfx length sub sfx length getinterval
+                    sfx eq { /bad true def } if
+                } if
+            } forall
+            } if
+        }{ pop } ifelse
+    } forall
+    bad
+    end
+    { /sethalftone cvx /rangecheck signalerror } if
+} put
+
+%
+%  The entries PLRM types that no halftone type requires, and the types
+%  each one takes (PLRM Tables 7.4 to 7.9).
+%
+%  Held by name over whatever dictionary arrives rather than per halftone
+%  type, for the reason .htextent is: PLRM makes both available across
+%  several types -- HalftoneName in every type it defines, AccurateScreens
+%  in types 1 and 2 -- so a list per type would have to be extended for
+%  every type, including one nobody had thought of yet.
+%
+.xpostsys /.htoptypes <<
+    /AccurateScreens [ /booleantype ]
+    /HalftoneName [ /nametype /stringtype ]
+>> put
+
+%
+%  Hold every optional entry the dictionary carries to the type PLRM gives
+%  it. Neither value is read by anything here -- there is one screening
+%  algorithm, so AccurateScreens leaves ordinary halftoning in force, and
+%  HalftoneName is read by the CRD selection rather than by the screen --
+%  but a value of the wrong type is still refused: currenthalftone hands
+%  the dictionary back, so accepting one stores the fault where a later
+%  reader meets it, and a program that misspells the value has no other
+%  way of being told.
+%
+.xpostsys /.htoptional {  % ht  .  -
+    3 dict begin
+    /ht exch def
+    //.htoptypes {
+        /want exch def
+        ht 1 index known {
+            ht exch get type
+            /ok false def
+            want { 1 index eq { /ok true def } if } forall
+            pop
+            ok not { /sethalftone cvx /typecheck signalerror } if
+        }{ pop } ifelse
+    } forall
+    end
+} put
+
+%
+%  The function a colour component goes through on its way to a mark:
+%  the graphics state slot the name asks for, unless the halftone in
+%  force carries one of its own.
+%
+%  A halftone dictionary's TransferFunction OVERRIDES the one settransfer
+%  or setcolortransfer put in the graphics state (PLRM Table 7.4) -- it
+%  replaces it rather than composing with it, so a graphics state
+%  function is not consulted at all while one is in force. It belongs to
+%  the screen and not to the graphics state, and so it stands only where
+%  there is a screen: a device that declares ScreenPaint takes it, a
+%  continuous-tone device takes no effect from it whatever, and
+%  currenttransfer goes on answering with the function settransfer put
+%  there. It lasts exactly as long as the halftone that carried it;
+%  installing any other screen puts the graphics state's own back.
+%
+
+%
+%  Tell a dictionary what its screen came to.
+%
+%  PLRM Table 7.4 has sethalftone set ActualFrequency and ActualAngle,
+%  where they are present, to the frequency and angle achieved, and leave
+%  Frequency and Angle as the program wrote them -- those say what was
+%  asked for and go on saying it. A dictionary that did not ask is not
+%  answered, and one that cannot be written is left alone.
+%
+%  Only a screen searched for has an answer. A threshold array IS the
+%  cell, so it settled for nothing and the entries mean nothing in the
+%  types that carry one; the specification puts them in the type 1 table
+%  alone, and that is the type asked for here -- of the screen that ended
+%  up being installed, so a composite answers for the component that
+%  reached the device.
+%
+%  The answer is taken from the search rather than from the cell the
+%  search went on to build, because a device that does not screen never
+%  builds one and would otherwise have nothing to say about a screen it
+%  was perfectly able to choose.
+%
+%  setscreen reaches no dictionary at all, which is the whole of why the
+%  specification says the feature is not available there.
+%
+.xpostsys /.htanswer {  % ht eff  .  -
+    6 dict begin
+    /eff exch def
+    /ht exch def
+    ht wcheck
+    ht /ActualFrequency known ht /ActualAngle known or and
+    eff /HalftoneType 2 copy known { get 1 eq }{ pop pop false } ifelse and {
+        eff /Frequency get eff /Angle get
+        //.screenlattice exec
+        /cand exch def /quad exch def /q exch def pop pop pop
+        ht /ActualFrequency known {
+            ht /ActualFrequency
+               DEVICE /defaultmatrix get 0 get abs 72 mul q sqrt div put
+        } if
+        ht /ActualAngle known {
+            ht /ActualAngle cand quad 90 mul add put
+        } if
+    } if
+    end
+} put
+
+%
+%  Every key the declared type demands, or the missing one is undefined
+%
+.xpostsys /.htrequire {  % ht [ keys ]  .  -
+    { 1 index exch known not
+        { /sethalftone cvx /undefined signalerror } if } forall
+    pop
+} put
+
+%
+%  An angled cell is screened by expanding it onto the axis-aligned tile
+%  that repeats it, so what has to fit is the tile and not the cell. A
+%  cell with no places has no tile, and is refused for its sides rather
+%  than divided by. One whose tile will not fit a string is refused here
+%  rather than truncated into a screen that is not the one asked for.
+%  Both shapes that describe an angled cell come through here, so neither
+%  can acquire a limit the other does not have.
+%
+.xpostsys /.htcelllimit {  % W H W2 H2  .  -
+    //.cellside exec
+    dup 0 eq
+        { /sethalftone cvx /rangecheck signalerror } if
+    dup mul 65535 gt
+        { /sethalftone cvx /limitcheck signalerror } if
+} put
+
+%
+%  Check a halftone dictionary against the type it declares before any
+%  of it is recorded: a type this interpreter cannot screen with is a
+%  rangecheck, a required entry that is absent an undefined, and an
+%  entry of the wrong type a typecheck.
+%
+.xpostsys /.htvalidate {  % ht  .  -
+    1 dict begin
+    /ht exch def
+    ht /HalftoneType known not
+        { /sethalftone cvx /undefined signalerror } if
+    ht /HalftoneType get dup type /integertype ne
+        { /sethalftone cvx /typecheck signalerror } if
+    dup 1 eq {
+        pop
+        ht [ /Frequency /Angle /SpotFunction ] //.htrequire exec
+        ht /Frequency get //.htnum exec
+        ht /Angle get //.htnum exec and not
+            { /sethalftone cvx /typecheck signalerror } if
+        ht /SpotFunction get type dup /arraytype ne exch /nametype ne and
+            { /sethalftone cvx /typecheck signalerror } if
+    }{ dup 3 eq {
+        pop
+        ht [ /Width /Height /Thresholds ] //.htrequire exec
+        ht /Width get type /integertype eq
+        ht /Height get type /integertype eq and not
+            { /sethalftone cvx /typecheck signalerror } if
+        ht /Thresholds get type dup /stringtype ne exch /filetype ne and
+            { /sethalftone cvx /typecheck signalerror } if
+
+        % a string holds every threshold the array declares, or the
+        % array is short of the screen it describes (PLRM Table 7.5). A
+        % file is drawn from as far as it goes.
+        ht /Thresholds get type /stringtype eq {
+            ht /Thresholds get length ht /Width get ht /Height get mul lt
+                { /sethalftone cvx /rangecheck signalerror } if
+        } if
+    }{ dup 6 eq {
+        pop
+
+        % The same threshold array as a type 3, delivered through a file
+        % rather than a string. The file is the whole of the difference:
+        % .htreadthresholds already draws Width x Height bytes out of it
+        % and puts the string back where the screen looks for it, so
+        % nothing downstream distinguishes the two.
+        ht [ /Width /Height /Thresholds ] //.htrequire exec
+        ht /Width get type /integertype eq
+        ht /Height get type /integertype eq and not
+            { /sethalftone cvx /typecheck signalerror } if
+        ht /Thresholds get type /filetype ne
+            { /sethalftone cvx /typecheck signalerror } if
+    }{ dup 2 eq 1 index 4 eq or {
+        % Four screens, one per primary, each spelled with its colour in
+        % front of the entries a type 1 or a type 3 spells plainly. All
+        % four are required whichever one a device ends up screening
+        % with, so a dictionary short of one is short of a screen.
+        4 eq { [ /RedWidth     /RedHeight     /RedThresholds
+                 /GreenWidth   /GreenHeight   /GreenThresholds
+                 /BlueWidth    /BlueHeight    /BlueThresholds
+                 /GrayWidth    /GrayHeight    /GrayThresholds ] }
+             { [ /RedFrequency   /RedAngle   /RedSpotFunction
+                 /GreenFrequency /GreenAngle /GreenSpotFunction
+                 /BlueFrequency  /BlueAngle  /BlueSpotFunction
+                 /GrayFrequency  /GrayAngle  /GraySpotFunction ] } ifelse
+        ht exch //.htrequire exec
+        ht /GrayFrequency 2 copy known {
+            get //.htnum exec
+            ht /GrayAngle get //.htnum exec and not
+                { /sethalftone cvx /typecheck signalerror } if
+        }{ pop pop } ifelse
+    }{ dup 10 eq {
+        pop
+
+        % a cell at a nonzero screen angle, described by the two squares
+        % it divides into: their sides are the horizontal and vertical
+        % displacement from a point in one cell to the same point in the
+        % next (PLRM 7.4.5). Its thresholds may arrive either way a type
+        % 3's and a type 6's may, and there are Xsquare^2 + Ysquare^2 of
+        % them, square X first.
+        ht [ /Xsquare /Ysquare /Thresholds ] //.htrequire exec
+        ht /Xsquare get type /integertype eq
+        ht /Ysquare get type /integertype eq and not
+            { /sethalftone cvx /typecheck signalerror } if
+        ht /Thresholds get type dup /stringtype ne exch /filetype ne and
+            { /sethalftone cvx /typecheck signalerror } if
+
+        % The angled cell is screened by expanding it to an axis-aligned
+        % tile whose side is the sample count, so the tile is that
+        % squared. One too large to hold is refused here rather than
+        % truncated into a screen that is not the one asked for.
+        ht /Thresholds get type /stringtype eq {
+            ht /Thresholds get length
+            ht /Xsquare get dup ht /Ysquare get dup
+            //.celldet exec lt
+                { /sethalftone cvx /rangecheck signalerror } if
+        } if
+        ht /Xsquare get dup ht /Ysquare get dup
+        //.htcelllimit exec
+    }{ dup 16 eq {
+        pop
+
+        % The same file-borne threshold array as a type 6, at two bytes
+        % a sample rather than one (PLRM Table 7.8). The optional second
+        % rectangle travels as a pair: Width2 without Height2 describes a
+        % rectangle with no extent.
+        ht [ /Width /Height /Thresholds ] //.htrequire exec
+        ht /Width get type /integertype eq
+        ht /Height get type /integertype eq and not
+            { /sethalftone cvx /typecheck signalerror } if
+        ht /Thresholds get type /filetype ne
+            { /sethalftone cvx /typecheck signalerror } if
+        ht /Width2 known ht /Height2 known ne
+            { /sethalftone cvx /undefined signalerror } if
+
+        % The optional second rectangle describes a cell at an angle, as a
+        % type 10's two squares do and by the same construction: the cell
+        % repeats along (Width, Height2) and (-Width2, Height), whose
+        % determinant is Width x Height + Width2 x Height2, the count of
+        % thresholds. It is a cell on the same condition, that the two
+        % sides meeting in that determinant are coprime.
+        ht /Width2 known {
+            ht /Width2 get type /integertype eq
+            ht /Height2 get type /integertype eq and not
+                { /sethalftone cvx /typecheck signalerror } if
+            ht /Width get ht /Height get ht /Width2 get ht /Height2 get
+            //.htcelllimit exec
+        } if
+    }{ 5 eq {
+        % a composite dictionary: one halftone per colorant, and the
+        % Default the components that have no entry of their own fall
+        % back to. A component stands for a single colorant, so a
+        % dictionary that carries four screens at once cannot be one, and
+        % neither can a second composite: PLRM 7.4.6 allows a component
+        % of any type but 2, 4 and 5, and the three are refused alike.
+        ht /Default known not
+            { /sethalftone cvx /undefined signalerror } if
+        ht {
+            exch pop
+            dup type /dicttype eq {
+                dup //.xpostsys /.htvalidate get exec
+                /HalftoneType get
+                dup 2 eq exch dup 4 eq exch 5 eq or or
+                    { /sethalftone cvx /rangecheck signalerror } if
+            }{ pop } ifelse
+        } forall
+    }{
+        % Types 9 and 100 reach here, and they are not omissions. A
+        % proprietary halftone dictionary (PLRM 7.4.7) carries no screen
+        % at all: a type 9 holds only HalftoneType and perhaps
+        % HalftoneName, and a type 100's further entries are private to
+        % one product, with no way for a program to learn what they
+        % control. The screen such a dictionary asks for lives in a
+        % device that has the technique built into it, described by its
+        % manufacturer rather than by the language. No device here has
+        % one, so there is no screen for the dictionary to name, and the
+        % refusal is a statement about this fleet rather than about the
+        % language. A device that did have such a technique would accept
+        % the type without anything in the language layer changing.
+        /sethalftone cvx /rangecheck signalerror
+    } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse
+    ht //.htextent exec
+    ht //.htoptional exec
+    end
+} put
+
+%
+%  record the halftone dictionary. Every screen channel then answers
+%  the dictionary itself in the spot-function position: behind its own
+%  frequency and angle for a type 1 dictionary, behind 60 and 0 for
+%  any other type.
+%
+/sethalftone [ /dicttype ] {  % halftonedict  .  -
+    dup type /dicttype ne {
+        /sethalftone cvx /typecheck signalerror
+    } if
+    dup //.htvalidate exec
+    graphicsdict /currgstate get exch /halftone exch put
+
+    % The thresholds are drawn out of their file BEFORE a component is
+    % chosen: an angled cell is expanded from the bytes themselves, and
+    % a file is not bytes yet. sethalftone consumes the file either way.
+    graphicsdict /currgstate get /halftone get
+    dup /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse 5 eq {
+        { exch pop
+          dup type /dicttype eq { //.htreadthresholds exec }{ pop } ifelse
+        } forall
+    }{
+        //.htreadthresholds exec
+    } ifelse
+
+    1 dict begin
+    /ht graphicsdict /currgstate get /halftone get //.ht5component exec def
+    ht /HalftoneType 2 copy known { get 1 eq }{ pop pop false } ifelse
+    ht /Frequency known and ht /Angle known and {
+        graphicsdict /currgstate get /screenfreq ht /Frequency get put
+        graphicsdict /currgstate get /screenangle ht /Angle get put
+    }{
+        graphicsdict /currgstate get /screenfreq 60 put
+        graphicsdict /currgstate get /screenangle 0 put
+    } ifelse
+    graphicsdict /currgstate get /screenproc ht put
+
+    % Whatever dictionary ended up being the screen is the one whose
+    % transfer function stands. A type 2 or a type 4 cannot reach here
+    % carrying one: the grey triple is read into a fresh dictionary and
+    % the entry PLRM says is unavailable to them is not among the keys
+    % copied over.
+    graphicsdict /currgstate get /halftonetransfer
+        ht /TransferFunction 2 copy known { get }{ pop pop null } ifelse put
+    graphicsdict /currgstate get /halftone get ht
+        //.htanswer exec
+    end
+    //.spreadgrayscreen exec
+} .defop
+
+%
+%  Return the halftone: the installed dictionary, or a type 1
+%  dictionary over the grey screen when the screens were set directly.
+%
+/currenthalftone [ ] {  % -  .  halftonedict
+    graphicsdict /currgstate get /halftone get
+    dup null eq {
+        pop
+        << /HalftoneType 1
+           /Frequency graphicsdict /currgstate get /screenfreq get
+           /Angle graphicsdict /currgstate get /screenangle get
+           /SpotFunction graphicsdict /currgstate get /screenproc get
+        >>
+    } if
+} .defop
+
+%
+%  Return every component's screen parameters
+%
+/currentcolorscreen [ ] {  % -  .  rf ra rp gf ga gp bf ba bp kf ka kp
+    graphicsdict /currgstate get /redscreenfreq get
+    graphicsdict /currgstate get /redscreenangle get
+    graphicsdict /currgstate get /redscreenproc get
+    graphicsdict /currgstate get /greenscreenfreq get
+    graphicsdict /currgstate get /greenscreenangle get
+    graphicsdict /currgstate get /greenscreenproc get
+    graphicsdict /currgstate get /bluescreenfreq get
+    graphicsdict /currgstate get /bluescreenangle get
+    graphicsdict /currgstate get /bluescreenproc get
+    graphicsdict /currgstate get /screenfreq get
+    graphicsdict /currgstate get /screenangle get
+    graphicsdict /currgstate get /screenproc get
+} .defop
+
+%
+%  Ask for stroke adjustment (PLRM 8.2), which would move stroke edges
+%  onto pixel boundaries so that thin strokes come out an even width.
+%  Recorded and not acted on here; currentstrokeadjust reads it back.
+%
+
+end end
+
+%
+%  The halftone types this file implements, as PLRM Table 3.8 has a
+%  program ask after them. All eight of PLRM Table 7.5's types, which is
+%  what .htvalidate above accepts. Three of them are easy to think
+%  missing: 6 and 16 take their thresholds through a FILE where 3 takes a
+%  string, and 10 describes its screen with Xsquare and Ysquare rather
+%  than Width and Height. Handed the wrong shape each is refused exactly
+%  as an unimplemented type would be, so a reader checking by experiment
+%  has to build the right dictionary before believing the answer.
+%
+currentglobal true setglobal
+[ 1 2 3 4 5 6 10 16 ] { dup /HalftoneType defineresource pop } forall
+setglobal
+
+//.internaldict /QUIET known { }{ (eof halftone.ps\n)print } ifelse

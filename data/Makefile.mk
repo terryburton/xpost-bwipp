@@ -17,6 +17,7 @@ data/pdfwrite.ps \
 data/svgwrite.ps \
 data/dscwrite.ps \
 data/gstate.ps \
+data/halftone.ps \
 data/path.ps \
 data/paint.ps \
 data/resource.ps \
@@ -48,6 +49,7 @@ data/pdfwrite.ps \
 data/svgwrite.ps \
 data/dscwrite.ps \
 data/gstate.ps \
+data/halftone.ps \
 data/path.ps \
 data/paint.ps \
 data/resource.ps \

@@ -35,6 +35,7 @@ file err.ps           annotated
 file font.ps          annotated
 file graphics.ps      annotated
 file gstate.ps        annotated
+file halftone.ps      annotated
 file image.ps         annotated
 file init.ps          annotated
 file nulldev.ps       annotated
@@ -53,5 +54,5 @@ file shade.ps         annotated
 file svgwrite.ps      annotated
 file tiffimage.ps     annotated
 
-annotated 27
+annotated 28
 pending 0

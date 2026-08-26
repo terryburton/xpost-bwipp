@@ -39,7 +39,7 @@ xpost=${2:?usage: check-halftone-facts.sh <srcroot> <xpost>}
 . "$(dirname "$0")/guard-paths.sh"
 guard_require_srcroot "$src"
 guard_require_file "$src/tests/halftone-facts" "the halftone register"
-guard_require_file "$src/data/gstate.ps" "the halftone machinery"
+guard_require_file "$src/data/halftone.ps" "the halftone machinery"
 
 guard_workdir
 cr=$(printf '\r')
@@ -169,7 +169,7 @@ done < "$work/reg"
 # and the helper the branch goes on to call is what they are attributed
 # to. That way a type given a helper of its own has to be written down
 # here, and a helper that stops serving a type shows up too.
-tr -d "$cr" < "$src/data/gstate.ps" | awk '
+tr -d "$cr" < "$src/data/halftone.ps" | awk '
     /^\.xpostsys \/\.ht5component \{/ { inrouter = 1; next }
     inrouter && /^\} put/            { inrouter = 0 }
     !inrouter { next }
@@ -206,7 +206,7 @@ tr -d "$cr" < "$src/data/gstate.ps" | awk '
 nhelp=$(awk '{ print $1 }' "$work/router" | LC_ALL=C sort -u | grep -c . || true)
 nattr=$(grep -c . "$work/router" || true)
 if [ "$nhelp" -lt 2 ] || [ "$nattr" -lt 4 ]; then
-    echo "FAILURES: the router in data/gstate.ps yielded $nhelp helpers over"
+    echo "FAILURES: the router in data/halftone.ps yielded $nhelp helpers over"
     echo "      $nattr types, and it has always had at least two helpers over"
     echo "      at least four. The router was rewritten in a way this cannot"
     echo "      follow, and a check that finds no members proves nothing"
@@ -218,7 +218,7 @@ awk '$4 != "none" && $4 != "component" { print $1, $4 }' "$work/reg" \
 
 guard_held=0
 guard_hold "$work/router-pairs" "$work/reg-pairs" \
-    "sent to a helper by the router in data/gstate.ps and not recorded
+    "sent to a helper by the router in data/halftone.ps and not recorded
       against that helper in tests/halftone-facts. A type given a
       presentation of its own is a type the rest of the family has to be
       asked about:" \
@@ -235,7 +235,7 @@ guard_hold "$work/router-pairs" "$work/reg-pairs" \
 # them in; what is checked here is that stating them differently has not
 # turned into deriving them differently. Two helpers with the same body
 # is how that starts, and it is how it started once already.
-tr -d "$cr" < "$src/data/gstate.ps" | awk '
+tr -d "$cr" < "$src/data/halftone.ps" | awk '
     /^\.xpostsys \/[^ ]+ \{[ \t]*(%.*)?$/ { name = $2; body = ""; inb = 1; next }
     inb && /^\} (bind )?put[ \t]*$/ {
         gsub(/[ \t]+/, " ", body); sub(/^ /, "", body)
@@ -252,7 +252,7 @@ tr -d "$cr" < "$src/data/gstate.ps" | awk '
 
 nbodies=$(grep -c . "$work/bodies" || true)
 if [ "$nbodies" -lt 20 ]; then
-    echo "FAILURES: only $nbodies helper bodies were read from data/gstate.ps,"
+    echo "FAILURES: only $nbodies helper bodies were read from data/halftone.ps,"
     echo "      and it has always held many more. A comparison that reads"
     echo "      almost nothing agrees with almost anything"
     exit 1
@@ -260,7 +260,7 @@ fi
 dups=$(awk -F'\t' '{ if ($1 == prev) print prevname " and " $2; prev = $1; prevname = $2 }' \
     "$work/bodies")
 if [ -n "$dups" ]; then
-    echo "FAIL: two helpers in data/gstate.ps have the same body:"
+    echo "FAIL: two helpers in data/halftone.ps have the same body:"
     printf '%s\n' "$dups" | sed 's/^/      /'
     echo "      One of them is a second copy of a quantity the family"
     echo "      already had a name for. Delete it and call the first."
@@ -497,7 +497,7 @@ esac
 # about which types the entry may hold. Nothing here READS either value,
 # which is exactly why the typing needs holding -- a check nothing
 # depends on is one that can be dropped without any test noticing.
-awk '/\.xpostsys \/\.htoptypes </, /^>> put/' "$src/data/gstate.ps" \
+awk '/\.xpostsys \/\.htoptypes </, /^>> put/' "$src/data/halftone.ps" \
     | sed -n 's|^[[:space:]]*/\([A-Za-z0-9]*\)[[:space:]]*\[\([^]]*\)\].*|\1 \2|p' \
     | while read -r nm types; do
           printf '%s %s\n' "$nm" \
@@ -526,7 +526,7 @@ awk '{ print $1 }' "$work/opt-src" > "$work/opt-src-names"
 guard_held=0
 guard_hold "$work/opt-reg-names" "$work/opt-src-names" \
     "named as an optional entry in tests/halftone-facts and absent from
-      .htoptypes in data/gstate.ps. Either the entry stopped being typed
+      .htoptypes in data/halftone.ps. Either the entry stopped being typed
       or the line is stale:" \
     "typed by .htoptypes and named by no 'optional' line in
       tests/halftone-facts. Say what the entry is and which types PLRM

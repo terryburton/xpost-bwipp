@@ -16,6 +16,7 @@ xpost_data_src = files([
   'svgwrite.ps',
   'dscwrite.ps',
   'gstate.ps',
+  'halftone.ps',
   'path.ps',
   'paint.ps',
   'resource.ps',

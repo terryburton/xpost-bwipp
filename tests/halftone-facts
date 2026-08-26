@@ -28,7 +28,7 @@
 #             second parameterisation cannot be written without saying
 #             so here.
 # normaliser  which helper presents this type as a simpler one, or none.
-#             DERIVED from the router in data/gstate.ps and held to this
+#             DERIVED from the router in data/halftone.ps and held to this
 #             column both ways: a type that acquires a helper of its own
 #             fails here rather than passing unexamined.
 # component   whether PLRM 7.4.6 allows the type inside a type 5

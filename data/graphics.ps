@@ -4,7 +4,14 @@
 %
 % vim: set sw=4 sts=4 tw=72 et:
 %
-% The graphics-state machinery and the graphics language installed into global systemdict.
+% The callout bracket, and the loader that reads the graphics language in.
+%
+% Two jobs, and neither is the graphics state -- that is gstate.ps. This
+% file owns the bracket a program's own procedure runs inside when the
+% machinery calls out to it (a pattern's PaintProc, a spot function, a
+% BuildGlyph), and the unwinding that puts the world back if one of them
+% does not return normally. Beneath that it reads the modules of the
+% graphics language in the order they have to arrive in.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
@@ -410,6 +417,10 @@ end
 
     (/device.ps)  //.loadmodule exec  % Loads and uses (/image.ps)
     (/gstate.ps)  //.loadmodule exec
+    % immediately after the graphics state it was split out of, and before
+    % anything that reaches it: paint.ps freezes references to the screen
+    % helpers, and a frozen reference holds what the definition put there
+    (/halftone.ps) //.loadmodule exec
     (/color.ps)   //.loadmodule exec
     (/path.ps)    //.loadmodule exec
     (/clip.ps)    //.loadmodule exec
