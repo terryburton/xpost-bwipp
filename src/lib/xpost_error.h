@@ -44,11 +44,22 @@ http://stackoverflow.com/questions/6635851/real-world-use-of-x-macros/6636596#66
  * the type signature against the operand stack. It will then return a /typecheck or
  * /stackunderflow error to postscript.
  *
- * contextswitch and ioblock represent requests to the interpreter to change the state
- * of the execution-context. They cannot be caught by postscript error code.
+ * contextswitch, ioblock and collectretry represent requests to the interpreter to
+ * change the state of the execution-context. They cannot be caught by postscript
+ * error code.
  *
  * yieldtocaller is used to implement the Showpage-Return semantic where xpost
  * returns from xpost_run() after rendering the buffer.
+ *
+ * collectretry says the operator has done nothing and wants running again once a
+ * collection has been taken. It is answered where a host resource an unreachable
+ * object still holds has run out -- the descriptor behind a file object nothing
+ * names -- because the collector is asked by entities and bytes and knows nothing
+ * of such a resource, so the reclaim that would give it back is never due. The
+ * interpreter puts the operator and its operands back the way a blocked read is
+ * put back, and its safe point takes the collection before the operator runs
+ * again. One retry is offered per refusal, so an operator whose second attempt is
+ * refused as well reports the refusal.
  */
 #define ERRORS(_) \
     _(noerror)            /*0*/\
@@ -82,8 +93,9 @@ http://stackoverflow.com/questions/6635851/real-world-use-of-x-macros/6636596#66
     _(invalidcontext)          \
     _(contextswitch)           \
     _(ioblock)                 \
-    _(yieldtocaller)    /* 31*/\
-    _(unknownerror)     /* 32 nb. unknownerror is the catch-all and must be last */ \
+    _(collectretry)     /* 31*/\
+    _(yieldtocaller)    /* 32*/\
+    _(unknownerror)     /* 33 nb. unknownerror is the catch-all and must be last */ \
 /* #enddef ERRORS */
 
 /**

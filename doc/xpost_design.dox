@@ -600,7 +600,18 @@
  * per-allocation budget is spent so a job that churns rows without
  * churning many bytes still collects before the table saturates.
  * Either way the allocator only marks a collection pending; it is
- * taken at the interpreter's safe point between operators. The
+ * taken at the interpreter's safe point between operators.
+ *
+ * Neither pacing reaches a host resource an unreachable object holds,
+ * and one of those runs out on its own account: the descriptor behind
+ * a file object. An open spends almost no VM, so a job that opens
+ * files and drops them reaches the descriptor limit long before either
+ * threshold is crossed. That refusal asks for a collection itself and
+ * answers @c collectretry, which puts the operator and its operands
+ * back the way a blocked read is put back and runs it again after the
+ * safe point has taken the collection. One retry is offered per
+ * refusal, so a program really holding that many files open is told
+ * @c limitcheck as the language has it (PLRM 8.2, @c file). The
  * collector carries its own diagnostics -- an independent
  * reachability verifier, a cross-bank scan and a census, switched on
  * by environment variables -- which the structural tests run and

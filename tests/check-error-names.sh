@@ -69,13 +69,14 @@ fi
 
 # ---- exempt, with the reason ----
 # C names that are not errors a program can catch: the absence of an
-# error, the two requests that ask the interpreter to change the state of
-# the execution context rather than report a fault, and the return that
-# hands control back to an embedding caller after a page.
+# error, the three requests that ask the interpreter to change the state
+# of the execution context rather than report a fault, and the return
+# that hands control back to an embedding caller after a page.
 cat > "$work/cexempt" <<'EOF'
 noerror
 contextswitch
 ioblock
+collectretry
 yieldtocaller
 EOF
 LC_ALL=C sort -u -o "$work/cexempt" "$work/cexempt"

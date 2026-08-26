@@ -380,10 +380,31 @@ xpost_path_permitted(const char *path, int write)
                write ? xpost_permit_write_cnt : xpost_permit_read_cnt) >= 0;
 }
 
+/* Whether the open just refused was refused for want of a descriptor.
+
+   The error a refusal is reported as does not say so on its own:
+   limitcheck stands for every implementation limit an open can reach,
+   and only one of them is a resource an unreachable file object may
+   still be holding. The mapper below is the one place that reads the
+   errno, so it is the one place that can tell, and it says so here for
+   the opener to read a few frames up. Nothing runs between the two but
+   returns, and the opener clears the word before each attempt, so what
+   is read belongs to the attempt that set it. */
+static int xpost_open_short_of_descriptors = 0;
+
 /* map an fopen/openat2 errno to a PostScript file error */
 static int
 xpost_fopen_errno(int e)
 {
+    xpost_open_short_of_descriptors = 0;
+#ifdef EMFILE
+    if (e == EMFILE)      /* this process may open no more */
+        xpost_open_short_of_descriptors = 1;
+#endif
+#ifdef ENFILE
+    if (e == ENFILE)      /* the system may open no more */
+        xpost_open_short_of_descriptors = 1;
+#endif
     switch (e)
     {
         case EACCES:
@@ -5928,6 +5949,45 @@ int _file_adopt_stream(Xpost_Memory_File *mem,
     return 0;
 }
 
+/* Whether a collection has already been asked for over this refusal.
+
+   One is offered per refusal and no more: a second attempt refused after
+   a collection has run is a file limit the run has really reached, and
+   answering the same request again would put the interpreter in a loop
+   between a collection that frees nothing and an open that cannot
+   succeed. */
+static int xpost_open_collect_asked = 0;
+
+/* What a refused open answers.
+
+   A descriptor is a host resource an unreachable file object may still
+   be holding, and the collector closes such a file (PLRM 3.8) -- but the
+   collector is asked by entities and bytes, which an open spends almost
+   none of, so a job that opens files and drops them reaches the
+   descriptor limit with the reclaim that would give them back still not
+   due. Ask for one here and have the operator run again, rather than
+   report a limit against files the program can no longer reach.
+
+   Every other refusal is reported as it stands: the collection would
+   free nothing a second attempt could use. Neither is one asked for
+   while the interpreter is still building its initial VM, where the
+   allocator withholds its own requests for the same reason: what a
+   start-up file has opened is what it is about to use. */
+static int
+_open_refused(Xpost_Memory_File *mem, int err)
+{
+    if (!xpost_open_short_of_descriptors || xpost_open_collect_asked
+        || !mem->garbage_collect_is_installed
+        || mem->interpreter_get_initializing())
+    {
+        xpost_open_collect_asked = 0;
+        return err;
+    }
+    xpost_open_collect_asked = 1;
+    mem->garbage_collect_pending = 1;
+    return collectretry;
+}
+
 /* Open a file object,
    check for "special" filenames,
    fallback to fopen.
@@ -6068,15 +6128,23 @@ int xpost_file_open(Xpost_Memory_File *mem,
             }
             fmode[mi++] = 'b';
             fmode[mi] = '\0';
+            /* cleared before the attempt, so what the refusal below
+               reads was written by this attempt and not an earlier one:
+               not every road to a refusal passes through the errno
+               mapper that writes it */
+            xpost_open_short_of_descriptors = 0;
             fp = xpost_diskfile_fopen(fn, fmode, 0, &ret);
         }
         if (fp == NULL)
-            return ret;
+            return _open_refused(mem, ret);
         ret = _file_adopt_stream(mem, fp, access, &f);
         if (ret)
             return ret;
     }
 
+    /* the open succeeded, so whatever was asked for over an earlier
+       refusal is spent */
+    xpost_open_collect_asked = 0;
     f.tag |= XPOST_OBJECT_TAG_DATA_FLAG_LIT;
     *retval = f;
 

@@ -68,6 +68,23 @@
 } for
 { nm (r) file dup closefile } (a file still opens after two hundred reusable streams) works
 
+% --- dropped without being closed, and without anything asking for a
+% collection ---
+% PLRM 3.8 has the collector close a file whose object is no longer
+% accessible, and 3.7.4 has collection "take place without explicit
+% action by the PostScript program". Nothing in this round closes a file
+% or asks for a reclaim: each one is opened, read from and dropped
+% unreachable, and there are far more of them than the allowance the
+% wrapper sets. The descriptor a dropped file holds therefore has to
+% come back to the program on the interpreter's own account, since an
+% open spends too little of what paces a collection to make one due.
+0 1 200 {
+    pop
+    nm (r) file dup 4 string readstring pop pop pop
+} for
+{ nm (r) file dup closefile }
+    (a file still opens after two hundred dropped without being closed) works
+
 % and the interpreter is still working
 1 2 add 3 eq (the interpreter still works after the rounds) assert
 

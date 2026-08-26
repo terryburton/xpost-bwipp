@@ -2230,6 +2230,14 @@ ctxswitch:
             {
             case yieldtocaller:
                 return XPOST_MAINLOOP_YIELDED;
+            case collectretry:
+                /* the operator did nothing and wants running again once
+                   a collection has been taken. It goes back the way a
+                   blocked one does; the collection it asked for is the
+                   one this loop takes at its top, before the operator
+                   runs again. */
+                _reexecute_current(ctx);
+                continue;
             case ioblock:
                 _reexecute_current(ctx);
                 ctx->state = C_IOBLOCK; /* fallthrough */
@@ -2370,6 +2378,14 @@ int xpost_interpreter_run_nested(Xpost_Context *ctx, Xpost_Object P)
         ret = eval(ctx);
         if (ret)
         {
+            /* an operator wanting to run again after a collection is
+               answered here rather than passed up: the collection it
+               asked for is taken at the top of this loop too */
+            if (ret == collectretry)
+            {
+                _reexecute_current(ctx);
+                continue;
+            }
             /* the run itself is ending, or moving to another context:
                neither is this procedure's to answer, so it goes back to
                the interpreter that can */
