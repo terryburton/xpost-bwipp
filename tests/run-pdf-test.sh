@@ -404,6 +404,73 @@ eosubpaths=$(grep -c '^h$' "$eoclippdf")
     exit 1; }
 echo "even-odd clip OK"
 
+# --- the stream's state is written where it changes, and where a Q undid it ---
+#
+# A PDF content stream is a state machine (PDF 8.4): a colour, a line
+# width, a cap, a join and a miter limit stand until an operator replaces
+# them. Restating one that is already in force adds bytes and changes
+# nothing on the page, and a page of strokes under one pen was carrying a
+# full set of them per stroke.
+#
+# The other half is what makes suppression safe. q and Q save and restore
+# the whole graphics state (PDF 8.4.2), so a value written inside a q is
+# gone after the matching Q: a writer that remembered it across the Q
+# would leave the next paint with no colour operator and the consumer
+# painting it in whatever the Q brought back. The clipped fill below
+# lands inside a q...Q, so the fill after it must state its colour again
+# even though the same colour was stated moments earlier.
+#
+# Read off the content, which the distiller parameter leaves uncompressed
+# for the purpose.
+statps=$(mktemp)
+statpdf=./state-$$.pdf
+trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf" "$statps" "$statpdf"' EXIT INT TERM
+cat > "$statps" <<EOF
+<< /CompressPages false >> setdistillerparams
+<< /OutputDevice /pdfwrite /OutputFile ($statpdf) /PageSize [400 400] >> setpagedevice
+0 0 1 setrgbcolor 3 setlinewidth 1 setlinecap 1 setlinejoin 4 setmiterlimit
+% twenty strokes under one unchanging pen
+0 1 19 {
+    10 mul 10 add dup
+    newpath 20 exch moveto 380 exch lineto stroke
+} for
+% a clip no rectangle describes: the shape goes to the device and the
+% fill under it is written inside a q ... Q
+gsave
+newpath 200 300 80 0 360 arc closepath 200 300 40 0 360 arc closepath
+eoclip newpath
+1 0 0 setrgbcolor
+newpath 0 0 moveto 400 0 lineto 400 400 lineto 0 400 lineto closepath fill
+grestore
+% the same colour again, outside the clip: the Q undid the one inside
+1 0 0 setrgbcolor
+newpath 300 20 moveto 380 20 lineto 380 60 lineto 300 60 lineto closepath fill
+showpage
+<< /OutputDevice /null >> setpagedevice
+quit
+EOF
+run_xpost "the graphics-state run" -d null -o /dev/null "$statps"
+rm -f "$statps"
+nstroke=$(grep -c '^S$' "$statpdf")
+[ "$nstroke" = 20 ] || { echo "FAIL: expected 20 strokes, the run wrote $nstroke"; exit 1; }
+for opline in '3 w' '1 J' '1 j' '4 M' '0 0 1 RG'; do
+    n=$(grep -c "^$opline\$" "$statpdf")
+    [ "$n" = 1 ] || {
+        echo "FAIL: \"$opline\" is in the stream $n times over 20 strokes that"
+        echo "      never change it. A state operator restating a value the"
+        echo "      stream already carries adds bytes and no marks."
+        exit 1; }
+done
+nred=$(grep -c '^1 0 0 rg$' "$statpdf")
+[ "$nred" = 2 ] || {
+    echo "FAIL: the fill colour is in the stream $nred times, want 2. One is"
+    echo "      written inside the q the clip opens and taken back off the"
+    echo "      state stack by the matching Q, so the fill after it must"
+    echo "      state the colour again -- a writer that remembered it across"
+    echo "      the Q leaves that fill painted in whatever the Q restored."
+    exit 1; }
+echo "graphics-state re-emission OK"
+
 # separation registry at scale: the registry indexes a separation by name
 # so that a page naming many finds each in constant time, and the index
 # grows and is rebuilt as the count passes eight, sixteen and on. Register

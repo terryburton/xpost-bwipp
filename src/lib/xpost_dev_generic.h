@@ -70,6 +70,47 @@ XPOST_MUST_CHECK int xpost_dev_pdf_append(Xpost_Context *ctx, Xpost_Object devdi
                          const char *s, size_t n);
 
 /**
+ * @brief the graphics-state slots a PDF content stream carries
+ *
+ * A PDF content stream is a state machine (PDF 8.4): a colour, a line
+ * width, a cap, a join, a miter limit or an ExtGState selection stands
+ * until something replaces it. Each slot names one such piece of state,
+ * and the accumulator remembers the operator text last written for it,
+ * so a writer emits only where what it would write differs from what
+ * the stream already carries.
+ *
+ * The fill slot is shared by every writer of a fill colour -- the
+ * device's own marking methods and the glyph outlines the text
+ * operators emit -- because they write into one stream and one paint
+ * follows another there whichever produced it.
+ */
+#define XPOST_PDF_GS_FILL       0
+#define XPOST_PDF_GS_STROKE     1
+#define XPOST_PDF_GS_LINE       2   /**< width, cap, join and miter limit together */
+#define XPOST_PDF_GS_EXTGSTATE  3
+#define XPOST_PDF_GS_SLOTS      4
+
+/**
+ * @brief whether a state operator would change what the stream carries
+ *
+ * Answers non-zero when @p slot does not already hold the @p n bytes at
+ * @p s -- in which case the caller writes them and the slot is recorded
+ * as holding them -- and zero when the stream carries them already and
+ * the caller may leave them out.
+ *
+ * The record is only ever consulted with the bytes about to be
+ * appended: a caller that asks and then does not append would leave the
+ * slot claiming bytes the stream does not carry, and the next paint
+ * would go out without its colour.
+ *
+ * A device with no accumulator, or a text longer than a slot, answers
+ * non-zero and records nothing: an unknown slot costs an operator and
+ * never a wrong page.
+ */
+int xpost_dev_pdf_state(Xpost_Context *ctx, Xpost_Object devdic,
+                        int slot, const char *s, size_t n);
+
+/**
  * @brief format a number in PDF content-stream syntax
  *
  * Writes an integer when integral, else two decimals (never

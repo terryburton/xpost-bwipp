@@ -116,6 +116,7 @@ xpost_dev_page_moveband_call
 xpost_dev_page_retire
 xpost_dev_pdf_append
 xpost_dev_pdf_fmt_num
+xpost_dev_pdf_state
 xpost_dev_png_option_roster
 xpost_dev_png_options_set
 xpost_dev_record_takemask

@@ -621,6 +621,8 @@ method .pdfoverprint dscwrite pdfwrite
 method .playmake record
 method .pushcolor bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .put dscwrite pdfwrite svgwrite
+method .qrestore dscwrite pdfwrite
+method .qsave dscwrite pdfwrite
 method PutPix every
 method .recordglyph record
 method .recordimage record
@@ -633,10 +635,16 @@ method .rowempty bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .rowget bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .rowheld bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .rowput bgr jpeg pbm pgm png pngalpha ppm raster tiff
+method .scarried dscwrite pdfwrite
 method ScreenChanged record
+method .send dscwrite pdfwrite
 method .screenpix bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .setupoutput dscwrite pdfwrite
+method .snum dscwrite pdfwrite
+method .sput dscwrite pdfwrite
 method .strcat dscwrite pdfwrite
+method .streamdefaults dscwrite pdfwrite
+method .streamreset dscwrite pdfwrite
 method StrokePath dscwrite pdfwrite svgwrite
 method .svgnum svgwrite
 method .svgrgb svgwrite
@@ -688,7 +696,6 @@ state miny bbox
 state .ncomps dscwrite pdfwrite
 state .nextobj dscwrite pdfwrite
 state .opaque bbox
-state .oplast dscwrite pdfwrite
 state .opused dscwrite pdfwrite
 state OutputFileName every
 state .pdffillcolor dscwrite pdfwrite
@@ -711,6 +718,14 @@ state x dscwrite pdfwrite svgwrite
 state y dscwrite pdfwrite svgwrite
 
 # The class's own constants and tables.
+part .gsextgstate dscwrite pdfwrite
+disposition settled
+part .gsfill dscwrite pdfwrite
+disposition settled
+part .gsline dscwrite pdfwrite
+disposition settled
+part .gsstroke dscwrite pdfwrite
+disposition settled
 part .playloaders record
 disposition settled
 part .playtargets record

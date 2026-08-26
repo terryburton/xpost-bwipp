@@ -3945,6 +3945,56 @@ typedef struct
     size_t funclen;
 } Pdf_Sep;
 
+/* What the content stream already carries of the graphics state.
+   A PDF content stream is a state machine: a colour, a line width, a cap,
+   a join, a miter limit or an ExtGState selection stands until something
+   replaces it, so writing one whose value is already in force adds bytes
+   and changes nothing on the page. Each slot holds the exact operator
+   text last written for it, and a writer emits only where the text it
+   would write differs. Text and not the value it came from: what the
+   stream carries is bytes, and comparing the bytes cannot drift from the
+   formatting that produced them.
+
+   The levels are the q/Q stack. `q` saves the whole record and `Q`
+   brings it back, because that is what those operators do to the state
+   the record describes: a value written inside a q and compared against
+   after the matching Q would suppress an operator the consumer had
+   already undone. An empty slot is one whose value is unknown, which
+   costs an operator and never a wrong page -- so every case this cannot
+   follow (a stack deeper than the levels here, a Q with no q, an
+   operator text longer than a slot) empties slots rather than guessing.
+
+   It hangs off the accumulator rather than living in the device
+   dictionary: what it describes is the content, which is not virtual
+   memory, and a `restore` that rolled the record back while the content
+   stood would leave it claiming bytes the stream does not carry. */
+#define PDF_GS_DEPTH 32
+#define PDF_GS_TEXT  64
+
+typedef struct
+{
+    unsigned char len;              /* 0: nothing is known of this slot */
+    char text[PDF_GS_TEXT];
+} Pdf_Gs_Slot;
+
+typedef struct
+{
+    Pdf_Gs_Slot slot[XPOST_PDF_GS_SLOTS];
+} Pdf_Gs_Level;
+
+typedef struct
+{
+    Pdf_Gs_Level level[PDF_GS_DEPTH];
+    int depth;      /* the level in force */
+    int over;       /* q's past the deepest level, still to be matched */
+    /* One state operator's text, while a writer is building it. It is
+       built here and not in a PostScript string because a writer
+       appends its operator a piece at a time and every paint builds
+       one: a string per piece is virtual memory taken and given back on
+       the hot path of every mark on the page. */
+    Xpost_String_Buffer pend;
+} Pdf_Gs;
+
 typedef struct
 {
     Xpost_String_Buffer content;
@@ -3953,6 +4003,7 @@ typedef struct
     int sepcap;
     int *sephash;    /* name index: a separation's position + 1, 0 empty */
     int sephashcap;  /* a power of two, or 0 when the index is absent */
+    Pdf_Gs *gs;      /* what the stream carries, or NULL: then nothing is known */
 } Pdf_Acc;
 
 /* Load/store the accumulator struct via the device's /Private string. The raw
@@ -4006,6 +4057,10 @@ static void _pdf_acc_reclaim(void *block)
     int i;
 
     xpost_strbuf_free(&a->content);
+    if (a->gs)
+        xpost_strbuf_free(&a->gs->pend);
+    free(a->gs);
+    a->gs = NULL;
     for (i = 0; i < a->nseps; i++)
     {
         free(a->seps[i].name);
@@ -4035,6 +4090,7 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
     a.sepcap = 0;
     a.sephash = NULL;
     a.sephashcap = 0;
+    a.gs = NULL;
     /* What this device holds is a buffer, which is not virtual memory: a
        device the run never retires -- one a restore took back, or one
        nothing named by the time a collection came round -- would take
@@ -4063,6 +4119,213 @@ static int _pdfput(Xpost_Context *ctx, Xpost_Object str, Xpost_Object devdic)
         return undefined;
     ret = xpost_strbuf_append(&a.content,
                               xpost_string_get_pointer(ctx, str), str.comp_.sz);
+    if (ret)
+        return ret;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+/* The record of what the stream carries, made if it is not there.
+   Every slot starts empty, which is what a stream with nothing written
+   into it carries: the first paint writes all of its own state. The
+   record is made here rather than at the accumulator's creation because
+   giving the accumulator up at the end of a page releases it along with
+   the content buffer, and a device painted on afterwards starts the
+   buffer again -- the record starts again with it, and an empty record
+   describes an empty stream exactly. */
+static Pdf_Gs *_pdf_gs_of(Xpost_Context *ctx, Xpost_Object priv, Pdf_Acc *a)
+{
+    if (!a->gs)
+    {
+        a->gs = calloc(1, sizeof(*a->gs));
+        if (!a->gs)
+            return NULL;
+        if (!_pdf_acc_put(ctx, priv, a))
+        {
+            free(a->gs);
+            a->gs = NULL;
+            return NULL;
+        }
+    }
+    return a->gs;
+}
+
+/* Whether a state operator would change what the stream carries, and
+   the record of it having been written. See xpost_dev_pdf_state. */
+static int _pdf_gs_new(Pdf_Acc *a, int slot, const char *s, size_t n)
+{
+    Pdf_Gs_Slot *t;
+
+    if (!a->gs || a->gs->over || slot < 0 || slot >= XPOST_PDF_GS_SLOTS)
+        return 1;
+    t = &a->gs->level[a->gs->depth].slot[slot];
+    if (n == 0 || n >= PDF_GS_TEXT)
+    {
+        /* Longer than the slot describes: the bytes go out and the slot
+           forgets, rather than going on to answer for a value it is not
+           holding. */
+        t->len = 0;
+        return 1;
+    }
+    if (t->len == n && memcmp(t->text, s, n) == 0)
+        return 0;
+    memcpy(t->text, s, n);
+    t->len = (unsigned char)n;
+    return 1;
+}
+
+int xpost_dev_pdf_state(Xpost_Context *ctx, Xpost_Object devdic,
+                        int slot, const char *s, size_t n)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a) || !_pdf_gs_of(ctx, priv, &a))
+        return 1;
+    /* The record hangs off the accumulator by pointer, so what it holds
+       is written where it lives and the struct needs no storing back. */
+    return _pdf_gs_new(&a, slot, s, n);
+}
+
+/* .pdfsput  % str devdic  .  -
+   Append a piece to the state operator being built. */
+static int _pdfsput(Xpost_Context *ctx, Xpost_Object str, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+    return xpost_strbuf_append(&a.gs->pend,
+                               xpost_string_get_pointer(ctx, str), str.comp_.sz);
+}
+
+/* .pdfsend  % slot devdic  .  bool
+   Finish the state operator being built: write it into the content, or
+   leave it out where the stream carries it already, answering which it
+   did. The building and the writing are the one call sequence, so a
+   writer cannot ask whether an operator is needed and then not write it
+   -- which would leave the slot answering for bytes the stream does not
+   hold, and the next paint going out with no colour.
+
+   The answer is for a writer whose operator names a page resource: a
+   resource is declared because the content refers to it, so what
+   reached the content is what settles the declaration. */
+static int _pdfsend(Xpost_Context *ctx, Xpost_Object slot, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int wrote, ret;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+    wrote = _pdf_gs_new(&a, slot.int_.val, a.gs->pend.s, a.gs->pend.len);
+    if (wrote)
+    {
+        ret = xpost_strbuf_append(&a.content, a.gs->pend.s, a.gs->pend.len);
+        if (ret)
+            return ret;
+        if (!_pdf_acc_put(ctx, priv, &a))
+            return VMerror;
+    }
+    a.gs->pend.len = 0;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(wrote));
+    return 0;
+}
+
+/* .pdfscarried  % slot devdic  .  -
+   Record the state operator being built as already in force, without
+   writing it. What it is for is the state a content stream is in before
+   anything is written into it: PDF 8.4.1 Table 52 gives the graphics
+   state parameters their starting values, so an operator restating one
+   of those at the head of a page would say what the consumer already
+   has.
+
+   It is a separate call from .pdfsend and not a flag on it, because the
+   two are opposite obligations: .pdfsend is told only what is about to
+   be written, and this only what will not be. */
+static int _pdfscarried(Xpost_Context *ctx, Xpost_Object slot, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+    (void)_pdf_gs_new(&a, slot.int_.val, a.gs->pend.s, a.gs->pend.len);
+    a.gs->pend.len = 0;
+    return 0;
+}
+
+/* .pdfsave / .pdfrestore  % devdic  .  -
+   The content-stream q and Q, written with the record of what the
+   stream carries saved and brought back alongside. They are one call
+   each so that the two cannot come apart: a q whose state was not saved
+   leaves the writer suppressing an operator the matching Q has undone,
+   which is a paint in the wrong colour and not a larger file. */
+static int _pdfsave(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int ret;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+    if (a.gs)
+    {
+        if (a.gs->over || a.gs->depth + 1 >= PDF_GS_DEPTH)
+        {
+            /* Deeper than the record follows. The level in force is
+               emptied and the excess counted, so every writer emits in
+               full until the matching Q brings the depth back. */
+            a.gs->over++;
+            memset(&a.gs->level[a.gs->depth], 0, sizeof(a.gs->level[0]));
+        }
+        else
+        {
+            a.gs->level[a.gs->depth + 1] = a.gs->level[a.gs->depth];
+            a.gs->depth++;
+        }
+    }
+    ret = xpost_strbuf_append(&a.content, "q\n", 2);
+    if (ret)
+        return ret;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+static int _pdfrestore(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int ret;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+    if (a.gs)
+    {
+        if (a.gs->over)
+            a.gs->over--;
+        else if (a.gs->depth > 0)
+            a.gs->depth--;
+        else
+            /* A Q with no q of this writer's making: what the consumer
+               restores is a state from before this stream, which nothing
+               here knows. */
+            memset(&a.gs->level[0], 0, sizeof(a.gs->level[0]));
+    }
+    ret = xpost_strbuf_append(&a.content, "Q\n", 2);
     if (ret)
         return ret;
     if (!_pdf_acc_put(ctx, priv, &a))
@@ -4514,6 +4777,17 @@ static int _pdfreset(Xpost_Context *ctx, Xpost_Object devdic)
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return 0;
     a.content.len = 0;
+    /* The next page is a new stream and carries nothing over from this
+       one: the state a consumer reads starts at the PDF defaults again.
+       The pending text's buffer is kept and emptied rather than given
+       up, since the next page builds its operators in the same one. */
+    if (a.gs)
+    {
+        memset(a.gs->level, 0, sizeof(a.gs->level));
+        a.gs->depth = 0;
+        a.gs->over = 0;
+        a.gs->pend.len = 0;
+    }
     if (!_pdf_acc_put(ctx, priv, &a))
         return VMerror;
     return 0;
@@ -4529,6 +4803,10 @@ static int _pdffree(Xpost_Context *ctx, Xpost_Object devdic)
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return 0;
     xpost_strbuf_free(&a.content);
+    if (a.gs)
+        xpost_strbuf_free(&a.gs->pend);
+    free(a.gs);
+    a.gs = NULL;
     for (i = 0; i < a.nseps; i++)
     {
         free(a.seps[i].name);
@@ -4760,6 +5038,14 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             numbertype, numbertype, numbertype, arraytype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfinit", (Xpost_Op_Func)_pdfinit, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfput", (Xpost_Op_Func)_pdfput, 2, stringtype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfsput", (Xpost_Op_Func)_pdfsput, 2,
+            stringtype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfsend", (Xpost_Op_Func)_pdfsend, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfscarried", (Xpost_Op_Func)_pdfscarried, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfsave", (Xpost_Op_Func)_pdfsave, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfrestore", (Xpost_Op_Func)_pdfrestore, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfchunks", (Xpost_Op_Func)_pdfchunks, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdffree", (Xpost_Op_Func)_pdffree, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".devinstalled", (Xpost_Op_Func)_devinstalled, 1, dicttype); INSTALL;

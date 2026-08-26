@@ -3172,7 +3172,14 @@ int _show_char_outline(Xpost_Context *ctx,
         memcpy(t + n, " rg\n", 4);
         n += 4;
     }
-    _frag_put(&f, t, n);
+    /* The SVG prefix opens the element the outline is the body of, so it
+       goes into the fragment. The PDF colour is a state operator and is
+       held back until the outline is known to be reaching the content:
+       a glyph that decomposes to nothing writes nothing, and a colour
+       recorded for a fragment that was never appended would leave the
+       stream's record claiming bytes it does not carry. */
+    if (f.svg)
+        _frag_put(&f, t, n);
 
     sink.moveto = _frag_moveto;
     sink.lineto = _frag_lineto;
@@ -3191,11 +3198,26 @@ int _show_char_outline(Xpost_Context *ctx,
             _frag_put(&f, "\"/>\n", 4);   /* glyphs fill nonzero: SVG's default rule */
         else
             _frag_put(&f, "f\n", 2);
-        if (!f.oom && xpost_dev_pdf_append(ctx, devdic, f.d.s, f.d.len))
+        if (!f.oom)
         {
-            /* the glyph's content did not reach the page */
-            xpost_strbuf_free(&f.d);
-            return 0;
+            /* One paint follows another in the content stream whatever
+               produced it, so a glyph states its fill colour only where
+               the stream does not carry it already -- a page of text is
+               otherwise a colour operator per glyph, in the colour the
+               glyph before it was painted in. */
+            if (!f.svg && xpost_dev_pdf_state(ctx, devdic,
+                                              XPOST_PDF_GS_FILL, t, (size_t)n)
+                       && xpost_dev_pdf_append(ctx, devdic, t, (size_t)n))
+            {
+                xpost_strbuf_free(&f.d);
+                return 0;
+            }
+            if (xpost_dev_pdf_append(ctx, devdic, f.d.s, f.d.len))
+            {
+                /* the glyph's content did not reach the page */
+                xpost_strbuf_free(&f.d);
+                return 0;
+            }
         }
         /* the contours are in the device's content, which is what this
            device paints with; the region they are seen through is the

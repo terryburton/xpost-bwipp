@@ -90,6 +90,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 .xpost_DSCWRITE /.registersep undef
 
 %
+%  A paint states its colour only where the stream does not carry it
+%  already, and what this stream carries is not what a PDF one does. The
+%  prolog defines G over g, RG over rg and K over k, so the operators a
+%  fill and a stroke are written with reach one PostScript operator and
+%  set one colour: this language has a current colour where PDF has a
+%  fill colour and a stroke colour. The two paints therefore answer to
+%  one slot, and a fill following a stroke restates its colour rather
+%  than being suppressed against a value the stroke has since replaced.
+%
+.xpost_DSCWRITE dup /.gsfill get /.gsstroke exch put
+
+%
 %  Take a whole sampled image and write it as one, rather than letting the
 %  paint machinery decompose it into fills.
 %
@@ -122,7 +134,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } for ] def
     /dihex 2 string def
 
-    (q\n) .put
+    .qsave
 
     % a rectangular clip travels with the paint; the painting operators
     % arrive pre-clipped and an image does not
@@ -177,7 +189,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } for
     } for
     dicol 0 gt { (\n) .put } if
-    (Q\n) .put
+    .qrestore
 } //.indict exec } put
 
 %
@@ -198,7 +210,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 { {dsint dsdata dsm dspol dsh dsw}{exch def}forall
     /dshex 2 string def
 
-    (q\n) .put
+    .qsave
 
     % imagemask paints the current colour, which is the graphics state's
     % and not an operand: a stencil's bits say where, and the colour says
@@ -242,7 +254,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         dscol 32 ge { (\n) .put /dscol 0 def } if
     } for
     dscol 0 gt { (\n) .put } if
-    (Q\n) .put
+    .qrestore
 } //.indict exec } put
 
 %
@@ -360,7 +372,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 
     % Advance the page count; start the next page fresh
     //.vecout dup /np get 1 add /np exch put
-    currentdict //.internaldict /.pdfreset get exec
+    .streamreset
 } //.indict exec } put
 
 %

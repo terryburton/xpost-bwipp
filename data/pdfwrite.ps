@@ -116,11 +116,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /.pdfimages 0 array def
         /.pdfmasks 64 dict def  % masks already filed, so a repeated glyph files once
         /.opused 8 dict def   % Overprint states used on this page -> ExtGState entries
-        /.oplast 0 def        % Last overprint state emitted (0 = the default, nothing emitted)
 
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
+        .streamdefaults
 
         % Choose the output form and, when the name is already set, reach the
         % single-file output now -- before the job's first per-page save -- so
@@ -263,6 +263,85 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         currentdict //.internaldict /.pdfput get exec
     } bind
 
+    % A PDF content stream is a state machine (PDF 8.4): a colour, a line
+    % width, a cap, a join, a miter limit or an ExtGState selection stands
+    % until an operator replaces it. So a writer states one only where what
+    % it would write differs from what the stream already carries, and the
+    % accumulator keeps a slot per piece of state holding the operator text
+    % last written for it (src/lib/xpost_dev_generic.h names the slots).
+    %
+    % A state operator is built a piece at a time through .sput, exactly as
+    % the marking operators are built through .put, and .send finishes it:
+    % it writes the text where the slot does not hold it already and drops
+    % it where it does. The pieces go to a buffer of the accumulator's own
+    % rather than to a string here, so a page of paints takes no virtual
+    % memory to say what colour each one is in.
+    /.sput {  % str  .  -
+        currentdict //.internaldict /.pdfsput get exec
+    } bind
+    /.send {  % slot  .  bool
+        currentdict //.internaldict /.pdfsend get exec
+    } bind
+    /.scarried {  % slot  .  -
+        currentdict //.internaldict /.pdfscarried get exec
+    } bind
+
+    % A number into the state operator being built, formatted as .pdfnum
+    % formats one into the content.
+    /.snum {  % num  .  -
+        //.num2str exec .sput
+    } bind
+
+    % The slots, by the names this file's writers know them by. The line
+    % parameters share one: a stroke reads all four off the graphics state
+    % together and writes them together, so what the stream carries of
+    % them is one text and one comparison rather than four.
+    /.gsfill 0
+    /.gsstroke 1
+    /.gsline 2
+    /.gsextgstate 3
+
+    % The q and Q of PDF 8.4.2, written with the record of what the stream
+    % carries saved and brought back alongside them. One call each, because
+    % the two halves cannot be separated: a q whose state was not saved
+    % leaves a later paint's colour suppressed against a value the matching
+    % Q has already undone, which is a paint in the wrong colour rather
+    % than a larger file.
+    /.qsave {  % -  .  -
+        currentdict //.internaldict /.pdfsave get exec
+    } bind
+    /.qrestore {  % -  .  -
+        currentdict //.internaldict /.pdfrestore get exec
+    } bind
+
+    % Overprint reaches a consumer as an ExtGState selection and by no
+    % other route, so a stream with nothing written into it is already in
+    % the state the entry for the default names: no overprint, mode zero
+    % (PDF 8.4.1 Table 52 and 11.7.4.2). Said here, where each stream
+    % starts, so that a document which never touches overprint carries no
+    % selection at its head and no ExtGState resource to be selected.
+    %
+    % The colours and the line parameters have defaults of their own in
+    % that table and are not declared from them: what those slots hold is
+    % what this writer has written, so the first paint of a page states
+    % its colour and its line state outright, whatever they are. A page
+    % whose marks are all black would otherwise carry no colour operator
+    % at all, and the content would no longer say which space each paint
+    % was made in.
+    /.streamdefaults {  % -  .  -
+        (/GS0 gs\n) .sput .gsextgstate .scarried
+    } bind
+
+    % Wind the content back for the next page, and say what the empty
+    % stream carries in the same breath. Emptying the accumulator without
+    % re-declaring would leave the next page's first paint restating a
+    % selection nothing had unmade, and a document that never touches
+    % overprint would carry one at the head of every page but its first.
+    /.streamreset {  % -  .  -
+        currentdict //.internaldict /.pdfreset get exec
+        .streamdefaults
+    } bind
+
     % Append a string to the paginated single-file output (its open file lives
     % in the shared record) and carry the count of bytes emitted so far, which
     % is where the cross-reference offsets come from. The count is kept here
@@ -351,16 +430,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         graphicsdict /currgstate get /overprint get
         graphicsdict /currgstate get /overprintmode get        % Opv opm
         1 index { 1000 }{ 0 } ifelse 1 index add               % Opv opm statekey
-        dup .oplast ne {
-            dup /.oplast exch store
+        (/GS) .sput dup 20 string cvs .sput ( gs\n) .sput
+        .gsextgstate .send {
+            % The entry is declared because the content refers to it, so
+            % it is filed on what reached the content and not on what was
+            % offered: an entry declared for a selection the stream never
+            % makes would put an ExtGState on every page of a document
+            % that never touches overprint.
             dup .opused exch known not {
                 dup .opused exch 4 index 4 index 2 array astore put
             } if
-            (/GS) .put dup 20 string cvs .put ( gs\n) .put
-            pop pop pop
-        }{
-            pop pop pop
-        } ifelse } ifelse
+        } if
+        pop pop pop } ifelse
     } bind
 
     /.pdffillcolor {  % c1 .. cN  .  -
@@ -368,42 +449,44 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         graphicsdict /currgstate get /sepindex 2 copy known { get }{ pop pop null } ifelse
         dup null ne {
             .ncomps { exch pop } repeat
-            (/CS) .put 20 string cvs .put ( cs ) .put
-            graphicsdict /currgstate get /septint get .pdfnumstr .put ( scn\n) .put
+            (/CS) .sput 20 string cvs .sput ( cs ) .sput
+            graphicsdict /currgstate get /septint get .pdfnumstr .sput ( scn\n) .sput
         }{
             pop
             .ncomps
             dup 1 eq {
-                pop .pdfnumstr .put ( g\n) .put
+                pop .pdfnumstr .sput ( g\n) .sput
             }{
                 4 eq {
-                    4 3 roll .pdfnumstr .put ( ) .put 3 2 roll .pdfnumstr .put ( ) .put
-                    exch .pdfnumstr .put ( ) .put .pdfnumstr .put ( k\n) .put
+                    4 3 roll .pdfnumstr .sput ( ) .sput 3 2 roll .pdfnumstr .sput ( ) .sput
+                    exch .pdfnumstr .sput ( ) .sput .pdfnumstr .sput ( k\n) .sput
                 }{
-                    3 2 roll .pdfnumstr .put ( ) .put exch .pdfnumstr .put ( ) .put
-                    .pdfnumstr .put ( rg\n) .put
+                    3 2 roll .pdfnumstr .sput ( ) .sput exch .pdfnumstr .sput ( ) .sput
+                    .pdfnumstr .sput ( rg\n) .sput
         } ifelse } ifelse } ifelse
+        .gsfill .send pop
     } bind
     /.pdfstrokecolor {  % c1 .. cN  .  -
         .pdfoverprint
         graphicsdict /currgstate get /sepindex 2 copy known { get }{ pop pop null } ifelse
         dup null ne {
             .ncomps { exch pop } repeat
-            (/CS) .put 20 string cvs .put ( CS ) .put
-            graphicsdict /currgstate get /septint get .pdfnumstr .put ( SCN\n) .put
+            (/CS) .sput 20 string cvs .sput ( CS ) .sput
+            graphicsdict /currgstate get /septint get .pdfnumstr .sput ( SCN\n) .sput
         }{
             pop
             .ncomps
             dup 1 eq {
-                pop .pdfnumstr .put ( G\n) .put
+                pop .pdfnumstr .sput ( G\n) .sput
             }{
                 4 eq {
-                    4 3 roll .pdfnumstr .put ( ) .put 3 2 roll .pdfnumstr .put ( ) .put
-                    exch .pdfnumstr .put ( ) .put .pdfnumstr .put ( K\n) .put
+                    4 3 roll .pdfnumstr .sput ( ) .sput 3 2 roll .pdfnumstr .sput ( ) .sput
+                    exch .pdfnumstr .sput ( ) .sput .pdfnumstr .sput ( K\n) .sput
                 }{
-                    3 2 roll .pdfnumstr .put ( ) .put exch .pdfnumstr .put ( ) .put
-                    .pdfnumstr .put ( RG\n) .put
+                    3 2 roll .pdfnumstr .sput ( ) .sput exch .pdfnumstr .sput ( ) .sput
+                    .pdfnumstr .sput ( RG\n) .sput
         } ifelse } ifelse } ifelse
+        .gsstroke .send pop
     } bind
 
     % Concatenate two strings into a new one: the interpreter's own,
@@ -659,7 +742,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 
         % a clip adopted for this fill ends with it
         currentdict /.pdfclipopen 2 copy known { get }{ pop pop false } ifelse {
-            (Q\n) .put
+            .qrestore
             /.pdfclipopen false def
         } if
     } //.indict exec }
@@ -693,7 +776,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         graphicsdict /currgstate get /currpath get      % ... path saved
         exch                                            % ... saved path
         graphicsdict /currgstate get exch /currpath exch put
-        (q\n) .put
+        .qsave
         .emitdevpath pop
         exch { (W* n\n) }{ (W n\n) } ifelse .put
         graphicsdict /currgstate get exch /currpath exch put
@@ -710,7 +793,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /.pdfimages [ .pdfimages aload pop
             << /w piw /h pih /nc pinc /rows pirows /dec pidec
                /int piint >> ] def
-        (q\n) .put
+        .qsave
 
         % a rectangular clip region travels with the paint; the
         % painting operators arrive pre-clipped, images cannot.
@@ -727,7 +810,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         dup 3 get .pdfnum ( ) .put
         dup 4 get .pdfnum ( ) .put
         5 get .pdfnum ( cm\n) .put
-        (/Im) .put piidx 20 string cvs .put ( Do\nQ\n) .put
+        (/Im) .put piidx 20 string cvs .put ( Do\n) .put .qrestore
     } //.indict exec }
 
     % Take a stencil: the bits file as an image XObject the same way a
@@ -774,7 +857,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         }{
             /psidx pshit def
         } ifelse
-        (q\n) .put
+        .qsave
 
         % A mask paints the colour the graphics state holds, which is
         % where the painting path takes it from too: the bits say where
@@ -804,7 +887,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         dup 3 get .pdfnum ( ) .put
         dup 4 get .pdfnum ( ) .put
         5 get .pdfnum ( cm\n) .put
-        (/Im) .put psidx 20 string cvs .put ( Do\nQ\n) .put
+        (/Im) .put psidx 20 string cvs .put ( Do\n) .put .qrestore
     } //.indict exec }
 
     % r g b IMAGE . -  ; stroke the current path as one content-stream
@@ -818,10 +901,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         .pathelems 0 gt {
             .pdfstrokecolor
             currentlinewidth 0 dtransform dup mul exch dup mul add sqrt
-            .pdfnum ( w\n) .put
-            currentlinecap 20 string cvs .put ( J\n) .put
-            currentlinejoin 20 string cvs .put ( j\n) .put
-            currentmiterlimit .pdfnum ( M\n) .put
+            .snum ( w\n) .sput
+            currentlinecap 20 string cvs .sput ( J\n) .sput
+            currentlinejoin 20 string cvs .sput ( j\n) .sput
+            currentmiterlimit .snum ( M\n) .sput
+            .gsline .send pop
             .emitdevpath pop
             (S\n) .put
         }{
@@ -1020,11 +1104,10 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         //.vecout dup /np get 1 add /np exch put
 
         % start the next page fresh
-        currentdict //.internaldict /.pdfreset get exec
+        .streamreset
         /.pdfimages 0 array def
         /.pdfmasks 64 dict def
         /.opused 8 dict def
-        /.oplast 0 def
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
     } //.indict exec } bind
 
