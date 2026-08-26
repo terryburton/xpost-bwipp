@@ -5940,6 +5940,18 @@ test('raster-classes-derivation',
 # (.num2str) and one page-to-points unscale (.devres-to-points) exist,
 # each writer reaches them by reference, and the DSC device stays a
 # dict-copy derivation of the PDF device.
+# What the DSC writer emits is a PostScript program, so it is run back and
+# the page it draws compared with the one it came from. A hash of the bytes
+# says they are the ones recorded; it cannot say the document still carries
+# its own page size, and a document that has lost it renders onto whatever
+# medium the interpreter defaults to.
+test('dsc-roundtrip',
+  find_program('tests/run-dsc-roundtrip-test.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ xpost_exe ],
+  timeout: 60)
+
 test('vecbase',
   find_program('tests/check-vecbase.sh'),
   priority: guard_priority,

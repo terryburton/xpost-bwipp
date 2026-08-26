@@ -133,6 +133,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         width sx div ceiling cvi 20 string cvs .vw ( ) .vw
         height sy div ceiling cvi 20 string cvs .vw (\n) .vw
         (%%Pages: \(atend\)\n) .vw
+
+        % The media the pages are for. A bounding box says where the marks
+        % are; it does not say how big the paper is, and a consumer that
+        % reads only the box has no way to tell a small page from a small
+        % drawing on a large one.
+        (%%DocumentMedia: Custom ) .vw
+        width sx div ceiling cvi 20 string cvs .vw ( ) .vw
+        height sy div ceiling cvi 20 string cvs .vw ( 0 \(\) \(\)\n) .vw
+
         (%%DocumentData: Clean7Bit\n) .vw
         (%%LanguageLevel: 1\n) .vw
         (%%EndComments\n) .vw
@@ -161,6 +170,23 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         (/G /g load def /RG /rg load def /K /k load def\n) .vw
         (/cm { 6 array astore concat } bind def\n) .vw
         (%%EndProlog\n) .vw
+
+        % And the size as something that runs, not only as something that
+        % is read. The comments above are for a spooler; an interpreter
+        % handed this file executes it, and without this it would lay a
+        % page of one size out on a page of whatever size it defaults to.
+        % A feature block is where the structuring conventions put a
+        % request like this, so a consumer that would rather choose the
+        % medium itself can find it and take it out.
+        (%%BeginSetup\n) .vw
+        (%%BeginFeature: *PageSize Custom\n) .vw
+        (<< /PageSize [ ) .vw
+        width sx div ceiling cvi 20 string cvs .vw ( ) .vw
+        height sy div ceiling cvi 20 string cvs .vw
+        ( ] >> setpagedevice\n) .vw
+        (%%EndFeature\n) .vw
+        (%%EndSetup\n) .vw
+
         //.vecout /headered true put
     } if
 

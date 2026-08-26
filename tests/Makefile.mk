@@ -117,6 +117,7 @@ tests/check-test-devices.sh \
 tests/check-test-quality.sh \
 tests/check-test-timeouts.sh \
 tests/check-vecbase.sh \
+tests/run-dsc-roundtrip-test.sh \
 tests/check-pdf-overprint.sh \
 tests/check-resource-file.sh \
 tests/check-compaction-safe-point.sh \
