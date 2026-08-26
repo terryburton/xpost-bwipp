@@ -1078,6 +1078,10 @@ Xpost_Object _face_entry(Xpost_Context *ctx, const char *facename, int create)
     return ent;
 }
 
+/* The objects derived from a face, kept against the face's own name so
+   a second font over the same face does not build them again. They are
+   put where the collector reaches them, since what is derived are
+   ordinary composite objects. */
 static
 void _face_put(Xpost_Context *ctx, const char *facename,
                Xpost_Object what, Xpost_Object o)
@@ -1182,6 +1186,8 @@ static int _newfontserial(Xpost_Context *ctx)
     return 0;
 }
 
+/* Gives up every face this module opened, and the names and files they
+   were opened from. */
 static void xpost_op_font_quit(void)
 {
     int i;
@@ -1805,6 +1811,7 @@ Xpost_Object _gstate(Xpost_Context *ctx)
     return xpost_dict_get(ctx, gd, name_currgstate);
 }
 
+/* Puts a font dictionary in the graphics state as the current font. */
 static
 int _setfont(Xpost_Context *ctx,
              Xpost_Object fontdict)
@@ -1849,6 +1856,8 @@ static void _clip_memo_drop(void)
     memset(&_clip_memo, 0, sizeof(_clip_memo));
 }
 
+/* Bands in the order the narrowing below walks them: down the page,
+   and left to right within a row. */
 static int _band_comp(const void *a, const void *b)
 {
     const clipband *p = a, *q = b;
@@ -1860,6 +1869,10 @@ static int _band_comp(const void *a, const void *b)
     return 0;
 }
 
+/* One number out of the resolved region's array, answering whether the
+   slot held a number at all -- the array is built by the interpreter,
+   and a slot that is not a number means the tile is not the shape this
+   reader expects. */
 static int _clip_number(Xpost_Context *ctx, Xpost_Object arr, int i, double *v)
 {
     Xpost_Object o = xpost_array_get(ctx, arr, i);
@@ -2132,6 +2145,10 @@ unsigned char _cov_bits(int cov, int bits)
                            / steps);
 }
 
+/* Everything a text operator needs to know before it paints a
+   character: how the font maps codes to glyphs, what the device wants
+   a mark in, and where the colour comes from. Gathered once for a
+   whole string rather than per character. */
 static
 textstate _text_state_get(Xpost_Context *ctx,
                           Xpost_Object gs,
@@ -2833,6 +2850,9 @@ static int _frag_put(glyphfrag *f, const char *s, size_t n)
     return ret;
 }
 
+/* A point into a vector device's stream, in the device's own
+   coordinates: the glyph's origin plus the offset, with y taken the
+   other way up because the page is. */
 static int _frag_xy(glyphfrag *f, double x, double y)
 {
     char t[64];
@@ -3177,6 +3197,8 @@ int _show_char(Xpost_Context *ctx,
                        ncomp, comp1, comp2, comp3, comp4, inked);
 }
 
+/* The pen position, read out of the packed path string in the graphics
+   state. */
 static
 int _get_current_point (Xpost_Context *ctx,
                         Xpost_Object gs,
@@ -3282,6 +3304,11 @@ int _show_finalize_pos(Xpost_Context *ctx,
     return xpost_array_put(ctx, f, 1, xpost_real_cons(ypos));
 }
 
+/* Paints a string at the current point and leaves the point past it.
+   The operators that follow -- those spacing on a nominated character,
+   those adding a displacement per character, and glyphshow -- differ
+   only in what they add between characters and in how the character is
+   named; each reaches the same per-character path. */
 static
 int _show(Xpost_Context *ctx,
           Xpost_Object str)
@@ -3466,6 +3493,8 @@ int _glyphshow_common(Xpost_Context *ctx,
     return 0;
 }
 
+/* Paints one glyph named directly, rather than through the font's
+   encoding. */
 static
 int _glyphshow(Xpost_Context *ctx,
                Xpost_Object gname)
@@ -3586,6 +3615,9 @@ static const char *_cid_private_keys[] = {
     "SubrMapOffset", "SDBytes", "SubrCount",
 };
 
+/* Builds a working face out of a CIDFontType 0 dictionary, assembling
+   the binary the rendering library will read from the pieces the
+   dictionary carries. */
 static
 int _loadcidfont0(Xpost_Context *ctx,
                   Xpost_Object fontdict)
@@ -3789,6 +3821,8 @@ _t1_encrypt(unsigned char *data, size_t n)
     }
 }
 
+/* Appends a string's bytes to a font program under construction,
+   unencrypted, exactly as they stand. */
 static int
 _t1_emit_bin(Xpost_Context *ctx, Xpost_String_Buffer *b, Xpost_Object s)
 {
@@ -3796,6 +3830,10 @@ _t1_emit_bin(Xpost_Context *ctx, Xpost_String_Buffer *b, Xpost_Object s)
                                s.comp_.sz);
 }
 
+/* Builds a working face out of a Type 1 font dictionary by
+   reassembling the font program the dictionary was made from: the
+   cleartext header, then the encrypted section holding the charstrings
+   and subroutines. */
 static
 int _loadfont1(Xpost_Context *ctx,
                Xpost_Object fontdict,
@@ -4246,6 +4284,9 @@ typedef char xpost_mask_key_spans_serial_and_selector[
     ((unsigned long long)1 << (64 - MASK_KEY_SELECTOR_BITS))
 #define MASK_KEY_INDEX_MAX ((unsigned long long)1 << 32)
 
+/* Turns the caller's description of a mask into the key the cache
+   holds it under, and the transform into the fixed point it is
+   compared at. */
 static int
 _mask_key(Xpost_Context *ctx, Xpost_Object key,
           Xpost_Object mat, unsigned long long *k2, long m[4])
@@ -5038,6 +5079,8 @@ int _awidthshow(Xpost_Context *ctx,
     return ret;
 }
 
+/* How far the current point would move if the string were painted,
+   without painting it. */
 static
 int _stringwidth(Xpost_Context *ctx,
                  Xpost_Object str)
@@ -5196,6 +5239,9 @@ int _oc_push(outlinecollect *oc, Xpost_Object o)
     return 0;
 }
 
+/* The sink that collects an outline as PostScript objects rather than
+   painting it: each point is pushed in the current space, and each
+   command follows its points the way the path operators take them. */
 static
 int _oc_xy(outlinecollect *oc, double x, double y)
 {
@@ -5264,6 +5310,8 @@ int _oc_array(Xpost_Context *ctx, outlinecollect *oc, Xpost_Object *arr)
     return 0;
 }
 
+/* The string's glyphs as a path, in objects the interpreter can
+   execute, rather than as marks on the page. */
 static
 int _stringoutline(Xpost_Context *ctx,
                    Xpost_Object str)
@@ -5508,6 +5556,8 @@ int _setcacheparams(Xpost_Context *ctx,
     return 0;
 }
 
+/* Installs the font, text and glyph operators, and the names they read
+   out of a font dictionary. */
 int xpost_oper_init_font_ops(Xpost_Context *ctx,
                              Xpost_Object sd)
 {

@@ -587,6 +587,11 @@ int _newpathstr(Xpost_Context *ctx)
     return 0;
 }
 
+/* The current path, reached the way the language reaches it and
+   checked before it is handed back. A path is bytes, and everything
+   below reads those bytes trusting the layout, so a current path a
+   program has replaced with a string of its own is answered as invalid
+   here rather than being decoded. */
 static
 Xpost_Object _cpath(Xpost_Context *ctx)
 {
@@ -658,6 +663,13 @@ int _moveto(Xpost_Context *ctx, Xpost_Object x, Xpost_Object y)
     return _path_append(ctx, gstate, &path, PATH_CMD_MOVE, co, 2);
 }
 
+/* The relative constructors, each of which needs the current point
+   before it can do anything. Rather than read the point here, the
+   operator puts its own continuation and currentpoint on the execution
+   stack and returns: currentpoint runs, leaves the point on the
+   operand stack, and the continuation is then called with the
+   displacement and the point together. Every _cont below is the second
+   half of one of these, and takes the arguments in that order. */
 static
 int _rmoveto(Xpost_Context *ctx, Xpost_Object dx, Xpost_Object dy)
 {
@@ -1445,6 +1457,10 @@ int _fillpath_emit(Xpost_Context *ctx,
     return 0;
 }
 
+/* Fill the current path into a vector device's stream, in the form
+   that device writes: the pair differ in what they emit and in whether
+   the colour travels with the path, which is why the shared code takes
+   the components rather than reading them. */
 static
 int _pdffillpath(Xpost_Context *ctx,
                  Xpost_Object devdic)
@@ -2099,6 +2115,9 @@ typedef struct
    line: it is smaller than the tolerance in every case that matters. */
 #define CHOPCURVE_MAX_DEPTH 32
 
+/* Subdivides a curve until each piece is flat enough to be a line, and
+   emits the lines. Depth is capped rather than trusted to the flatness
+   measure, for the reason above. */
 static
 int _chopcurve(Xpost_Context *ctx, _flatten_dst *dst,
                real x0, real y0,
@@ -2314,6 +2333,11 @@ static int _newformserial(Xpost_Context *ctx)
 }
 
 
+/* Installs the path operators and the opcodes the continuations above
+   are pushed by. An opcode is taken here rather than looked up later
+   because the continuation is put on the execution stack from inside
+   an operator, where a name lookup could fail and there would be
+   nowhere to report it. */
 int xpost_oper_init_path_ops(Xpost_Context *ctx,
                              Xpost_Object sd)
 {

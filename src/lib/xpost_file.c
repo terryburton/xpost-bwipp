@@ -113,6 +113,9 @@ static int xpost_path_control_engaged = 0;
    all and permit nothing. */
 static const char *xpost_path_after_root(const char *full, const char *root);
 
+/* Which permitted root, if any, a resolved path falls under, and where
+   beneath it. A root that also names a leaf permits that one file and
+   nothing else beside it. */
 static int
 xpost_path_within_idx(const char *full, char *const *dirs,
                       char *const *leaves, int cnt)
@@ -227,6 +230,9 @@ xpost_path_permit_add(char **dirs, char **leaves, int *cnt,
     return 1;
 }
 
+/* Permit a directory, and everything under it, for reading or for
+   writing. The two lists are separate: a run that may read a place is
+   not thereby allowed to write there. */
 int
 xpost_path_permit_read(const char *dir)
 {
@@ -284,6 +290,10 @@ xpost_path_permit_write_file(const char *path)
                                  &xpost_permit_write_cnt, ".", buf);
 }
 
+/* Turns the permissions on. Until this is called every path is
+   allowed, which is what lets the run be set up before the program it
+   will run is trusted with anything. There is no call that turns them
+   off again. */
 void
 xpost_path_control_engage(void)
 {
@@ -634,6 +644,9 @@ xpost_diskfile_remove(const char *path, int *err)
     return 0;
 }
 
+/* Renames a file, both ends of it held to the permissions: a rename is
+   a write to the new name and a write to the old, so both have to be
+   permitted and under the same root. */
 int
 xpost_diskfile_rename(const char *oldpath, const char *newpath, int *err)
 {
@@ -1643,6 +1656,9 @@ _file_forget_entity(Xpost_Memory_File *mem, Xpost_File *fp)
         XPOST_LOG_ERR("cannot clear the handle of a released stream");
 }
 
+/* A stream object over an open host file. The object holds an entity,
+   and the entity holds the handle, which is what lets the collector
+   close a stream nothing refers to any more. */
 Xpost_Object xpost_file_cons(Xpost_Memory_File *mem,
                              /*@NULL@*/ const FILE *fp,
                              int input)
@@ -2133,6 +2149,8 @@ Xpost_Object xpost_file_cons_proctarget(Xpost_Context *ctx, Xpost_Object proc)
    file holds none, and says so with a count of zero. */
 static Xpost_Object _file_object_of_entity(unsigned int ent);
 
+/* The procedure stream an entity holds, or nothing where the entity is
+   a stream of some other kind. */
 static Xpost_ProcFile *_proc_stream_at(Xpost_Memory_File *mem, unsigned int ent)
 {
     Xpost_File *f;
@@ -2149,6 +2167,10 @@ static Xpost_ProcFile *_proc_stream_at(Xpost_Memory_File *mem, unsigned int ent)
     return (Xpost_ProcFile *)f;
 }
 
+/* The objects a procedure stream holds, so the collector can mark
+   them. A stream built on a program's procedure names virtual memory
+   -- the procedure, its buffer, and whatever it has handed back but
+   not yet been read -- and nothing else would know to look there. */
 int xpost_file_held_count(Xpost_Memory_File *mem, unsigned int ent)
 {
     Xpost_ProcFile *pf = _proc_stream_at(mem, ent);
@@ -3142,6 +3164,9 @@ typedef struct Xpost_LzwFile
     int nextval, havenext;   /* one code read ahead so a trailing 257 is eaten */
 } Xpost_LzwFile;
 
+/* The next code off the bit stream, and the same allowing for one read
+   ahead. A code is read ahead so that the end-of-data code can be
+   recognised and eaten without a caller seeing it. */
 static int
 lzw_nextcode(Xpost_LzwFile *ff)
 {
@@ -3471,6 +3496,9 @@ enum
     FAX_EOL, FAX_ERR
 };
 
+/* Reads one mode code, the prefix code that says how the next run is
+   described. The tree is walked bit by bit rather than through a
+   table, the codes being short and the longest six bits. */
 static int
 fax_mode(Xpost_FaxFile *ff)
 {
@@ -3566,6 +3594,10 @@ fax_finish(Xpost_FaxFile *ff)
     ff->base.base.eod = 1;
 }
 
+/* Decodes a row described on its own: alternating white and black
+   runs, the lengths spelled by the terminating and make-up codes. What
+   comes out is the row's changing elements, which is what the next row
+   may be described against. */
 static int
 fax_1d_row(Xpost_FaxFile *ff)
 {
@@ -3607,6 +3639,10 @@ fax_1d_row(Xpost_FaxFile *ff)
     return 0;
 }
 
+/* Decodes a row described against the one before it: each mode code
+   says where this row's next change sits relative to the reference
+   row's, which is what makes the coding worth anything on an image
+   whose rows resemble each other. */
 static int
 fax_2d_row(Xpost_FaxFile *ff)
 {
@@ -3683,6 +3719,9 @@ fax_2d_row(Xpost_FaxFile *ff)
     return 0;
 }
 
+/* One row, in whichever of the two codings applies -- which for the
+   mixed scheme is a tag bit the row carries, and otherwise is settled
+   for the whole stream. */
 static int
 fax_decoderow(Xpost_FaxFile *ff)
 {
@@ -4529,6 +4568,8 @@ bitenc_bytes(Xpost_BitEncBase *ff)
     return 0;
 }
 
+/* Adds a code of a given width to the bit stream, most significant bit
+   first, and lets out whatever whole bytes that completes. */
 static int
 bitenc_put(Xpost_BitEncBase *ff, unsigned int code, int len)
 {
@@ -4573,6 +4614,9 @@ typedef struct
     unsigned char suffix[4096];
 } Xpost_LzwEncFile;
 
+/* Starts the string table over: every string a single byte, the code
+   width back at its narrowest. Done at the beginning and whenever the
+   table fills, so a decoder that does the same stays in step. */
 static void
 lzwenc_reset(Xpost_LzwEncFile *ff)
 {
@@ -4585,6 +4629,7 @@ lzwenc_reset(Xpost_LzwEncFile *ff)
     ff->prefix = -1;
 }
 
+/* One code out at the width now in force. */
 static int
 lzwenc_emit(Xpost_LzwEncFile *ff, int code)
 {
@@ -4684,6 +4729,8 @@ typedef struct
     int rowsdone;
 } Xpost_FaxEncFile;
 
+/* Emits the code for a run of a given length from one of the code
+   tables, or refuses where the table has no such run. */
 static int
 faxenc_code(Xpost_FaxEncFile *ff, const Xpost_Fax_Code *tab, int n, int run)
 {
@@ -5156,6 +5203,10 @@ typedef struct Xpost_EexecFile
     int headn, headi;
 } Xpost_EexecFile;
 
+/* The bytes of an eexec-encrypted section as they arrive: the value of
+   a hexadecimal digit, the next source byte counting the header
+   already peeked at, and the next byte of cipher text, which the
+   section may spell either as hexadecimal or as binary. */
 static int
 eexec_hexval(int c)
 {
@@ -6039,6 +6090,8 @@ Xpost_Object_Tag_Access xpost_file_get_access(Xpost_Context *ctx,
     return access;
 }
 
+/* The access a stream object carries, which is what decides whether a
+   program may read it, write it, or only close it. */
 Xpost_Object xpost_file_set_access(Xpost_Context *ctx,
                                    Xpost_Object f,
                                    Xpost_Object_Tag_Access access)
@@ -6351,6 +6404,9 @@ integer xpost_file_read(char *buf, integer size, integer count, Xpost_File *fp)
     return i;
 }
 
+/* Writes count runs of size bytes and answers how many whole runs went
+   out. Counted in the object width, as the read above is and for the
+   same reason. */
 integer xpost_file_write(const char *buf, integer size, integer count, Xpost_File *fp)
 {
     integer i, j, k = 0;

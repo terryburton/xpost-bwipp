@@ -150,6 +150,10 @@ static unsigned char *_xpost_memory_reserve(size_t len)
 # endif
 }
 
+/* Backs part of a reservation with pages. The reservation above
+   settled the base address; this is what makes an address in it
+   readable, and it is called as the file grows rather than all at
+   once. */
 static int _xpost_memory_commit(unsigned char *base, size_t len)
 {
 # ifdef _WIN32
@@ -159,6 +163,7 @@ static int _xpost_memory_commit(unsigned char *base, size_t len)
 # endif
 }
 
+/* Gives the whole reservation back, committed pages and all. */
 static void _xpost_memory_unreserve(unsigned char *base, size_t len)
 {
 # ifdef _WIN32
@@ -881,6 +886,10 @@ void xpost_memory_image_free(Xpost_Memory_Image *img)
     img->valid = 0;
 }
 
+/* Takes the bank aside: the bytes in use, the table that says what
+   they are, and the counters a later allocation would be wrong
+   without. What is copied is bounded by the high water mark rather
+   than by the file's size, so the cost is what the job has touched. */
 int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img)
 {
     size_t esz = sizeof *mem->table.tab;
@@ -935,6 +944,9 @@ int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img)
     return 1;
 }
 
+/* Puts a captured bank back, wholesale. It allocates nothing, so it
+   cannot fail part way and leave a half-reverted arena -- which is
+   what lets the job boundary treat it as a single step. */
 void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image *img)
 {
     size_t esz = sizeof *mem->table.tab;
@@ -1141,6 +1153,8 @@ xpost_memory_file_alloc(Xpost_Memory_File *mem,
     return 1;
 }
 
+/* The arena as the log can print it. Diagnostic only; nothing reads it
+   back. */
 void
 xpost_memory_file_dump(const Xpost_Memory_File *mem)
 {
@@ -1511,6 +1525,10 @@ xpost_memory_table_alloc(Xpost_Memory_File *mem,
     return ret;
 }
 
+/* Fills a slot chosen by number rather than the next free one. The
+   special entities are named by an enum that the rest of the library
+   indexes with directly, so their storage has to land in the slot the
+   enum says, and the slot has to still be empty when it does. */
 int
 xpost_memory_table_alloc_special(Xpost_Memory_File *mem,
                                  unsigned int sz,
@@ -1695,6 +1713,8 @@ xpost_memory_put(Xpost_Memory_File *mem,
 }
 
 
+/* One table row and the bytes it points at, the bytes shown as hex and
+   again as characters where they are printable. */
 void
 xpost_memory_table_dump_ent(Xpost_Memory_File *mem,
                             unsigned int ent)
@@ -1731,6 +1751,7 @@ xpost_memory_table_dump_ent(Xpost_Memory_File *mem,
         }
 }
 
+/* Every table row, in the order they were issued. */
 void
 xpost_memory_table_dump(const Xpost_Memory_File *mem)
 {

@@ -222,6 +222,10 @@ static const Xpost_Filter_Spec _filter_specs[] =
 #endif
 };
 
+/* The row for a filter of this name, or nothing where the build does
+   not have it. What a caller learns from the row is how many
+   parameters the filter takes and which they are, which is how one
+   operator serves them all. */
 static const Xpost_Filter_Spec *_filter_spec (const char *name)
 {
     size_t i;
@@ -287,6 +291,9 @@ int xpost_op_file_filter (Xpost_Context *ctx,
     return 0;
 }
 
+/* An integer parameter out of a filter's dictionary, taking a boolean
+   as the number it is written as, and the given default where the key
+   is absent or of another type. */
 static
 int _dict_int (Xpost_Context *ctx, Xpost_Object dict, const char *key, int def)
 {
@@ -787,6 +794,9 @@ int xpost_op_file_write (Xpost_Context *ctx,
 
 const char *hex = "0123456789" "ABCDEF" "abcdef";
 
+/* Skips forward to the next hexadecimal digit, answering whether the
+   file ended first. Whitespace and anything else between digits is
+   passed over, which is what the ASCII hex filters are defined to do. */
 static
 int read_hex_digit( Xpost_File *f, int *p )
 {
@@ -1588,6 +1598,8 @@ typedef struct
     int le;
 } Bos;
 
+/* Writing the fields of a binary object sequence, in the byte order
+   the sequence declared in its header rather than the machine's. */
 static void
 _bos_put16(const Bos *b, unsigned char *p, unsigned int v)
 {
@@ -1610,6 +1622,10 @@ _bos_put32(const Bos *b, unsigned char *p, unsigned int v)
     }
 }
 
+/* Writes one object as its record, and everything it refers to into
+   the text that follows the records. Called after the measure above
+   has settled how much of each there will be, so the offsets it writes
+   are final. */
 static
 int _bos_emit(Bos *b,
               Xpost_Object o,
@@ -1951,6 +1967,11 @@ static int _filter_name_encodes(Xpost_Context *ctx, Xpost_Object name)
     return enc;
 }
 
+/* Wraps a procedure as a stream for a filter to sit on. Which way it
+   faces is read off the filter's name: a filter that encodes is
+   written into and so takes a target, and one that decodes is read
+   from and so takes a source. The stream is handed to the interpreter
+   to close, since nothing else holds it once the filter is built. */
 static
 Xpost_Object _proc_stream(Xpost_Context *ctx, Xpost_Object P, Xpost_Object name)
 {
@@ -1970,6 +1991,10 @@ Xpost_Object _proc_stream(Xpost_Context *ctx, Xpost_Object P, Xpost_Object name)
     return F;
 }
 
+/* The filter operators over a procedure and over a string. Each pairs
+   the stream the operand becomes with the filter machinery above, and
+   the variants differ only in whether parameters arrive as a
+   dictionary, as the count a subfile takes, or not at all. */
 static
 int xpost_op_proc_filter (Xpost_Context *ctx,
                           Xpost_Object P,
@@ -2130,6 +2155,7 @@ int xpost_op_resourcefileopen (Xpost_Context *ctx,
     return 0;
 }
 
+/* Installs the file, filter and binary-object-sequence operators. */
 int xpost_oper_init_file_ops (Xpost_Context *ctx,
                               Xpost_Object sd)
 {

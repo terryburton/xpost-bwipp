@@ -150,6 +150,9 @@ void *xpost_device_raster_block(size_t bytes)
     return malloc(bytes);
 }
 
+/* What an erased pixel of this device holds, in channels of the
+   caller's scale. The wrapper below asks at the scale a byte channel
+   uses, which is what most callers want. */
 void xpost_device_ground_scaled(Xpost_Context *ctx, Xpost_Object devdic,
                                 double scale, int *r, int *g, int *b)
 {
@@ -184,6 +187,9 @@ void xpost_device_ground_channels(Xpost_Context *ctx, Xpost_Object devdic,
     xpost_device_ground_scaled(ctx, devdic, 255.0, r, g, b);
 }
 
+/* Gives back a page a run handed to the client through a buffer
+   variable. Safe to call twice, and on a variable no page was ever
+   stored through. */
 XPAPI void xpost_output_buffer_release(unsigned char **buffer)
 {
     void *block;
@@ -204,6 +210,10 @@ XPAPI void xpost_output_buffer_release(unsigned char **buffer)
     *buffer = NULL;
 }
 
+/* Opens the file this page is to be written to, or the standard output
+   where that is what was named. The caller closes it through the call
+   below rather than directly, a standard stream not being the device's
+   to close. */
 FILE *xpost_device_page_open(Xpost_Context *ctx, Xpost_Object devdic)
 {
     Xpost_Object namestr;
@@ -302,6 +312,8 @@ int _yxcomp(const void *left, const void *right)
     }
 }
 
+/* Sorts an array of points into the order the scan conversion below
+   walks them: down the page, and left to right within a row. */
 static
 int _yxsort (Xpost_Context *ctx, Xpost_Object arr)
 {
@@ -631,6 +643,8 @@ struct _rect_painter
     int firstrow;
 };
 
+/* The span consumer that paints. It turns each resolved span into the
+   driver's FillRect over the columns the span reaches. */
 static
 int _rect_paint(Xpost_Span_Consumer *c, int band, real lo, real hi)
 {
@@ -1114,6 +1128,10 @@ int _newregionserial(Xpost_Context *ctx)
     return _region_serial_next++, 0;
 }
 
+/* The cached spans for a clip, if this is the same clip they were
+   resolved from. The serial says the clip has not been rebuilt beneath
+   the cache, and the three fields say the object named is the same
+   one. */
 static
 int _region_memo_find(int serial, Xpost_Object clip)
 {
@@ -2052,6 +2070,9 @@ int _screenink(Xpost_Context *ctx,
     return 0;
 }
 
+/* Writes an image's rows to a stream a bit to the pixel, packing each
+   row into bytes as it goes. What arrives is an array of row strings,
+   which is how the raster devices hold a page. */
 static
 int _writebitrows(Xpost_Context *ctx,
                   Xpost_Object imgdata,
@@ -2152,6 +2173,9 @@ int _write_rgb_raster(Xpost_Context *ctx,
     return 0;
 }
 
+/* Checks a stream can be written and reads the shape of the image that
+   is to go to it, so a caller writing rows one at a time settles both
+   once rather than per row. */
 static
 int _rgb_raster_target(Xpost_Context *ctx,
                        Xpost_Object imgdata,
@@ -2491,6 +2515,11 @@ double xpost_dev_dict_number(Xpost_Context *ctx, Xpost_Object dict,
     return dflt;
 }
 
+/* Finishes a page that is being given up rather than emitted: an open
+   stream is written out to its last row and closed, and the device's
+   private storage is reclaimed either way. Called where a device is
+   destroyed with a page still in hand, so it cannot report failure to
+   anyone. */
 void xpost_dev_page_retire(void *priv, Xpost_Dev_Band *band, int has_raster,
                            int height, const Xpost_Dev_Page_Codec *codec)
 {
@@ -2657,6 +2686,11 @@ xpost_dev_page_emit_call(Xpost_Context *ctx, Xpost_Object devdic,
     return ret;
 }
 
+/* One page out through a device's codec, whether the device holds the
+   whole page or is handed it a band at a time. The two arrangements
+   differ in when a stream is opened and when it is finished, and this
+   is the whole of that difference; a codec supplies the writing and
+   knows neither. */
 int xpost_dev_page_emit(Xpost_Context *ctx, Xpost_Object devdic,
                         void *priv, Xpost_Dev_Band *band, FILE **file,
                         int height, unsigned char *raster,
@@ -2857,6 +2891,10 @@ const Xpost_Dev_Option *xpost_dev_option_roster(int *count)
     return roster;
 }
 
+/* The half of a device's Create that runs before the class procedure
+   does. It records the page's size on the class and arranges for the
+   device's own continuation to run after the class has copied itself,
+   since neither can be done until the other has finished. */
 int xpost_dev_create_begin(Xpost_Context *ctx,
                            Xpost_Object width,
                            Xpost_Object height,
@@ -2892,6 +2930,10 @@ int xpost_dev_create_begin(Xpost_Context *ctx,
     return 0;
 }
 
+/* Paints one row of a halftoned image: the spans it covers, the
+   thresholds they fall against, and the colour each pixel resolves
+   to, all read off the dictionary the caller has assembled, which
+   is what lets the caller settle them once for the whole image. */
 int xpost_dev_blit_row(Xpost_Context *ctx,
                        Xpost_Object dict)
 {
@@ -3680,6 +3722,10 @@ static int _pdf_acc_get(Xpost_Context *ctx, Xpost_Object devdic,
     return 1;
 }
 
+/* The accumulator a vector device builds its page in, read from and
+   written back to the handle block it is kept in rather than to
+   virtual memory -- which is what lets the collector reclaim it
+   without reaching into virtual memory at all. */
 static XPOST_MUST_CHECK int
 _pdf_acc_put(Xpost_Context *ctx, Xpost_Object priv, Pdf_Acc *a)
 {
@@ -3985,6 +4031,8 @@ static unsigned _pdf_sep_hash(const char *name, size_t namelen)
     return h;
 }
 
+/* Puts one separation in the open-addressed index, which is what makes
+   a page of many separations cost a lookup rather than a scan. */
 static void _pdf_sep_hash_place(Pdf_Acc *a, int idx)
 {
     unsigned mask = (unsigned)a->sephashcap - 1;
@@ -4166,6 +4214,7 @@ static int _pdfregsep(Xpost_Context *ctx,
     return 0;
 }
 
+/* How many separations this page has registered. */
 static int _pdfsepcount(Xpost_Context *ctx, Xpost_Object devdic)
 {
     Pdf_Acc a;
@@ -4212,6 +4261,7 @@ static int _pdfreset(Xpost_Context *ctx, Xpost_Object devdic)
     return 0;
 }
 
+/* Gives up everything the accumulator holds, at the end of a page. */
 static int _pdffree(Xpost_Context *ctx, Xpost_Object devdic)
 {
     Pdf_Acc a;
@@ -4335,6 +4385,7 @@ static int _devinstalled(Xpost_Context *ctx, Xpost_Object devdic)
     return 0;
 }
 
+/* Retires a page device whose installation a restore has just undone. */
 void xpost_device_retire_restored(Xpost_Context *ctx, unsigned int level)
 {
     Xpost_Object devdic;
@@ -4394,6 +4445,9 @@ void xpost_device_retire_job(Xpost_Context *ctx, unsigned int baseline_depth)
     _device_release(ctx, devdic, destroy);
 }
 
+/* Installs the operators every device class is built out of: scan
+   conversion, the page and buffer machinery, and the vector
+   accumulator. */
 int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
                                        Xpost_Object sd)
 {

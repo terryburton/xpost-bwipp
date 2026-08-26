@@ -812,6 +812,9 @@ static void _places_free(Xpost_Record *rec)
     rec->sub.len = 0;
 }
 
+/* A record is held by however many pages place it; these are the two
+   ends of that count. The drawing goes when the last holder has given
+   it up, and not before. */
 Xpost_Record *xpost_record_hold(Xpost_Record *rec)
 {
     if (rec)
@@ -1024,6 +1027,10 @@ static int _put(Xpost_Record *rec, Xpost_Record_Kind kind,
     return 1;
 }
 
+/* Takes one mark: what kind it is, the colour it is in, and the
+   numbers that place it. The rows it touches are worked out here and
+   kept with it, which is what makes a band's replay a walk of the
+   marks that meet it rather than of all of them. */
 int xpost_record_mark(Xpost_Record *rec, Xpost_Record_Kind kind,
                       const real *colour, const real *ops, int nops)
 {
@@ -1139,6 +1146,9 @@ static int _spill_rows(Xpost_Record *rec, const unsigned char *const *rows,
     return 1;
 }
 
+/* Takes a picture and the mark that places it. The rows arrive as the
+   caller holds them and are copied, since nothing promises they
+   outlive the call. */
 int xpost_record_image(Xpost_Record *rec, const Xpost_Record_Image *src,
                        const unsigned char *const *rows, int nrows)
 {
@@ -1429,6 +1439,10 @@ static int _cov_same(Xpost_Record *rec, Xpost_Spill_Off at,
     return 1;
 }
 
+/* Takes a coverage mask on its own, answering where in the record it
+   was put. A mask is taken apart from the mark that paints it because
+   the same mask is usually painted many times -- every occurrence of a
+   glyph -- and is worth holding once. */
 int xpost_record_mask(Xpost_Record *rec, const unsigned char *cov,
                       int w, int h, size_t *at)
 {
@@ -1525,6 +1539,8 @@ int xpost_record_mask(Xpost_Record *rec, const unsigned char *cov,
     return 1;
 }
 
+/* Paints a mask the record already holds, at a place and in a colour.
+   What it costs is the mark, the mask having been paid for once. */
 int xpost_record_glyph(Xpost_Record *rec, const real *colour,
                        size_t at, real x, real y)
 {
@@ -1698,6 +1714,9 @@ int xpost_record_depth(const Xpost_Record *rec)
     return rec ? rec->depth : 0;
 }
 
+/* The drawings this record places, and how many. A placed drawing is a
+   record in its own right, which is how a form drawn many times costs
+   its marks once. */
 Xpost_Record *xpost_record_place_get(const Xpost_Record *rec, size_t i)
 {
     /* a record short of a mark gives none of what it holds back, on the
@@ -1785,6 +1804,9 @@ static int _screen_put(Xpost_Record *rec, int w, int h,
     return ok;
 }
 
+/* Takes a halftone screen. A screen is not a mark: it is the state the
+   marks after it are rendered under, so it is held apart from them and
+   reaches a replay in its own right. */
 int xpost_record_screen(Xpost_Record *rec, int w, int h,
                         const unsigned char *cell)
 {
@@ -1846,6 +1868,8 @@ const unsigned char *xpost_record_screen_get(const Xpost_Record *rec,
                         (size_t)s->w * (size_t)s->h, i, 1);
 }
 
+/* Empties the record for the next page, keeping what it has learned
+   about its own limits. */
 void xpost_record_clear(Xpost_Record *rec)
 {
     size_t n;
@@ -1921,6 +1945,9 @@ void xpost_record_spent(Xpost_Record *rec)
     rec->val.len = 0;
 }
 
+/* Gives up everything the record holds while keeping the record
+   itself: what a device does when its page has been played and it will
+   take no more marks. */
 void xpost_record_release(Xpost_Record *rec)
 {
     if (!rec)
@@ -2009,6 +2036,9 @@ static int _sp_make(Xpost_Record *rec)
     return 1;
 }
 
+/* Moves what the record holds to a file, leaving almost nothing
+   resident. The record answers exactly as it did before, readers going
+   through the accessors above; what changes is where the bytes are. */
 int xpost_record_spill(Xpost_Record *rec)
 {
     size_t i, n;
@@ -2193,6 +2223,7 @@ static size_t _blocks(const Xpost_Record *rec)
     return n + rec->covblocks + rec->cellblocks + rec->imgblocks;
 }
 
+/* What the record is holding in memory at this moment. */
 size_t xpost_record_resident(const Xpost_Record *rec)
 {
     size_t runs;
@@ -2237,6 +2268,10 @@ size_t xpost_record_bytes(const Xpost_Record *rec)
          + (rec->sp ? (size_t)xpost_spill_size(rec->sp->f) : 0);
 }
 
+/* Says the record is short of a mark it could not take, and asks
+   whether it is. A record short of a mark describes a page it cannot
+   reproduce, so from that point it gives nothing back rather than
+   giving back a drawing that is missing something. */
 void xpost_record_lost(Xpost_Record *rec)
 {
     if (rec)
@@ -2248,6 +2283,9 @@ int xpost_record_failed(const Xpost_Record *rec)
     return rec ? rec->short_of_a_mark : 0;
 }
 
+/* One mark, by position: its kind, its colour, and the numbers that
+   place it. What comes back points into the record and is good until
+   the record next changes. */
 int xpost_record_get(const Xpost_Record *rec, size_t i,
                      Xpost_Record_Kind *kind, const real **colour,
                      const real **ops, int *nops)
@@ -2283,6 +2321,8 @@ int xpost_record_get(const Xpost_Record *rec, size_t i,
     return 1;
 }
 
+/* The rows the record's marks reach between, which is what a caller
+   banding a page needs before it can decide how many bands there are. */
 int xpost_record_extent(const Xpost_Record *rec, real *lo, real *hi)
 {
     const _Mark *m;
@@ -2411,6 +2451,8 @@ static int _span_of(const Xpost_Record *rec, Xpost_Record_Kind kind,
     return 0;
 }
 
+/* The bounding box of everything the record holds, in device
+   coordinates, or nothing where it holds no marks. */
 int xpost_record_box(const Xpost_Record *rec, real *x0, real *y0,
                      real *x1, real *y1)
 {
@@ -2497,11 +2539,15 @@ static int _meets_rows(Xpost_Record_Kind kind, real mlo, real mhi,
           || floor((double)mlo) > (double)hi);
 }
 
+/* Whether a mark reaches any of a range of rows, which is the test
+   every band-wise reader below is built on. */
 static int _meets(const _Mark *m, real lo, real hi)
 {
     return _meets_rows(m->kind, m->lo, m->hi, lo, hi);
 }
 
+/* The last mark meeting a range of rows -- what a caller wants when
+   only the topmost mark of a band matters. */
 int xpost_record_last(const Xpost_Record *rec, real lo, real hi, size_t *at)
 {
     const _Mark *marks;
@@ -2570,6 +2616,9 @@ int xpost_record_last(const Xpost_Record *rec, real lo, real hi, size_t *at)
     return 0;
 }
 
+/* The next mark at or after a position that meets the given rows, for
+   a caller walking a band a mark at a time rather than through a
+   player. */
 int xpost_record_next(const Xpost_Record *rec, size_t from, real lo, real hi,
                       size_t *at)
 {
@@ -2617,6 +2666,9 @@ int xpost_record_next(const Xpost_Record *rec, size_t from, real lo, real hi,
     return 0;
 }
 
+/* Walks the marks that meet a range of rows, handing each to the
+   player. The order is the order they were taken in, which is the
+   order they must be painted in. */
 int xpost_record_replay(const Xpost_Record *rec, real lo, real hi,
                         Xpost_Record_Player player, void *data)
 {

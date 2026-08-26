@@ -608,6 +608,15 @@ static void _compaction_wanted(Xpost_Context *ctx)
     }
 }
 
+/* Runs a procedure's elements here, in a loop, rather than handing
+   them back to the interpreter one at a time. What stands on the
+   execution stack in place of the elements is a single interval naming
+   the ones not yet reached, kept in one slot and rewritten as the loop
+   advances: the stack still shows what is left to run, which execstack
+   and an error's report both read, but a procedure no longer costs
+   stack in proportion to its length, and its last element costs none
+   at all. The interval is dropped rather than rewritten once nothing
+   follows, which is what makes a tail call flat. */
 static
 int evalarray(Xpost_Context *ctx, Xpost_Object a)
 {
@@ -2202,6 +2211,8 @@ static unsigned int _nested_error(Xpost_Context *ctx)
     return ret;
 }
 
+/* Runs a procedure from inside an operator, with the operator still on
+   the C stack waiting to push its own answer. */
 int xpost_interpreter_run_nested(Xpost_Context *ctx, Xpost_Object P)
 {
     int base;
@@ -2720,6 +2731,10 @@ static void _forward_slashes(char *path)
 #endif
 }
 
+/* Finds the directory the language is loaded from, by looking for
+   init.ps in each candidate in turn and taking the first that has one.
+   What the candidates are, and their order, is the paragraph of macro
+   below. */
 XPOST_TEST_VISIBLE void xpost_interpreter_data_dir(char *datadir,
                                                    size_t datadirsz)
 {
@@ -3739,6 +3754,10 @@ int get_token(Xpost_Context *ctx, char *str, Xpost_Object *out)
     return 0;
 }
 
+/* Defines each of the given name=value strings in userdict, the value
+   scanned as the language would scan it. A string with no = defines
+   the name as null, which is how a run says a name is present without
+   saying what it is. */
 XPAPI int xpost_add_definitions(Xpost_Context *ctx, int cnt, char *defs[])
 {
     int i;
@@ -3783,6 +3802,9 @@ XPAPI int xpost_add_definitions(Xpost_Context *ctx, int cnt, char *defs[])
     return 1;
 }
 
+/* Puts a directory at the front of the path the resource machinery
+   searches, so a run can offer resources of its own without displacing
+   those the installation carries. */
 XPAPI int xpost_add_resource_dir(Xpost_Context *ctx, const char *dir)
 {
     Xpost_Object ud;
@@ -3849,6 +3871,9 @@ XPAPI int xpost_add_resource_dir(Xpost_Context *ctx, const char *dir)
     return 1;
 }
 
+/* The name and the detail of the error the last run ended on, or empty
+   strings where it did not end on one. Both read the same flag, so a
+   caller that finds a name has a run to blame it on. */
 XPAPI const char *xpost_error_name_get(Xpost_Context *ctx)
 {
     return ctx->run_uncaught ? ctx->run_error_name : "";
@@ -4082,6 +4107,10 @@ static void _make_start_device(Xpost_Context *ctx)
 #define XPOST_JOB_SAVE_ROOT(f)    ctx->job_saved_##f = ctx->f;
 #define XPOST_JOB_RESTORE_ROOT(f) ctx->f = ctx->job_saved_##f;
 
+/* Records what a job begins from: both banks of the arena, the
+   operator table, and the number of operators there were. The table is
+   taken because a job may define operators of its own, and a number
+   issued during one job would otherwise still be counted in the next. */
 static int _job_capture_baseline(Xpost_Context *ctx)
 {
     if (!ctx->job_baseline_lo)
@@ -4327,6 +4356,12 @@ static void _prime_job_stream(Xpost_Context *ctx)
             ctx->skip_graphics ? "startfilenographics" : "startfile");
 }
 
+/* Runs one input to its end -- a named file, a string, an open stream,
+   or the resumption of a session that returned -- and answers whether it
+   ended of its own accord or on an error nothing caught. A run that
+   arrives without the language loaded or without a device gets both
+   before its program runs, and the device is destroyed and the job
+   boundary crossed on the way out, whichever way the run ended. */
 XPAPI Xpost_Run_Status xpost_run(Xpost_Context *ctx, Xpost_Input_Type input_type, const void *inputptr, size_t set_size)
 {
     const char *ps_str = NULL;
@@ -4666,6 +4701,8 @@ run:
     return ctx->run_uncaught ? XPOST_RUN_ERRORED : XPOST_RUN_COMPLETE;
 }
 
+/* Say whether this context loads the graphics language; a run that
+   does not gets the start procedure that leaves it out. */
 XPAPI void xpost_skip_graphics_set(Xpost_Context *ctx, int enable)
 {
     ctx->skip_graphics = enable;
@@ -4730,6 +4767,9 @@ XPAPI int xpost_new_job(Xpost_Context *ctx)
     return _job_capture_baseline(ctx);
 }
 
+/* Where this context's standard output and standard error go. Unset,
+   both go to the streams of those names; a caller that sets them is
+   handed the bytes instead of the file being written. */
 XPAPI void xpost_stdout_handler_set(Xpost_Context *ctx,
                                     Xpost_Output_Fn fn,
                                     void *user)

@@ -1367,6 +1367,11 @@ out:
     return ret;
 }
 
+/* Hands a glyph's coverage mask to the record and answers where it was
+   put. The caller keeps no copy: what comes back is an offset into the
+   record, and a mask that could not be taken is answered as such
+   rather than raising, because a glyph the page will be short of is
+   not an error the job can act on. */
 int xpost_dev_record_takemask(Xpost_Context *ctx, Xpost_Object devdic,
                               const unsigned char *cov, int w, int h,
                               size_t *at)
@@ -4215,6 +4220,10 @@ static int loadrecorddevicecont(Xpost_Context *ctx,
     return 0;
 }
 
+/* Installs the record device's operators and caches the names its
+   marks are keyed by. What is installed here is the replay side and
+   the record's own accounting; the marking suites are put in place by
+   the class, which is where their operand counts are fixed. */
 int xpost_oper_init_record_device_ops (Xpost_Context *ctx,
                 Xpost_Object sd)
 {

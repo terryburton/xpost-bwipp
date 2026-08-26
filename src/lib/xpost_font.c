@@ -310,6 +310,8 @@ static int _combo_cmp(const void *pa, const void *pb)
     return 0;
 }
 
+/* Every figure currentcachestatus and the cache parameters report,
+   gathered in one pass. */
 void
 xpost_font_cache_status(long *bsize, long *bmax, long *msize, long *mmax,
                         long *csize, long *cmax, long *blimit)
@@ -375,6 +377,8 @@ gcache_limit_in_range(long upper)
     return upper > GCACHE_BYTES_MAX ? GCACHE_BYTES_MAX : upper;
 }
 
+/* The ceiling on what the glyph cache may hold, clamped to what the
+   counters can carry. */
 void
 xpost_font_cache_setlimit(long blimit)
 {
@@ -424,6 +428,9 @@ xpost_mask_cache_lookup(const void *k1, unsigned long long k2,
     return 1;
 }
 
+/* Puts a mask a driver generated into the same store the rendered
+   glyphs use, as a grey bitmap. Answers whether it was taken, a mask
+   too large for the cache being no error. */
 int
 xpost_mask_cache_insert(const void *k1, unsigned long long k2,
                              const long m[4], long size,
@@ -556,6 +563,9 @@ program_clear(void)
 static void strike_clear(void);
 #endif
 
+/* Starts the font machinery: the rendering library, and the font
+   configuration where the build has one. Called once, and answers
+   whether faces can be opened at all. */
 int
 xpost_font_init(void)
 {
@@ -594,6 +604,10 @@ xpost_font_init(void)
     return 1;
 }
 
+/* Gives up the font machinery in the order the pieces depend on each
+   other: the caches first, since an entry names a face; then the
+   library, which takes the faces still open with it; then the font
+   programs those faces were reading. */
 void
 xpost_font_quit(void)
 {
@@ -669,6 +683,10 @@ static const struct { const char *suffix; const char *flags; } _ps_style_suffix[
     { "-Regular",     "" },
 };
 
+/* Asks the platform's font configuration for the closest face to a
+   name. It answers with something for almost any name, the
+   substitution rules seeing to that, which is why the caller records
+   what it landed on rather than assuming it got what it asked for. */
 static FcPattern *
 _fc_match_name(const char *name)
 {
@@ -705,6 +723,8 @@ _fc_match_name(const char *name)
 }
 # endif
 
+/* The file a name resolves to, and which face within it -- a font file
+   may carry several. The caller opens the file; nothing here holds it. */
 static char *
 _xpost_font_face_filename_and_index_get(const char *name, int *idx)
 {
@@ -801,6 +821,9 @@ xpost_font_face_last_file(void)
     return _xpost_font_last_file;
 }
 
+/* Opens the face a name resolves to through the platform's
+   configuration, and records the file it came from so that a caller
+   can publish the program itself. */
 void *
 xpost_font_face_new_from_name(const char *name)
 {
@@ -841,6 +864,10 @@ xpost_font_face_new_from_name(const char *name)
     return NULL;
 }
 
+/* Opens a face over a font program the caller already holds -- an
+   embedded font, or one a program built. The bytes are kept for as
+   long as the face is, the rendering library reading them as it goes
+   rather than copying them. */
 void *
 xpost_font_face_new_from_memory(const unsigned char *data, size_t len)
 {
@@ -874,6 +901,7 @@ xpost_font_face_new_from_memory(const unsigned char *data, size_t len)
     return NULL;
 }
 
+/* The face's design bounding box, in the units the face declares. */
 void
 xpost_font_face_get_bbox(void *face, Xpost_Object *bboxarray, real em){
 #ifdef HAVE_FREETYPE2
@@ -897,6 +925,8 @@ xpost_font_face_get_bbox(void *face, Xpost_Object *bboxarray, real em){
 #endif
 }
 
+/* How many design units the face puts in an em, or zero where it
+   declares none. */
 int
 xpost_font_face_units(void *face)
 {
@@ -910,6 +940,9 @@ xpost_font_face_units(void *face)
 #endif
 }
 
+/* What kind of font program the face was opened over. The three are
+   asked separately because each answers a different question about
+   what else can be got out of the face. */
 int
 xpost_font_face_is_truetype(void *face)
 {
@@ -1003,6 +1036,8 @@ xpost_font_face_free(void *face)
 #endif
 }
 
+/* Sets the size glyphs are rendered at and answers the size actually
+   taken, which a face with fixed strikes may round. */
 real
 xpost_font_face_scale(void *face, real scale)
 {
@@ -1088,6 +1123,11 @@ xpost_font_face_scale(void *face, real scale)
     return scale;
 }
 
+/* Sets the transform glyphs are rendered under, and records it against
+   the face so the cache can key on it. Kept as the fixed-point value
+   the library was handed rather than the float it came from: two
+   transforms that round to the same fixed point render the same glyph,
+   and must key the same. */
 void
 xpost_font_face_transform(void *face, float *mat)
 {
@@ -1117,6 +1157,7 @@ xpost_font_face_transform(void *face, float *mat)
 #endif
 }
 
+/* The glyph a character code selects through the face's own encoding. */
 unsigned int
 xpost_font_face_glyph_index_get(void *face, char c)
 {
@@ -1378,6 +1419,9 @@ static const struct { const char *name; unsigned short cp; } _xpost_glyph_unicod
     { "fl", 0xFB02 },
 };
 
+/* The character a glyph name stands for: the uniXXXX and uXXXX forms
+   read as the hexadecimal they spell, and the names the table above
+   carries looked up in it. */
 static long
 _xpost_glyph_name_to_unicode(const char *name)
 {
@@ -1423,6 +1467,7 @@ xpost_font_face_glyph_name_count(void *face)
 #endif
 }
 
+/* The name the face gives a glyph, where it names its glyphs at all. */
 int
 xpost_font_face_glyph_name_get(void *face, unsigned int gid, char *buf, int len)
 {
@@ -1441,6 +1486,9 @@ xpost_font_face_glyph_name_get(void *face, unsigned int gid, char *buf, int len)
 #endif
 }
 
+/* The name at a position in the standard ordering, for a face that
+   names its glyphs by that ordering rather than carrying names of its
+   own. */
 int
 xpost_font_face_std_name_at(void *face, unsigned int i,
                             const char **name, unsigned int *gid)
@@ -1461,6 +1509,8 @@ xpost_font_face_std_name_at(void *face, unsigned int i,
 #endif
 }
 
+/* The glyph a name selects, which is how a font that re-encodes by
+   name reaches one. */
 unsigned int
 xpost_font_face_glyph_name_index_get(void *face, const char *name)
 {
@@ -1593,6 +1643,11 @@ _glyph_linear_advance(FT_Face face, long *advance_x, long *advance_y)
 }
 #endif
 
+/* Walks a glyph's outline into the caller's sink, as moves, lines and
+   cubics -- a quadratic being raised to a cubic on the way -- with
+   each contour closed. Loaded unhinted, because an outline is asked
+   for to be transformed further and hinting is a decision about
+   pixels. */
 int
 xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, long *advance_x, long *advance_y)
 {
@@ -1788,6 +1843,10 @@ _strike_resample(FT_Face f, const long m[4], long ax, long ay)
 }
 #endif
 
+/* Renders a glyph, or finds it already rendered. What comes back is
+   not the bitmap but the fact that one is now being served; the call
+   below hands it over. Splitting the two is what lets a cache hit cost
+   a lookup. */
 int
 xpost_font_face_glyph_render(void *face, unsigned int glyph_index)
 {
@@ -1864,6 +1923,8 @@ xpost_font_face_glyph_render(void *face, unsigned int glyph_index)
 #endif
 }
 
+/* The glyph the call above rendered or found: its bits, its shape, and
+   where it sits against the origin. */
 void
 xpost_font_face_glyph_buffer_get(void *face, unsigned char **buffer, int *rows, int *width, int *pitch, char *pixel_mode, int *left, int *top, long *advance_x, long *advance_y)
 {
