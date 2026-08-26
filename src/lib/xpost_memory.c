@@ -533,6 +533,13 @@ xpost_memory_file_exit(Xpost_Memory_File *mem)
     }
     XPOST_LOG_INFO("exit memory file %s", mem->fname);
 
+    /* The operator table is this file's and outside the arena, so it does
+       not go with the mapping the way everything else in here does. The
+       local bank never has one and frees a null. */
+    free(mem->optab);
+    mem->optab = NULL;
+    mem->optab_max = 0;
+
 #if defined(XPOST_MEMORY_RESERVED_VM)
     if (mem->fd == -1)
         _xpost_memory_unreserve(mem->base, XPOST_MEMORY_RESERVE);

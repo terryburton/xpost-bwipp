@@ -352,6 +352,8 @@ int xpost_context_init(Xpost_Context *ctx,
     ctx->globs_size = 0;
     ctx->job_baseline_lo = NULL;
     ctx->job_baseline_gl = NULL;
+    ctx->job_baseline_optab = NULL;
+    ctx->job_baseline_optab_len = 0;
     ctx->job_rand_next = 0;
     ctx->job_vmmode = LOCAL;
     ctx->job_packing = 0;
@@ -496,6 +498,9 @@ void xpost_context_exit(Xpost_Context *ctx)
         free(ctx->job_baseline_lo);
         ctx->job_baseline_lo = NULL;
     }
+    free(ctx->job_baseline_optab);
+    ctx->job_baseline_optab = NULL;
+    ctx->job_baseline_optab_len = 0;
     if (ctx->job_baseline_gl)
     {
         xpost_memory_image_free(ctx->job_baseline_gl);
@@ -602,6 +607,8 @@ unsigned int xpost_context_fork3(Xpost_Context *ctx,
        replace and free -- the parent's images. Start it with none. */
     newctx->job_baseline_lo = NULL;
     newctx->job_baseline_gl = NULL;
+    newctx->job_baseline_optab = NULL;
+    newctx->job_baseline_optab_len = 0;
     newctx->job_baseline_ds = 0;
     newctx->lo = ctx->lo;
     /* The list is what the collector walks to find the contexts a memory

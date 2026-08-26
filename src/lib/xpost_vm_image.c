@@ -365,6 +365,11 @@ typedef struct
 /* One row of the operator table as this process holds it: what it is
    called, how many operand shapes it states, and where its signatures
    begin in the run below. */
+/* The most operand shapes one operator may state. The dispatcher tries
+   them in order; nothing in the tree comes near this, and a row claiming
+   more is an image this cannot read. */
+#define _MAX_SHAPES 16
+
 typedef struct
 {
     char name[_NAME_MAX];
@@ -500,9 +505,21 @@ static int _put_object(_Writer *w, Xpost_Object o)
     return _emit(w, &o, sizeof o);
 }
 
-/* An operator row: what it states and what it is called. The name is
-   padded out to a whole number of values so that everything after it
-   keeps the alignment every other part of an image has. */
+/* An operator row: what it states, what it is called, and the procedure
+   it runs when it is one of the standard operators the boot files wrote
+   in PostScript.
+   
+   That procedure is the row's one piece of virtual memory. The rest of a
+   row -- the C function implementing the operator and the one checking
+   its operands -- is this process's and cannot be carried, which is why
+   the table is host storage and no part of the arena. But a wrapped
+   operator states no signature at all and runs the procedure instead, and
+   the procedure is an object in the arena the image is being taken of. A
+   run that read an image and did not get it back would find every wrapped
+   operator empty, which is exactly what happens if this is left out.
+   
+   The name is padded out to a whole number of values so that everything
+   after it keeps the alignment every other part of an image has. */
 static int _put_operators(_Writer *w, Xpost_Context *ctx, unsigned int count)
 {
     unsigned int k;
@@ -522,6 +539,8 @@ static int _put_operators(_Writer *w, Xpost_Context *ctx, unsigned int count)
         len = (unsigned int)strlen(name);
         pad = (4u - (len % 4u)) % 4u;
         if (!_put(w, (unsigned int)optab[k].n)) return 0;
+        if (!_put(w, optab[k].name)) return 0;
+        if (!_put_object(w, optab[k].proc)) return 0;
         if (!_put(w, len)) return 0;
         if (len && !_emit(w, name, len)) return 0;
         if (pad)
@@ -529,6 +548,35 @@ static int _put_operators(_Writer *w, Xpost_Context *ctx, unsigned int count)
             static const char zero[4] = { 0, 0, 0, 0 };
 
             if (!_emit(w, zero, pad)) return 0;
+        }
+
+        /* and the operand patterns of whatever it states. The C function
+           behind a signature is this process's and is not written; what a
+           reader needs is the shape, which is the language's. A run that
+           reads an image never installs the operators the boot files
+           declared in PostScript, so without these it would find them
+           stating nothing. */
+        {
+            Xpost_Signature *sig =
+                (Xpost_Signature *)(void *)((unsigned char *)optab
+                                            + optab[k].sigadr);
+            int si;
+
+            for (si = 0; si < optab[k].n; si++)
+            {
+                unsigned int in = (unsigned int)sig[si].in;
+                unsigned int tpad = (4u - (in % 4u)) % 4u;
+                const unsigned char *types =
+                    (const unsigned char *)optab + sig[si].t;
+
+                if (!_put(w, in)) return 0;
+                if (in && !_emit(w, types, in)) return 0;
+                if (tpad)
+                {
+                    static const unsigned char zero[4] = { 0, 0, 0, 0 };
+                    if (!_emit(w, zero, tpad)) return 0;
+                }
+            }
         }
     }
     return 1;
@@ -584,24 +632,26 @@ static int _put_bank_fields(_Writer *w, Xpost_Memory_File *mem)
     return 1;
 }
 
-/* The arena, with the host addresses in it taken out.
+/* The arena, as it stands.
 
-   An operator's signature keeps the C function implementing it and the
-   one checking its operands, and both are this process's. Neither can
-   be carried, so both are written as zeros and the reader puts back the
-   ones its own process holds. A caller that asked for host state gets
-   them as they stand, which is for looking at rather than for reading
-   back.
+   Nothing in it is this process's. Every reference an arena holds is an
+   entity number or a byte offset, which is what lets it be compacted,
+   handed back to the operating system, and written out and read back
+   somewhere else. The operator table used to be the exception -- a
+   signature carries the C function implementing an operator and the one
+   checking its operands -- so this had to take a copy of the whole
+   arena, walk every live signature, and blank both fields in the copy
+   before writing it, and the reader had to put them back.
 
-   The copy is what makes that possible without disturbing the running
-   interpreter: the arena the image is taken of stays exactly as it is. */
+   The table is host storage now, so the exception is gone with it: the
+   bytes go out as they are, whichever bank and whether or not the caller
+   asked for host state. */
 static int _put_arena(_Writer *w, Xpost_Context *ctx, Xpost_Memory_File *mem,
                       int is_global, int host_state)
 {
-    unsigned char *copy;
-    unsigned int k;
-    unsigned int nops;
-    int ok;
+    (void)ctx;
+    (void)is_global;
+    (void)host_state;
 
     if (mem->high_water == 0)
         return 1;
@@ -616,45 +666,7 @@ static int _put_arena(_Writer *w, Xpost_Context *ctx, Xpost_Memory_File *mem,
        for the rest of the run. */
     XPOST_VG_REOPEN_RANGE(mem->base, 0, mem->high_water);
 
-    if (host_state || !is_global)
-        return _emit(w, mem->base, mem->high_water);
-
-    copy = malloc(mem->high_water);
-    if (!copy)
-    {
-        XPOST_LOG_ERR("cannot hold a copy of the arena to write");
-        return 0;
-    }
-    memcpy(copy, mem->base, mem->high_water);
-
-    nops = xpost_operator_count();
-    for (k = 0; k < nops; k++)
-    {
-        Xpost_Operator *optab = xpost_operator_table(ctx->gl);
-        /* the rows name what they point at by its offset within their own
-           entity, and this walks a copy of the whole arena, so the two are
-           added to reach the same bytes */
-        unsigned int adr = xpost_memory_operator_table_adr(ctx->gl)
-                           + optab[k].sigadr;
-        int n = optab[k].n;
-        int s;
-
-        for (s = 0; s < n; s++)
-        {
-            unsigned int at = adr + (unsigned int)s * (unsigned int)sizeof(Xpost_Signature);
-
-            if (at + sizeof(Xpost_Signature) > mem->high_water)
-                break;
-            memset(copy + at + offsetof(Xpost_Signature, fp), 0,
-                   sizeof ((Xpost_Signature *)0)->fp);
-            memset(copy + at + offsetof(Xpost_Signature, checkstack), 0,
-                   sizeof ((Xpost_Signature *)0)->checkstack);
-        }
-    }
-
-    ok = _emit(w, copy, mem->high_water);
-    free(copy);
-    return ok;
+    return _emit(w, mem->base, mem->high_water);
 }
 
 /* One bank whole: its name, its bookkeeping, the birth-stamp counters,
@@ -1118,6 +1130,10 @@ typedef struct
 {
     char name[_NAME_MAX];
     unsigned int n;
+    unsigned int nameidx; /* where the name sits on the image's name stack */
+    Xpost_Object proc;    /* what a wrapped operator runs; null otherwise */
+    unsigned int in[_MAX_SHAPES];   /* operands each shape takes */
+    const unsigned char *types[_MAX_SHAPES];
 } _Image_Row;
 
 /* The image's operator rows, and this build's held to them.
@@ -1140,6 +1156,15 @@ static int _check_operators(const _Image_Row *image, unsigned int nimage,
     {
         XPOST_LOG_INFO("the image holds %u operators and this build installs "
                       "%u from C", nimage, t->rows);
+        return 0;
+    }
+    /* The table has a fixed number of rows and the rows are filled from
+       this count, so a damaged image claiming more than there are is one
+       that would be written past the end of the table. */
+    if (nimage > MAXOPS)
+    {
+        XPOST_LOG_INFO("the image holds %u operators and a table has room "
+                      "for %u", nimage, (unsigned int)MAXOPS);
         return 0;
     }
     for (k = 0; k < t->rows; k++)
@@ -1168,137 +1193,6 @@ static int _check_operators(const _Image_Row *image, unsigned int nimage,
    because everything an image says is checked before any of it is
    installed: a table found wanting after the install is one there is no
    way back from. */
-/* `room` takes the bytes the table's entity holds, which is what bounds
-   the offsets its rows carry -- the rows name what they point at by its
-   place within this entity, not within the arena. */
-static const unsigned char *_image_optab(const _Bank *g, unsigned int rows,
-                                         unsigned int *room)
-{
-    Xpost_Memory_File view;
-    unsigned int used = g->field[XPOST_VM_IMAGE_BANK_HIGH_WATER];
-    unsigned int entities = g->field[XPOST_VM_IMAGE_BANK_NEXTENT];
-    unsigned int adr;
-
-    /* A bank holding fewer entities than there are special ones holds no
-       operator table, and the accessor below would read a row that is not
-       there. */
-    if (entities < XPOST_MEMORY_COLLECT_START_GLOBAL)
-        return NULL;
-
-    /* The bank as the memory file it is a picture of, so that where the
-       table lies is asked the one way it is asked anywhere. The rows of
-       an image are the rows of a table -- five addresses and counts in
-       the order a row declares them -- and the arena is the arena. What
-       the view has not got is everything about the host, which nothing
-       here asks it for. */
-    memset(&view, 0, sizeof view);
-    view.fd = -1;
-    view.base = g->arena;
-    view.high_water = used;
-    view.max = used;
-    view.table.tab = (void *)g->rows;
-    view.table.nextent = entities;
-    view.table.max = entities;
-
-    adr = xpost_memory_operator_table_adr(&view);
-    if (adr > used || (size_t)rows * sizeof(Xpost_Operator) > used - adr)
-        return NULL;
-    if (room)
-    {
-        *room = xpost_memory_operator_table_size(&view);
-        if (*room > used - adr)
-            return NULL;   /* the entity claims more than the bank holds */
-    }
-    return g->arena + adr;
-}
-
-/* What each row of the image's operator table says about itself, held to
-   what a rebuild will need of it: a row this build installs from C must
-   state its signatures somewhere the image holds, and a row past those
-   must carry the procedure that makes it one the boot files wrapped. A
-   row of the second kind that ought to have been of the first would
-   otherwise run with no function at all. */
-static int _check_operator_rows(const _Bank *g, const _Host_Table *t,
-                                unsigned int nimage)
-{
-    unsigned int room = 0;
-    const unsigned char *rows = _image_optab(g, nimage, &room);
-    unsigned int k;
-
-    if (!rows)
-    {
-        XPOST_LOG_INFO("the image does not hold the %u operators it says it "
-                       "does", nimage);
-        return 0;
-    }
-    for (k = 0; k < nimage; k++)
-    {
-        Xpost_Operator op;
-
-        memcpy(&op, rows + (size_t)k * sizeof op, sizeof op);
-        if (k >= t->rows)
-        {
-            if (xpost_object_get_type(op.proc) != arraytype)
-            {
-                XPOST_LOG_INFO("operator %u of the image is past the ones this "
-                               "build installs from C and carries no procedure "
-                               "to run", k);
-                return 0;
-            }
-            continue;
-        }
-        if (op.n != t->row[k].n)
-        {
-            XPOST_LOG_INFO("operator %s of the image states %d operand shapes "
-                           "in its table and %d in its names",
-                           t->row[k].name, op.n, t->row[k].n);
-            return 0;
-        }
-        if (op.n == 0)
-            continue;
-        /* the offset is within the operator table's own entity, so what
-           bounds it is that entity rather than the whole arena -- a run
-           reaching past the entity is one the image does not hold, even
-           where the arena happens to go on beyond it */
-        if (op.sigadr == 0 || op.sigadr > room ||
-            (size_t)op.n * sizeof(Xpost_Signature) > room - op.sigadr)
-        {
-            XPOST_LOG_INFO("operator %s of the image states %d operand shapes "
-                           "at %u, which its operator table does not hold",
-                           t->row[k].name, op.n, op.sigadr);
-            return 0;
-        }
-    }
-    return 1;
-}
-
-/* Put back the host functions the image was written without. The rows
-   have already been held to this build's own, by name and by what each
-   states, so the row a function goes into is the row it came out of and
-   nothing here can refuse. */
-static void _rebuild_operators(Xpost_Context *ctx, const _Host_Table *t)
-{
-    unsigned int k;
-
-    for (k = 0; k < t->rows; k++)
-    {
-        Xpost_Operator *optab = xpost_operator_table(ctx->gl);
-        Xpost_Signature *sig;
-        int s;
-
-        if (optab[k].n == 0)
-            continue;
-        sig = (Xpost_Signature *)(void *)((unsigned char *)optab
-                                          + optab[k].sigadr);
-        for (s = 0; s < optab[k].n; s++)
-        {
-            sig[s].fp = t->sig[t->row[k].first + (unsigned int)s].fp;
-            sig[s].checkstack =
-                t->sig[t->row[k].first + (unsigned int)s].checkstack;
-        }
-    }
-}
-
 XPOST_TEST_VISIBLE int
 xpost_vm_image_load(Xpost_Context *ctx, const char *path)
 {
@@ -1394,7 +1288,13 @@ xpost_vm_image_load(Xpost_Context *ctx, const char *path)
         unsigned int namelen;
         const unsigned char *name;
 
-        if (!_take_u32(&r, &image[i].n) || !_take_u32(&r, &namelen))
+        if (!_take_u32(&r, &image[i].n))
+            goto short_image;
+        if (!_take_u32(&r, &image[i].nameidx))
+            goto short_image;
+        if (!_take(&r, &image[i].proc, sizeof image[i].proc))
+            goto short_image;
+        if (!_take_u32(&r, &namelen))
             goto short_image;
         if (namelen >= _NAME_MAX)
         {
@@ -1407,6 +1307,26 @@ xpost_vm_image_load(Xpost_Context *ctx, const char *path)
             goto short_image;
         memcpy(image[i].name, name, namelen);
         image[i].name[namelen] = '\0';
+        {
+            unsigned int si;
+
+            if (image[i].n > _MAX_SHAPES)
+            {
+                XPOST_LOG_INFO("operator %u of %s states %u operand shapes",
+                              i, path, image[i].n);
+                goto done;
+            }
+            for (si = 0; si < image[i].n; si++)
+            {
+                if (!_take_u32(&r, &image[i].in[si]))
+                    goto short_image;
+                image[i].types[si] =
+                    _take_run(&r, image[i].in[si]
+                                  + (4u - (image[i].in[si] % 4u)) % 4u);
+                if (!image[i].types[si])
+                    goto short_image;
+            }
+        }
     }
 
     if (!_check_operators(image, stamp[XPOST_VM_IMAGE_STAMP_OPERATORS], &host))
@@ -1435,10 +1355,6 @@ xpost_vm_image_load(Xpost_Context *ctx, const char *path)
         if (!_bank_consistent(&bank[i], i))
             goto done;
 
-    if (!_check_operator_rows(&bank[0], &host,
-                              stamp[XPOST_VM_IMAGE_STAMP_OPERATORS]))
-        goto done;
-
     /* Everything the image says has now been read and checked, and
        nothing of the context has been touched. Room comes next, so that
        the one step that can still fail fails with the context holding
@@ -1449,7 +1365,54 @@ xpost_vm_image_load(Xpost_Context *ctx, const char *path)
     _install_bank(ctx->gl, &bank[0]);
     _install_bank(ctx->lo, &bank[1]);
     xpost_operator_set_count(stamp[XPOST_VM_IMAGE_STAMP_OPERATORS]);
-    _rebuild_operators(ctx, &host);
+
+    /* The procedures the wrapped operators run. The rows have already
+       been held to this build's own, by name and by what each states, so
+       row for row these are the procedure and the name that operator had
+       when the image was taken -- and both name storage the arena now
+       holds again.
+
+       The name is an index into the name stack, and the name stack that
+       is now in place is the image's. This run interned its own while it
+       installed its operators, and the arena it interned into has since
+       been replaced, so its indices point into a stack that is no longer
+       there. Left alone they read as whatever the image's stack has at
+       that index, which is how an image written back after a load came
+       out ninety-six bytes shorter than the one it was read from. */
+    {
+        unsigned int k;
+
+        for (k = 0; k < stamp[XPOST_VM_IMAGE_STAMP_OPERATORS]; k++)
+        {
+            /* fetched afresh each turn: filling a row takes storage from
+               the table, which may move it */
+            Xpost_Operator *optab = xpost_operator_table(ctx->gl);
+            unsigned int si;
+
+            optab[k].proc = image[k].proc;
+            optab[k].name = image[k].nameidx;
+
+            /* A row this build installed from C keeps the signatures it
+               installed: they carry the function that implements the
+               operator, and this process is the only one that can know
+               it. Only the rows above them are the boot files' own --
+               the operators declared in PostScript, which this run never
+               declares because it read an image instead of running
+               them -- and those are the rows to fill. */
+            if (k < host.rows)
+                continue;
+            optab[k].n = (int)image[k].n;
+            if (image[k].n == 0)
+                continue;
+            if (!xpost_operator_take_signatures(ctx->gl, k, image[k].n))
+                goto done;
+            for (si = 0; si < image[k].n; si++)
+                if (!xpost_operator_set_signature(ctx->gl, k, si,
+                                                  image[k].in[si],
+                                                  image[k].types[si]))
+                    goto done;
+        }
+    }
 
     i = 0;
 #define _GET_CTX_FIELD(field) ctx->field = ctxfield[i++];

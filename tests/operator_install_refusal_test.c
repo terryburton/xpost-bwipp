@@ -57,6 +57,8 @@
 #include "xpost_object.h"
 #include "xpost_stack.h"
 #include "xpost_context.h"
+#include <string.h>
+
 #include "xpost_dict.h"
 #include "xpost_name.h"
 #include "xpost_operator.h"
@@ -67,35 +69,42 @@
 
 static unsigned int held_used;
 static unsigned int held_max;
-static unsigned int held_optab;
+static unsigned int held_cursor;
 
 /* Decline every allocation in mem until released.
  *
  * Two things are moved, because an operator's signatures are not taken
- * off the memory file one at a time any more: they are cut from storage
- * the operator table already holds, and only reach the file when that
- * storage runs out. Leaving the high-water mark alone would refuse
- * nothing until the table happened to want more room, so the table is
- * told it holds nothing and the file is told it is full: the first
- * signature then asks the file for room and is refused. */
+ * off the memory file at all any more: the operator table is host
+ * storage, and a run of signatures is cut from it. So the file's own
+ * exhaustion no longer reaches the installer, and what is driven instead
+ * is the table's own refusal -- its cursor is put where the next run
+ * cannot be addressed, which is the one refusal the table can give that
+ * does not depend on the host allocator failing on demand.
+ *
+ * The file is still filled, so that anything else the install path asks
+ * of the arena is refused as it was. */
 static void refuse_allocation(Xpost_Memory_File *mem)
 {
+    unsigned char *cursor = mem->optab + MAXOPS * sizeof(Xpost_Operator);
+
     held_used = mem->high_water;
     held_max = mem->max;
-    held_optab = xpost_memory_operator_table_size(mem);
-    xpost_memory_set_operator_table(mem,
-                                    xpost_memory_operator_table_adr(mem), 0);
+    memcpy(&held_cursor, cursor, sizeof held_cursor);
+    {
+        unsigned int full = 0xfffffff8u;
+        memcpy(cursor, &full, sizeof full);
+    }
     mem->high_water = 0xfffffff8u;
     mem->max = 0xfffffff8u;
 }
 
 static void allow_allocation(Xpost_Memory_File *mem)
 {
+    unsigned char *cursor = mem->optab + MAXOPS * sizeof(Xpost_Operator);
+
     mem->high_water = held_used;
     mem->max = held_max;
-    xpost_memory_set_operator_table(mem,
-                                    xpost_memory_operator_table_adr(mem),
-                                    held_optab);
+    memcpy(cursor, &held_cursor, sizeof held_cursor);
 }
 
 static void register_ops(int refused)

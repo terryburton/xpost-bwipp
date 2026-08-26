@@ -243,14 +243,36 @@ static int _read(const char *path, Image *im)
     for (i = 0; i < im->stamp[XPOST_VM_IMAGE_STAMP_OPERATORS]; i++)
     {
         unsigned int namelen;
+        size_t rowat = at;
+        size_t fixed = 3 * sizeof(unsigned int) + sizeof(Xpost_Object);
 
-        if (im->len < at + 2 * sizeof(unsigned int))
+        if (im->len < at + fixed)
         {
-            report_failure("%s ends among its operator names", path);
+            report_failure("%s ends among its operator rows", path);
             return 0;
         }
-        namelen = _u32(im->bytes + at + sizeof(unsigned int));
-        at += 2 * sizeof(unsigned int) + namelen + (4u - (namelen % 4u)) % 4u;
+        namelen = _u32(im->bytes + at + 2 * sizeof(unsigned int)
+                       + sizeof(Xpost_Object));
+        at += fixed + namelen + (4u - (namelen % 4u)) % 4u;
+        {
+            /* then one operand shape per signature: how many operands it
+               takes, and that many type bytes padded out to a value */
+            unsigned int si;
+            unsigned int nsig = _u32(im->bytes + rowat);
+
+            for (si = 0; si < nsig; si++)
+            {
+                unsigned int in;
+
+                if (im->len < at + sizeof(unsigned int))
+                {
+                    report_failure("%s ends among its operand shapes", path);
+                    return 0;
+                }
+                in = _u32(im->bytes + at);
+                at += sizeof(unsigned int) + in + (4u - (in % 4u)) % 4u;
+            }
+        }
     }
     im->context = at;
     at += im->stamp[XPOST_VM_IMAGE_STAMP_CONTEXT_FIELDS] * sizeof(unsigned int);
@@ -343,8 +365,11 @@ static int _swap_two_names(Image *im)
 
     for (i = 0; i < n; i++)
     {
-        unsigned int namelen = _u32(im->bytes + at + sizeof(unsigned int));
-        size_t name = at + 2 * sizeof(unsigned int);
+        size_t rowat = at;
+        unsigned int namelen = _u32(im->bytes + at
+                                    + 2 * sizeof(unsigned int)
+                                    + sizeof(Xpost_Object));
+        size_t name = at + 3 * sizeof(unsigned int) + sizeof(Xpost_Object);
 
         if (namelen && namelen == firstlen &&
             memcmp(im->bytes + first, im->bytes + name, namelen) != 0)
@@ -360,6 +385,19 @@ static int _swap_two_names(Image *im)
             firstlen = namelen;
         }
         at = name + namelen + (4u - (namelen % 4u)) % 4u;
+        {
+            /* and past the operand shapes the row states, which follow
+               its name */
+            unsigned int nsig = _u32(im->bytes + rowat);
+            unsigned int si;
+
+            for (si = 0; si < nsig; si++)
+            {
+                unsigned int in = _u32(im->bytes + at);
+
+                at += sizeof(unsigned int) + in + (4u - (in % 4u)) % 4u;
+            }
+        }
     }
     report_failure("this image has no two operators named alike in length");
     return 0;
@@ -432,7 +470,8 @@ static size_t _flip_at(const Image *im, unsigned int f)
 {
     switch (f)
     {
-        case 0: return im->operators + 2 * sizeof(unsigned int);
+        case 0: return im->operators + 3 * sizeof(unsigned int)
+                       + sizeof(Xpost_Object);
         case 1: return im->context;
         case 2: return im->roots;
         case 3: return im->rows[0] + 8 * XPOST_VM_IMAGE_ROW_FIELDS

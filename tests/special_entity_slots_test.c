@@ -93,7 +93,7 @@ int main(void)
     _check_band(ctx->gl, "global", XPOST_MEMORY_COLLECT_START_GLOBAL);
     _check_band(ctx->lo, "local", XPOST_MEMORY_COLLECT_START_LOCAL);
     _check_reached(ctx->gl, "global",
-                   XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE);
+                   XPOST_MEMORY_TABLE_SPECIAL_BOGUS_NAME);
     _check_reached(ctx->lo, "local", XPOST_MEMORY_TABLE_SPECIAL_BOGUS_NAME);
 
     /* The bogus name is the one special that is not allocated through the
