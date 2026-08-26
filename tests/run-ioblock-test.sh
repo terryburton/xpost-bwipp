@@ -22,6 +22,17 @@ xpost=$1
 . "$(dirname "$0")/verdict.sh"
 verdict_workdir
 
+# The whole of this rests on the poll a read does before it waits, and
+# that block is admitted by sys/select.h, which the Windows builds do not
+# have: a read there waits in the C library, where nothing can ask it to
+# give way. So there is nothing to hold the platform to -- the source says
+# as much where the block is written (xpost_file.c).
+case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*)
+        echo "skipped: a read waits in the C library here, with no poll to give way at"
+        exit 77 ;;
+esac
+
 command -v mkfifo >/dev/null 2>&1 || { echo "SKIP: no mkfifo"; exit 77; }
 
 # ---- a blocked read lets a forked context run -------------------------
