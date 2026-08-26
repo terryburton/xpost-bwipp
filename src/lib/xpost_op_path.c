@@ -955,14 +955,26 @@ int _path_is_rect(Xpost_Context *ctx, Xpost_Object path,
    takes, and the walks that put a path out to a vector writer as its own
    path operators. */
 
-/* allocate an uninitialised array: the caller fills every slot
-   directly, so the null prefill and per-put save checks of the
-   ordinary constructor are wasted work */
+/* Allocate an array the caller fills through the pointer it is handed,
+   without the per-put save checks of the ordinary constructor.
+   
+   Filled with null all the same, and not left as it was allocated. What
+   a caller writes is what it turns out to need, which is not always
+   every slot -- a run of points it decides to drop leaves the slots it
+   would have taken untouched -- and an allocation here can be the one
+   that makes a collection due, with an array filed a moment earlier
+   still on a stack. The collector walks what an array's entity holds,
+   so a slot never written is a tag it reads and an entity number it may
+   follow. The fill is a run through the payload rather than a put
+   apiece, so what the ordinary constructor costs here is the save
+   check, not the writing. */
 static Xpost_Object
 _rawarray_cons(Xpost_Context *ctx, unsigned int sz, Xpost_Object **payload)
 {
     Xpost_Memory_File *mem = ctx->lo;
     unsigned int ent;
+    unsigned int i;
+    Xpost_Object *slots;
     Xpost_Object o = { 0 };
 
     if (!xpost_memory_table_alloc(mem, sz * sizeof(Xpost_Object), arraytype, &ent))
@@ -975,7 +987,10 @@ _rawarray_cons(Xpost_Context *ctx, unsigned int sz, Xpost_Object **payload)
     o.comp_.off = 0;
     o = xpost_object_set_ent(o, ent);
     o = xpost_object_cvlit(o);
-    *payload = xpost_ent_ptr(mem, ent);
+    slots = xpost_ent_ptr(mem, ent);
+    for (i = 0; i < sz; i++)
+        slots[i] = null;
+    *payload = slots;
     return o;
 }
 
