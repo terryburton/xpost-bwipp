@@ -449,7 +449,48 @@ end
 /currentundercolorremoval [ ] {  % -  .  proc
     graphicsdict /currgstate get /ucr get
 } .defop
+
+%
+%  A colour rendering dictionary is checked before it is recorded.
+%
+%  PLRM 7.1.3 Table 7.1 gives a type 1 dictionary three required entries
+%  -- ColorRenderingType, WhitePoint and TransformPQR -- and says the
+%  type code must be 1. A dictionary that carries none of them is not a
+%  colour rendering dictionary, and accepting one is how a program comes
+%  to believe a rendering it asked for is in force.
+%
+%  The refusals are the shapes the language uses everywhere else for the
+%  same three faults: a missing required entry is undefined, an entry of
+%  the wrong type is typecheck, and a type code this interpreter does not
+%  implement is rangecheck. That last is what makes the set of types a
+%  program can discover -- the /ColorRenderingType category -- something
+%  the interpreter answers for rather than a list beside it.
+%
+%  What is checked is the dictionary and not the rendering. The entries
+%  are not read afterwards: this interpreter records a colour rendering
+%  dictionary and renders through the device's own conversion, which
+%  COMPLIANCE states. Validating it is still worth doing, because a
+%  program cannot otherwise tell a dictionary this interpreter will not
+%  use from one it cannot even parse.
+%
+.xpostsys /.crdvalidate {  % dict  .  -
+    1 dict begin
+    /crd exch def
+    crd /ColorRenderingType known not
+        { /setcolorrendering cvx /undefined signalerror } if
+    crd /ColorRenderingType get dup type /integertype ne
+        { /setcolorrendering cvx /typecheck signalerror } if
+    1 ne
+        { /setcolorrendering cvx /rangecheck signalerror } if
+    [ /WhitePoint /TransformPQR ] {
+        crd exch known not
+            { /setcolorrendering cvx /undefined signalerror } if
+    } forall
+    end
+} put
+
 /setcolorrendering [ /dicttype ] {  % dict  .  -
+    dup //.crdvalidate exec
     graphicsdict /currgstate get exch /colorrendering exch put
 } .defop
 /currentcolorrendering [ ] {  % -  .  dict
@@ -488,7 +529,25 @@ end
         false
     } ifelse
 } .defop
-/DefaultColorRendering 0 dict dup /ColorRenderingType 1 put
+%
+%  The default colour rendering dictionary, and the one findcolorrendering
+%  substitutes for a request it cannot satisfy exactly. It carries the
+%  three entries PLRM 7.1.3 Table 7.1 requires of a type 1 dictionary, so
+%  that the documented sequence -- findcolorrendering, findresource,
+%  setcolorrendering -- ends in a dictionary setcolorrendering will take.
+%  A default this interpreter would itself refuse is a default no program
+%  can use.
+%
+%  What the entries say is what the conversion already does. The white
+%  point is the D65 the CIE families are normalised toward on their way
+%  to device colour, and TransformPQR is the identity because no
+%  chromatic adaptation is performed. So the dictionary describes the
+%  rendering in force rather than asking for another one.
+%
+/DefaultColorRendering 3 dict
+    dup /ColorRenderingType 1 put
+    dup /WhitePoint [0.9505 1.0 1.089] put
+    dup /TransformPQR [ {} {} {} ] put
 /ColorRendering defineresource pop
 
 %

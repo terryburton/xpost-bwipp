@@ -5609,6 +5609,12 @@ test('check-function-facts',
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
+test('check-colorrendering-facts',
+  find_program('tests/check-colorrendering-facts.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ])
+
 # PLRM 4.8 defines eleven colour space families, and this is the family
 # where a member has twice been reached by whichever code its author
 # happened to write. Membership is derived from the roster in

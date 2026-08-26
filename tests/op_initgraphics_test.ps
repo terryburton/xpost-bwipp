@@ -108,7 +108,11 @@ end
     { 0.25 add } setblackgeneration
     { 0.75 mul } setundercolorremoval
     55 33 { pop 0.5 } setscreen
-    << /Marker 42 >> setcolorrendering
+    % a colour rendering dictionary is checked against PLRM 7.1.3
+    % Table 7.1 before it is recorded, so the marker rides along in
+    % a dictionary that is well formed rather than standing alone
+    << /ColorRenderingType 1 /WhitePoint [0.9505 1 1.089]
+       /TransformPQR [{} {} {}] /Marker 42 >> setcolorrendering
 } def
 
 setprobes

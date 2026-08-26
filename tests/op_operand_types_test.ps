@@ -80,7 +80,9 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 
 { { } setblackgeneration } (setblackgeneration a procedure) works
 { { } setundercolorremoval } (setundercolorremoval a procedure) works
-{ 3 dict setcolorrendering } (setcolorrendering a dictionary) works
+{ << /ColorRenderingType 1 /WhitePoint [0.9505 1.0 1.089]
+     /TransformPQR [{} {} {}] >> setcolorrendering }
+    (setcolorrendering a dictionary) works
 { 0.5 setsmoothness } (setsmoothness a real) works
 { 1 setsmoothness } (setsmoothness an integer) works
 { 100 setcachelimit } (setcachelimit an integer) works

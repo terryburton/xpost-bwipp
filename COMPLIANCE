@@ -298,7 +298,8 @@ Level 2 operators
  [X] currentblackgeneration
  [X] setundercolorremoval (recorded only)
  [X] currentundercolorremoval
- [X] setcolorrendering (recorded only)
+ [X] setcolorrendering (the dictionary is checked and recorded; the
+     rendering it describes is the device's own -- see the deviations)
  [X] currentcolorrendering
  [X] Named Resources
  [X] makepattern (every tile repaints its cell; text through a CMap
@@ -506,6 +507,19 @@ Known behavioural deviations
      ever been.
  [X] SubFileDecode  a zero count with an empty EOD string passes zero bytes
      (PLRM), where some interpreters read to end-of-file.
+ [X] setcolorrendering  a type 1 dictionary missing a required entry is
+     undefined, where one interpreter answers rangecheck for a missing
+     WhitePoint and undefined for a missing TransformPQR. PLRM 7.1.3
+     Table 7.1 marks both required and gives no reason to tell them
+     apart, and undefined is what this interpreter answers for a
+     required entry that is absent everywhere else. The second oracle
+     could not be driven for this question.
+ [X] setcolorrendering  the dictionary is checked against Table 7.1 and
+     recorded, and nothing afterwards reads its entries: colour is
+     rendered by the device's own conversion. A program that sets a
+     colour rendering dictionary and expects the rendering it describes
+     gets the device's instead, and cannot tell from the interpreter
+     that this is so.
  [X] ]  a construction closed over more objects than an array can hold is
      limitcheck, where some interpreters return an array shorter than the
      objects they were given.

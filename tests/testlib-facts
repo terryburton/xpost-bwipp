@@ -117,7 +117,7 @@ own    fused_equivalence_test.ps              1
 own    gc_large_dict_test.ps                  1
 own    gc_save_view_test.ps                   1
 own    global_vm_invariant_test.ps            4
-own    graphics_regression_test.ps            34
+own    graphics_regression_test.ps            37
 own    gstate_object_test.ps                  1
 own    halftone_cell_test.ps                  3
 own    halftone_matrix_test.ps                2
