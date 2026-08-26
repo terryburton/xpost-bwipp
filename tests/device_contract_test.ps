@@ -91,9 +91,22 @@ dev /PutPix known {
 } if
 
 % --- DrawLine boundary inputs (val x1 y1 x2 y2 DEVICE DrawLine) ---
+% The last four are segments sized by the program rather than by the
+% page. A device walks the line one pixel per step of its major axis and
+% drops the steps that miss it, so a walk held to the segment costs what
+% was drawn rather than what can be marked: two billion steps for the
+% hundred that land, minutes of it, and no way to interrupt it. Held to
+% the device, each costs the device. Asked along both axes and in both
+% directions, since either end of the walk is the one that can run away,
+% and asked of every device, since the extent a walk is held to is the
+% device's own and each drops the misses for itself.
 dev /DrawLine known {
     { val 5 5 5 5 drawline }            (degenerate DrawLine) try
     { val -50 -50 5000 5000 drawline }  (clipped DrawLine) try
+    { val -2e9 0 2e9 10 drawline }      (far-off DrawLine) try
+    { val 2e9 10 -2e9 0 drawline }      (far-off DrawLine reversed) try
+    { val 0 -2e9 10 2e9 drawline }      (far-off steep DrawLine) try
+    { val 10 2e9 0 -2e9 drawline }      (far-off steep DrawLine reversed) try
 } if
 
 % --- DrawRect boundary inputs (val x y w h DEVICE DrawRect) ---

@@ -196,16 +196,30 @@ for f in $marking; do
     fi
 done
 
-# 4. A file that draws a line walks the contract's line. The window
-#    devices each had a walk of their own -- one including both
-#    endpoints, one excluding the last -- so a wire drawn on one landed
-#    on different pixels than the same wire on the other, and neither
-#    matched the base class.
+# 4. A file that draws a line walks the contract's line, and holds the
+#    walk to the device it can mark. The window devices each had a walk
+#    of their own -- one including both endpoints, one excluding the
+#    last -- so a wire drawn on one landed on different pixels than the
+#    same wire on the other, and neither matched the base class. The
+#    walk visits one pixel per step of its major axis and each device
+#    drops the steps that miss it, so a walk bounded by the segment
+#    rather than by the device costs what the program drew and not what
+#    the device holds: a segment a hundred million pixels long across a
+#    hundred-pixel device is a hundred million steps for the hundred
+#    that land, and it cannot be interrupted. The bound is asked of
+#    every file that walks, since the extent it is held to is the
+#    device's own.
 for f in $paints; do
     if grep -q '_drawline' "$libdir/$f" &&
        ! grep -q 'xpost_dev_line_init' "$libdir/$f"; then
         echo "check-device-skeleton: $f draws a line without xpost_dev_line_init()." >&2
         echo "The painted line is defined once, in xpost_dev_driver.h." >&2
+        fail=1
+    fi
+    if grep -q 'xpost_dev_line_init' "$libdir/$f" &&
+       ! grep -q 'xpost_dev_line_clip_major' "$libdir/$f"; then
+        echo "check-device-skeleton: $f walks a line without xpost_dev_line_clip_major()." >&2
+        echo "Hold the walk to the device's own extent on the major axis." >&2
         fail=1
     fi
 done

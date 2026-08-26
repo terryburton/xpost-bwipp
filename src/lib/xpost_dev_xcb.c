@@ -689,10 +689,15 @@ int _drawline(Xpost_Context *ctx,
 
     /* the contract's line, plotted pixel by pixel: the server would
        draw a segment of its own between the endpoints, and its idea of
-       which pixels that covers is not the one every other device paints */
+       which pixels that covers is not the one every other device paints.
+       The walk is held to the window, so a segment drawn far outside it
+       costs the window's own extent rather than the segment's length --
+       the steps beyond the window yield pixels this plot drops. */
     xpost_dev_line_init(&line,
                         xpost_object_number(x1), xpost_object_number(y1),
                         xpost_object_number(x2), xpost_object_number(y2));
+    xpost_dev_line_clip_major(&line,
+                              line.major_is_x ? private.width : private.height);
     while (xpost_dev_line_next(&line, &px, &py))
     {
         xcb_point_t p;

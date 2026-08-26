@@ -702,12 +702,18 @@ int _drawline(Xpost_Context *ctx,
                covers, so this device paints the same wire as every
                other. A Bresenham walk of its own painted a different
                set, and dropped the pixel a segment too short to reach a
-               centre still owes. */
+               centre still owes. The walk is held to the window, so a
+               segment drawn far outside it costs the window's own extent
+               rather than the segment's length -- the steps beyond the
+               window yield pixels this loop drops. */
             any = 0;
             bx0 = by0 = bx1 = by1 = 0;
             xpost_dev_line_init(&line,
                                 xpost_object_number(x1), xpost_object_number(y1),
                                 xpost_object_number(x2), xpost_object_number(y2));
+            xpost_dev_line_clip_major(&line,
+                                      line.major_is_x ? private.width
+                                                      : private.height);
             while (xpost_dev_line_next(&line, &px, &py))
             {
                 if (px < 0 || px >= private.width ||
