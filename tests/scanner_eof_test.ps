@@ -1,12 +1,20 @@
-% Unterminated string literals (issue: scanner returned the partial
-% string), run through `xpost -d null` by run-ps-test.sh.
+% What the scanner does at the edges of its input -- a literal whose
+% terminator never arrives, and a comment ended by each of the ways a
+% line can end. Run through `xpost -d null` by run-ps-test.sh.
 %
 % The PLRM's token entry addresses only end-of-input before a token
 % begins (return false); it is silent on end-of-input inside a string
-% literal. Adobe Distiller and Ghostscript both report syntaxerror for
-% all three literal forms, on the string and file scan paths alike, and
-% the scanner follows them: a literal whose terminator never arrives is
+% literal. The reference interpreters report syntaxerror for all three
+% literal forms, on the string and file scan paths alike, and the
+% scanner follows them: a literal whose terminator never arrives is
 % not a token.
+%
+% A comment runs to the next newline or form feed (PLRM 3.1), and a
+% newline is CR alone, LF alone or the CR-LF pair, all three of which
+% the scanner recognises and treats alike (PLRM 3.8). A scanner blind
+% to one of them swallows the rest of the file into the comment, so a
+% program written with that line ending is one comment and paints
+% nothing.
 
 /failcount 0 def
 /assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
@@ -51,5 +59,45 @@
 (<616263>) token pop <616263> eq (terminated hex string still scans) assert pop
 (<~9jqo~>) token pop length 3 eq (terminated base-85 string still scans) assert pop
 (\(\))     token pop length 0 eq (empty string still scans) assert pop
+
+% --- a comment ends at any of the three line endings, and at a form feed ---
+
+/scans_to { % (bytes) expected label -- ; scanning the bytes yields expected
+    3 1 roll mark 3 1 roll exch
+    { token } stopped
+    { false }
+    { { exch pop eq }{ pop false } ifelse } ifelse
+    /verdict exch def
+    cleartomark
+    verdict exch assert
+} def
+
+(% comment\n42)    42 (a comment ends at LF)          scans_to
+(% comment\r42)    42 (a comment ends at CR)          scans_to
+(% comment\r\n42)  42 (a comment ends at CR-LF)       scans_to
+(% comment\f42)    42 (a comment ends at a form feed) scans_to
+(% comment {/%\) blah blah\r123) 123
+                      (a comment claims no more than its own line) scans_to
+
+/scans_to_file { % (bytes) expected label -- ; a file of the bytes yields expected
+    3 1 roll mark 3 1 roll exch
+    SCRATCH (w) file dup 3 -1 roll writestring closefile
+    { SCRATCH (r) file token } stopped
+    { false }
+    { { eq }{ pop false } ifelse } ifelse
+    /verdict exch def
+    cleartomark
+    verdict exch assert
+} def
+
+(% comment\n42)   42 (a comment in a file ends at LF)    scans_to_file
+(% comment\r42)   42 (a comment in a file ends at CR)    scans_to_file
+(% comment\r\n42) 42 (a comment in a file ends at CR-LF) scans_to_file
+
+% a comment with nothing after it is the whole of what is left
+mark (% comment\r) { token } stopped
+{ false }{ { pop pop false }{ true } ifelse } ifelse
+/verdict exch def cleartomark
+verdict (a comment ending the input yields no token) assert
 
 failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse

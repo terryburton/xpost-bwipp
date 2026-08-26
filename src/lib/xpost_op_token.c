@@ -783,9 +783,16 @@ int snip(Xpost_Context *ctx,
         c = next(ctx, src);
         if (c == '%')
         {
+            /* a comment runs to the next newline or form feed (PLRM
+               3.1), and a newline is CR alone, LF alone or the CR-LF
+               pair, all three of which the scanner treats alike (PLRM
+               3.8). The terminator is left to the white-space loop
+               below, which is what an end-of-line outside a string is;
+               the LF of a CR-LF pair is skipped there as the same
+               white space. */
             do {
                 c = next(ctx, src);
-            } while(c != '\n' && c != '\f' && c != EOF);
+            } while(c != '\n' && c != '\r' && c != '\f' && c != EOF);
         }
     } while(c != EOF && isspace(c));
     if (c == EOF) return 0;
