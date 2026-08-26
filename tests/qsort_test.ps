@@ -1,8 +1,8 @@
 %!PS
 % qsort_test.ps
 %
-% Exercise the private .xpostsys /qsort helper, which the shipped file
-% only ever ran inline. qsort is reached the way tamper_dispatch_test
+% Exercise the private .xpostsys /.qsort helper, which the shipped file
+% only ever ran inline. .qsort is reached the way tamper_dispatch_test
 % reaches the namespace -- through a privatedict-anchored bound procedure
 % -- and run in global VM, since the sort keeps its state in the global
 % qsortdict. Prints SUCCESS iff every assertion holds.
@@ -29,8 +29,8 @@
 } def
 .privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
 found null ne (the .xpostsys namespace is recoverable) assert
-found dup null ne { /qsort known }{ pop false } ifelse (it holds qsort) assert
-/qs found /qsort get def
+found dup null ne { /.qsort known }{ pop false } ifelse (it holds .qsort) assert
+/qs found /.qsort get def
 
 % --- the sort runs in global VM ---
 currentglobal true setglobal
@@ -64,7 +64,7 @@ setglobal
 % global, it would refuse a local comparison procedure with invalidaccess
 % rather than sort with it -- and refuse it from inside the sort, where
 % what the program sees is a failure in its own comparison.
-% A sort abandoned part-way leaves both stacks as it had them: qsort
+% A sort abandoned part-way leaves both stacks as it had them: .qsort
 % brackets itself with begin and end and a stop steps over the end, and
 % the operands of whatever refused are still where it left them. stopped
 % restores neither. So the depths are taken before each probe and put

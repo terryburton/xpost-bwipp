@@ -12,11 +12,11 @@
 %
 %  The file exports one name into the private .xpostsys namespace, in
 %  global VM. Everything else it defines -- partition, quicksort, and the
-%  cmp slot they share -- lives in qsortdict, which qsort opens around the
+%  cmp slot they share -- lives in qsortdict, which .qsort opens around the
 %  whole sort and closes after it, so none of it is reachable between
 %  sorts and none of it can be taken by a definition of the program's own.
 %
-.xpostsys /qsort known { currentfile flushfile } if
+.xpostsys /.qsort known { currentfile flushfile } if
 
 currentglobal true setglobal
 7 dict begin
@@ -28,7 +28,7 @@ currentglobal true setglobal
 %
 %  A helper of quicksort below and of nothing else. It reads cmp by name
 %  out of qsortdict, so it runs only while that dictionary is current --
-%  which is to say only inside a qsort, never on its own.
+%  which is to say only inside a .qsort, never on its own.
 %
 %  The exchange is .swap, a private C operator that bind freezes into
 %  this body as the file loads. That timing is the whole of why it works:
@@ -57,7 +57,7 @@ currentglobal true setglobal
 %
 %  Sort the range in place: partition it, then sort each side.
 %
-%  A helper of qsort below, and of itself -- the two recursive calls are
+%  A helper of .qsort below, and of itself -- the two recursive calls are
 %  by name, resolved out of qsortdict every time, where partition above
 %  is baked in by immediate evaluation. So this too runs only while
 %  qsortdict is current. The range is consumed, array and all.
@@ -84,7 +84,7 @@ currentglobal true setglobal
 %  none is given. The array is consumed: what has been sorted is the
 %  array object the caller still holds, and nothing is left behind.
 %
-%  The one name this file exports, reached as //.xpostsys /qsort get exec.
+%  The one name this file exports, reached as //.xpostsys /.qsort get exec.
 %  gstate.ps calls it, to rank the samples of a halftone's spot function
 %  when a screen cell is built; the call in image.ps sits inside a
 %  procedure literal that is discarded, the scanline sweep having moved
@@ -104,7 +104,7 @@ currentglobal true setglobal
 %  The array is subject to neither: it travels on the stack and is never
 %  stored, so it sorts from either bank.
 %
-/qsort {
+/.qsort {
     //qsortdict begin
     1 dict begin
     dup xcheck not{ {lt} }if

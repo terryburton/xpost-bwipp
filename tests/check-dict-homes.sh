@@ -33,16 +33,21 @@
 # at whitespace or a delimiter -- so that is what is required here.
 #
 # Where the pair is found matters as much. Read as text, a comment counts:
-# the register once carried .xpostsys /h, which nothing has ever defined,
-# and was answered by the line of data/init.ps that writes
-# `.xpostsys /h { ... } put` while explaining what the helper-call idiom
+# a register carrying .xpostsys /.h, which nothing defines, would be
+# answered by the line of data/init.ps that writes
+# `.xpostsys /.h { ... } put` while explaining what the helper-call idiom
 # looks like. An entry satisfied that way holds nothing to anything, and
-# any name a comment or a message happens to spell can be registered
+# any name a comment or a message happens to spell could be registered
 # without a member behind it. So the sources are read as PostScript
 # instead: what follows a `%` outside a string is not part of the
 # program, and a string is not part of it either -- data/clip.ps prints
-# `(//.xpostsys /doclip get exec)` as an example of a call, which is a
+# `(//.xpostsys /.doclip get exec)` as an example of a call, which is a
 # mention of a member and not a use of one.
+#
+# The names in .xpostsys are held to one rule further: a member holding a
+# procedure is dotted, and a member that is not dotted is a dictionary
+# whose name ends in Dict. A helper under a plain word reads as a
+# program's own name, and this is what stops one arriving.
 #
 #   $1  path to the source tree root
 set -u
@@ -155,6 +160,18 @@ awk -v homes="$homes" '
     function bopens(t,   s) { s = t; return gsub(/[[]/, "", s) }
     function bcloses(t,   s) { s = t; return gsub(/[]]/, "", s) }
 
+    # what the name at position p is given, as far as the shape of the
+    # value says: a procedure opens with a brace, a dictionary with `<<`
+    # or as `<n> dict`. Anything else -- an array, a string, a number, an
+    # operator taken by `load` -- is neither, and named as neither.
+    function kind(p,   a, b) {
+        a = tok[p + 1]; b = tok[p + 2]
+        if (a ~ /^[{]/) return "procedure"
+        if (a ~ /^<</) return "dictionary"
+        if (b == "dict" && a ~ /^[0-9]+$/) return "dictionary"
+        return "other"
+    }
+
     # the operator governing the name at position p, or "?" if the scan
     # cannot reach one
     function governs(p,   j, d, b, t) {
@@ -193,7 +210,10 @@ awk -v homes="$homes" '
                     else if (bd == 0 && t == "end") { dd--; if (dd == 0) break }
                     else if (bd == 0 && dd == 1 && t ~ /^\/[^][(){}<>\/%]+$/) {
                         v = governs(j)
-                        if (v == "def") print "MEMBER " d " " t
+                        if (v == "def") {
+                            print "MEMBER " d " " t
+                            print "SHAPE " d " " t " " kind(j)
+                        }
                         else if (v == "?") print "UNREAD " d " " t
                     }
                     bd += opens(t) - closes(t)
@@ -203,7 +223,10 @@ awk -v homes="$homes" '
             }
             if (tok[i + 1] !~ /^\/[^][(){}<>\/%]+$/) continue
             v = governs(i + 1)
-            if (v == "put") print "MEMBER " d " " tok[i + 1]
+            if (v == "put") {
+                print "MEMBER " d " " tok[i + 1]
+                print "SHAPE " d " " tok[i + 1] " " kind(i + 1)
+            }
             else if (v == "?") print "UNREAD " d " " tok[i + 1]
         }
     }' "$work/code" > "$work/defscan"
@@ -216,6 +239,7 @@ if grep -q "^UNREAD " "$work/defscan"; then
     exit 1
 fi
 sed -n 's/^MEMBER //p' "$work/defscan" | sort -u > "$work/members"
+sed -n 's/^SHAPE //p' "$work/defscan" | sort -u > "$work/shapes"
 if [ ! -s "$work/members" ]; then
     echo "FAILURES: no private-namespace member definitions found under"
     echo "      $src/data; the register would be held to nothing"
@@ -319,6 +343,53 @@ while read -r member; do
         fail=1
     fi
 done < "$work/members"
+
+# ---- and under what name a member of .xpostsys may hold it ----
+#
+# A member of the private helper namespace says what it is by how it is
+# named. A procedure is dotted, and so are the static tables the
+# procedures read; a name that is not dotted ends in Dict and holds a
+# dictionary. The interpreter's flags are neither and live in
+# .internaldict, in upper case. So a name alone tells a reader what it
+# reaches, and a helper cannot arrive under a plain word -- the shape a
+# program's own names have, and the shape every reader takes for a
+# dictionary.
+#
+# The two halves ask two different sources. The name is asked of the
+# register, which carries every member, including the ones defined in C
+# or computed at run time that no scan reads. The value is asked of the
+# scan, which is the only side that knows what a member holds; a member
+# it cannot see is held by the name half alone. Nothing is asked of a
+# dotted member's value, which is where the tables live as well as the
+# procedures.
+while read -r home name; do
+    [ "$home" = .xpostsys ] || continue
+    case "$name" in
+        /.?*|*Dict) continue ;;
+    esac
+    echo "MISNAMED member: $home $name"
+    echo "      a member of .xpostsys is dotted when it holds a procedure or"
+    echo "      a table, and ends in Dict when it is a dictionary the helpers"
+    echo "      read; a plain word is neither"
+    fail=1
+done < "$work/regmembers"
+
+while read -r home name what; do
+    [ "$home" = .xpostsys ] || continue
+    case "$name" in
+        /.?*) continue ;;
+    esac
+    if [ "$what" = procedure ]; then
+        echo "UNDOTTED procedure: $home $name"
+        echo "      a member of .xpostsys holding a procedure is dotted; give"
+        echo "      it its dot in this commit and move its register entry with it"
+        fail=1
+    elif [ "$what" != dictionary ]; then
+        echo "UNDOTTED member: $home $name holds neither a procedure nor a"
+        echo "      dictionary, and only a dictionary is named without a dot"
+        fail=1
+    fi
+done < "$work/shapes"
 
 # ---- the register, line by line ----
 lineno=0

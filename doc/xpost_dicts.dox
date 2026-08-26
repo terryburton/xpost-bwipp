@@ -83,7 +83,7 @@
  *
  * - **global, static, reached only through a frozen `//`** -> a private *global*
  *   namespace: `.xpostsys` (the single private helper namespace, reached by
- *   run-time `//.xpostsys /h get exec` or baked via `.xpostsys begin ... //h exec`)
+ *   run-time `//.xpostsys /.h get exec` or baked via `.xpostsys begin ... //.h exec`)
  *   or `.internaldict` (relocated C operators + internal flags). Sealed read-only
  *   and un-anchored at lockdown.
  * - **local** (holds local objects, or is per-render mutable) **and hidden** ->
@@ -169,14 +169,14 @@
  * @section dicts_global Private -- global machinery, sealed and hidden by the lockdown
  *
  * Start-up runs in three separated stages, each a proc the start procedures call
- * in turn. `loadgraphics` **loads** -- it pulls in the graphics modules and nothing
+ * in turn. `.loadgraphics` **loads** -- it pulls in the graphics modules and nothing
  * else. `.finalize` **locks down** -- it freezes the machinery's operator
  * references, promotes the procedure-implemented standard operators to real
  * operators, moves the private C operators into `.internaldict`, seals and hides
  * the private namespaces, and returns the device classes to local VM in
- * `privatedict`. The language itself needs no moving: `loadgraphics` opens
+ * `privatedict`. The language itself needs no moving: `.loadgraphics` opens
  * `systemdict` and reads it straight in. The lockdown is not graphics work;
- * it only runs after `loadgraphics` because it must seal *after* everything that
+ * it only runs after `.loadgraphics` because it must seal *after* everything that
  * will ever be loaded. `.finalize` guards its graphics-only steps behind
  * `/graphicsdict where`, so it hardens the interpreter with or without graphics --
  * loading graphics stays genuinely optional. Each step records its own completion
@@ -209,7 +209,7 @@
  *
  * | Dictionary | VM | Lifecycle | Sealed | Reached by / holds |
  * |---|---|---|---|---|
- * | `.xpostsys` | global | static (+ `.resources` persistent) | read-only + anchor dropped | the single private helper namespace. Reached by run-time `//.xpostsys /h get exec` (the mutually-recursive path/clip/image/graphics family + interpreter control `.finalize`/`loadgraphics`/`.startdevice`/`.loadmodule`/`.devicemakers`) and by baking `.xpostsys begin ... //h exec` (the colour/shading/pattern/halftone/font-CID families) |
+ * | `.xpostsys` | global | static (+ `.resources` persistent) | read-only + anchor dropped | the single private helper namespace. Reached by run-time `//.xpostsys /.h get exec` (the mutually-recursive path/clip/image/graphics family + interpreter control `.finalize`/`.loadgraphics`/`.startdevice`/`.loadmodule`/`.devicemakers`) and by baking `.xpostsys begin ... //.h exec` (the colour/shading/pattern/halftone/font-CID families) |
  * | `.internaldict` | global | static | read-only + anchor dropped | `1183615869 internaldict` or a frozen `//`; the C operators relocated out of `systemdict`; the internal flags `QUIET`/`USEDRAWLINE`/`GRAPHICS_LOADED`/`GRAPHICS_LOAD_STOPPED`/`GRAPHICS_LOAD_DEPTH`/`LOCKDOWN_DONE`/`LOCKDOWN_STOPPED`/`LOCKDOWN_DEPTH`; the `.=stringproc` anchor; the machinery rasterisers (`.fillpoly` ...) |
  * | `.xpostsys /.resources` | global | persistent | (member, writable) | the resource instance table; `defineresource` writes it; global-persistent per PLRM. A shallow read-only seal of `.xpostsys` correctly leaves this member writable |
  * | `.xpostsys /.hostdict` | global | per-run settled | (member, writable) | **what this run settled, and nothing else** -- see below. Writable for the same reason `.resources` is: the seal is shallow |
@@ -348,8 +348,8 @@
  *
  * 3. **Private -> which home?**
  *    - Static, global, reached only by a frozen `//` -> `.xpostsys` (bake it via
- *      `.xpostsys begin ... //h exec` for hot paths, or use the run-time
- *      `//.xpostsys /h get exec` form for mutually-recursive helpers), or
+ *      `.xpostsys begin ... //.h exec` for hot paths, or use the run-time
+ *      `//.xpostsys /.h get exec` form for mutually-recursive helpers), or
  *      `.internaldict` for a relocated C operator or an internal flag. Reference it
  *      with a frozen `//` so it survives the seal.
  *    - Local (per-render mutable, or holds local objects) -> **`privatedict`**.

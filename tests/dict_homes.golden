@@ -11,18 +11,18 @@
 # nothing to look for, and both directions would agree over two empty
 # sets.
 #
-# A name here is the whole name. Five entries were once prefixes of a
-# longer name and were satisfied by it -- /DATA by DATA_DIR, /GRAPHICS by
-# GRAPHICS_LOADED, /initial by initial_ipos, /hodgman by
-# hodgman-sutherland, /.xpost by the nine device class dictionaries --
-# so they registered members that do not exist while the ones that do
-# went unheld.
+# A name here is the whole name, and it ends where PostScript ends one --
+# at whitespace or a delimiter. A register that let a name end anywhere
+# else could carry one nothing defines and have it answered by a longer
+# name that something does: /DATA by DATA_DIR, /.hodgman by
+# .hodgman-sutherland. Such an entry registers a member that does not
+# exist while the one that does goes unheld.
 #
 # A name here is also one the PostScript defines, not one a comment or a
-# printed message about it spells. /h was registered against the line of
-# data/init.ps that writes an imaginary helper to show what the
-# helper-call idiom looks like; nothing has ever defined a member of that
-# name.
+# printed message about it spells. /.h is what data/init.ps writes in the
+# line that shows an imaginary helper to explain the helper-call idiom;
+# nothing defines a member of that name, and registering it would hold
+# nothing to anything.
 #
 # More members are registered than the sources are read as defining. One
 # defined in C, one a running procedure computes, and the device class
@@ -411,33 +411,33 @@ entries 403
 .xpostsys /ColorConversionDict
 .xpostsys /CopypageSemanticsDict
 .xpostsys /ShowpageSemanticsDict
-.xpostsys /cpath
-.xpostsys /crossdashbound
+.xpostsys /.cpath
+.xpostsys /.crossdashbound
 .xpostsys /CurrentColorDict
 .xpostsys /DashDict
-.xpostsys /dashpath
-.xpostsys /despike
-.xpostsys /doclip
-.xpostsys /dolinejoin
-.xpostsys /dopending
-.xpostsys /doprompt
-.xpostsys /evaluate
-.xpostsys /gstatecopy
-.xpostsys /hodgman-sutherland
-.xpostsys /initial_ipos
-.xpostsys /loadgraphics
-.xpostsys /magang
-.xpostsys /minlinewidth
-.xpostsys /normclipwind
-.xpostsys /p2abc
-.xpostsys /pause
-.xpostsys /polyarea2
-.xpostsys /ptdiff
-.xpostsys /qsort
-.xpostsys /ravec
-.xpostsys /rect
+.xpostsys /.dashpath
+.xpostsys /.despike
+.xpostsys /.doclip
+.xpostsys /.dolinejoin
+.xpostsys /.dopending
+.xpostsys /.doprompt
+.xpostsys /.evaluate
+.xpostsys /.gstatecopy
+.xpostsys /.hodgman-sutherland
+.xpostsys /.initial_ipos
+.xpostsys /.loadgraphics
+.xpostsys /.magang
+.xpostsys /.minlinewidth
+.xpostsys /.normclipwind
+.xpostsys /.p2abc
+.xpostsys /.pause
+.xpostsys /.polyarea2
+.xpostsys /.ptdiff
+.xpostsys /.qsort
+.xpostsys /.ravec
+.xpostsys /.rect
 .xpostsys /SetColorDict
-.xpostsys /xpost
+.xpostsys /.xpost
 gstate /blackgen
 gstate /bluescreenangle
 gstate /bluescreenfreq

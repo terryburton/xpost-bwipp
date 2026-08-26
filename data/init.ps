@@ -54,7 +54,7 @@
 %  The remaining operators that need no graphics: user objects, forms,
 %  user paths, and the rectangle operators.
 %
-%  loadgraphics, which reads callout.ps and everything under it. It is
+%  .loadgraphics, which reads callout.ps and everything under it. It is
 %  a PROCEDURE and not a call: graphics is loaded on demand, so a run
 %  that never paints never pays for it and a run that does pays once.
 %
@@ -103,13 +103,20 @@ true setglobal   % Systemdict is global, so these allocations must be global
 %  so a global systemdict procedure may freeze a // reference to it (a global
 %  object may not reference a local one); local machinery lives in privatedict.
 %
-%  Convention -- a helper h is reached through a frozen // reference, in either of
+%  Naming -- what a member holds is read off its name. A procedure is dotted, as
+%  are most of the static tables the procedures read; a name that is not dotted
+%  ends in Dict and carries a dictionary. The interpreter's flags are neither and
+%  live elsewhere again: those are UPPER_CASE members of .internaldict.
+%  tests/check-dict-homes.sh holds this dictionary to the rule, so a member
+%  arrives under the name its value asks for rather than acquiring one later.
+%
+%  Convention -- a helper .h is reached through a frozen // reference, in either of
 %  two forms:
-%      .xpostsys /h { ... } put       ...  //.xpostsys /h get exec   % define, call
-%      .xpostsys begin /h { ... } def ...  //h exec ... end          % define, bake
+%      .xpostsys /.h { ... } put       ...  //.xpostsys /.h get exec  % define, call
+%      .xpostsys begin /.h { ... } def ...  //.h exec ... end         % define, bake
 %  The // freezes the dictionary (get form) or the helper object itself (baked
 %  form) into the caller at scan time, so a program cannot shadow it. The get form
-%  resolves h at run time, which mutual recursion and forward references need;
+%  resolves .h at run time, which mutual recursion and forward references need;
 %  baking costs no run-time lookup but cannot express them.
 %
 %  A file bakes by opening this dictionary for the whole of its own reading:
@@ -990,7 +997,7 @@ end
     currentglobal
     false setglobal
     {
-        //.xpostsys /loadgraphics get exec
+        //.xpostsys /.loadgraphics get exec
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
@@ -1098,7 +1105,7 @@ end
 %
 /startstdin {  % -  .  -
     {
-        //.xpostsys /loadgraphics get exec
+        //.xpostsys /.loadgraphics get exec
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
@@ -1129,7 +1136,7 @@ end
 %
 /startfilename {  % string  .  -
     {
-        //.xpostsys /loadgraphics get exec
+        //.xpostsys /.loadgraphics get exec
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
@@ -1159,7 +1166,7 @@ end
 /startfile {  % file  .  -
     //.internaldict /QUIET known { }{ (startfile\n)print } ifelse
     {
-        //.xpostsys /loadgraphics get exec
+        //.xpostsys /.loadgraphics get exec
         //.xpostsys /.finalize get exec
         //.xpostsys /.startdevice get exec
     } stopped {
@@ -1182,10 +1189,10 @@ end
 %
 %  No-graphics start procedures, selected by --no-graphics. Each mirrors its
 %  graphics-loading counterpart above but runs .finalize alone, without
-%  loadgraphics: the interpreter is still locked down -- the standard operators
+%  .loadgraphics: the interpreter is still locked down -- the standard operators
 %  are promoted, the machinery's references frozen and the private namespaces
 %  sealed and hidden -- while the graphics modules are never loaded.
-%  This exercises the path in which loadgraphics is genuinely optional,
+%  This exercises the path in which .loadgraphics is genuinely optional,
 %  and lets a program that needs no graphics avoid the cost.
 %
 %  startstdinnographics, startfilenamenographics and startfilenographics
@@ -1251,7 +1258,7 @@ end
 %  page it is at are not language; making the device is the step below.
 %
 /loadlanguage {  % -  .  -
-    { //.xpostsys /loadgraphics get exec
+    { //.xpostsys /.loadgraphics get exec
       //.xpostsys /.finalize get exec } stopped pop
     quit
 } def
@@ -2498,7 +2505,7 @@ currentglobal true setglobal   % Global .xpostsys helpers
 %  One rectangle from four numbers, or n rectangles from a numarray or
 %  numstring holding 4n numbers (PLRM 8.2).
 %
-.xpostsys /rect {
+.xpostsys /.rect {
     dup type /stringtype eq { //.xpostsys /.n2a get exec } if
     dup type /arraytype eq {
         1 dict begin /.a exch def
@@ -2527,7 +2534,7 @@ setglobal
 /rectfill [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
     {  % x y w h | numarray | numstring  .  -
-      gsave newpath //rect exec fill grestore }
+      gsave newpath //.rect exec fill grestore }
     .defop
 /rectstroke [ [ /numbertype /numbertype /numbertype /numbertype /arraytype ]
               [ /numbertype /numbertype /numbertype /numbertype ]
@@ -2538,15 +2545,15 @@ setglobal
     % A trailing matrix is a six-element array; a numarray always holds 4n
     % numbers, so length six is unambiguously the optional stroke matrix
     dup type /arraytype eq { dup length 6 eq }{ false } ifelse
-        { 1 dict begin /.m exch def //rect exec .m concat end }
-        { //rect exec }
+        { 1 dict begin /.m exch def //.rect exec .m concat end }
+        { //.rect exec }
     ifelse
     stroke grestore
 } .defop
 /rectclip [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
     {  % x y w h | numarray | numstring  .  -
-      newpath //rect exec clip newpath }
+      newpath //.rect exec clip newpath }
     .defop
 
 currentglobal true setglobal
@@ -2555,7 +2562,7 @@ currentglobal true setglobal
 %  Load graphics support. Global: the device-maker procedures baked into this
 %  body are global, matching the global .xpostsys their table installs into.
 %
-.xpostsys /loadgraphics {  % -  .  -
+.xpostsys /.loadgraphics {  % -  .  -
     % The load records its own completion below, so a lockdown that stops
     % after it does not send it round again. A locked-down interpreter is
     % the other answer to the same question: systemdict is shut for good
@@ -2576,7 +2583,7 @@ currentglobal true setglobal
             //.internaldict /GRAPHICS_LOAD_STOPPED get
             dup null eq
                 { pop stop }
-                { /loadgraphics cvx exch signalerror }
+                { /.loadgraphics cvx exch signalerror }
             ifelse
         } if
 
@@ -2743,7 +2750,7 @@ currentglobal true setglobal
             systemdict begin
 
             % The language is read into systemdict, but this pair is defined here,
-            % by loadgraphics itself, after callout.ps has returned and closed the
+            % by .loadgraphics itself, after callout.ps has returned and closed the
             % block that made systemdict current. They name it so they land with the
             % operators they belong beside rather than in the program's namespace.
             /setpagedevice [ /dicttype ] {  % pagedevicedict  .  -
@@ -3206,13 +3213,13 @@ currentglobal true setglobal
 } put
 
 %
-%  The interpreter lockdown. Runs once, after loadgraphics has loaded whatever it
+%  The interpreter lockdown. Runs once, after .loadgraphics has loaded whatever it
 %  is going to (or on its own if graphics is never loaded), when every helper the
 %  machinery needs has been defined. It freezes the machinery's operator
 %  references, promotes the procedure-implemented standard operators to real
 %  operators, moves the private C operators into .internaldict, seals and hides
 %  the private namespaces, and returns the device classes to local VM. The
-%  language itself needs no moving: it is read into systemdict to begin with. loadgraphics does the loading; this does the
+%  language itself needs no moving: it is read into systemdict to begin with. .loadgraphics does the loading; this does the
 %  locking down -- so nothing unrelated to graphics is tied to loading it. Each
 %  step records its own completion, the load in GRAPHICS_LOADED and this in
 %  LOCKDOWN_DONE, which is what keeps each idempotent without either standing
@@ -3278,7 +3285,7 @@ currentglobal true setglobal
         //.internaldict /LOCKDOWN_DEPTH countdictstack put
         {
 
-            % Open a writeable window on systemdict. loadgraphics opens the same
+            % Open a writeable window on systemdict. .loadgraphics opens the same
             % one before reading the language into it; this call covers the run
             % that never loads graphics, and is what lets the steps below undefine
             % the private C operators from systemdict once they are copied into
@@ -3418,7 +3425,7 @@ currentglobal true setglobal
             errordict //.bindscope exec
 
             % The private helper namespace too, so a helper's own operator references
-            % (the get and exec of //.xpostsys /h get exec, and everything else) freeze
+            % (the get and exec of //.xpostsys /.h get exec, and everything else) freeze
             % and survive a program shadowing an operator name
             .xpostsys //.bindscope exec
 
@@ -3633,17 +3640,17 @@ currentglobal true setglobal
 %
 %  Debug ps functions -- interpreter aids, not language operators, so private
 %
-.xpostsys /doprompt {  % -  .  -
+.xpostsys /.doprompt {  % -  .  -
     (\nbreak>)print flush
     (%lineedit)(r)file
     cvx {exec}stopped pop } put
 
 %
 %  Stop and wait for a keypress, for a person stepping through a program
-%  by hand. The same as doprompt above under the name a debugging
+%  by hand. The same as .doprompt above under the name a debugging
 %  convention reaches for.
 %
-.xpostsys /pause { //doprompt exec } put  % -  .  -
+.xpostsys /.pause { //.doprompt exec } put  % -  .  -
 setglobal
 
 currentglobal true setglobal
@@ -3663,7 +3670,7 @@ currentglobal true setglobal
 %  The greeting the interactive executive prints, telling a person at
 %  the prompt how to run a file.
 %
-.xpostsys /xpost {  % -  .  -
+.xpostsys /.xpost {  % -  .  -
     (Xpost is running. Type '(filename)run' to run a program.\n)print
 } put
 setglobal

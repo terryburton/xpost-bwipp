@@ -376,7 +376,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % for any region the nonzero rule can describe.
     .cliptrivial not {
         .cliprect { pop pop pop pop true }{ false } ifelse {
-            //doclip exec
+            //.doclip exec
             false //.fillsubjparts exec
         }{
             false //.fillsubjparts exec
@@ -591,8 +591,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % curves reach the device.
         currentdash pop length 0 eq .cliptrivial and not {
             flattenpath
-            //dashpath exec
-            //doclip exec
+            //.dashpath exec
+            //.doclip exec
         } if
         [ //CurrentColorDict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
@@ -612,7 +612,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     .privatedict /.hairrect 3 -1 roll put
     .privatedict /.hairrect get null ne and {
         flattenpath
-        //dashpath exec
+        //.dashpath exec
         mark
         {          % x0 y0
             2 copy  % X0 y0 x0 y0

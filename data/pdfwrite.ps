@@ -600,7 +600,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % The same bytes the collector wrote are written here, only without the
     % array between the walk and the output.
     /.emitdevpath {  % -  .  n
-        /.dpstr //.xpostsys /cpath get exec def
+        /.dpstr //.xpostsys /.cpath get exec def
         /.dpoff 0 def
         /.dpn 0 def
         {
@@ -631,7 +631,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % must not commit the colour and line state) from one to draw, before
     % it walks the path again to draw it.
     /.pathelems {  % -  .  n
-        /.pcstr //.xpostsys /cpath get exec def
+        /.pcstr //.xpostsys /.cpath get exec def
         /.pcoff 0 def
         /.pcn 0 def
         {

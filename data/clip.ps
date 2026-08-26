@@ -345,7 +345,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  coefficients once and evaluated per vertex rather than the other way
 %  about.
 %
-.xpostsys /p2abc {  % x0 y0 x1 y1  .  A B C
+.xpostsys /.p2abc {  % x0 y0 x1 y1  .  A B C
     exch 3 index sub
     exch 2 index sub  % X0 y0 dx dy
     exch              % X0 y0 A B
@@ -357,10 +357,10 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } put
 
 %
-%  evaluate and hodgman-sutherland
+%  .evaluate and .hodgman-sutherland
 %  from Bill Casselman's Mathematical Illustrations, ch. 5.
 %
-.xpostsys /evaluate {  % x y [A B C]  .  v
+.xpostsys /.evaluate {  % x y [A B C]  .  v
     aload pop          % X y A B C
     5 1 roll           % C x y A B
     3 2 roll mul       % C x A By
@@ -378,7 +378,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  doubled signed area of a closed polygon (first point repeated at the
 %  end); positive when wound counter-clockwise in device space.
 %
-.xpostsys /polyarea2 {  % poly  .  a2
+.xpostsys /.polyarea2 {  % poly  .  a2
     8 dict begin
     /poly exch def
     /a2 0.0 def
@@ -402,8 +402,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  Called by every site that hands a polygon to the clip walk, so a user
 %  clip path that arrived in either winding is normalised once.
 %
-.xpostsys /normclipwind {  % poly  .  poly'
-    dup //polyarea2 exec 0 lt {
+.xpostsys /.normclipwind {  % poly  .  poly'
+    dup //.polyarea2 exec 0 lt {
         4 dict begin
         /poly exch def
         [ poly length 1 sub -1 0 { poly exch get } for ]
@@ -420,7 +420,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  emit the edge's crossing point wherever the edge enters or leaves the
 %  half-plane. Correct for any convex clip window and any edge orientation.
 %
-.xpostsys /hodgman-sutherland {
+.xpostsys /.hodgman-sutherland {
     16 dict
     begin
     /f exch def
@@ -433,8 +433,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                 /i exch def
                 /P p i get def
                 /Q p i 1 add get def
-                /fP P aload pop f //evaluate exec def
-                /fQ Q aload pop f //evaluate exec def
+                /fP P aload pop f //.evaluate exec def
+                /fQ Q aload pop f //.evaluate exec def
                 fQ 0 le {
                     fP 0 le not {          % P outside, Q inside: entering crossing
                         /QP fQ fP sub def
@@ -472,7 +472,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  trailing edge. Peel such pairs until the polygon walks only its own
 %  boundary; what remains classifies as a window or hole by winding.
 %
-.xpostsys /despike {  % poly  .  poly'
+.xpostsys /.despike {  % poly  .  poly'
     2 dict begin
     /p exch def
     {  % loop
@@ -510,11 +510,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  convert clipregion to array of polygons
 %  traverse the clipregion
 %     convert line to [A B C] form
-%     feed polygon and line to hodgman-sutherland,
+%     feed polygon and line to .hodgman-sutherland,
 %        receiving new polygon.
 %  convert polygon array back to path structure.
 %
-.xpostsys /doclip {  % -  .  -
+.xpostsys /.doclip {  % -  .  -
     % When the clip region is an axis-aligned rectangle that already
     % contains the whole path, clipping passes every point through
     % unchanged: skip the polygon-clipping machinery.
@@ -568,7 +568,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         def
 
         /DEBUGCLIP where { pop
-            (//.xpostsys /doclip get exec)=
+            (//.xpostsys /.doclip get exec)=
             (PA: )print PA ==
             (CR: )print CR ==
 
@@ -598,19 +598,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /shnmax 4000000 def
         /holemax 200 def
         CR {  % One clipping polygon
-            //despike exec
+            //.despike exec
 
             % Fewer than three points bound no area (e.g. the bare pen
             % moveto charpath leaves after its outlines).
             dup length 3 lt {
                 pop
             }{
-                dup //polyarea2 exec 0 lt { -1 }{ 1 } ifelse /psign exch def
+                dup //.polyarea2 exec 0 lt { -1 }{ 1 } ifelse /psign exch def
                 wsign 0 eq { /wsign psign def } if
                 psign wsign eq {
 
                 % Intersect the subject polygons with the (convex) window
-                //normclipwind exec
+                //.normclipwind exec
                 dup 0 get
                 /U exch def
                 1 1 index length 1 sub getinterval
@@ -621,14 +621,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                         % exactly or within float noise) has no usable
                         % half-plane.
                     }{
-                        [ U aload pop V aload pop //p2abc exec ]  % Clip-line
+                        [ U aload pop V aload pop //.p2abc exec ]  % Clip-line
                         /CL exch def
                         /DEBUGCLIP where { pop
                             CL ==
                         } if
 
                         /PA [ PA {  % One subject polygon
-                            CL //.xpostsys /hodgman-sutherland get exec
+                            CL //.xpostsys /.hodgman-sutherland get exec
                             /shn shn 1 add def
                             shn shnmax gt { /clip cvx /limitcheck signalerror } if
                         } forall ] def
@@ -642,14 +642,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                 % Subtract the (convex) hole: the difference decomposes into
                 % one piece per hole edge - the part beyond that edge,
                 % limited by the edges before it.
-                //normclipwind exec
+                //.normclipwind exec
                 /HP exch def
                 /HL [
                     HP 0 get /U exch def
                     HP 1 HP length 1 sub getinterval {
                         /V exch def
                         U 0 get V 0 get sub abs U 1 get V 1 get sub abs add 0.001 ge {
-                            [ U aload pop V aload pop //p2abc exec ]
+                            [ U aload pop V aload pop //.p2abc exec ]
                         } if
                         /U V def
                     } forall
@@ -660,11 +660,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                         /SP exch def
                         0 1 HL length 1 sub {
                             /hi exch def
-                            /piece SP [ HL hi get { neg } forall ] //.xpostsys /hodgman-sutherland get exec def
+                            /piece SP [ HL hi get { neg } forall ] //.xpostsys /.hodgman-sutherland get exec def
                             /shn shn 1 add def
                             shn shnmax gt { /clip cvx /limitcheck signalerror } if
                             0 1 hi 1 sub {
-                                /piece piece 3 -1 roll HL exch get //.xpostsys /hodgman-sutherland get exec def
+                                /piece piece 3 -1 roll HL exch get //.xpostsys /.hodgman-sutherland get exec def
                                 /shn shn 1 add def
                                 shn shnmax gt { /clip cvx /limitcheck signalerror } if
                             } for

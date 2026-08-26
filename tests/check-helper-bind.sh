@@ -23,7 +23,7 @@
 #
 # A helper a test redefines is reached by name and not baked in. A test
 # that appends
-#     .xpostsys /h { ... } put
+#     .xpostsys /.h { ... } put
 # to a copy of the data tree is redefining the dictionary entry. A call
 # baked with // holds the procedure the file defined and never looks at
 # the entry again, so the redefinition is inert and the test goes on
@@ -171,8 +171,8 @@ fi
 
 while read -r n; do
     [ -n "$n" ] || continue
-    # h is the worked example in init.ps's convention note, not a helper
-    [ "$n" = "h" ] && continue
+    # .h is the worked example in init.ps's convention note, not a helper
+    [ "$n" = ".h" ] && continue
     if grep -qE "//$(printf '%s' "$n" | sed 's/\./\\./g')([[:blank:]]|$)" "$data"/*.ps 2>/dev/null; then
         echo "check-helper-bind: $n is redefined by a test but reached with //;" >&2
         echo "the baked reference holds what the data tree defined, so the" >&2

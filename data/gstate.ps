@@ -192,7 +192,7 @@ setglobal
 %
 %  Graphics State Operators -- Device Independent
 %
-.xpostsys /gstatecopy {  % dict1 dict2  .  dict2'
+.xpostsys /.gstatecopy {  % dict1 dict2  .  dict2'
     begin
     {  % key val
         %pstack()= %1 index =
@@ -241,7 +241,7 @@ setglobal
 %  given its own copy of privatedict holding a private, copied .graphicsdict.
 %  .privatedict and the C graphics operators both read the running context's
 %  privatedict, so from here the child's graphics reach its own state while the
-%  rest of privatedict's machinery stays shared. gstatecopy copies into a fresh
+%  rest of privatedict's machinery stays shared. .gstatecopy copies into a fresh
 %  dictionary each time; the template returns a shared dictionary, so it is not
 %  used here.
 %
@@ -260,7 +260,7 @@ setglobal
             newstack i
                 pgd /gstackarray get i get
                 dup length 4 add dict
-                //gstatecopy exec
+                //.gstatecopy exec
             put
         } for
 
@@ -269,7 +269,7 @@ setglobal
             /currgstate
                 pgd /currgstate get
                 dup length 4 add dict
-                //gstatecopy exec
+                //.gstatecopy exec
             /gstackarray newstack
             /gptr gp
         >> def
@@ -299,7 +299,7 @@ graphicsdict begin
         gstackarray gptr get
 
             %dup {exch = ==} forall
-        currgstate //gstatecopy exec pop
+        currgstate //.gstatecopy exec pop
         gptr 0 gt {  %discard all but one element, for grestoreall
             gstackarray gptr null put  % Discard stack copy
         } if
@@ -315,7 +315,7 @@ end
 graphicsdict begin
     /gptr -1 def
     gstackarray 0 get
-    currgstate //gstatecopy exec pop
+    currgstate //.gstatecopy exec pop
 end
 } .defop
 
@@ -377,13 +377,13 @@ end
 %  A copy of the current graphics state, as a new gstate object (PLRM
 %  8.2). The template supplies the shape -- every slot the state has, and
 %  freshly allocated matrices -- and the current state supplies the
-%  values; the deep copy is gstatecopy's, the same one gsave and grestore
+%  values; the deep copy is .gstatecopy's, the same one gsave and grestore
 %  carry a state by, so the object holds its own arrays rather than
 %  sharing the live state's.
 %
 /gstate [ ] {  % -  .  gstate
     .privatedict /.gstatetemplate get exec dup length dict copy
-    graphicsdict /currgstate get exch //gstatecopy exec
+    graphicsdict /currgstate get exch //.gstatecopy exec
 } .defop
 
 %
@@ -402,7 +402,7 @@ end
 /currentgstate [ /dicttype ] {  % gstate  .  gstate
     dup /currmatrix known not
         { /currentgstate cvx /typecheck signalerror } if
-    graphicsdict /currgstate get exch //gstatecopy exec
+    graphicsdict /currgstate get exch //.gstatecopy exec
 } .defop
 
 %

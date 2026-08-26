@@ -533,7 +533,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % coherently instead of in the sort's incidental order.
     idx { 2 copy vals exch get exch vals exch get
           2 copy eq { pop pop lt }{ exch lt 3 1 roll pop pop } ifelse
-    } //.xpostsys /qsort get exec
+    } //.xpostsys /.qsort get exec
 
     % When the tile holds several cells, deal the ranks around them:
     % each cell takes every nth rank in its own value order, so a

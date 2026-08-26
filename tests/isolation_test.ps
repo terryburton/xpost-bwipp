@@ -5,12 +5,12 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % run-ps-test.sh; prints SUCCESS iff every assertion holds. The interpreter's
 % internal helper procedures live in the private .xpostsys namespace, so:
 %   (1) their names do not pollute the dictionaries a program sees -- a
-%       program's `/ravec where` is false, and
+%       program's `/.ravec where` is false, and
 %   (2) a program may redefine any of those names for its own use without
 %       disturbing the graphics machinery.
 % The machinery is also required to survive a program shadowing the operator
 % names its helper calls rely on (get, exec), which the helper-call form
-% //.xpostsys /h get exec only withstands because those references are frozen.
+% //.xpostsys /.h get exec only withstands because those references are frozen.
 
 % capture userdict's size before this program defines anything: at startup it
 % must be empty, every helper and every piece of machinery having been relocated
@@ -32,10 +32,10 @@ gsave grestore
 
 /HELPERS [
     % helper procedures
-    /gstatecopy /ravec /cpath /dolinejoin /ptdiff /magang
-    /doclip /hodgman-sutherland /despike /polyarea2 /normclipwind /p2abc
-    /evaluate /rect /dashpath /minlinewidth /crossdashbound /dopending
-    /initial_ipos /loadgraphics
+    /.gstatecopy /.ravec /.cpath /.dolinejoin /.ptdiff /.magang
+    /.doclip /.hodgman-sutherland /.despike /.polyarea2 /.normclipwind /.p2abc
+    /.evaluate /.rect /.dashpath /.minlinewidth /.crossdashbound /.dopending
+    /.initial_ipos /.loadgraphics
     % private state dictionaries
     /DashDict /strokedict /SetColorDict /CurrentColorDict
 ] def
@@ -76,10 +76,10 @@ HELPERS { { (PROGRAM-OWNED) } def } forall
 } stopped not (graphics survive a program redefining every helper name) assert
 
 % (3) the program's own definitions are intact and answer to the program
-/rect { (mine) } def
-rect (mine) eq (a program's own /rect is its own) assert
-/ravec { 42 } def
-ravec 42 eq (a program's own /ravec is its own) assert
+/.rect { (mine) } def
+.rect (mine) eq (a program's own /.rect is its own) assert
+/.ravec { 42 } def
+.ravec 42 eq (a program's own /.ravec is its own) assert
 
 % (4) survive the operator names a helper call depends on being shadowed
 << /get 1 /exec 2 /pop 3 /put 4 /known 5 /if 6 /ifelse 7 /forall 8 >> begin

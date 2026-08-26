@@ -93,7 +93,7 @@ rfcount 0 gt (resourceforall reaches its instances without graphics) assert
 rfcount 0 gt (an implicit category enumerates without graphics) assert
 
 % a program may freely define the now-absent graphics names for its own use
-/ravec { 42 } def ravec 42 eq (program may use a freed helper name) assert
+/.ravec { 42 } def .ravec 42 eq (program may use a freed helper name) assert
 
 count 0 eq (operand stack is balanced) assert
 faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse

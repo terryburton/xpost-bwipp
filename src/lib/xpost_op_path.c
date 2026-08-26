@@ -489,7 +489,7 @@ _path_append(Xpost_Context *ctx, Xpost_Object gstate, Xpost_Object *pathp,
 
 /* A context's currgstate is created once when its graphics state is set
    up and is only ever mutated in place (setgstate, grestore and
-   gstatecopy copy into it, never rebind it), so the resolved dictionary
+   .gstatecopy copy into it, never rebind it), so the resolved dictionary
    can be cached after the first lookup instead of searching the
    dictionary stack on every path operator.
 

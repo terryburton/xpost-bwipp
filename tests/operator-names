@@ -19,7 +19,7 @@ rows are fine for a different reason: .endpage names
 # and .upathcheck names uappend because ufill, ueofill and ustroke call the
 # uappend operator itself.
 #
-# One row is a known defect, left as it is on purpose. crossdashbound names
+# One row is a known defect, left as it is on purpose. .crossdashbound names
 # stroke, and strokepath reaches the dash-count limit without stroke
 # running -- but stroke also calls strokepath internally when the device
 # will not take a path, so threading the name makes the reported operator
@@ -34,7 +34,9 @@ rows are fine for a different reason: .endpage names
 .crdinv3                    setcolor
 .crdtable                   setcolor
 .crdvalidate                setcolorrendering
+.crossdashbound             stroke
 .csvalidate                 setcolorspace
+.doclip                     clip
 .endpage                    EndPage
 .fmapnext                   show
 .fneval                     shfill
@@ -47,12 +49,10 @@ rows are fine for a different reason: .endpage names
 .htvalidate                 sethalftone
 .imagetype3                 image
 .imagetype4                 image
+.loadgraphics               setpagedevice
 .meshsh                     shfill
 .mrdflag                    shfill
 .mrdinit                    shfill
 .spacereduce                setcolorspace
 .upathcheck                 uappend
 .withspacebody              setcolor
-crossdashbound              stroke
-doclip                      clip
-loadgraphics                setpagedevice
