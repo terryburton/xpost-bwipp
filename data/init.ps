@@ -3232,10 +3232,33 @@ currentglobal true setglobal
             % through the context field, not by name. .sysdictunlock and .sysdictrelock
             % relocate with the rest: the unlock has already run, and the relock below is
             % reached through .internaldict.
+            %
+            % What is swept is every dotted name, whatever it holds, and not
+            % the dotted operators alone. A dotted name carrying data rather
+            % than an operator is machinery just the same -- the roster of
+            % standard IODevice names is one -- and a sweep that asked for an
+            % operator would leave it sitting in the program's base
+            % dictionary, which is the one state nothing else would catch:
+            % it is on no list, so no list would report it missing.
+            %
+            % The device classes are the exception, and not because they
+            % are data: a later step of this same lockdown takes them into
+            % privatedict as LOCAL copies, which is what makes a job's page
+            % setup revert with the save level. A sweep that took them
+            % first would leave that step copying out of global VM, and the
+            % classes would be global dictionaries a program could not put
+            % a local value into.
+            %
+            % Where a swept name lands is decided by what it holds, not by
+            % what swept it. An operator goes to .internaldict, which holds
+            % the operators relocated out of systemdict and is registered
+            % as holding those and the latches and nothing else; a name
+            % carrying data goes to .xpostsys, the private helper
+            % namespace, which is where a global static value belongs.
             [ systemdict {
                     exch dup type /nametype eq
-                    2 index type /operatortype eq and
                     { dup 60 string cvs 0 get 46 eq
+                      1 index //.isclassname exec not and
                       1 index /.lockdown ne and
                       1 index /.permitfileread ne and
                       1 index /.permitfilewrite ne and
@@ -3245,7 +3268,10 @@ currentglobal true setglobal
                     }{ false } ifelse
                     { exch pop }{ pop pop } ifelse
                 } forall ]
-            dup { dup systemdict exch get .internaldict 3 1 roll put } forall
+            dup { dup systemdict exch get
+                  dup type /operatortype eq
+                      { .internaldict }{ .xpostsys } ifelse
+                  3 1 roll put } forall
             { systemdict exch undef } forall
 
             % The internal draw-line flag is interpreter state a program has no use
