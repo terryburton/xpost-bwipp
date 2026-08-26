@@ -3338,6 +3338,14 @@ test('op-wrapsig',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# What a font found by name says its character codes mean: the encoding
+# the face itself supplies, not the standard one over the top of it.
+test('font-encoding',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/font_encoding_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The two font directories hold different populations: the local one goes
 # away with the save level that defined its fonts, the global one does not.
 test('font-directory',

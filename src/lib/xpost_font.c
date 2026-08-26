@@ -1509,6 +1509,25 @@ xpost_font_face_std_name_at(void *face, unsigned int i,
 #endif
 }
 
+/* The glyph the face itself gives this name to, and nothing else: a
+   face that never wrote the name down answers nothing, whatever its
+   character map would reach for the character of that name. Whether a
+   face has a name of its own is what an encoding recovered from the
+   face turns on, and the resolution below cannot be asked it. */
+unsigned int
+xpost_font_face_own_name_index_get(void *face, const char *name)
+{
+#ifdef HAVE_FREETYPE2
+    if (!FT_HAS_GLYPH_NAMES((FT_Face)face))
+        return 0;
+    return FT_Get_Name_Index((FT_Face)face, (FT_String *)name);
+#else
+    (void)face;
+    (void)name;
+    return 0;
+#endif
+}
+
 /* The glyph a name selects, which is how a font that re-encodes by
    name reaches one. */
 unsigned int
@@ -1518,12 +1537,9 @@ xpost_font_face_glyph_name_index_get(void *face, const char *name)
     unsigned int gi;
     long uni;
 
-    if (FT_HAS_GLYPH_NAMES((FT_Face)face))
-    {
-        gi = FT_Get_Name_Index((FT_Face)face, (FT_String *)name);
-        if (gi)
-            return gi;
-    }
+    gi = xpost_font_face_own_name_index_get(face, name);
+    if (gi)
+        return gi;
     /* no post name for this glyph: resolve the Adobe name to Unicode and
        take it through the character map */
     uni = _xpost_glyph_name_to_unicode(name);

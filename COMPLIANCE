@@ -41,6 +41,13 @@ Level 1 operators
      from the caller's stack, where the reference interpreters error)
  [X] base font CharStrings (a face whose program cannot be read
      publishes glyph indices)
+ [X] base font Encoding (recovered from the face rather than read out of
+     the font program, which need not carry an encoding vector at all:
+     a code the face has no standard-named glyph for takes the name of
+     the glyph the face's character map reaches for it, so a font
+     program encoding a code as neither is reported by its character
+     map. A face that names none of its glyphs supplies no encoding and
+     the standard one stands)
 
  [X] handleerror (an error out of a procedure-implemented operator
      restores the stacks to their depths at the call; operands the

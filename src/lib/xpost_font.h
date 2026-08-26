@@ -196,6 +196,26 @@ unsigned int xpost_font_face_glyph_index_get(void *face, char c);
 unsigned int xpost_font_face_glyph_name_index_get(void *face, const char *name);
 
 /**
+ * @brief Return the glyph the face itself gives this name to.
+ *
+ * @param[in] face The font face.
+ * @param[in] name The glyph name (e.g. "zero").
+ * @return The glyph index, or 0 where the face gives no glyph that
+ * name -- and 0 for every name where it names no glyphs at all.
+ *
+ * The strict question, where xpost_font_face_glyph_name_index_get()
+ * asks the useful one: that call falls back to the standard name's
+ * character code and the character map, so it answers for a name the
+ * face never wrote down. That fallback is what lets a named encoding
+ * select a glyph on a face carrying no names; it is also what makes
+ * the other call unable to say whether the face has the name. This
+ * one says.
+ *
+ * @see xpost_font_face_glyph_name_index_get()
+ */
+unsigned int xpost_font_face_own_name_index_get(void *face, const char *name);
+
+/**
  * @brief The number of glyphs in the face, or 0 when the face carries
  * no glyph names to enumerate them by.
  */

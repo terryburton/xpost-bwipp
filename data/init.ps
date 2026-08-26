@@ -1650,11 +1650,20 @@ setglobal
             % and FontBBox for the face behind the name
             //findfont
 
-            % A text font's built-in encoding is the standard one; a
-            % fresh copy, so a program re-encoding in place cannot
-            % touch the shared array. A face without standard glyph
-            % names still resolves through its character map.
-            dup /Encoding StandardEncoding dup length array copy put
+            % The encoding the face itself supplies (PLRM 5.2): the
+            % name it gives each character code, which is what a
+            % program reads /Encoding to learn. A face naming no
+            % glyphs of its own says nothing about codes either, and
+            % the standard encoding stands for it -- as it does for a
+            % build with no face library at all, where the operator
+            % above answered from the substitution table.
+            %
+            % Either way the array is this font's own and not the
+            % shared one, so a program re-encoding in place touches
+            % nothing but its own font.
+            dup dup StandardEncoding .faceencoding
+            dup null eq { pop StandardEncoding dup length array copy } if
+            /Encoding exch put
             dup /BuildChar {} put
         } stopped {  % Operator failed:
             //.fontsubstitutions exch 2 copy known {  % Try substitution

@@ -1712,6 +1712,181 @@ fail:
     return ret;
 }
 
+/* -  fontdict stdenc  .faceencoding  array|null
+
+   The encoding the face behind a font dictionary supplies: the glyph
+   name that face gives each of the 256 character codes, which is what
+   the /Encoding entry of a base font states (PLRM 5.2 and Table 5.7).
+   The operand is the standard encoding, offered rather than held here
+   so that the one array the language defines is the one this reads.
+
+   A face that names no glyphs of its own has no encoding to give.
+   Its codes still reach glyphs, through the character map, but nothing
+   at the end of that is a name; this answers null and the caller's
+   standard encoding stands.
+
+   Where the face does name its glyphs, what it says depends on what
+   kind of font program it is, because the two kinds keep their
+   encoding in different places.
+
+   A TrueType program keeps none: it has no PostScript encoding vector
+   at all, and what the codes of such a font mean is what its character
+   map says they mean. So every code is the name of the glyph the
+   character map reaches for it, and .notdef where it reaches none.
+
+   A Type 1 or CFF program carries an encoding vector of its own, and
+   for the great majority of text faces that vector is the standard
+   one. It is not read out of the file here -- an sfnt-wrapped CFF
+   need not carry one at all -- but recovered from the two things the
+   face does answer for: the names it gives its glyphs, and the glyphs
+   its character map reaches. A code whose standard name the face has
+   a glyph of keeps that name, which leaves an ordinary text face with
+   the standard encoding exactly. A code whose standard name the face
+   does not have takes the name of the glyph its character map reaches
+   instead, which is how a symbolic face states the encoding it was
+   built with. The codes the standard encoding leaves unnamed are
+   filled the same way only where such a face has departed from the
+   standard encoding somewhere: a face that agreed with it throughout
+   is a text face, and what the standard encoding leaves unnamed is
+   unnamed on it too.
+
+   A glyph the encoding already names is not named a second time. A
+   character map reaches one glyph from several code points -- the
+   no-break space reaches the space glyph -- and only the code the
+   encoding names it at is a name for it; the others are the character
+   map's business and not the encoding's.
+
+   The names are interned in global virtual memory, as the glyph names
+   of the CharStrings dictionary beside them are, so that a font found
+   under one allocation mode and read under the other names its glyphs
+   with the same objects. The array itself is made where the font
+   dictionary is, being the one part of a font a program re-encodes in
+   place. */
+static
+int _faceencoding(Xpost_Context *ctx,
+                  Xpost_Object fontdict,
+                  Xpost_Object stdenc)
+{
+    fontdata *fd = _font_data(ctx, fontdict);
+    void *face = fd ? fd->face : NULL;
+    Xpost_Object names[256];
+    unsigned int gids[256];
+    Xpost_Object enc;
+    unsigned int oldmode;
+    int istt;
+    int departs = 0;
+    int c;
+
+    if (!face
+     || stdenc.comp_.sz != 256
+     || !xpost_font_face_glyph_name_count(face))
+    {
+        if (!xpost_stack_push(ctx->lo, ctx->os, null))
+            return stackoverflow;
+        return 0;
+    }
+
+    istt = xpost_font_face_is_truetype(face);
+    oldmode = ctx->vmmode;
+
+    for (c = 0; c < 256; c++)
+    {
+        char nbuf[128];
+        unsigned int gi;
+
+        names[c] = xpost_array_get(ctx, stdenc, c);
+        gids[c] = 0;
+
+        if (!istt)
+        {
+            char sbuf[128];
+            Xpost_Object sstr;
+
+            if (xpost_object_get_type(names[c]) != nametype)
+                continue;
+            sstr = xpost_name_get_string(ctx, names[c]);
+            if (sstr.comp_.sz >= sizeof sbuf)
+                continue;
+            /* the characters are copied before anything allocates:
+               they live in virtual memory, which an intern may move */
+            memcpy(sbuf, xpost_string_get_pointer(ctx, sstr), sstr.comp_.sz);
+            sbuf[sstr.comp_.sz] = '\0';
+            if (strcmp(sbuf, ".notdef") == 0)
+                continue;
+            gi = xpost_font_face_own_name_index_get(face, sbuf);
+            if (gi)
+            {
+                gids[c] = gi;
+                continue;
+            }
+            /* the face has no glyph of that name, so the standard
+               encoding is not this face's: what the code means here is
+               what the character map says, and where it says nothing
+               the code means nothing */
+            names[c] = xpost_object_cvlit(name_dotnotdef);
+        }
+
+        gi = xpost_font_face_glyph_index_get(face, (char)c);
+        if (gi && xpost_font_face_glyph_name_get(face, gi, nbuf, sizeof nbuf))
+        {
+            ctx->vmmode = GLOBAL;
+            names[c] = xpost_object_cvlit(xpost_name_cons(ctx, nbuf));
+            ctx->vmmode = oldmode;
+            if (xpost_object_get_type(names[c]) == invalidtype)
+                return VMerror;
+            gids[c] = gi;
+            departs = 1;
+        }
+        else if (istt)
+            names[c] = xpost_object_cvlit(name_dotnotdef);
+    }
+
+    if (!istt && departs)
+    {
+        for (c = 0; c < 256; c++)
+        {
+            char nbuf[128];
+            unsigned int gi;
+            int j;
+
+            if (gids[c])
+                continue;
+            gi = xpost_font_face_glyph_index_get(face, (char)c);
+            if (!gi)
+                continue;
+            for (j = 0; j < 256; j++)
+                if (gids[j] == gi)
+                    break;
+            if (j < 256)
+                continue;
+            if (!xpost_font_face_glyph_name_get(face, gi, nbuf, sizeof nbuf))
+                continue;
+            ctx->vmmode = GLOBAL;
+            names[c] = xpost_object_cvlit(xpost_name_cons(ctx, nbuf));
+            ctx->vmmode = oldmode;
+            if (xpost_object_get_type(names[c]) == invalidtype)
+                return VMerror;
+            gids[c] = gi;
+        }
+    }
+
+    /* an encoding is data, so it says so at its construction, as
+       doc/xpost_design.dox asks of every composite made here */
+    enc = xpost_object_cvlit(xpost_array_cons(ctx, 256));
+    if (xpost_object_get_type(enc) != arraytype)
+        return VMerror;
+    for (c = 0; c < 256; c++)
+    {
+        int ret = xpost_array_put(ctx, enc, c, names[c]);
+
+        if (ret)
+            return ret;
+    }
+    if (!xpost_stack_push(ctx->lo, ctx->os, enc))
+        return stackoverflow;
+    return 0;
+}
+
 /* Load a Type 42 font program: reassemble the /sfnts strings into one
    malloc'd buffer, open it as a memory face, and stash the face in the
    dict's /Private exactly as findfont does for a file face. The buffer
@@ -5587,6 +5762,9 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, "findfont", (Xpost_Op_Func)_findfont, 1, nametype);
     INSTALL;
     op = xpost_operator_cons(ctx, "findfont", (Xpost_Op_Func)_findfont, 1, stringtype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".faceencoding", (Xpost_Op_Func)_faceencoding, 2,
+            dicttype, arraytype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".loadfont42", (Xpost_Op_Func)_loadfont42, 1, dicttype);
     INSTALL;

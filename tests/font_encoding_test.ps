@@ -1,0 +1,245 @@
+%!testlib
+% What a font found by name says its character codes mean, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 5.2 has a base font's /Encoding hold "the font's encoding vector",
+% the array of 256 names by which its character codes select glyphs, and
+% Table 5.7 requires the entry of every base font. A face is not obliged
+% to encode its codes the way a text font does: a symbolic face carries
+% an encoding of its own, and reporting the standard one for it is a
+% statement about the font that is not true.
+%
+% The statement is invisible to painting, which is why it lasted. A show
+% resolves a code by the name at that code and, where the face has no
+% glyph of that name, falls back to the face's character map -- so a
+% symbolic face painted the right glyphs under an encoding that named
+% the wrong ones. What the wrong names break is every program that READS
+% the encoding, which is the whole of the re-encoding idiom (PLRM 5.6):
+% a program that takes a name out of one font's Encoding and puts it at
+% a code in a copy gets a name the face never had, and the copy paints
+% nothing where the original painted a glyph.
+%
+% So the property asserted here is the one that ties the two together:
+% the name at a code selects the same glyph the code does. It is checked
+% by painting, on whatever faces this host resolves, because it is a
+% statement about every face and not about a particular one.
+
+% a face answers for this suite: a build without a face library resolves
+% no faces, and has no encoding of a face's to report
+systemdict /NOFACES known
+{ (SKIPPED: this suite reads the encoding of a face, and this build carries no face library) = flush quit } if
+
+% ---------------------------------------------------------------- the page
+%
+% A page of its own to read, as the glyph-identity suite does: the pixels
+% are what says which glyph was painted, and the two ways of asking for a
+% glyph have to be compared as pages rather than as widths.
+/.fillpoly     1183615869 internaldict /.fillpoly get def
+/.fillrectgray 1183615869 internaldict /.fillrectgray get def
+
+/DEV 64 64 .privatedict /newPGMIMAGEdevice get exec def
+DEV begin
+    /defaultmatrix [ 1 0 0 -1 0 64 ] def
+    /FillPoly /.fillpoly load def
+    /FillRect /.fillrectgray load def
+end
+.privatedict /.gstatetemplate get exec /device DEV put
+graphicsdict /currgstate get /device DEV put
+initgraphics
+
+/snap { % - . [rows]
+    [ 0 1 63 { DEV /ImgData get exch get dup length string copy } for ]
+} bind def
+/same { % [rows] [rows] . bool
+    /fe.b exch def /fe.a exch def
+    true 0 1 63 {
+        /fe.i exch def
+        fe.a fe.i get fe.b fe.i get eq and
+    } for
+} bind def
+/ink { % [rows] . n
+    0 exch { { 128 lt { 1 add } if } forall } forall
+} bind def
+/blank { 1 setgray 0 0 64 64 rectfill 0 setgray } bind def
+
+/showcode { % font int . [rows]
+    /fe.c exch def
+    blank 30 scalefont setfont
+    2 8 moveto ( ) dup 0 fe.c put show
+    snap
+} bind def
+/showname { % font name . [rows]
+    /fe.n exch def
+    blank 30 scalefont setfont
+    2 8 moveto fe.n glyphshow
+    snap
+} bind def
+
+% -------------------------------------------------- what this host resolves
+%
+% Two populations are wanted and neither is promised: a face carrying an
+% encoding of its own, and a text face. Each is looked for by asking, and
+% a run that finds neither says so rather than passing over an arm it
+% never ran.
+/fe.find { % [names] . font|null
+    /fe.got null def
+    {   /fe.nm exch def
+        { fe.nm findfont } stopped { clear $error /newerror false put }{
+            dup type /dicttype eq { /fe.got exch def }{ pop } ifelse
+        } ifelse
+        fe.got null ne { exit } if
+    } forall
+    fe.got
+} bind def
+
+/departs { % font . bool  (its encoding is not the standard one)
+    /fe.e exch /Encoding get def
+    false 0 1 255 {
+        /fe.i exch def
+        fe.e fe.i get StandardEncoding fe.i get ne or
+    } for
+} bind def
+
+% A face whose encoding is its own is recognised without reading the
+% encoding, which is the thing under test here and cannot be the thing
+% that selects the subject. What says so instead is the glyph
+% complement: a face that has no glyph named /A -- the standard
+% encoding's reading of code 65 -- and still paints something at code 65
+% is a face whose codes mean something other than what the standard
+% encoding says they mean. A host that resolves such a name to an
+% ordinary text face fails that test and the arm is not run on it.
+/symbolic { % font . bool
+    /fe.f exch def
+    fe.f /CharStrings known {
+        fe.f /CharStrings get /A known not
+        { fe.f 65 showcode ink 0 gt }{ false } ifelse
+    }{ false } ifelse
+} bind def
+
+/symfont [ /Symbol /StandardSymbols /StandardSymbolsPS /ZapfDingbats
+           /Dingbats /D050000L ] fe.find def
+symfont null ne { symfont symbolic not { /symfont null def } if } if
+
+/textfont [ /Times-Roman /Helvetica /Courier /NimbusRoman /DejaVuSans
+            /LiberationSerif /NotoSans ] fe.find def
+
+% ------------------------------------------------ the shape of the entry
+%
+% Whatever a face says, it says it in the shape PLRM Table 5.7 requires:
+% 256 entries, every one a literal name. A code the face reaches no glyph
+% for is /.notdef, which is a name like any other.
+/wellformed { % font (subject) . -
+    /fe.s exch def
+    /fe.e exch /Encoding get def
+    fe.e type /arraytype eq fe.e length 256 eq and
+        fe.s (carries 256 encoding entries) assert2
+    true 0 1 255 {
+        /fe.i exch def
+        fe.e fe.i get type /nametype eq
+        fe.e fe.i get xcheck not and
+        and
+    } for
+        fe.s (encodes every code with a literal name) assert2
+} bind def
+
+textfont null eq {
+    (note: no face resolves on this host, so nothing below is checked\n) print
+}{
+    textfont (a text font) wellformed
+
+    % ------------------------------------------- the name and the code agree
+    %
+    % The property the wrong encoding broke. Where the encoding names a
+    % glyph at a code, showing the code and showing that name are two
+    % ways of asking for one glyph (PLRM 5.5 has the character NAME
+    % identify a glyph), so they paint the same page.
+    %
+    % Codes the encoding leaves at /.notdef are outside it: a code with
+    % no name is one whose glyph, if the face reaches one through its
+    % character map, has no name to be asked for.
+    /agree { % font (subject) . -
+        /fe.s exch def
+        /fe.f exch def
+        /fe.enc fe.f /Encoding get def
+        /fe.bad 0 def
+        /fe.unk 0 def
+        /fe.seen 0 def
+        0 1 255 {
+            /fe.i exch def
+            fe.enc fe.i get dup /.notdef ne {
+                /fe.gn exch def
+                /fe.seen fe.seen 1 add store
+                fe.f fe.i showcode fe.f fe.gn showname same not {
+                    /fe.bad fe.bad 1 add store
+                } if
+                fe.f /CharStrings known {
+                    fe.f /CharStrings get fe.gn known not
+                    { /fe.unk fe.unk 1 add store } if
+                } if
+            }{ pop } ifelse
+        } for
+        fe.seen 0 gt
+            fe.s (names a glyph at some code) assert2
+        fe.bad 0 eq
+            fe.s (selects one glyph by its code and by its name) assert2
+        fe.unk 0 eq
+            fe.s (encodes only names its glyph complement carries) assert2
+    } bind def
+
+    textfont (a text font) agree
+
+    % ------------------------------------- a face with an encoding of its own
+    symfont null eq {
+        (note: no face carrying an encoding of its own resolves here, so)
+          print ( the symbolic arm goes unchecked\n) print
+    }{
+        symfont (a symbolic font) wellformed
+        symfont departs
+            (a font whose face encodes its codes its own way says so) assert
+        symfont (a symbolic font) agree
+
+        % The idiom the wrong encoding broke outright: a name read out of
+        % one font's Encoding, put at another code in a copy, selects the
+        % glyph it named. A name the face never carried selects nothing,
+        % which is what a standard encoding reported for a symbolic face
+        % handed the program.
+        % Code 65 is the one the face was selected for: it paints a
+        % glyph and the standard encoding calls it /A, which is a name
+        % this face has not got. So the name read out of the encoding
+        % there is a name only a face-derived encoding could report, and
+        % a copy that carries it at another code paints that same glyph.
+        /fe.src symfont def
+        /fe.gn fe.src /Encoding get 65 get def
+        /fe.copy fe.src dup length 2 add dict copy def
+        fe.copy /Encoding 256 array put
+        0 1 255 { fe.copy /Encoding get exch /.notdef put } for
+        fe.copy /Encoding get 66 fe.gn put
+        /XpostReEncoded fe.copy definefont pop
+
+        fe.copy 66 showcode ink 0 gt
+            (a re-encoded copy paints something at all) assert
+        fe.copy 66 showcode fe.src 65 showcode same
+            (a re-encoded copy paints the glyph its new encoding names) assert
+    } ifelse
+
+    % ------------------------------------------------ the array is the font's
+    %
+    % A program re-encodes in place, so the array a font carries is that
+    % font's own: neither the standard encoding itself nor the array any
+    % other font is holding.
+    /fe.n1 textfont /FontName get def
+    /fe.a fe.n1 findfont /Encoding get def
+    /fe.b fe.n1 findfont /Encoding get def
+    fe.a fe.b ne
+        (two lookups of one name carry two encoding arrays) assert
+    fe.a StandardEncoding ne
+        (a font does not carry the standard encoding array itself) assert
+    /fe.was StandardEncoding 65 get def
+    fe.a 65 /XpostScribble put
+    StandardEncoding 65 get fe.was eq
+        (re-encoding a font in place leaves the standard encoding alone) assert
+    fe.b 65 get /XpostScribble ne
+        (re-encoding one font in place leaves another alone) assert
+} ifelse
+
+verdict

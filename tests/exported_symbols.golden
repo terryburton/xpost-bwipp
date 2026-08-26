@@ -228,6 +228,7 @@ xpost_font_face_is_type1
 xpost_font_face_last_file
 xpost_font_face_new_from_memory
 xpost_font_face_new_from_name
+xpost_font_face_own_name_index_get
 xpost_font_face_reference
 xpost_font_face_scale
 xpost_font_face_std_name_at
