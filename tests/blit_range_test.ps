@@ -34,7 +34,8 @@
   /nc exch def
   /nn exch def
   <<
-    /devw 4 /devh 4 /nat nn /w 1 /ncomp nc /y 0
+    /devw 4 /devh 4 /nat nn /w 1 /h 4 /ncomp nc /y 0
+    /mw 1 /mh 4
     /rgbrows false /cmyk false
     /xoff 0 /xscale 1 /yoff 0 /yscale 1
     /cx0 0 /cy0 0 /cx1 4 /cy1 4
@@ -90,10 +91,12 @@
 1 1 bd dup /buf 8 string put dup /w -1 put
   (blit of a row of negative width) expectrange
 
-% --- the row index and the mask stride walk the mask bits ---
-% the mask holds one row of mrowb bytes per sample row, and the bits
-% for row y are read from y * mrowb: a negative row index reads before
-% the mask, and a stride the mask cannot carry reads past it
+% --- the mask grid and the mask stride walk the mask bits ---
+% the mask holds one row of mrowb bytes per row of its own grid, and
+% the row a device row falls on selects among them: a negative sample
+% row reads before the mask, a stride the mask cannot carry reads past
+% it, a stride too short for a mask row reads the row after's bits as
+% this row's, and a grid with no samples in it divides by nothing
 1 1 bd dup /buf 8 string put dup /devh 8 put
   dup /rows [ 4 string 4 string 4 string 4 string
               4 string 4 string 4 string 4 string ] put
@@ -103,6 +106,18 @@
 1 1 bd dup /buf 8 string put
   dup /mbits 8 string put dup /mrowb 2000000000 put
   (blit through a mask stride the mask cannot hold) expectrange
+1 1 bd dup /buf 8 string put
+  dup /mbits 8 string put dup /mrowb 1 put dup /mh 100 put
+  (blit through more mask rows than the mask holds) expectrange
+1 1 bd dup /buf 8 string put
+  dup /mbits 8 string put dup /mrowb 1 put dup /mw 100 put
+  (blit through a mask row wider than its stride) expectrange
+1 1 bd dup /buf 8 string put
+  dup /mbits 8 string put dup /mrowb 1 put dup /mh 0 put
+  (blit through a mask of no rows) expectrange
+1 1 bd dup /buf 8 string put
+  dup /mbits 8 string put dup /mrowb 1 put dup /mw 0 put
+  (blit through a mask of no columns) expectrange
 
 % the operator still answers a sound dictionary
 /d 1 1 bd def
@@ -120,6 +135,7 @@ d /buf 8 string put
 0 1 255 { white exch 255 put } for
 /md 1 1 bd def
 md /w 4 put
+md /mw 4 put
 md /buf 4 string put
 md /lut white put
 md /mbits 4 string put

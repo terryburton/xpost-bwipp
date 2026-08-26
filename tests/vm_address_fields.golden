@@ -218,7 +218,9 @@ count    xpost_operator.h:Xpost_Signature  t
 count    xpost_record.h                     cmyk
 count    xpost_record.h                     height
 count    xpost_record.h                     interp
+count    xpost_record.h                     mh
 count    xpost_record.h                     mrowb
+count    xpost_record.h                     mw
 count    xpost_record.h                     nat
 count    xpost_record.h                     ncomp
 count    xpost_record.h                     nranges

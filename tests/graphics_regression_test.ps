@@ -499,6 +499,56 @@ grestore
 18 30 inkat not (interleaved mask samples mask under an inverted Decode) assert
 42 30 inkat (an interleaved full mask sample paints under an inverted Decode) assert
 
+% A mask finer than the image it masks decides at its own resolution:
+% four mask cells fall under each image sample, and each covers its own
+% quarter of that sample rather than the whole of it (PLRM 4.10.6 --
+% the image and the mask need not have the same resolution). Reading
+% the mask onto the image's grid would give every quarter the value of
+% the one the sample's corner falls in.
+erasepage
+gsave
+10 10 translate 40 40 scale
+/DeviceRGB setcolorspace
+<< /ImageType 3 /InterleaveType 3
+   /DataDict << /ImageType 1 /Width 2 /Height 2 /BitsPerComponent 8
+      /ImageMatrix [2 0 0 -2 0 2] /Decode [0 1 0 1 0 1]
+      /DataSource <000000000000000000000000> >>
+   /MaskDict << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 1
+      /ImageMatrix [4 0 0 -4 0 4] /Decode [0 1]
+      /DataSource <A0500000> >>
+>> image
+grestore
+15 45 inkat not (a fine mask cell masks its own quarter of a sample) assert
+25 45 inkat (the quarter beside it still paints) assert
+35 45 inkat not (the second sample's masked quarter) assert
+45 45 inkat (the second sample's painted quarter) assert
+15 35 inkat (the row below inverts within the same samples) assert
+25 35 inkat not (and masks the quarter that painted above) assert
+15 15 inkat (a clear mask row leaves the samples under it painted) assert
+45 15 inkat (across the whole of the row) assert
+
+% The same, with the mask arriving row by row in the image's own stream:
+% two mask rows to each image row is a mask of twice the height, and
+% both of them decide.
+erasepage
+gsave
+10 10 translate 40 40 scale
+/DeviceRGB setcolorspace
+<< /ImageType 3 /InterleaveType 2
+   /DataDict << /ImageType 1 /Width 2 /Height 2 /BitsPerComponent 8
+      /ImageMatrix [2 0 0 -2 0 2] /Decode [0 1 0 1 0 1]
+      /DataSource <80 00 000000000000
+                   00 80 000000000000> >>
+   /MaskDict << /ImageType 1 /Width 2 /Height 4 /BitsPerComponent 1
+      /ImageMatrix [2 0 0 -4 0 4] /Decode [0 1] >>
+>> image
+grestore
+15 45 inkat not (an interleaved mask row masks its own half of a sample) assert
+35 45 inkat (the sample beside it paints under the same mask row) assert
+15 35 inkat (the second mask row of the block paints what the first masked) assert
+15 15 inkat not (the second block's last mask row masks the left sample) assert
+35 15 inkat (and leaves the right one painted) assert
+
 % ImageType 4: pixels of the key colour leave the page untouched
 erasepage
 gsave

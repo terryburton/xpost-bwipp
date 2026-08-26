@@ -1089,11 +1089,14 @@
  * per sample and per device row, the run of device columns that
  * sample covers, and states the run either into the device's rows
  * or -- for a device keeping its own buffer -- as one call to its
- * compiled rectangle fill; masks arrive as bits or ranges saying
- * which pixels to leave unpainted. Everything else -- rotated
- * images, exotic clips, devices without rows -- takes the general
- * route, one rectangle per sample, through the same operators as
- * any other mark. The two routes end at the same two sinks, which
+ * compiled rectangle fill; where a mask on a grid finer than the
+ * image's steps across the sample, what is stated is the runs that
+ * mask leaves rather than the one the sample covers. Masks arrive
+ * as bits over a grid of their own, or as ranges, saying which
+ * pixels to leave unpainted. Everything else -- rotated images,
+ * exotic clips, devices without rows -- takes the general route,
+ * one rectangle per sample, through the same operators as any
+ * other mark. The two routes end at the same two sinks, which
  * is what keeps a page painted directly and a page replayed from a
  * record byte-identical.
  *

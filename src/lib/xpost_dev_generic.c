@@ -2499,11 +2499,13 @@ _blit_row_spans(Xpost_Context *ctx, Xpost_Object cspans, int ncspans,
    native bytes for one-component spaces with everything baked in;
    else dluts: per-component decode tables and tlut: the transfer,
    applied after conversion (cmyk converts by additive complement) --
-   and the masks: mbits, one bit per pixel high-order first in rows
-   of mrowb bytes (set = leave unpainted), and mranges, raw min,max
-   pairs (a pixel inside every range is left unpainted). Pixels cover
-   device pixels by the any-part-of-pixel rule, the high edge
-   exclusive, which is the rule the rectangle fills cover them by.
+   and the masks: mbits, one bit per mask sample high-order first in
+   rows of mrowb bytes (set = leave unpainted) over the grid of mw by
+   mh samples covering the page area the image's w by h samples cover,
+   and mranges, raw min,max pairs (a pixel inside every range is left
+   unpainted). Pixels cover device pixels by the any-part-of-pixel
+   rule, the high edge exclusive, which is the rule the rectangle
+   fills cover them by.
 
    It is reachable as a function too (xpost_dev_generic.h), so that a
    page played back from a record writes its image rows through this
@@ -2934,6 +2936,34 @@ int xpost_dev_create_begin(Xpost_Context *ctx,
     return 0;
 }
 
+/* Which sample of a grid of m samples a point at coordinate u on a
+   grid of n samples falls in. The mask covers the page area the image's
+   own grid covers, so where a device pixel falls in the image's grid
+   says where it falls in the mask's, whatever ratio stands between
+   them. Held inside the grid: u comes of dividing by a scale the caller
+   states and a coordinate outside the image is a sample at its edge,
+   never an index off the bits. */
+static int _blit_mask_index(double u, int n, int m)
+{
+    double v = floor(u * m / n);
+
+    if (!(v >= 0))
+        return 0;
+    if (v > m - 1)
+        return m - 1;
+    return (int)v;
+}
+
+/* Whether the mask leaves the device pixel at image-space coordinate u
+   on mask row mrow unpainted. */
+static int _blit_masked(const unsigned char *mbits, int mrowb, int mrow,
+                        double u, int w, int mw)
+{
+    int mx = _blit_mask_index(u, w, mw);
+
+    return mbits[mrow * mrowb + (mx >> 3)] >> (7 - (mx & 7)) & 1;
+}
+
 /* Paints one row of a halftoned image: the spans it covers, the
    thresholds they fall against, and the colour each pixel resolves
    to, all read off the dictionary the caller has assembled, which
@@ -2956,6 +2986,7 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
     unsigned char *dlut[4] = { NULL, NULL, NULL, NULL };
     int mranges[8];
     int devw, devh, nat, rgbrows, w, ncomp, y, cmyk, mrowb = 0;
+    int h = 0, mw = 0, mh = 0, msame = 1;
     double xoff, xscale, yoff, yscale, cx0, cy0, cx1, cy1;
     double ya, yb, t;
     int dy, x, c, nranges = 0;
@@ -3101,22 +3132,42 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
         }
     }
 
+    /* The mask, on the grid of mw by mh samples it states rather than
+       on the image's: the two need not have the same resolution, and a
+       mask read onto the image's grid would keep only the sample
+       nearest each of the image's. A mask of no samples is no mask,
+       which is what a mask dictionary of no width or no height
+       describes. */
     mbitso = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "mbits"));
-    if (xpost_object_get_type(mbitso) == stringtype)
+    if (xpost_object_get_type(mbitso) == stringtype && mbitso.comp_.sz)
     {
-        Xpost_Object o = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "mrowb"));
+        Xpost_Object o;
+
+#define GETI(name) do { \
+        Xpost_Object o_ = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, #name)); \
+        if (xpost_object_get_type(o_) != integertype) return typecheck; \
+        name = o_.int_.val; \
+    } while (0)
+        GETI(h); GETI(mw); GETI(mh);
+#undef GETI
+        o = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "mrowb"));
         if (xpost_object_get_type(o) != integertype)
             return typecheck;
         mrowb = o.int_.val;
-        /* the mask holds one row of mrowb bytes per sample row and the
-           row index selects among them, so the bits through row y must
-           be there; the stride is compared against the length divided
-           by the row count, which holds for every stride rather than
-           only those whose product with the count fits the type */
-        if (mrowb < 0
-         || (unsigned int)mrowb > mbitso.comp_.sz / ((unsigned int)y + 1))
+        /* Both grids are divided into, so neither may be empty, and the
+           mask holds one row of mrowb bytes per mask row: the stride
+           has to carry a row of mw bits and the bits have to run to mh
+           of those rows. The length is divided by the row count rather
+           than the count multiplied by the stride, which holds for
+           every stride rather than only those whose product with the
+           count fits the type. */
+        if (w < 1 || h < 1 || mw < 1 || mh < 1)
+            return rangecheck;
+        if (mrowb < mw / 8 + (mw % 8 ? 1 : 0)
+         || (unsigned int)mrowb > mbitso.comp_.sz / (unsigned int)mh)
             return rangecheck;
         mbits = (unsigned char *)xpost_string_get_pointer(ctx, mbitso);
+        msame = mw == w && mh == h;
     }
     /* an optional clip region: flat quads x0 y0 x1 y1 in device
        space, the resolved rectangle spans of a non-rectangular clip;
@@ -3304,10 +3355,21 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
 
                                 if (xm < 0) xm = 0;
                                 if (xm > w - 1) xm = w - 1;
-                                if (mbits
-                                 && (mbits[msy * mrowb + (xm >> 3)]
-                                     >> (7 - (xm & 7)) & 1))
-                                    continue;
+                                /* the mask decides from where the pixel
+                                   falls on the mask's own grid, which
+                                   is the nearest sample when the two
+                                   grids are one */
+                                if (mbits)
+                                {
+                                    int mx = _blit_mask_index(
+                                        (dx + 0.5 - xoff) / xscale, w, mw);
+                                    int my = _blit_mask_index(
+                                        (dy + 0.5 - yoff) / yscale, h, mh);
+
+                                    if (mbits[my * mrowb + (mx >> 3)]
+                                        >> (7 - (mx & 7)) & 1)
+                                        continue;
+                                }
                                 if (nranges)
                                 {
                                     int inside = 1;
@@ -3379,7 +3441,7 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
 
     for (dy = (int)floor(ya); dy < yb; dy++)
     {
-        int rret, paint;
+        int rret, paint, mrow = 0;
 
         if (dy < 0)
             continue;
@@ -3397,14 +3459,24 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
         if (!paint)
             continue;
 
+        /* Which mask row this device row falls on. The two grids being
+           one, that is the sample row being painted; otherwise the row
+           the device row's own centre lands on, so that several device
+           rows under one sample row each take the mask row above
+           them. */
+        if (mbits)
+            mrow = msame
+                 ? (y > mh - 1 ? mh - 1 : y)
+                 : _blit_mask_index((dy + 0.5 - yoff) / yscale, h, mh);
+
         for (x = 0; x < w; x++)
         {
             double xa, xb;
             int r = 0, g = 0, b = 0, gray = 0;
 
-            if (mbits)
+            if (mbits && msame)
             {
-                int bit = mbits[y * mrowb + (x >> 3)] >> (7 - (x & 7)) & 1;
+                int bit = mbits[mrow * mrowb + (x >> 3)] >> (7 - (x & 7)) & 1;
                 if (bit)
                     continue;
             }
@@ -3487,10 +3559,48 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
                        that a device written into by row and a device
                        painted through its own fill are handed the same
                        run rather than each working one out */
-                    sret = _blit_out_span(&out, dy, (int)floor(sa),
-                                          (int)ceil(sb), r, g, b, gray);
-                    if (sret)
-                        return sret;
+                    if (!mbits || msame)
+                    {
+                        sret = _blit_out_span(&out, dy, (int)floor(sa),
+                                              (int)ceil(sb), r, g, b, gray);
+                        if (sret)
+                            return sret;
+                    }
+                    else
+                    {
+                        /* A mask on a grid of its own steps across the
+                           sample rather than with it, so the sample's
+                           columns are handed over as the runs the mask
+                           lets through rather than as one span. */
+                        int p = (int)floor(sa), e = (int)ceil(sb);
+
+                        if (p < 0)
+                            p = 0;
+                        if (e > devw)
+                            e = devw;
+                        while (p < e)
+                        {
+                            int s0 = p;
+
+                            while (p < e
+                                && !_blit_masked(mbits, mrowb, mrow,
+                                                 (p + 0.5 - xoff) / xscale,
+                                                 w, mw))
+                                p++;
+                            if (p > s0)
+                            {
+                                sret = _blit_out_span(&out, dy, s0, p,
+                                                      r, g, b, gray);
+                                if (sret)
+                                    return sret;
+                            }
+                            while (p < e
+                                && _blit_masked(mbits, mrowb, mrow,
+                                                (p + 0.5 - xoff) / xscale,
+                                                w, mw))
+                                p++;
+                        }
+                    }
                 }
             }
         }

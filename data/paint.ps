@@ -866,21 +866,29 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  depth to one byte, so each pixel reads ncomp bytes, maps each
 %  through its Decode range, and delivers the components to setcolor
 %  in the current colour space. Two masking controls, null when
-%  unused: mbits is a string of one bit per pixel in byte-padded row
-%  order (a set bit leaves the pixel unpainted), and mranges an array
-%  of min,max pairs of normalized sample values (a pixel whose every
-%  raw component falls within its pair is left unpainted).
+%  unused: mbits is a string of one bit per mask sample in byte-padded
+%  row order (a set bit leaves the pixel unpainted) over a grid of mw by
+%  mh samples covering the page area the image's own grid covers, and
+%  mranges an array of min,max pairs of normalized sample values (a
+%  pixel whose every raw component falls within its pair is left
+%  unpainted).
 %
-.xpostsys /.imagepaintm {  % width height bits mat datasrc decode ncomp mbits mranges /operator  .  -
+%  The mask keeps its own grid rather than being read onto the image's,
+%  since the two need not have the same resolution (PLRM 4.10.6). Which
+%  mask sample decides a device pixel follows from where that pixel
+%  falls, so a mask finer than the image decides pixel by pixel at its
+%  own resolution and a coarser one spreads over the pixels it covers.
+%
+.xpostsys /.imagepaintm {  % width height bits mat datasrc decode ncomp mbits mw mh mranges /operator  .  -
     % The data source is the program's procedure: the whole painting
     % goes through the bracket, so a source that raises cannot leave
     % this graphics state open or this dictionary current.
     {
     gsave
         newpath
-        24 dict begin
+        32 dict begin
         //.refreshscreencell exec
-        {operator mranges mbits ncomp decode datasrc mat bits height width}{exch def}forall
+        {operator mranges mh mw mbits ncomp decode datasrc mat bits height width}{exch def}forall
 
         % The width is refused here, where it is first known and before
         % any row is read, because every route into this painter -- the
@@ -917,7 +925,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             /buf rowsamples string def
             /pend () def
         } ifelse
-        /mrow width 7 add 8 idiv def
+        % the mask's own row stride, since the bits are held on the
+        % mask's grid; without a mask there is no stride to state
+        /mrow mbits null eq { width }{ mw } ifelse 7 add 8 idiv def
+
+        % whether the mask decides a device pixel at a finer step than
+        % the image samples do, which is where a pixel has to be placed
+        % against the mask rather than taken from the sample it lies in
+        /mfine mbits null ne mw width ne mh height ne or and def
 
         % a device that consumes whole images -- the vector writers --
         % takes the sample rows and the image-to-device matrix and
@@ -1103,6 +1118,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             cspansv null ne { bd /cspans cspansv put } if
             bd /mbits currentdict /mbits get put
             bd /mrowb mrow put
+            bd /h height put
+            bd /mw mbits null eq { width }{ mw } ifelse put
+            bd /mh mbits null eq { height }{ mh } ifelse put
             bd /mranges currentdict /mranges get put
             bd /cmyk ncomp 4 eq put
             ncomp 1 eq {
@@ -1241,7 +1259,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             0 1 width 1 sub { /x exch def
                 /base x ncomp mul def
                 /paintit true def
-                mbits null ne {
+                mbits null ne mfine not and {
                     mbits y mrow mul x 8 idiv add get
                     7 x 7 and sub neg bitshift 1 and 1 eq
                     { /paintit false def } if
@@ -1270,7 +1288,47 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                         setcolor
                         /prevset true def
                     } if
-                    x y 1 1 rectfill
+                    mfine {
+                        % The sample lies under a run of mask cells, and
+                        % each is painted over just the part of the
+                        % sample it covers: a mask finer than the image
+                        % divides the sample, a coarser one leaves it
+                        % whole. The extents are met rather than assumed
+                        % to nest, since neither grid need divide the
+                        % other.
+                        /mc0 x mw mul width idiv def
+                        /mc1 x 1 add mw mul width add 1 sub width idiv
+                            1 sub def
+                        /mr0 y mh mul height idiv def
+                        /mr1 y 1 add mh mul height add 1 sub height idiv
+                            1 sub def
+                        mr0 1 mr1 { /mr exch def
+                            /py0 mr height mul mh div
+                                 dup y lt { pop y } if def
+                            /py1 mr 1 add height mul mh div
+                                 dup y 1 add gt { pop y 1 add } if def
+                            py1 py0 gt {
+                                mc0 1 mc1 { /mc exch def
+                                    mbits mr mrow mul mc 8 idiv add get
+                                    7 mc 7 and sub neg bitshift 1 and
+                                    0 eq {
+                                        /px0 mc width mul mw div
+                                             dup x lt { pop x } if def
+                                        /px1 mc 1 add width mul mw div
+                                             dup x 1 add gt
+                                             { pop x 1 add } if def
+                                        px1 px0 gt {
+                                            px0 py0
+                                            px1 px0 sub py1 py0 sub
+                                            rectfill
+                                        } if
+                                    } if
+                                } for
+                            } if
+                        } for
+                    }{
+                        x y 1 1 rectfill
+                    } ifelse
                 } if
             } for
         } for
@@ -1286,7 +1344,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  ranges, which is what an ImageType 1 image is.
 %
 .xpostsys /.imagepaint {  % width height bits mat datasrc decode ncomp  .  -
-    null null /image //.imagepaintm exec
+    null 0 0 null /image //.imagepaintm exec
 } put
 
 %
@@ -1366,7 +1424,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     d /Width get d /Height get itbits d /ImageMatrix get
     d /image //.imgdatasource exec
     d /Decode get
-    itn null itrange
+    itn null 0 0 itrange
     end
     /image //.imagepaintm exec
 } put
@@ -1377,7 +1435,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  to 1 leaves the pixel unpainted. The three interleaves place the
 %  mask sample-by-sample in the one stream (1, at the image depth),
 %  row-by-row in the one stream (2), or in MaskDict's own DataSource
-%  (3), where the mask's grid may differ from the image's.
+%  (3). Under 2 and 3 the mask's grid may differ from the image's, and
+%  the bits are kept on the mask's grid whichever it is.
 %
 .xpostsys /.it1row {  % statedict  .  datarow
     begin
@@ -1412,38 +1471,28 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  several image rows.
 %
 %  A block's mask rows are read when its first image row is asked for,
-%  and the row the block is masked by is the first of them -- the mask
-%  sample nearest each image row, as the separate-source form takes its
-%  nearest sample. The mask is stored on the image's grid, inverted
-%  where the mask's Decode asks for it, so that everything downstream
-%  reads one polarity and one grid.
+%  and every one of them is kept, on the mask's own grid and in the
+%  order the stream states them, inverted where the mask's Decode asks
+%  for it so that everything downstream reads one polarity. A block
+%  carrying several mask rows to one image row is a mask finer than the
+%  image, and keeping only the row nearest each image row would throw
+%  away exactly the detail the finer mask was given for.
 %
 .xpostsys /.it2row {  % statedict  .  datarow
     begin
     iy ipb mod 0 eq {
         0 1 mpr 1 sub { /k exch def
             /rawrow mraw def //.fill exec
-            k 0 eq { mkeep 0 mraw putinterval } if
+            iminv {
+                0 1 mraw length 1 sub { /j exch def
+                    imbits my imrow mul j add mraw j get 255 xor put
+                } for
+            }{
+                imbits my imrow mul mraw putinterval
+            } ifelse
+            /my my 1 add def
         } for
     } if
-    imw iw eq {
-        iminv {
-            0 1 mkeep length 1 sub { /k exch def
-                imbits iy imrow mul k add mkeep k get 255 xor put
-            } for
-        }{
-            imbits iy imrow mul mkeep putinterval
-        } ifelse
-    }{
-        0 1 iw 1 sub { /x exch def
-            /sx x imw mul iw idiv def
-            mkeep sx 8 idiv get 7 sx 7 and sub neg bitshift 1 and 1 eq
-            iminv { not } if {
-                imbits iy imrow mul x 8 idiv add 2 copy get
-                128 x 7 and neg bitshift or put
-            } if
-        } for
-    } ifelse
     /rawrow draw def //.fill exec
     /iy iy 1 add def
     draw
@@ -1458,7 +1507,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  InterleaveType says where the mask's bits come from -- sample by
 %  sample in the one stream, row by row in the one stream, or out of
 %  MaskDict's own DataSource, where the mask may be on a different grid
-%  from the image and is resampled onto it.
+%  from the image. The bits are kept on whatever grid they arrive on and
+%  the painter places each device pixel against it.
 %
 .xpostsys /.imagetype3 {  % dict  .  -
     20 dict begin
@@ -1487,6 +1537,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         { end /image cvx /rangecheck signalerror } if
     dd /ImageType get 1 ne md /ImageType get 1 ne or
         { end /image cvx /rangecheck signalerror } if
+
+    % A mask of no samples in either dimension is refused. PLRM Table
+    % 4.24 has the mask's ImageMatrix align the mask's corners with the
+    % image's, and a grid with no rows or no columns has no corners to
+    % align: there is nothing to say which of the image's pixels it
+    % would leave unpainted, and every ratio taken against it divides by
+    % nothing.
+    mw 1 lt mh 1 lt or
+        { end /image cvx /rangecheck signalerror } if
     il 3 ne {
         % the mask travels in the image's stream, so the image has one
         % stream to travel in
@@ -1511,8 +1570,10 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } ifelse
     /minv md /Decode 2 copy known { get }{ pop pop [0 1] } ifelse
            0 get 1 eq def
-    /mrow w 7 add 8 idiv def
-    /mbits mrow h mul string def
+    % the mask's bits are held on the mask's own grid, whatever ratio
+    % stands between it and the image's
+    /mrow mw 7 add 8 idiv def
+    /mbits mrow mh mul string def
     il 1 eq {
         % One stream, a mask sample at the image depth before each
         % pixel's components: a row procedure de-interleaves as the
@@ -1534,7 +1595,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         w h 8 dd /ImageMatrix get
         [ st //.it1row /exec load ] cvx
         dd /Decode get n
-        mbits null
+        mbits mw mh null
     }{ il 2 eq {
         % One stream of interleave blocks, each row of mask and of
         % image padded separately to a byte boundary: the row procedure
@@ -1543,60 +1604,43 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         st begin
             /datasrc dd /DataSource get //.imgsource exec def
             /pend () def
-            /mrb mw 7 add 8 idiv def
-            /mraw mrb string def
-            /mkeep mrb string def
+            /mraw mw 7 add 8 idiv string def
             /mpr mh h ge { mh h idiv }{ 1 } ifelse def
             /ipb h mh gt { h mh idiv }{ 1 } ifelse def
             /draw w n mul bpc mul 7 add 8 idiv string def
-            /iw w def
-            /imw mw def
             /imrow mrow def
             /imbits mbits def /iminv minv def
             /iy 0 def
+            /my 0 def
         end
         w h bpc dd /ImageMatrix get
         [ st //.it2row /exec load ] cvx
         dd /Decode get n
-        mbits null
+        mbits mw mh null
     }{
-        % Separate streams: read the whole one-bit mask up front,
-        % then map its grid over the image's when the two differ.
-        /mrb mw 7 add 8 idiv def
-        /mall mrb mh mul string def
+        % Separate streams: the whole one-bit mask is read up front,
+        % row by row into the grid it states, inverted where its own
+        % Decode asks for it. Nothing is resampled: the painter places
+        % each device pixel against this grid, so a mask finer than the
+        % image keeps the detail a reduction onto the image's grid would
+        % have dropped.
         /datasrc md /DataSource get //.imgsource exec def
         /pend () def
-        /rawrow mrb string def
+        /rawrow mrow string def
         0 1 mh 1 sub { /my exch def
             //.fill exec
-            mall my mrb mul rawrow putinterval
-        } for
-        mw w eq mh h eq and {
             minv {
-                0 1 mall length 1 sub { /k exch def
-                    mbits k mall k get 255 xor put
+                0 1 mrow 1 sub { /k exch def
+                    mbits my mrow mul k add rawrow k get 255 xor put
                 } for
             }{
-                mbits 0 mall putinterval
+                mbits my mrow mul rawrow putinterval
             } ifelse
-        }{
-            0 1 h 1 sub { /y exch def
-                /sy y mh mul h idiv def
-                0 1 w 1 sub { /x exch def
-                    /sx x mw mul w idiv def
-                    mall sy mrb mul sx 8 idiv add get
-                    7 sx 7 and sub neg bitshift 1 and 1 eq
-                    minv { not } if {
-                        mbits y mrow mul x 8 idiv add 2 copy get
-                        128 x 7 and neg bitshift or put
-                    } if
-                } for
-            } for
-        } ifelse
+        } for
         w h bpc dd /ImageMatrix get
         dd /image //.imgdatasource exec
         dd /Decode get n
-        mbits null
+        mbits mw mh null
     } ifelse } ifelse
     end
     /image //.imagepaintm exec
@@ -1695,7 +1739,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % leaving its first chunk standing in for the whole image.
     currentdict /srcs get //.identdecode nc get nc
     end
-    null null /colorimage //.imagepaintm exec
+    null 0 0 null /colorimage //.imagepaintm exec
     grestore
 } .defop
 

@@ -1168,7 +1168,7 @@ int xpost_record_image(Xpost_Record *rec, const Xpost_Record_Image *src,
     if (src->width < 1 || src->height < 1
      || src->ncomp < 1 || src->ncomp > 4
      || src->nat < 1 || src->nat > 3
-     || (src->mbits && src->mrowb < 1)
+     || (src->mbits && (src->mrowb < 1 || src->mw < 1 || src->mh < 1))
      || src->nranges < 0 || src->nranges > 8
      || (src->nranges && !src->mranges)
      || src->nspan < 0 || (src->nspan && !src->cspans))
@@ -1193,7 +1193,7 @@ int xpost_record_image(Xpost_Record *rec, const Xpost_Record_Image *src,
         }
         if (src->mbits
             && !_sp_blob(rec, src->mbits,
-                         (size_t)src->mrowb * (size_t)src->height,
+                         (size_t)src->mrowb * (size_t)src->mh,
                          &where.mbits))
         {
             _short(rec, ioerror);
@@ -1210,7 +1210,7 @@ int xpost_record_image(Xpost_Record *rec, const Xpost_Record_Image *src,
     img.tlutrgb = _take(src->tlutrgb, 3u * 256u, &cost);
     if (!rec->sp)
         img.mbits = _take(src->mbits,
-                          (size_t)src->mrowb * (size_t)src->height, &cost);
+                          (size_t)src->mrowb * (size_t)src->mh, &cost);
     img.mranges = _take(src->mranges,
                         (size_t)src->nranges * sizeof *src->mranges, &cost);
     img.cspans = _take(src->cspans,
@@ -1330,7 +1330,7 @@ const unsigned char *xpost_record_image_mbits(const Xpost_Record *rec,
         return img->mbits;
     if (!rec->sp || !_imgats(rec)[i].mbits)
         return NULL;
-    n = (size_t)img->mrowb * (size_t)img->height;
+    n = (size_t)img->mrowb * (size_t)img->mh;
     w->sp->bits.len = 0;
     if (xpost_strbuf_reserve(&w->sp->bits, n))
         return NULL;
@@ -2089,7 +2089,7 @@ int xpost_record_spill(Xpost_Record *rec)
             goto no;
         if (img->mbits
             && !_sp_blob(rec, img->mbits,
-                         (size_t)img->mrowb * (size_t)img->height,
+                         (size_t)img->mrowb * (size_t)img->mh,
                          &where->mbits))
             goto no;
     }
@@ -2139,7 +2139,7 @@ int xpost_record_spill(Xpost_Record *rec)
         {
             free((void *)img->mbits);
             img->mbits = NULL;
-            rec->imgbytes -= (size_t)img->mrowb * (size_t)img->height;
+            rec->imgbytes -= (size_t)img->mrowb * (size_t)img->mh;
             rec->imgblocks--;
         }
     }

@@ -56,7 +56,7 @@ fail=0
 # hold: one entry per image, the page clear, and room for the odd mark a
 # clip or a background rectangle leaves. A record holding a rectangle
 # per sample is orders past this rather than a few marks past it.
-images=8
+images=9
 maxmarks=200
 
 # $1 device, $2 output path; sets out to what the run said

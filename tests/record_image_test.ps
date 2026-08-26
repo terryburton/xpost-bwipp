@@ -33,6 +33,9 @@
 %                     spans that clamp each row write
 %   colour-key mask   sample ranges that leave a pixel unpainted
 %   explicit mask     a bit per sample that leaves a pixel unpainted
+%   a finer mask      a mask on a grid of its own, which the entry has
+%                     to carry as the grid it is rather than as the
+%                     image's
 %   reduced           more samples than device pixels, which takes the
 %                     stepped path whatever was asked for
 %
@@ -136,6 +139,27 @@ gsave
   >> image
 grestore
 
+% --- an explicit mask on a finer grid than the image it masks ---
+gsave
+  456 470 translate
+  0 0 1 setrgbcolor 0 0 120 120 rectfill
+  0 setgray
+  120 120 scale
+  << /ImageType 3
+     /InterleaveType 3
+     /DataDict << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 8
+                  /ImageMatrix [ 4 0 0 -4 0 4 ]
+                  /Decode [ 0 1 ]
+                  /DataSource < 20 50 80 b0 50 80 b0 e0 80 b0 e0 20 b0 e0 20 50 >
+               >>
+     /MaskDict << /ImageType 1 /Width 8 /Height 8 /BitsPerComponent 1
+                  /ImageMatrix [ 8 0 0 -8 0 8 ]
+                  /Decode [ 0 1 ]
+                  /DataSource < aa 55 cc 33 aa 55 cc 33 >
+               >>
+  >> image
+grestore
+
 % --- a picture at production shape: more samples than device pixels,
 %     which is what makes the size of a record worth measuring ---
 /bigw 180 def
@@ -201,7 +225,7 @@ bands? {
                  DEVICE /dimensions get 1 get mul 3 mul def
     (RASTER ) print rasterbytes 20 string cvs print (\n) print
 
-    recimages 8 lt
+    recimages 9 lt
     { (FAIL: the page did not reach every route into an image entry\n) print }
     if
     recmarks 200 gt

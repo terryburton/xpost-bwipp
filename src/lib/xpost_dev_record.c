@@ -235,9 +235,9 @@ static Xpost_Object nameslot[5];
 enum
 {
     BK_ROWS, BK_DEVW, BK_DEVH, BK_NAT, BK_RGBROWS, BK_CMYK,
-    BK_W, BK_NCOMP, BK_BUF, BK_BUFS, BK_XOFF, BK_XSCALE, BK_YOFF,
+    BK_W, BK_H, BK_NCOMP, BK_BUF, BK_BUFS, BK_XOFF, BK_XSCALE, BK_YOFF,
     BK_YSCALE, BK_CX0, BK_CY0, BK_CX1, BK_CY1, BK_CSPANS, BK_MBITS,
-    BK_MROWB, BK_MRANGES, BK_LUT, BK_DLUTS, BK_TLUT, BK_TLUTR,
+    BK_MROWB, BK_MW, BK_MH, BK_MRANGES, BK_LUT, BK_DLUTS, BK_TLUT, BK_TLUTR,
     BK_TLUTG, BK_TLUTB, BK_INTERP, BK_PREV, BK_PREVS, BK_Y, BK_LAST,
     BK_HTCELL, BK_HTW, BK_HTH, BK_IMGDATA, BK_DIMENSIONS, BK_DEV,
     BK_COUNT
@@ -246,9 +246,9 @@ enum
 static const char *const _bdname[BK_COUNT] =
 {
     "rows", "devw", "devh", "nat", "rgbrows", "cmyk",
-    "w", "ncomp", "buf", "bufs", "xoff", "xscale", "yoff",
+    "w", "h", "ncomp", "buf", "bufs", "xoff", "xscale", "yoff",
     "yscale", "cx0", "cy0", "cx1", "cy1", "cspans", "mbits",
-    "mrowb", "mranges", "lut", "dluts", "tlut", "tlutr",
+    "mrowb", "mw", "mh", "mranges", "lut", "dluts", "tlut", "tlutr",
     "tlutg", "tlutb", "interp", "prev", "prevs", "y", "last",
     ".htcell", ".htw", ".hth", "ImgData", "dimensions", "dev"
 };
@@ -883,6 +883,8 @@ static int _recordimage(Xpost_Context *ctx,
     img.cx1 = _bdreal(ctx, bd, BK_CX1, 0);
     img.cy1 = _bdreal(ctx, bd, BK_CY1, 0);
     img.mrowb = _bdint(ctx, bd, BK_MROWB, 0);
+    img.mw = _bdint(ctx, bd, BK_MW, 0);
+    img.mh = _bdint(ctx, bd, BK_MH, 0);
 
     /* one buffer a component says the rows come a plane at a time, and
        the run handed over is then a plane rather than a row */
@@ -993,14 +995,15 @@ static int _recordimage(Xpost_Context *ctx,
             img.tlutrgb = tl;
     }
 
-    /* 64-bit, then held to what a string can carry: mrowb and height are
-       both unbounded ints from the dictionary, so their 32-bit product
-       wraps and a small size is validated against the mask string while
-       the record layer copies the true (huge) one off the end. A size no
-       string can hold means there is no mask to take. */
-    if (img.mrowb > 0)
+    /* 64-bit, then held to what a string can carry: mrowb and the mask
+       row count are both unbounded ints from the dictionary, so their
+       32-bit product wraps and a small size is validated against the
+       mask string while the record layer copies the true (huge) one off
+       the end. A size no string can hold means there is no mask to
+       take, and so does a mask grid with no samples in it. */
+    if (img.mrowb > 0 && img.mw > 0 && img.mh > 0)
     {
-        size_t mneed = (size_t)img.mrowb * (size_t)img.height;
+        size_t mneed = (size_t)img.mrowb * (size_t)img.mh;
 
         img.mbits = mneed <= (size_t)XPOST_OBJECT_COMP_MAX_SZ
             ? _bdstr(ctx, bd, BK_MBITS, (unsigned int)mneed) : NULL;
@@ -1008,7 +1011,11 @@ static int _recordimage(Xpost_Context *ctx,
     else
         img.mbits = NULL;
     if (!img.mbits)
+    {
         img.mrowb = 0;
+        img.mw = 0;
+        img.mh = 0;
+    }
 
     o = _bdget(ctx, bd, BK_MRANGES);
     if (xpost_object_get_type(o) == arraytype && o.comp_.sz <= 8)
@@ -1163,6 +1170,7 @@ static int _play_image(Xpost_Context *ctx,
     PUT(BK_RGBROWS, xpost_bool_cons(img->rgbrows));
     PUT(BK_CMYK, xpost_bool_cons(img->cmyk));
     PUT(BK_W, xpost_int_cons(img->width));
+    PUT(BK_H, xpost_int_cons(img->height));
     PUT(BK_NCOMP, xpost_int_cons(img->ncomp));
     PUT(BK_XOFF, xpost_real_cons(img->xoff));
     PUT(BK_XSCALE, xpost_real_cons(img->xscale));
@@ -1208,8 +1216,10 @@ static int _play_image(Xpost_Context *ctx,
 
         if (bits)
         {
-            PUTSTR(BK_MBITS, bits, (size_t)img->mrowb * img->height);
+            PUTSTR(BK_MBITS, bits, (size_t)img->mrowb * img->mh);
             PUT(BK_MROWB, xpost_int_cons(img->mrowb));
+            PUT(BK_MW, xpost_int_cons(img->mw));
+            PUT(BK_MH, xpost_int_cons(img->mh));
         }
     }
     if (img->nranges)

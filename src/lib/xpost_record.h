@@ -250,9 +250,11 @@ int xpost_record_mark(Xpost_Record *rec, Xpost_Record_Kind kind,
  *   dluts     otherwise, ncomp runs of 256 decode entries, converted at
  *             the write and passed through tlut (and, where the device
  *             takes three, through the three channel transfers) after.
- *   mbits     one bit per sample in rows of mrowb bytes, a set bit
- *             leaving the pixel alone; mranges pairs of raw sample
- *             values, a pixel inside every one of them left alone.
+ *   mbits     one bit per mask sample in rows of mrowb bytes, a set
+ *             bit leaving the pixel alone, over a grid of mw by mh
+ *             samples covering the page area the sample grid covers;
+ *             mranges pairs of raw sample values, a pixel inside every
+ *             one of them left alone.
  *   cspans    quads of x0 y0 x1 y1 in device space: the region resolved
  *             above the device where it was not a rectangle.
  *
@@ -278,8 +280,9 @@ typedef struct
     const unsigned char *dluts;    /**< ncomp runs of 256 */
     const unsigned char *tlut;     /**< 256 */
     const unsigned char *tlutrgb;  /**< three runs of 256 */
-    const unsigned char *mbits;    /**< height runs of mrowb bytes */
+    const unsigned char *mbits;    /**< mh runs of mrowb bytes */
     int mrowb;
+    int mw, mh;                    /**< the grid the mask states */
     const int *mranges;            /**< nranges raw values */
     int nranges;
     const real *cspans;            /**< nspan quads */
@@ -356,7 +359,7 @@ const unsigned char *xpost_record_image_run(const Xpost_Record *rec,
 /**
  * @brief An image's mask bits, or NULL where it has none.
  *
- * height runs of mrowb bytes, a set bit leaving the pixel alone. Whole,
+ * mh runs of mrowb bytes, a set bit leaving the pixel alone. Whole,
  * because what reads them reads them whole; where the record has spilled
  * they are read back into a buffer of the record's, good until the next
  * image's are asked for.
