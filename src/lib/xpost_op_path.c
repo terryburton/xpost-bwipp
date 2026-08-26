@@ -1300,6 +1300,76 @@ int _cliptrivial(Xpost_Context *ctx)
     return 0;
 }
 
+/* clip trivial-reject test.
+   Push true when the current path cannot reach the clip region at all:
+   the box the path's own points span and the box the region's span do
+   not meet, so no part of the path's interior lies inside the region
+   and a fill of it would mark nothing. Push false in every uncertain
+   case, so what is not rejected here travels the route it would have
+   travelled anyway.
+
+   A box is the only cheap thing to ask a region of any shape, and a box
+   is all this asks: a path outside the region's box is certainly
+   outside the region, while a path inside that box may still be outside
+   the region and is not rejected. This rejects, it does not decide.
+
+   Both boxes are the ones the path headers carry, which bound the
+   stored points -- curve controls included, so a curve's box contains
+   the curve, and the box never shrinks as a path is built. Both err
+   large, and a box that errs large only makes this answer no.
+
+   Touching boxes are not rejected: a fill reaching the region's edge
+   may ink the pixels along it. Nor is an empty path or an empty region,
+   whose header box is the sentinel a path is created with and describes
+   nothing. */
+static
+int _clipmisses(Xpost_Context *ctx)
+{
+    Xpost_Object gstate, path, clipregion;
+    char *p;
+    unsigned int used;
+    real sminx, sminy, smaxx, smaxy;
+    real cminx, cminy, cmaxx, cmaxy;
+    int miss = 0;
+
+    gstate = _gstate(ctx);
+    if (xpost_object_get_type(gstate) == invalidtype)
+        return undefined;
+    path = xpost_dict_get(ctx, gstate, namecurrpath);
+    clipregion = xpost_dict_get(ctx, gstate, nameclipregion);
+    if (xpost_object_get_type(path) == stringtype
+            && xpost_object_get_type(clipregion) == stringtype)
+    {
+        if (!_path_extent(ctx, path, &p, &used))
+            return rangecheck;
+        if (used > PATH_HDR)
+        {
+            sminx = _path_get_f32(p, PATH_BBOX(0));
+            sminy = _path_get_f32(p, PATH_BBOX(1));
+            smaxx = _path_get_f32(p, PATH_BBOX(2));
+            smaxy = _path_get_f32(p, PATH_BBOX(3));
+            if (!_path_extent(ctx, clipregion, &p, &used))
+                return rangecheck;
+            if (used > PATH_HDR)
+            {
+                cminx = _path_get_f32(p, PATH_BBOX(0));
+                cminy = _path_get_f32(p, PATH_BBOX(1));
+                cmaxx = _path_get_f32(p, PATH_BBOX(2));
+                cmaxy = _path_get_f32(p, PATH_BBOX(3));
+                /* a box whose low edge is above its high one is the
+                   sentinel, not a box, and answers nothing */
+                if (sminx <= smaxx && sminy <= smaxy
+                        && cminx <= cmaxx && cminy <= cmaxy)
+                    miss = smaxx < cminx || sminx > cmaxx
+                        || smaxy < cminy || sminy > cmaxy;
+            }
+        }
+    }
+
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(miss));
+    return 0;
+}
+
 /* -  .pathisrect  x0 y0 x1 y1 true
                    false
    when the current path is a single axis-aligned rectangle, its
@@ -2427,6 +2497,8 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".clipcuts", (Xpost_Op_Func)_clipcutsop, 0);
     INSTALL;
     op = xpost_operator_cons(ctx, ".cliptrivial", (Xpost_Op_Func)_cliptrivial, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".clipmisses", (Xpost_Op_Func)_clipmisses, 0);
     INSTALL;
 
     op = xpost_operator_cons(ctx, ".fillpolyargs", (Xpost_Op_Func)_fillpolyargs, 0);

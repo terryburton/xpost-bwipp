@@ -197,6 +197,45 @@ wide 0 setgray fill
 DEV /clipcalls get 0 gt (a fill under crossing rectangles asks the device to clip) assert
 DEV /clipagreed get (the crossing-rectangle shape is the region in force) assert
 
+% a fill that cannot reach the region marks nothing, and nothing is
+% written down for it: neither the fill nor the clip it would be read
+% under reaches the device. The polygon route arrives at the same page by
+% resolving the fill against the region and finding no span left, so this
+% is what the two routes have to agree on -- a fill that marks nothing
+% must go on marking nothing, whichever route it takes.
+initgraphics
+20 20 280 280 boxpath clip
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+0 0 10 10 boxpath 0 setgray fill
+DEV /pathfills get 0 eq (a fill clear of the region is not emitted) assert
+DEV /clipcalls get 0 eq (nor is the region written out for it) assert
+
+% touching is not missing: a fill reaching the region's edge may ink the
+% pixels along it, so the rejection is of paths that fall short of the
+% region and not of paths that meet it
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+0 0 20 20 boxpath 0 setgray fill
+DEV /pathfills get 0 gt (a fill meeting the region's edge is emitted) assert
+
+% the region's box is all this asks about, and a box is all a region of
+% any shape cheaply answers. An even-odd annulus encloses nothing at its
+% centre, but its box does: a fill in the hole is inside the box and is
+% emitted, to be cut by the consumer applying the rule it was handed.
+% Rejecting it here would need the region resolved exactly, which is the
+% work handing the shape over is for avoiding.
+initgraphics
+newpath 150 150 100 0 360 arc closepath
+150 150 50 0 360 arc closepath
+eoclip
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+DEV /clipagreed true put
+140 140 160 160 boxpath 0 setgray fill
+DEV /pathfills get 0 gt (a fill inside the region's box is emitted) assert
+DEV /clipcalls get 0 gt (and the region goes with it) assert
+
 % a region covering no pixels: there is no shape to hand over. An empty
 % path is not a clip a consumer can apply -- given one it has nothing to
 % intersect and leaves its own clip as it was, which is the whole page,

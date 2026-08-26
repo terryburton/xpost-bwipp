@@ -30,6 +30,7 @@
 /pathisrect id /.pathisrect get def
 /cliprect   id /.cliprect   get def
 /cliptrivial id /.cliptrivial get def
+/clipmisses id /.clipmisses get def
 /svgfillpath id /.svgfillpath get def
 /pdffillpath id /.pdffillpath get def
 
@@ -118,6 +119,8 @@ cliprect { pop pop pop pop true }{ false } ifelse
 (.cliprect calls a rectangular clip one) assert
 realpath cliptrivial
 (.cliptrivial accepts a path inside its clip) assert
+realpath clipmisses not
+(.clipmisses answers no for a path inside its clip) assert
 realpath currentpoint 2 copy
 100 sub abs 0.01 lt exch 100 sub abs 0.01 lt and 3 1 roll pop pop
 (currentpoint reads a real path) assert
@@ -140,6 +143,12 @@ realpath gs /clipregion bigextent put
 
 realpath gs /clipregion bigextent put
 { cliptrivial } (.cliptrivial refuses an extent past the string) expectrange
+
+realpath gs /currpath bigextent put
+{ clipmisses } (.clipmisses refuses a subject extent past the string) expectrange
+
+realpath gs /clipregion bigextent put
+{ clipmisses } (.clipmisses refuses a region extent past the string) expectrange
 
 realpath gs /currpath bigextent put
 { flattenpath } (flattenpath refuses an extent past the string) expectrange
@@ -169,6 +178,10 @@ realpath gs /currpath bigextent put
 realpath clip
 gs /currpath 4 string put
 { cliptrivial } (.cliptrivial refuses a string shorter than a header) expectrange
+
+realpath
+gs /currpath 4 string put
+{ clipmisses } (.clipmisses refuses a string shorter than a header) expectrange
 
 % --- an offset naming no element --------------------------------------
 % Offset 8 names the element the current point comes from. A coordinate

@@ -349,9 +349,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 %  A device with a FillPath method consumes the whole path itself,
 %  and a vector device then fills with its curves preserved rather
-%  than flattened. That route is open only where the path lies
-%  wholly inside a rectangular clip; any other clip region is cut
+%  than flattened. That route is open where the path lies wholly
+%  inside a rectangular clip, and where the device clips for itself
+%  and is handed the region as a shape; any other clip region is cut
 %  by the polygon machinery, at the cost of flattening.
+%
+%  A path that cannot reach the region marks nothing, and the two
+%  routes reach that page differently. The polygon route resolves the
+%  fill against the region and is left with no span to paint, so the
+%  device is never called. The whole-path route would hand the consumer
+%  a fill and a clip that cancel, and the consumer would carry both to
+%  arrive at the same blank. So the whole-path route asks first, and a
+%  fill with no possible intersection goes no further than here.
 %
 /fill [ ] {  % -  .  -
     //.xpostsys /.colorroute get exec
@@ -361,6 +370,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /nomarks eq { newpath }{
     closepath
     //.devtakespath exec {
+    .clipmisses { flushpage newpath }{
         //.devsendclip exec
         [ //CurrentColorDict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
@@ -369,6 +379,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         pop
         flushpage
         newpath
+    } ifelse
     }{
     flattenpath
 
