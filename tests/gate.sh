@@ -180,6 +180,23 @@ fi
 # Out of the record meson writes at configure time, read through the one
 # reader that knows its shape (tests/meson-tests.sh), which refuses a
 # short answer rather than handing back an empty selection.
+#
+# Regenerated first, because that record is written at configure time and
+# not at test time. A commit that adds a test changes meson.build, and
+# meson rebuilds its record when something asks the build for anything --
+# which, left alone, is the test run itself, after this has already read
+# the record the previous configure left. The selection would then be
+# drawn from a list the new test is not on, the run would pass, and the
+# one test the commit added would be the one test the gate did not run.
+for regen in "$narrow" "$wide"; do
+    [ -n "$regen" ] || continue
+    [ -f "$regen/build.ninja" ] || continue
+    if ! ninja -C "$regen" build.ninja >/dev/null 2>&1; then
+        echo "FAILURES: $regen will not regenerate its build files, so what"
+        echo "      tests it carries cannot be read"
+        exit 1
+    fi
+done
 meson_test_names "$narrow/meson-info/intro-tests.json" "$work/tests.all" \
     || exit 1
 
