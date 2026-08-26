@@ -13,7 +13,8 @@
 # than landing unread. A row is fine when every route to the helper really
 # is that operator, and most of these are: the halftone helpers are reached
 # only under sethalftone, the shading ones only under shfill, the CID ones
-# only under show. Two rows are fine for a different reason: .endpage names
+# only under show, the two masked image types only under image. Two
+rows are fine for a different reason: .endpage names
 # the page-device procedure that returned the wrong type, not its caller,
 # and .upathcheck names uappend because ufill, ueofill and ustroke call the
 # uappend operator itself.
@@ -43,6 +44,8 @@
 .htoptional                 sethalftone
 .htrequire                  sethalftone
 .htvalidate                 sethalftone
+.imagetype3                 image
+.imagetype4                 image
 .meshsh                     shfill
 .mrdflag                    shfill
 .mrdinit                    shfill

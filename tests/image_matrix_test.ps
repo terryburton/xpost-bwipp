@@ -214,6 +214,272 @@
      /MultipleDataSources 7 /DataSource <FF8000> >> image grestore }
   /typecheck (a flag that is not a boolean) raises
 
+% ------------------------------------------------------ the masked types
+%
+% PLRM Tables 4.22 to 4.24: a type 3 dictionary carries a data dictionary
+% and a mask dictionary, and InterleaveType says where the mask's samples
+% travel -- sample by sample in the image's stream, row by row in the
+% image's stream, or in the mask's own DataSource. A mask sample decoding
+% to 1 leaves its pixel unpainted.
+%
+% These cases read the raster, because the question is which pixels the
+% mask kept and nothing weaker answers it: an image under a mask that is
+% ignored raises nothing, paints every pixel, and is a pass to any test
+% that only asks whether the operator returned.
+%
+% The page is eight by four with one image over the whole of it, painted
+% black on white, so a pixel is 0 where the image reached the page and
+% 255 where the mask stopped it.
+
+<< /OutputDevice /pgm /PageSize [8 4] /OutputFile (/dev/null) >> setpagedevice
+
+/black <0000000000000000
+        0000000000000000
+        0000000000000000
+        0000000000000000> def
+
+% the mask rows the cases below share, and the raster they must produce
+/wantrows [ <ff00ff00ff00ff00>
+            <ffff0000ffff0000>
+            <00000000ffffffff>
+            <ffffffff00000000> ] def
+
+/paint {  % { body }  .  -
+    gsave 1 setgray 0 0 8 4 rectfill 0 0 translate 8 4 scale exec grestore
+} bind def
+
+/rasteris {  % [ wanted rows ]  .  bool
+    /want exch def
+    /got DEVICE /ImgData get def
+    got length want length eq {
+        true 0 1 want length 1 sub {
+            /r exch def got r get want r get eq and
+        } for
+    }{ false } ifelse
+} bind def
+
+% --- interleaved by sample (InterleaveType 1) ----------------------------
+%
+% The mask sample carries the image's depth with every bit set to the same
+% value, and PLRM Table 4.22 says a sample that is neither all 0 nor all 1
+% is treated as all 1. So what decides the pixel is whether the sample is
+% zero: the values below run across the range and only the zeros paint.
+
+/il1data <0100000040000000 7f000000ff000000
+          8000c00000000000 fe00010000000000
+          0000000000000000 01007f008000ff00
+          ff00fe0002000300 0000000000000000> def
+
+{ { << /ImageType 3 /InterleaveType 1
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource il1data /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } (a sample-interleaved mask paints) works
+wantrows rasteris
+    (a mask sample is all-0 or all-1, and any other value is all-1) assert
+
+% the same mask read the other way round: Decode [1 0] reverses which
+% samples paint (PLRM Table 4.24)
+{ { << /ImageType 3 /InterleaveType 1
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource il1data /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /Decode [1 0] >> >> image
+    } paint } (a sample-interleaved mask under a reversed Decode paints) works
+[ <00ff00ff00ff00ff> <0000ffff0000ffff>
+  <ffffffff00000000> <00000000ffffffff> ] rasteris
+    (the mask's Decode decides which samples paint) assert
+
+% --- interleaved by row (InterleaveType 2) -------------------------------
+%
+% A stream of interleave blocks, all of one shape, every mask row of a
+% block before every image row of it, each row padded separately to a byte
+% boundary. The heights decide the shape: one is a multiple of the other.
+
+{ { << /ImageType 3 /InterleaveType 2
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource <aa 0000000000000000
+                                 cc 0000000000000000
+                                 0f 0000000000000000
+                                 f0 0000000000000000>
+                    /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } (a row-interleaved mask paints) works
+wantrows rasteris (one mask row to one image row) assert
+
+% two mask rows to one image row. The block's mask rows are equal here,
+% so what is asked is that both of them are read and the image rows are
+% found after them: a reader taking one mask row a block finds the second
+% where the image row should be and paints the rest of the stream a row
+% out of step.
+{ { << /ImageType 3 /InterleaveType 2
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource <aa aa 0000000000000000
+                                 cc cc 0000000000000000
+                                 0f 0f 0000000000000000
+                                 f0 f0 0000000000000000>
+                    /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 8 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -8 0 8] /Decode [0 1] >> >> image
+    } paint } (a taller mask than the image paints) works
+wantrows rasteris (two mask rows to one image row) assert
+
+% one mask row to two image rows: both image rows of the block are masked
+% by it
+{ { << /ImageType 3 /InterleaveType 2
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource <aa 0000000000000000 0000000000000000
+                                 0f 0000000000000000 0000000000000000>
+                    /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 2 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -2 0 2] /Decode [0 1] >> >> image
+    } paint } (a shorter mask than the image paints) works
+[ <ff00ff00ff00ff00> <ff00ff00ff00ff00>
+  <00000000ffffffff> <00000000ffffffff> ] rasteris
+    (one mask row to two image rows) assert
+
+% a mask narrower than the image, its samples spread across the row
+{ { << /ImageType 3 /InterleaveType 2
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource <a0 0000000000000000
+                                 c0 0000000000000000
+                                 30 0000000000000000
+                                 f0 0000000000000000>
+                    /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 1
+                    /ImageMatrix [4 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } (a narrower mask than the image paints) works
+[ <ffff0000ffff0000> <ffffffff00000000>
+  <00000000ffffffff> <ffffffffffffffff> ] rasteris
+    (a mask sample covers the image samples it spans) assert
+
+% --- separate sources (InterleaveType 3) ---------------------------------
+
+{ { << /ImageType 3 /InterleaveType 3
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource black /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -4 0 4]
+                    /DataSource <aa cc 0f f0> /Decode [0 1] >> >> image
+    } paint } (a mask from its own source paints) works
+wantrows rasteris (a separate mask source is read on its own grid) assert
+
+% --- colour key masking (ImageType 4) ------------------------------------
+%
+% PLRM Table 4.25: MaskColor names the colour to mask, exactly with one
+% value a component or as a range with two, and the comparison is made on
+% the sample as read, before Decode.
+
+/ramp <0010203040506070
+       0010203040506070
+       0010203040506070
+       0010203040506070> def
+
+{ { << /ImageType 4 /MaskColor [0]
+       /Width 8 /Height 4 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource ramp /Decode [0 1] >> image
+    } paint } (an exact mask colour paints) works
+DEVICE /ImgData get 0 get 0 get 255 eq
+    (the sample matching the mask colour exactly is not painted) assert
+DEVICE /ImgData get 0 get 1 get 255 ne
+    (a sample that does not match it is painted) assert
+
+{ { << /ImageType 4 /MaskColor [16 48]
+       /Width 8 /Height 4 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource ramp /Decode [0 1] >> image
+    } paint } (a mask colour range paints) works
+DEVICE /ImgData get 0 get 0 get 255 ne
+    (a sample below the range is painted) assert
+true 1 1 3 { DEVICE /ImgData get 0 get exch get 255 eq and } for
+    (every sample within the range is masked out) assert
+DEVICE /ImgData get 0 get 4 get 255 ne
+    (a sample above the range is painted) assert
+
+% the comparison is on the sample as read, so a Decode that reverses the
+% samples masks the same pixels
+{ { << /ImageType 4 /MaskColor [16 48]
+       /Width 8 /Height 4 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource ramp /Decode [1 0] >> image
+    } paint } (a mask colour range under a reversed Decode paints) works
+true 1 1 3 { DEVICE /ImgData get 0 get exch get 255 eq and } for
+    (MaskColor is compared before Decode) assert
+
+% --- what the three dictionaries are held to ----------------------------
+%
+% PLRM 4.10.6: "any inconsistency among the three dictionaries or
+% violation of the stated restrictions will result in a typecheck error".
+% A description that breaks one of them is refused rather than painted,
+% because painting it reads a stream laid out one way as though it were
+% laid out another -- which does not fail, it paints a page from samples
+% that were never there.
+
+/dd8 << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+        /ImageMatrix [8 0 0 -4 0 4] /DataSource black /Decode [0 1] >> def
+/md1 << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 1
+        /ImageMatrix [8 0 0 -4 0 4] /DataSource <aa cc 0f f0>
+        /Decode [0 1] >> def
+
+{ { << /ImageType 3 /InterleaveType 5 /DataDict dd8 /MaskDict md1 >> image
+    } paint } /rangecheck (an interleave type the table does not define) raises
+
+{ { << /ImageType 3 /InterleaveType 3
+       /DataDict << /ImageType 2 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /DataSource black
+                    /Decode [0 1] >>
+       /MaskDict md1 >> image
+    } paint } /rangecheck (a data dictionary that is not type 1) raises
+
+{ { << /ImageType 3 /InterleaveType 3 /DataDict dd8
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /DataSource black
+                    /Decode [0 1] >> >> image
+    } paint } /typecheck (a separate mask deeper than one bit) raises
+
+{ { << /ImageType 3 /InterleaveType 1 /DataDict dd8
+       /MaskDict << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [4 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } /typecheck (a sample-interleaved mask on another grid) raises
+
+{ { << /ImageType 3 /InterleaveType 1 /DataDict dd8
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } /typecheck (a sample-interleaved mask at another depth) raises
+
+{ { << /ImageType 3 /InterleaveType 2
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /DataSource black
+                    /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 3 /BitsPerComponent 1
+                    /ImageMatrix [8 0 0 -3 0 3] /Decode [0 1] >> >> image
+    } paint } /typecheck (heights neither of which divides the other) raises
+
+{ { << /ImageType 3 /InterleaveType 1
+       /DataDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /MultipleDataSources true
+                    /DataSource [ black ] /Decode [0 1] >>
+       /MaskDict << /ImageType 1 /Width 8 /Height 4 /BitsPerComponent 8
+                    /ImageMatrix [8 0 0 -4 0 4] /Decode [0 1] >> >> image
+    } paint } /typecheck (a mask in a stream the image does not have) raises
+
+{ { << /ImageType 4 /MaskColor [1 2 3]
+       /Width 8 /Height 4 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource black /Decode [0 1] >> image
+    } paint } /rangecheck (a mask colour of neither length) raises
+
+{ { << /ImageType 4 /MaskColor [300]
+       /Width 8 /Height 4 /BitsPerComponent 8
+       /ImageMatrix [8 0 0 -4 0 4] /DataSource black /Decode [0 1] >> image
+    } paint } /rangecheck (a mask colour outside the sample range) raises
+
 (imatrix.scratch) status { pop pop pop pop
     (imatrix.scratch) deletefile } if
 verdict

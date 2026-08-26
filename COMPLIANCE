@@ -79,7 +79,17 @@ Level 2 operators
      smooths the samples of any shape on the direct raster path,
      while a mask still decides each pixel by its nearest sample;
      MultipleDataSources is held to the DataSource it describes, so a
-     dictionary disagreeing with itself is refused)
+     dictionary disagreeing with itself is refused.
+     An explicit mask is read onto the image's grid, so a mask carrying
+     more samples than the image does -- more rows under InterleaveType
+     2, or either dimension under InterleaveType 3 -- keeps only the
+     sample nearest each image sample, and detail finer than one image
+     sample is not painted.
+     A violated restriction among the three dictionaries is a typecheck
+     as PLRM 4.10.6 states, and an interleave type or a MaskColor the
+     tables do not define is a rangecheck. A mask dictionary carrying a
+     DataSource the interleave type gives it no use for is accepted and
+     its entry ignored, where PLRM 4.10.6 would have it refused)
  [X] setblackgeneration (recorded only)
  [X] setundercolorremoval (recorded only)
  [X] setcolorrendering (the dictionary is the conversion a CIE-based
