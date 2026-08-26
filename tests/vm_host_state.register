@@ -21,16 +21,20 @@
 #             resolve to nothing -- which it does safely, since a handle
 #             is checked back against the entity it was read from.
 #
-# The operator table is the whole of the rebuilt kind. An operator object
-# carries the opcode of its table row, so rebuilding the table is not
-# enough on its own: the rows must come out in the order the memory file
-# was written with, and a reader must hold them to the operator names the
-# memory file carries. Getting that wrong raises nothing -- it dispatches
-# to the wrong operator.
+# Nothing is of the rebuilt kind any more. The operator table was, and it
+# is no longer in virtual memory at all: a signature carries the C
+# function implementing an operator and the one checking its operands,
+# and those were the only host addresses the arena held. The table is the
+# memory file's own storage now, so an image neither scrubs them on the
+# way out nor puts them back on the way in.
+#
+# What still has to be held is the ORDER of the rows, and that has not
+# changed: an operator object carries the opcode of its table row, so a
+# reader must hold its own table to the operator names the image carries.
+# Getting that wrong raises nothing -- it dispatches to the wrong
+# operator.
 #
 # where it is                              kind      what it names
-xpost_operator.h:Xpost_Signature.fp        rebuilt   the C function implementing an operator
-xpost_operator.h:Xpost_Signature.checkstack rebuilt  the C function checking one signature's operands
 xpost_handle.h:XPOST_HANDLE_DEVICE         handle    a device's instance state
 xpost_handle.h:XPOST_HANDLE_CONTENT        handle    a vector writer's accumulated content
 xpost_handle.h:XPOST_HANDLE_FONT           handle    the face a font program was opened as

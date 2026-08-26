@@ -134,6 +134,14 @@ enum typepat
  */
 int xpost_operator_init_optab(Xpost_Context *ctx);
 
+/* Fill a row of the table from an image rather than by installing an
+   operator: room for its shapes, then each shape's operand types. */
+int xpost_operator_take_signatures(Xpost_Memory_File *gl, unsigned int k,
+                                   unsigned int n);
+int xpost_operator_set_signature(Xpost_Memory_File *gl, unsigned int k,
+                                 unsigned int si, unsigned int in,
+                                 const unsigned char *types);
+
 /**
  * @brief output a text dump of the operator contents
  */
@@ -241,7 +249,7 @@ void xpost_operator_set_count(unsigned int count);
 static inline Xpost_Operator *
 xpost_operator_table(Xpost_Memory_File *gl)
 {
-    return (Xpost_Operator *)xpost_vm_ptr(gl, xpost_memory_operator_table_adr(gl));
+    return (Xpost_Operator *)(void *)gl->optab;
 }
 
 /**

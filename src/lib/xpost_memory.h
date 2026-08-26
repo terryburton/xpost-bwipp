@@ -75,8 +75,7 @@ typedef enum
     XPOST_MEMORY_TABLE_SPECIAL_CONTEXT_LIST,
     XPOST_MEMORY_TABLE_SPECIAL_NAME_STACK,
     XPOST_MEMORY_TABLE_SPECIAL_NAME_TREE,
-    XPOST_MEMORY_TABLE_SPECIAL_BOGUS_NAME,
-    XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE
+    XPOST_MEMORY_TABLE_SPECIAL_BOGUS_NAME
 } Xpost_Memory_Table_Special;
 
 /**
@@ -84,13 +83,13 @@ typedef enum
  * @brief The first entity the collector owns, per memory file.
  *
  * The special entities are roots, not garbage: the collector's domain
- * begins one past the last of them. Global memory holds them all; local
- * memory has no operator table, so its domain begins one slot earlier.
- * Derived from the enumerators above so the two cannot drift.
+ * begins one past the last of them. Both banks hold the same ones, so
+ * both domains begin at the same slot. Derived from the enumerators
+ * above so the two cannot drift.
  */
 typedef enum
 {
-    XPOST_MEMORY_COLLECT_START_GLOBAL = XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE + 1,
+    XPOST_MEMORY_COLLECT_START_GLOBAL = XPOST_MEMORY_TABLE_SPECIAL_BOGUS_NAME + 1,
     XPOST_MEMORY_COLLECT_START_LOCAL = XPOST_MEMORY_TABLE_SPECIAL_BOGUS_NAME + 1
 } Xpost_Memory_Collect_Start;
 
@@ -228,6 +227,25 @@ typedef struct Xpost_Memory_File
 
     unsigned int start; /**< first 'live' entry in the memory_table. */
         /* the domain of the collector is entries >= start */
+
+    /* The operator table, and the runs of signatures it points at.
+       Global memory only; the local bank leaves it null.
+
+       It is host storage and not an entity of the arena, because it is
+       the one thing that would hold host addresses there: a signature
+       keeps the C function implementing it and the one checking its
+       operands. Everything else in the arena is an entity number or an
+       offset, which is what lets the arena be compacted, handed back to
+       the operating system and written out as an image. Keeping the
+       table outside it means that statement has no exception, and an
+       image needs neither to scrub those addresses on the way out nor
+       to put them back on the way in.
+
+       A row names its run of signatures by an offset from optab rather
+       than by a pointer, so growing the block moves nothing that names
+       what is in it. */
+    unsigned char *optab;
+    unsigned int optab_max; /**< bytes optab points at */
 
     unsigned int free_substack; /**< one recycled save-record substack, or 0.
                                      Save-record stacks are raw file allocations,
@@ -693,45 +711,6 @@ xpost_memory_set_name_tree(Xpost_Memory_File *mem,
 {
     mem->table.tab[XPOST_MEMORY_TABLE_SPECIAL_NAME_TREE].adr = adr;
     mem->table.tab[XPOST_MEMORY_TABLE_SPECIAL_NAME_TREE].sz = sz;
-}
-
-/**
- * @brief address of the operator table (xpost_operator_init_optab).
- *
- * Global memory only: local memory has no operator table.
- */
-static inline unsigned int
-xpost_memory_operator_table_adr(Xpost_Memory_File *mem)
-{
-    return mem->table.tab[XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE].adr;
-}
-
-/**
- * @brief bytes the operator table's entity holds.
- *
- * The rows come first and what they point at follows them, so the entity
- * is larger than the rows and grows as operators are installed.
- */
-static inline unsigned int
-xpost_memory_operator_table_size(Xpost_Memory_File *mem)
-{
-    return mem->table.tab[XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE].sz;
-}
-
-/**
- * @brief give the operator table different storage.
- *
- * Its entity number is fixed, so what is replaced is the storage under
- * that row. Everything the rows point at is an offset from the start of
- * that storage, so none of it is disturbed by the move.
- */
-static inline void
-xpost_memory_set_operator_table(Xpost_Memory_File *mem,
-                                unsigned int adr,
-                                unsigned int sz)
-{
-    mem->table.tab[XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE].adr = adr;
-    mem->table.tab[XPOST_MEMORY_TABLE_SPECIAL_OPERATOR_TABLE].sz = sz;
 }
 
 /**
