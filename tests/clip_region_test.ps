@@ -211,30 +211,94 @@ DEV /pathfills 0 put
 DEV /pathfills get 0 eq (a fill clear of the region is not emitted) assert
 DEV /clipcalls get 0 eq (nor is the region written out for it) assert
 
-% touching is not missing: a fill reaching the region's edge may ink the
-% pixels along it, so the rejection is of paths that fall short of the
-% region and not of paths that meet it
+% the question is about pixels, not about geometry. A painting covers
+% the pixels its region reaches and a clip the pixels its own region
+% reaches, and what is marked is the pixels the two share (PLRM 7.5.1).
+% Two shapes meeting along a pixel boundary reach no common pixel: the
+% columns a shape reaches run from the floor of its left edge up to but
+% not including the ceiling of its right, so a fill ending where the
+% region begins ends one column short of it.
 DEV /clipcalls 0 put
 DEV /pathfills 0 put
 0 0 20 20 boxpath 0 setgray fill
-DEV /pathfills get 0 gt (a fill meeting the region's edge is emitted) assert
+DEV /pathfills get 0 eq
+(a fill meeting the region's edge on a pixel boundary is not emitted)
+assert
 
-% the region's box is all this asks about, and a box is all a region of
-% any shape cheaply answers. An even-odd annulus encloses nothing at its
-% centre, but its box does: a fill in the hole is inside the box and is
-% emitted, to be cut by the consumer applying the rule it was handed.
-% Rejecting it here would need the region resolved exactly, which is the
-% work handing the shape over is for avoiding.
+% and two that fall short of each other inside one pixel do share it,
+% and are emitted. The fill below stops half a pixel before the region
+% starts and the two have no point in common, but the column they both
+% reach into is one column and a fill of either paints it.
+initgraphics
+19.5 19.5 280 280 boxpath clip
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+0 0 19.5 19.5 boxpath 0 setgray fill
+DEV /pathfills get 0 gt
+(a fill sharing a pixel with the region is emitted) assert
+
+% the same question where the region has been resolved to pixel-band
+% rectangles, which is where a geometric answer goes wrong. The region
+% below starts a tenth of a pixel inside the column the fill ends in, so
+% the two are clear of each other on the page and share a column all the
+% same -- and a fill of either paints it.
+initgraphics
+19.9 19.9 280 280 boxpath eoclip
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+0 0 19.5 19.5 boxpath 0 setgray fill
+DEV /pathfills get 0 gt
+(a fill sharing a pixel with a resolved region is emitted) assert
+
+% a region that is not its own box answers for itself. An even-odd
+% annulus encloses nothing at its centre, and a fill in the hole is
+% inside the region's box and outside the region: it marks nothing and
+% is dropped. The region is resolved to pixel-band rectangles here, so
+% what the question meets is hundreds of them and not one outline.
 initgraphics
 newpath 150 150 100 0 360 arc closepath
 150 150 50 0 360 arc closepath
 eoclip
 DEV /clipcalls 0 put
 DEV /pathfills 0 put
-DEV /clipagreed true put
 140 140 160 160 boxpath 0 setgray fill
-DEV /pathfills get 0 gt (a fill inside the region's box is emitted) assert
+DEV /pathfills get 0 eq (a fill in an annulus hole is not emitted) assert
+DEV /clipcalls get 0 eq (nor is the annulus written out for it) assert
+
+% and a fill in the ring itself is emitted, which is what holds the
+% rejection honest: a walk that answered no for everything would pass
+% the case above and blank the page
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+DEV /clipagreed true put
+60 145 90 155 boxpath 0 setgray fill
+DEV /pathfills get 0 gt (a fill in the annulus ring is emitted) assert
 DEV /clipcalls get 0 gt (and the region goes with it) assert
+
+% the notch of an L is the same question about a region that is a single
+% outline rather than a run of rectangles: inside the box, outside the
+% region, and marking nothing
+initgraphics
+newpath 20 20 moveto 280 20 lineto 280 150 lineto 150 150 lineto
+150 280 lineto 20 280 lineto closepath clip
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+200 200 260 260 boxpath 0 setgray fill
+DEV /pathfills get 0 eq (a fill in an L's notch is not emitted) assert
+DEV /clipcalls get 0 eq (nor is the L written out for it) assert
+
+% a fill inside the L's arm is emitted, as is one straddling its inner
+% corner: what the region does not enclose is dropped and what it may
+% ink is not
+DEV /clipcalls 0 put
+DEV /pathfills 0 put
+DEV /clipagreed true put
+40 40 100 100 boxpath 0 setgray fill
+DEV /pathfills get 0 gt (a fill inside the L is emitted) assert
+DEV /pathfills 0 put
+120 120 200 200 boxpath 0 setgray fill
+DEV /pathfills get 0 gt
+(a fill straddling the L's corner is emitted) assert
 
 % a region covering no pixels: there is no shape to hand over. An empty
 % path is not a clip a consumer can apply -- given one it has nothing to

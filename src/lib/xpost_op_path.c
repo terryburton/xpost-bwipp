@@ -1319,27 +1319,286 @@ int _cliptrivial(Xpost_Context *ctx)
     return 0;
 }
 
+/* Whether a segment meets a closed axis-aligned box, exactly. The box
+   and the segment are both convex, so they miss only if a line
+   separates them, and only four lines can be that separator: the box's
+   own two axes, and the segment's own. The first two are the extent
+   tests, the third is the sign of the cross product at each corner --
+   corners on both sides of the segment's line, or one on it, and the
+   two meet. */
+static
+int _seg_meets_box(real x0, real y0, real x1, real y1,
+                   real bx0, real by0, real bx1, real by1)
+{
+    real bx[4], by[4];
+    real dx, dy;
+    int above = 0, below = 0;
+    int k;
+
+    if ((x0 < bx0 && x1 < bx0) || (x0 > bx1 && x1 > bx1))
+        return 0;
+    if ((y0 < by0 && y1 < by0) || (y0 > by1 && y1 > by1))
+        return 0;
+    dx = x1 - x0;
+    dy = y1 - y0;
+    bx[0] = bx0; by[0] = by0;
+    bx[1] = bx1; by[1] = by0;
+    bx[2] = bx1; by[2] = by1;
+    bx[3] = bx0; by[3] = by1;
+    for (k = 0; k < 4; k++)
+    {
+        real s = dx * (by[k] - y0) - dy * (bx[k] - x0);
+
+        if (s > 0) above = 1;
+        else if (s < 0) below = 1;
+        else return 1;      /* a corner on the line, within both extents */
+        if (above && below)
+            return 1;
+    }
+    return 0;
+}
+
+/* The winding a segment contributes about a point, by the crossings of
+   the ray running right from it. A segment whose ends straddle the
+   point's row crosses that ray on one side or the other, and which side
+   is the sign of the cross product. The point is never on a segment
+   where this is used, so no crossing is ambiguous. */
+static
+int _seg_winds(real x0, real y0, real x1, real y1, real px, real py)
+{
+    if (y0 <= py)
+    {
+        if (y1 > py && (x1 - x0) * (py - y0) - (px - x0) * (y1 - y0) > 0)
+            return 1;
+    }
+    else
+    {
+        if (y1 <= py && (x1 - x0) * (py - y0) - (px - x0) * (y1 - y0) < 0)
+            return -1;
+    }
+    return 0;
+}
+
+/* Whether an axis-aligned rectangle subpath begins at an offset, and if
+   one does whether it reaches into a box: 1 when it does, 0 when it is
+   clear of the box, -1 when the subpath is not such a rectangle. The
+   offset the next subpath begins at comes back in *next when the answer
+   is not -1.
+
+   A rectangle is four corners -- a move and three lines -- with every
+   side, the closing one included, parallel to an axis, and then the
+   next subpath's move or the end of the path, with at most a close
+   between. A close repeats the start point and carries no corner of its
+   own, and it does not end a subpath: anything after one but a move
+   belongs to the same subpath, which is then no rectangle. The four
+   corner elements are all of one width, so where the extent holds four
+   of them it holds all four, and they are read at offsets arrived at by
+   arithmetic rather than by walking.
+
+   The regions this is asked about are mostly built of these: a region
+   cut from another arrives as one pixel-band rectangle per band it
+   covers, hundreds of them on a page, and a rectangle answers about a
+   box in four comparisons where a walk of its four sides answers in
+   four separating-axis tests and four winding steps. */
+static
+int _rect_subpath_meets(const char *p, unsigned int used, unsigned int o,
+                        real bx0, real by0, real bx1, real by1,
+                        unsigned int *next)
+{
+    const unsigned int esz = 1 + 2 * (unsigned int)sizeof(real);
+    real px[4], py[4];
+    real rx0, ry0, rx1, ry1;
+    unsigned int q;
+    int j;
+
+    if (used - o < 4 * esz)
+        return -1;
+    if (PATH_CMD(p, o) != PATH_CMD_MOVE
+            || PATH_CMD(p, o + esz) != PATH_CMD_LINE
+            || PATH_CMD(p, o + 2 * esz) != PATH_CMD_LINE
+            || PATH_CMD(p, o + 3 * esz) != PATH_CMD_LINE)
+        return -1;
+    for (j = 0; j < 4; j++)
+    {
+        real co[2];
+
+        _path_get_coords(p, o + (unsigned int)j * esz, co, 2);
+        px[j] = co[0];
+        py[j] = co[1];
+    }
+    for (j = 0; j < 4; j++)
+    {
+        int k = (j + 1) & 3;
+
+        if (px[j] != px[k] && py[j] != py[k])
+            return -1;
+    }
+    q = o + 4 * esz;
+    if (q < used && PATH_CMD(p, q) == PATH_CMD_CLOSE)
+    {
+        if (esz > used - q)
+            return -1;
+        q += esz;
+    }
+    /* a subpath runs to the next move and no closer: a close in the
+       middle of one repeats its start point and leaves the subpath
+       open, and what follows belongs to it. Four corners with nothing
+       after them but the next subpath is a rectangle here; four with
+       anything else after them is part of a larger figure. */
+    if (q < used && PATH_CMD(p, q) != PATH_CMD_MOVE)
+        return -1;
+    rx0 = rx1 = px[0];
+    ry0 = ry1 = py[0];
+    for (j = 1; j < 4; j++)
+    {
+        if (px[j] < rx0) rx0 = px[j];
+        if (px[j] > rx1) rx1 = px[j];
+        if (py[j] < ry0) ry0 = py[j];
+        if (py[j] > ry1) ry1 = py[j];
+    }
+    *next = q;
+    return rx0 <= bx1 && rx1 >= bx0 && ry0 <= by1 && ry1 >= by0;
+}
+
+/* Whether an axis-aligned box meets the nonzero interior of a path:
+   1 when it does, 0 when it does not, -1 when this cannot say -- a
+   curve, or an element the extent does not hold.
+
+   Two questions in one walk. If any segment of the path meets the box
+   the two overlap and the answer is yes at once. If none does, the box
+   lies wholly inside one face of the path and every point of it winds
+   alike, so one corner answers for the box: a nonzero winding puts the
+   box inside the path, a zero winding outside it.
+
+   A rectangle subpath is settled without either. Its interior is its
+   own box, so a rectangle the box reaches into is an answer of yes; and
+   one clear of the box holds no point of the box, so the corner the
+   winding is taken at lies outside it and it winds about that corner
+   not at all. Neither answer needs its sides walked.
+
+   Each remaining subpath closes as a fill closes it, back to the point
+   it was opened at, whether or not a close element says so, and a close
+   element is that point again rather than the coordinates it carries. A
+   curve is refused rather than approximated: the control hull contains
+   the curve but winds differently from it, and a walk that read the
+   hull's segments would answer about a shape the path is not. */
+static
+int _box_meets_path(const char *p, unsigned int used,
+                    real bx0, real by0, real bx1, real by1)
+{
+    unsigned int o = PATH_HDR;
+    int wind = 0;
+
+    while (o < used)
+    {
+        real cx = 0, cy = 0, sx = 0, sy = 0;
+        unsigned int next;
+        int started = 0;
+        int rect;
+
+        rect = _rect_subpath_meets(p, used, o, bx0, by0, bx1, by1, &next);
+        if (rect >= 0)
+        {
+            if (rect)
+                return 1;
+            o = next;
+            continue;
+        }
+        while (o < used)
+        {
+            int cmd = PATH_CMD(p, o);
+            unsigned int esz;
+            real co[2];
+
+            if (cmd > PATH_CMD_CLOSE)
+                return -1;
+            esz = _path_elem_size(cmd);
+            if (esz > used - o)
+                return -1;
+            if (cmd == PATH_CMD_CURVE)
+                return -1;
+            if (cmd == PATH_CMD_MOVE && started)
+                break;
+            if (cmd == PATH_CMD_CLOSE)
+            {
+                /* a close is the subpath's start point again, whatever
+                   its own coordinates say, which is how the walk that
+                   hands a path to a fill reads one */
+                if (!started)
+                {
+                    o += esz;
+                    continue;
+                }
+                co[0] = sx;
+                co[1] = sy;
+            }
+            else
+                _path_get_coords(p, o, co, 2);
+            if (!started)
+            {
+                sx = cx = co[0];
+                sy = cy = co[1];
+                started = 1;
+            }
+            else
+            {
+                if (_seg_meets_box(cx, cy, co[0], co[1], bx0, by0, bx1, by1))
+                    return 1;
+                wind += _seg_winds(cx, cy, co[0], co[1], bx0, by0);
+                cx = co[0];
+                cy = co[1];
+            }
+            o += esz;
+        }
+        if (!started)   /* an element the walk could not advance past */
+            return -1;
+        if (cx != sx || cy != sy)
+        {
+            if (_seg_meets_box(cx, cy, sx, sy, bx0, by0, bx1, by1))
+                return 1;
+            wind += _seg_winds(cx, cy, sx, sy, bx0, by0);
+        }
+    }
+    return wind != 0;
+}
+
 /* clip trivial-reject test.
-   Push true when the current path cannot reach the clip region at all:
-   the box the path's own points span and the box the region's span do
-   not meet, so no part of the path's interior lies inside the region
-   and a fill of it would mark nothing. Push false in every uncertain
-   case, so what is not rejected here travels the route it would have
-   travelled anyway.
+   Push true when a fill of the current path can mark no pixel at all
+   under the clip region in force, so that the paint may be dropped
+   where it stands. Push false in every uncertain case, so what is not
+   rejected here travels the route it would have travelled anyway: this
+   rejects, it does not decide, and a wrong yes is a blank on someone's
+   page where a wrong no is only a fill written out that the consumer
+   then clips away.
 
-   A box is the only cheap thing to ask a region of any shape, and a box
-   is all this asks: a path outside the region's box is certainly
-   outside the region, while a path inside that box may still be outside
-   the region and is not rejected. This rejects, it does not decide.
+   The question is asked about pixels and not about geometry, because
+   pixels are what a painting marks. PLRM 7.5.1 has the region a
+   painting covers scan-converted to whole pixels, and the region a clip
+   describes likewise, and the painting marks the pixels the two share.
+   So each operand is taken out to the pixels it reaches -- the columns
+   from the floor of a left edge up to but not including the ceiling of
+   a right one, and the rows likewise -- and two paints that share no
+   such pixel cannot mark together. Two shapes that meet along an edge
+   at a pixel boundary reach no common pixel and are rejected here; two
+   that fall short of each other inside one pixel do share it, and are
+   not.
 
-   Both boxes are the ones the path headers carry, which bound the
-   stored points -- curve controls included, so a curve's box contains
-   the curve, and the box never shrinks as a path is built. Both err
-   large, and a box that errs large only makes this answer no.
+   The path's box comes from its header, which bounds the stored points
+   -- curve controls included, so a curve's box contains the curve --
+   and errs large, which can only make this answer no.
 
-   Touching boxes are not rejected: a fill reaching the region's edge
-   may ink the pixels along it. Nor is an empty path or an empty region,
-   whose header box is the sentinel a path is created with and describes
+   Where the boxes do share pixels the region's own shape is asked, and
+   this is where a region that is not its own box answers for itself:
+   the hole of an even-odd annulus, or the notch of an L, is inside the
+   box and outside the region, and a fill there marks nothing. The box
+   handed to that question is the pixels the fill reaches grown by one
+   more all round, which is what makes a geometric question about the
+   region answer a question about pixels: a pixel the fill reaches and
+   the region's scan conversion paints has the region's own outline or
+   interior within a pixel of it.
+
+   An empty path and an empty region are both left alone, their header
+   boxes being the sentinel a path is created with, which describes
    nothing. */
 static
 int _clipmisses(Xpost_Context *ctx)
@@ -1379,8 +1638,21 @@ int _clipmisses(Xpost_Context *ctx)
                    sentinel, not a box, and answers nothing */
                 if (sminx <= smaxx && sminy <= smaxy
                         && cminx <= cmaxx && cminy <= cmaxy)
-                    miss = smaxx < cminx || sminx > cmaxx
-                        || smaxy < cminy || sminy > cmaxy;
+                {
+                    /* the pixels each box reaches, as the half-open
+                       real intervals those whole pixels span */
+                    real sx0 = (real)floor(sminx), sx1 = (real)ceil(smaxx);
+                    real sy0 = (real)floor(sminy), sy1 = (real)ceil(smaxy);
+                    real cx0 = (real)floor(cminx), cx1 = (real)ceil(cmaxx);
+                    real cy0 = (real)floor(cminy), cy1 = (real)ceil(cmaxy);
+
+                    if (sx1 <= cx0 || sx0 >= cx1
+                            || sy1 <= cy0 || sy0 >= cy1)
+                        miss = 1;
+                    else if (_box_meets_path(p, used, sx0 - 1, sy0 - 1,
+                                             sx1 + 1, sy1 + 1) == 0)
+                        miss = 1;
+                }
             }
         }
     }
