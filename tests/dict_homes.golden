@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 409
+entries 410
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -142,6 +142,7 @@ entries 409
 .xpostsys /.crdtable
 .xpostsys /.cierender
 .xpostsys /.armdevrequest
+.xpostsys /.checkpagegeometry
 .xpostsys /.checkpagepolicies
 .xpostsys /.classcopydict
 .xpostsys /.clipbig

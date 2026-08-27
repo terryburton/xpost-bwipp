@@ -70,6 +70,68 @@ indexed?
    is its own question\n) print flush
 } ifelse
 
+% ---- the shape a page's geometry is stated in
+
+% PLRM 6.2 Table 6.1 gives PageSize, HWResolution and PageOffset as two
+% numbers each and ImagingBBox as four or null. A value of another shape
+% is not a page this interpreter can make: read where the page is set up
+% it is indexed rather than refused -- a string indexes as the bytes it
+% holds -- so a request naming a page of (abc) would be a page of 97 by
+% 98 points reported back as the page that was asked for. Each is refused
+% as the request is offered, before anything of the page is built, and
+% names the entry it could not take in $error (PLRM 3.11).
+
+/shaperr null def
+/sbase 0 def
+/refusal {                              % key value  .  name|null
+    /shaperr null store
+    1 dict dup 4 2 roll put             % dict
+    count 1 sub /sbase exch store
+    { setpagedevice } stopped
+    { /shaperr $error /errorname get store } if
+    % the request is the program's and a refusal may leave it standing:
+    % come back to the depth the call was made at rather than clearing,
+    % which would take the verdict with it
+    count sbase sub dup 0 gt { { pop } repeat }{ pop } ifelse
+    shaperr
+} bind def
+/infoat {                               % index  .  any|null
+    $error /errorinfo get dup type /arraytype ne { pop pop null }{
+        exch 2 copy exch length lt { get }{ pop pop null } ifelse
+    } ifelse
+} bind def
+
+/PageSize (abc) refusal /typecheck eq
+    (a page size that is not an array is refused) assert
+/PageSize [612 792 1] refusal /typecheck eq
+    (a page size of three numbers is refused) assert
+/PageSize [612] refusal /typecheck eq
+    (a page size of one number is refused) assert
+/PageSize [612 (x)] refusal /typecheck eq
+    (a page size whose element is not a number is refused) assert
+0 infoat /PageSize eq
+    (the refusal names the entry it could not take) assert
+/HWResolution [72 72 72] refusal /typecheck eq
+    (a resolution of three numbers is refused) assert
+/PageOffset [0 0 0] refusal /typecheck eq
+    (a page offset of three numbers is refused) assert
+/ImagingBBox [0 0 100] refusal /typecheck eq
+    (an imaging box of three numbers is refused) assert
+
+% and the shapes the specification does give are taken
+/PageSize [612 792] refusal null eq
+    (a page size of two numbers is accepted) assert
+/PageSize [612.5 792.25] refusal null eq
+    (a page size of two reals is accepted) assert
+/HWResolution [72 72] refusal null eq
+    (a resolution of two numbers is accepted) assert
+/PageOffset [0 0] refusal null eq
+    (a page offset of two numbers is accepted) assert
+/ImagingBBox [0 0 100 100] refusal null eq
+    (an imaging box of four numbers is accepted) assert
+/ImagingBBox null refusal null eq
+    (an imaging box of null is accepted) assert
+
 % The interpreter carries on. This is asked of every device, whatever it
 % made of the page above: a device that refused it spent nothing, a
 % device that priced it refused before building any of it, and a device

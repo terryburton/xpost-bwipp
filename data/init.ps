@@ -2766,6 +2766,15 @@ currentglobal true setglobal
                 % still be told about it.
                 dup //.xpostsys /.checkpagefeatures get exec pop
 
+                % And the page geometry, held to the shape PLRM 6.2
+                % Table 6.1 gives it: two numbers each for PageSize,
+                % HWResolution and PageOffset, four or null for
+                % ImagingBBox. The arithmetic below indexes whatever it
+                % is handed, so a value of another shape read there is a
+                % page nobody asked for rather than a request that could
+                % be answered.
+                dup //.xpostsys /.checkpagegeometry get exec pop
+
                 % And the recovery policies the request revises, held to the
                 % codes PLRM 6.2.7 defines for them. A policy is consulted
                 % only where something else could not be met, so a misspelled

@@ -965,6 +965,55 @@ end } bind put
 } put
 
 %
+%  The page geometry a request may state, refused as it is offered where
+%  it is not the shape PLRM 6.2 Table 6.1 gives it. PageSize is the width
+%  and height of the page, HWResolution the device resolution across and
+%  down it, and PageOffset the shift of the page image on the medium:
+%  each of the three is two numbers. ImagingBBox is four -- the corners
+%  of the region the program says it paints within -- or null, which
+%  claims nothing and holds the whole page.
+%
+%  Read here rather than where the page is set up, for the reason the
+%  handler and feature checks above are read here: the machinery indexes
+%  what it is handed, and a value of the wrong shape indexes without
+%  complaining. An array of three numbers gives up its first two and
+%  throws the rest away, and a string gives up the bytes it holds as
+%  numbers -- so a request naming a page of (abc), read that late, is a
+%  page of 97 by 98 points reported back as the page the program asked
+%  for. A bounding box of the wrong shape reads as no box at all, which
+%  leaves a program that meant to say where its marks fall told nothing
+%  about having failed to say it.
+%
+%  The entry refused is named in $error, as every entry a page-device
+%  request is refused over is.
+%
+.xpostsys /.checkpagegeometry {  % dict  .  dict
+    << /PageSize 2 /HWResolution 2 /PageOffset 2 /ImagingBBox 4 >> {
+                                        % dict key count
+        2 index 2 index known {
+            2 index 2 index get         % dict key count value
+            % ImagingBBox alone may be null: a program with nothing to
+            % say about where its marks fall says so that way.
+            dup null eq { 1 index 4 eq }{ false } ifelse
+            { pop }{
+                dup type dup /arraytype eq exch /packedarraytype eq or
+                { dup length 2 index eq }{ false } ifelse
+                { true 1 index
+                  { type dup /integertype eq exch /realtype eq or and } forall }
+                { false } ifelse
+                not {                   % dict key count value
+                    2 index exch        % dict key count key value
+                    //.setpageinfo exec
+                    /setpagedevice cvx /typecheck signalerror
+                } if
+                pop
+            } ifelse
+        } if
+        pop pop
+    } forall
+} put
+
+%
 %  The recovery policies a page device carries before a program asks for
 %  any (PLRM 6.2.7, Table 6.9). A parameter the dictionary does not name
 %  is governed by PolicyNotFound, which ignores it: that is the usual
