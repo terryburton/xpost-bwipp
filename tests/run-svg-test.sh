@@ -220,5 +220,116 @@ EEOF
 [ -s "$e" ] || fail "the SVG writer emitted nothing for an overlapping pattern"
 grep -q '<pattern' "$e" && fail "a cell larger than its step was written as a tile, which states one width and one height and cannot say the cells overlap"
 
+# --- what a page refers to is written in the page's own file ----------
+#
+# An SVG document holds one page, so this writer emits one whole document
+# per page: a %d in the output name gives each page its own file, and a
+# name without one is rewritten by every page and holds the last. Either
+# way no file carries more than one page, and a reference in it resolves
+# against the document being read (SVG 1.1 14.4) -- so an element a page
+# names has to be written into that page's own file, and every record
+# this writer keeps of what it has already written answers for one page
+# and no more.
+#
+# What that costs when it slips is not a broken document: a mask property
+# whose reference resolves nowhere is passed over and the rectangle it
+# qualifies is painted whole, so a page of bitmap glyphs after the first
+# comes out as solid blocks with nothing reported.
+#
+# The page below carries one of each kind of element this writer refers
+# to by identity -- a stencil's mask, a clip shape, a tiling pattern and
+# the pattern's box -- and is drawn twice, so every record is asked for
+# something it holds from the page before.
+
+# The references a file makes that nothing in that file answers.
+unresolved() {
+    grep -o 'url(#[A-Za-z0-9]*)' "$1" | sed 's/url(#//; s/)//' | sort -u |
+    while read -r id; do
+        grep -q "id=\"$id\"" "$1" || echo "$id"
+    done
+}
+
+cat > "$tmp/g.ps" <<'GEOF'
+<< /PageSize [200 200] >> setpagedevice
+/pat << /PatternType 1 /PaintType 1 /TilingType 1
+        /BBox [0 0 10 10] /XStep 10 /YStep 10
+        /PaintProc { pop 1 0 0 setrgbcolor 1 1 8 8 rectfill } >> matrix makepattern def
+/page {
+    0 setgray
+    gsave 4 4 translate 8 8 scale
+        8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask
+    grestore
+    gsave
+        newpath 100 100 60 0 360 arc closepath 100 100 30 0 360 arc closepath
+        eoclip
+        0 0 1 setrgbcolor
+        newpath 40 40 moveto 160 40 lineto 160 160 lineto 40 160 lineto closepath fill
+    grestore
+    /Pattern setcolorspace pat setpattern
+    newpath 20 170 moveto 90 170 lineto 90 195 lineto 20 195 lineto closepath fill
+    showpage
+} def
+page page
+GEOF
+
+# the per-page form: a file per page, each answering for itself
+out=$("$xpost" -q -d svgwrite -o "$tmp/g%d.svg" "$tmp/g.ps" </dev/null 2>&1)
+verdict_run "$?" "$out" "the two-page svg run" || exit 1
+g1=$tmp/g1.svg; g2=$tmp/g2.svg
+[ -s "$g1" ] || fail "no file for the first page"
+[ -s "$g2" ] || fail "no file for the second page"
+for f in "$g1" "$g2"; do
+    u=$(unresolved "$f" | tr '\n' ' ')
+    [ -z "$u" ] || fail "$f refers to $u, which is written in no file it is read with"
+done
+grep -q '<mask id="xm' "$g2" || fail "the second page names a mask that only the first page's file defines"
+grep -q '<pattern id="xp' "$g2" || fail "the second page names a pattern that only the first page's file defines"
+grep -q '<clipPath id="xc' "$g2" || fail "the second page names a clip that only the first page's file defines"
+# and the two pages are the same page: a document that holds one page
+# cannot be told where in a job that page fell, so an identical page has
+# to come out identically wherever it falls -- the identities included
+cmp -s "$g1" "$g2" || fail "two identical pages did not produce identical documents"
+
+# the single-file form: no %d, so every page is written to the one name
+# and the file holds the last of them -- which still has to answer for
+# what it refers to
+out=$("$xpost" -q -d svgwrite -o "$tmp/g.svg" "$tmp/g.ps" </dev/null 2>&1)
+verdict_run "$?" "$out" "the single-name svg run" || exit 1
+[ -s "$tmp/g.svg" ] || fail "no file for the single-name form"
+u=$(unresolved "$tmp/g.svg" | tr '\n' ' ')
+[ -z "$u" ] || fail "the single-name form refers to $u, which is written in no file it is read with"
+cmp -s "$tmp/g.svg" "$g2" || fail "the single-name form did not leave the last page in the file"
+
+# A record of what has been written is kept in local memory, since a
+# stencil's bits and a cell's text are; so a restore reaching over the
+# end of a page puts back entries naming elements in the file that page
+# closed. The save below is taken after the page is drawn and given back
+# after it is emitted, which is where that lands.
+cat > "$tmp/h.ps" <<'HEOF'
+<< /PageSize [200 200] >> setpagedevice
+/pat << /PatternType 1 /PaintType 1 /TilingType 1
+        /BBox [0 0 10 10] /XStep 10 /YStep 10
+        /PaintProc { pop 1 0 0 setrgbcolor 1 1 8 8 rectfill } >> matrix makepattern def
+/page {
+    0 setgray
+    gsave 4 4 translate 8 8 scale
+        8 8 true [8 0 0 -8 0 8] <FF81BDA5A5BD81FF> imagemask
+    grestore
+    /Pattern setcolorspace pat setpattern
+    newpath 20 170 moveto 90 170 lineto 90 195 lineto 20 195 lineto closepath fill
+} def
+page
+/sv save def
+showpage
+sv restore
+page
+showpage
+HEOF
+out=$("$xpost" -q -d svgwrite -o "$tmp/h%d.svg" "$tmp/h.ps" </dev/null 2>&1)
+verdict_run "$?" "$out" "the restoring svg run" || exit 1
+[ -s "$tmp/h2.svg" ] || fail "no file for the second page of the restoring run"
+u=$(unresolved "$tmp/h2.svg" | tr '\n' ' ')
+[ -z "$u" ] || fail "after a restore over the end of a page, the next page refers to $u, which is written in no file it is read with"
+
 echo SUCCESS
 exit 0

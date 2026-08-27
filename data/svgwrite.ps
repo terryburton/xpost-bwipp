@@ -90,6 +90,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         .svgids /maskid 0 put
         .svgids /patid 0 put
 
+        % Which document the records of written elements below answer
+        % for. Those records live in local memory, because what they
+        % hold does: a stencil's bits, a cell's text. So a restore
+        % reaching over the end of a page puts back entries naming
+        % elements that went into the file that page closed, and a
+        % reference to one of those is resolved against the document it
+        % is read in (SVG 1.1 14.4), where there is nothing of the sort.
+        % The stamp is minted beside the counters, out of a restore's
+        % reach, and an entry not stamped for the document being written
+        % is passed over: the element is written a second time, which
+        % costs a repeat and never a reference to nothing.
+        .svgids /docgen 0 put
+
         % The clipPath last written and the region it was written for, so
         % that a run of shapes under one clip refers to the one element
         % rather than repeating it. Zero is no region: the region counter
@@ -404,12 +417,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } for
         /smkey smkey smw 131 mul add smh 17 mul add
                smpol { 1 add } if 16#ffff and def
+        /smgen .svgids /docgen get def
         /smid -1 def
         .svgmasks smkey known {
             .svgmasks smkey get {
                 aload pop /smcd exch def /smch exch def
-                /smcw exch def /smcp exch def /smci exch def
-                smid 0 lt smcw smw eq and smch smh eq and
+                /smcw exch def /smcp exch def
+                /smcg exch def /smci exch def
+                smid 0 lt smcg smgen eq and
+                smcw smw eq and smch smh eq and
                 smcp smpol eq and smcd smdata eq and
                     { /smid smci def } if
             } forall
@@ -420,7 +436,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             .svgids /maskid smid 1 add put
             .svgmasks smkey
                 .svgmasks smkey known { .svgmasks smkey get }{ [ ] } ifelse
-                [ exch aload pop [ smid smpol smw smh smdata ] ] put
+                [ exch aload pop
+                  [ smid smgen smpol smw smh smdata ] ] put
 
             /smstride smw 7 add 8 idiv def
 
@@ -563,7 +580,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             /svi exch def
             svhit 0 lt {
                 /svc .svgpatterns svi get def
-                svc /len get svlen eq
+                svc /gen get .svgids /docgen get eq
+                svc /len get svlen eq and
                 svc /xs get svxs eq and
                 svc /ys get svys eq and {
                     svc /bb get svbb .svgsame
@@ -578,7 +596,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             .svgids /patid svhit 1 add put
             /.svgpatterns [ .svgpatterns aload pop
                 << /bb svbb /xs svxs /ys svys /mat svmat
-                   /chunks svchunks /len svlen /id svhit >> ] def
+                   /chunks svchunks /len svlen /id svhit
+                   /gen .svgids /docgen get >> ] def
 
             % The cell's box, as the clip the tile's content is drawn
             % through. It is written beside the pattern element rather
@@ -803,10 +822,31 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         currentdict /.svgids get /clipser 0 put
         currentdict /.svgids get /clipfor 0 put
 
+        % nor may a stencil on the page starting be painted through a
+        % mask written into the one just emitted. The record of masks
+        % already written is what a repeated stencil is answered from,
+        % and what it answers with is a reference, which a reader
+        % resolves against the document it is reading (SVG 1.1 14.4) --
+        % the one starting, where nothing of the sort was written. A
+        % mask property whose reference resolves nowhere is passed over
+        % and the rectangle it qualifies is painted whole, so a page of
+        % bitmap glyphs anywhere but the first comes out as solid
+        % blocks.
+        currentdict /.svgids get /maskid 0 put
+        /.svgmasks 64 dict def
+
         % nor may a fill on the page starting name a pattern element
         % written into the one just emitted
         currentdict /.svgids get /patid 0 put
         /.svgpatterns 0 array def
+
+        % Emptying the two records above is a store in local memory,
+        % which a restore reaching over this point undoes: either record
+        % can be holding entries from a page already written whatever is
+        % done here. The stamp they are read against is not in local
+        % memory, so moving it on is what makes such an entry stale
+        % however the record comes to be holding it.
+        currentdict /.svgids get /docgen 2 copy get 1 add put
     } //.indict exec }
 >> def
 
