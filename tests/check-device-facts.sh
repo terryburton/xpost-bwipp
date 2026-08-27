@@ -903,6 +903,16 @@ done < "$work/keys.seen"
 awk '/^method/ { print $2 }' "$src/tests/device-facts" | sort -u > "$work/methodnames"
 sed -n '/\.pagedeviceparams <</,/^>> put/p' "$src/data/device.ps" \
     | tr ' ' '\n' | sed -n 's|^/\([A-Za-z_][A-Za-z0-9_]*\)$|\1|p' | sort -u > "$work/paramnames"
+# The list is what keeps a request from reaching those methods, so a list
+# a program could add to is a list that could be made to let one through.
+# It is declared read-only where it is built; nothing writes it.
+if ! sed -n '/\.pagedeviceparams <</,/>> readonly put/p' "$src/data/device.ps" \
+     | grep -q '>> readonly put'; then
+    echo "FAIL: the page-device parameter list is not declared read-only,"
+    echo "      so a program reaching it could widen it to name a device method"
+    fail=1
+fi
+
 if [ ! -s "$work/paramnames" ]; then
     echo "FAIL: no page-device parameters were read from data/device.ps, so"
     echo "      the parameters and the device methods were never compared"
