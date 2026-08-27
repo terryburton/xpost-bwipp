@@ -2803,7 +2803,10 @@ currentglobal true setglobal
                 % its handler again, by the other road.
                 /xmit false def
                 /xbase count def
-                { 2 //.xpostsys /.endpage get exec /xmit exch store }
+                % 1: setpagedevice's own working dictionary stands open
+                % over the program's scope here, and the handler is the
+                % program's, so it comes off too while the handler runs.
+                { 1 2 //.xpostsys /.endpage get exec /xmit exch store }
                 stopped { } if
                 count xbase sub dup 0 gt { { pop } repeat }{ pop } ifelse
                 xmit {

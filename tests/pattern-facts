@@ -28,10 +28,10 @@ types 2
 # What a value that is not a pattern type gets, and why the three
 # answers differ from one another.
 #
-# The two reference implementations consulted disagree about two of
-# these, so PLRM decides and the disagreement is recorded rather than
-# hidden: Table 4.9 types the entry as an integer, so a value of another
-# type is a type error and only an integer can be out of range.
+# Practice differs on two of these, so PLRM decides and the divergence is
+# recorded rather than hidden: Table 4.9 types the entry as an integer, so
+# a value of another type is a type error and only an integer can be out
+# of range.
 #
 #   badtype <case>  <errorname>
 
@@ -116,6 +116,6 @@ instantiateds 2
 
 xuid-unread  settled  PLRM Table 4.9 offers XUID as a way for a pattern to carry a globally unique identity. Nothing here consults it, and a pattern is accepted with or without one. The identity a cached pattern is filed under is a serial this interpreter issues, for the same reason a form's is: an identifier the program supplies may be shared between two patterns, survives a copy, and may collide with one this interpreter chose. The entry is accepted so a program written for the specification is not turned away
 
-absent-entry-differs-by-operator  settled  A pattern dictionary carrying no PatternType is undefined at makepattern and a type error at setpattern, and that is deliberate. makepattern is handed a prototype to check, and PLRM Table 4.9 marks the entry required, so its absence is a missing entry. setpattern is handed something that must ALREADY be a pattern: PLRM 8.2 defines it as an equivalence for setcolorspace and setcolor, gives it no error list of its own, and says its operand is a dictionary instantiated by makepattern -- so a dictionary with no type is not a deficient pattern but the wrong kind of operand. The two reference implementations consulted split on this, one each way, and the specification leaves the name open; this interpreter also holds every operator to refusing an operand it cannot use with a type error, which decides it. One place knows the vocabulary and the caller states which fault it is reporting
+absent-entry-differs-by-operator  settled  A pattern dictionary carrying no PatternType is undefined at makepattern and a type error at setpattern, and that is deliberate. makepattern is handed a prototype to check, and PLRM Table 4.9 marks the entry required, so its absence is a missing entry. setpattern is handed something that must ALREADY be a pattern: PLRM 8.2 defines it as an equivalence for setcolorspace and setcolor, gives it no error list of its own, and says its operand is a dictionary instantiated by makepattern -- so a dictionary with no type is not a deficient pattern but the wrong kind of operand. Practice splits on this, one way and the other, and the specification leaves the name open; this interpreter also holds every operator to refusing an operand it cannot use with a type error, which decides it. One place knows the vocabulary and the caller states which fault it is reporting
 
 divergences 2

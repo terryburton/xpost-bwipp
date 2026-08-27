@@ -459,10 +459,10 @@ prdepth depth0 eq
 fresh
 
 % -------------------------------------------------------------------------
-% ADJUDICATED against Adobe, and two answers differ on purpose.
+% ADJUDICATED, and two answers depart from the commoner reading on purpose.
 %
-% copypage. Adobe ends the page with reason 0 and counts it, exactly as
-% showpage does, because PLRM 6.2.6 says the distinction between the two
+% copypage. It is commonly ended with reason 0 and counted, exactly as
+% showpage is, because PLRM 6.2.6 says the distinction between the two
 % "exists only in LanguageLevel 2; in LanguageLevel 3, the effects of
 % copypage on the device are the same as those of showpage". The operator
 % descriptions are explicit the other way -- reason 1 during copypage, and a
@@ -471,8 +471,36 @@ fresh
 % the reason to tell the two apart is served by this and not by the
 % collapsed form.
 %
-% An EndPage that answers with nothing is /undefined on Adobe and /typecheck
-% here. Neither is specified. The answer says what was wrong with the
-% answer, which is the more useful of the two.
+% An EndPage that answers with nothing is /typecheck here, where
+% /undefined is the commoner answer. Neither is specified. This one says
+% what was wrong with the answer, which is the more useful of the two.
+
+% ---- a handover runs EndPage at the program's own depth
+
+% Replacing the device ends the current page, so the program's EndPage
+% runs from inside setpagedevice. That operator holds a working
+% dictionary of its own while it does, and the handler is the program's:
+% PLRM 6.2.6 describes the handler as a procedure the program supplies
+% and gives it no scope of the operator's, so what it defines must be the
+% program's to keep and the operator's own names must not stand in front
+% of the program's.
+
+/ph.base countdictstack def
+/ph.seen -1 def
+/ph.saw false def
+<< /EndPage { countdictstack /ph.seen exch store
+              currentdict /pd known currentdict /merged known or
+              currentdict /dev known or { /ph.saw true store } if
+              /PH.HANDOVER 1 def pop pop true } >> setpagedevice
+<< /PageSize [200 200] >> setpagedevice
+
+ph.seen ph.base eq
+    (a handover runs EndPage at the depth the program had) assert
+ph.saw not
+    (the operator's own names are not in front of the program's) assert
+userdict /PH.HANDOVER known
+    (what the handover's handler defines is the program's to keep) assert
+countdictstack ph.base eq
+    (the handover leaves the dictionary stack where it found it) assert
 
 failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse

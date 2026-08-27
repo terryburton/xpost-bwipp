@@ -1151,15 +1151,25 @@ end } bind put
 %  away, which is the standard behaviour. A handler that answers with anything
 %  but one boolean has not answered at all.
 %
-.xpostsys /.endpage {  % reason  .  bool
+.xpostsys /.endpage {  % outer reason  .  bool
     % The working dictionary is opened through the bracket that takes it
     % off again however the body ends, error included (.indict,
     % callout.ps): a caller that swallows a failing handler is left the
     % dictionary stack it was handed rather than one entry deeper for
     % every handover it swallows.
+    %
+    % `outer` is how many dictionaries of the CALLER'S OWN stand open over
+    % the program's scope. This one knows only about the dictionary it
+    % opens itself; a caller holding a working dictionary of its own --
+    % setpagedevice, handing a page over as it replaces the device --
+    % would otherwise run the program's handler inside it: one entry too
+    % deep, with the operator's own names in front of the program's, and
+    % every definition the handler makes landing somewhere the program
+    % never sees again.
     3 dict
     {
         /reason exch def
+        /outer exch def
         /EndPage //.pagehandler exec
         dup null eq {
             % No handler: transmit a page ended by showpage or copypage,
@@ -1192,7 +1202,7 @@ end } bind put
             % is a procedure runs it where it stands, and this one is an
             % operand of the bracket.
             //.pageno exec reason
-            /h load null 1 //.callout exec
+            /h load null outer 1 add //.callout exec
 
             count base 1 add eq
             dup { pop dup type /booleantype eq } if
@@ -1212,7 +1222,7 @@ end } bind put
 %  advances, because the page has ended either way.
 %
 /showpage [ ] {  % -  .  -
-    0 //.endpage exec {
+    0 0 //.endpage exec {
         DEVICE //.transmitpage exec
         true //.setpagesent exec
         //ShowpageSemanticsDict /ShowpageSemantics //.hostvalue exec get exec
@@ -1231,7 +1241,7 @@ end } bind put
 %  is the whole of the difference a page device sees between them.
 %
 /copypage [ ] {  % -  .  -
-    1 //.endpage exec {
+    0 1 //.endpage exec {
         DEVICE //.transmitpage exec
         true //.setpagesent exec
         flushpage
@@ -1262,7 +1272,7 @@ end } bind put
 .xpostsys /.endjobpage {  % -  .  -
     //.pagesent exec not
     //.pagemarked exec and {
-        0 //.endpage exec {
+        0 0 //.endpage exec {
             DEVICE //.transmitpage exec
             true //.setpagesent exec
         } if

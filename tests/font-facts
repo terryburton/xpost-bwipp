@@ -145,7 +145,7 @@ cidtype 4   32  bitmaps installed in the font cache
 
 cidtypes 4
 
-charpath-of-a-procedure-glyph  settled  A Type 3 glyph is described by a procedure, and charpath through one appends only the advance rather than the outline the procedure would paint. MEASURED as a degenerate box. This is not a deviation to correct: BOTH reference implementations consulted return the same degenerate box for the same font, to the digit. A glyph built by running a procedure has no outline until it is run, and running it would paint rather than append; PLRM 5.7 acknowledges as much where it excuses glyphs described by images. Changing it would put this interpreter alone among the three
+charpath-of-a-procedure-glyph  settled  A Type 3 glyph is described by a procedure, and charpath through one appends only the advance rather than the outline the procedure would paint. MEASURED as a degenerate box. This is not a deviation to correct: the same degenerate box is what that font yields anywhere, to the digit. A glyph built by running a procedure has no outline until it is run, and running it would paint rather than append; PLRM 5.7 acknowledges as much where it excuses glyphs described by images. Changing it would put this interpreter alone among the three
 
 
 divergences 1

@@ -100,7 +100,7 @@ missing-required  settled  A space whose family requires a parameter and does no
 
 space-array-rebuilt  settled  currentcolorspace does not hand back the object the program supplied. A family named by a bare name comes back as a one-element array, and a one-element array comes back as a different one-element array; the multi-element forms come back as the same object. PLRM 8.2 requires currentcolorspace to answer an array describing the current space and does not make it the program's array, so a program cannot rely on identity either way. What it can rely on is that what comes back can be handed straight back to setcolorspace, which the family test asserts for every member
 
-special-names-in-devicen  settled  PLRM 4.8.5 says the special colorant names All and None are not allowed in a DeviceN names array, and one there is accepted and painted through the transform like any other name. Both reference implementations consulted accept it too, so refusing it would turn pages that render everywhere today into errors for a rule nothing enforces. The names are meaningful only to a Separation, where they are honoured
+special-names-in-devicen  settled  PLRM 4.8.5 says the special colorant names All and None are not allowed in a DeviceN names array, and one there is accepted and painted through the transform like any other name. Accepting it is the common reading, so refusing it would turn pages that render everywhere today into errors for a rule nothing enforces. The names are meaningful only to a Separation, where they are honoured
 
 
 divergences 3

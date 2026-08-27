@@ -10,8 +10,9 @@
 % that gcheck answers where an object lives; and that a token read from a file
 % leaves the file where the next raw read expects it.
 %
-% Two divergences from Adobe are recorded at the foot of this file rather than
-% asserted, so that neither is frozen in as though it were correct.
+% Two divergences from the commoner behaviour are recorded at the foot of this
+% file rather than asserted, so that neither is frozen in as though it were
+% correct.
 
 
 % --- data sources: a filter takes a string, a file, or a procedure ---------
@@ -48,7 +49,7 @@ encoded (4869>) eq (an encoding filter flushes and writes EOD on closefile) asse
 % --- a token read from a file leaves the file positioned after it ---------
 % A library that reads a count with token and then reads that many raw bytes
 % from the same file depends on this. The delimiter that ends the token is
-% consumed with it, which is what Adobe does.
+% consumed with it.
 
 /w2 TMP (w) file def
 w2 (42 abcdefgh) writestring
