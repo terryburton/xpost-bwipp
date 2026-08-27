@@ -1798,6 +1798,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  this is rendered every time it is shown rather than stored (PLRM
 %  8.2).
 %
+%  This is the MaxFontItem user parameter: it is held per context, a
+%  change to it is undone by restore, and currentuserparams reads it back
+%  (PLRM 8.2 setcachelimit, C.3.2). A value the cache cannot hold to is
+%  replaced by the nearest it can, with no error.
+%
 /setcachelimit [ /integertype ] {  % int  .  -
     .setcachelimit
 } .defop
@@ -1810,17 +1815,24 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  nothing to state: a statement about the top would answer typecheck
 %  where the absent mark must answer unmatchedmark.
 %
+%  A request that states the cache size is allowed only in a system
+%  administrator job and is refused with invalidaccess otherwise (PLRM
+%  8.2); .setcacheparams is what decides that. The operands are rolled
+%  into place rather than parked in a dictionary because the refusal is
+%  an error raised from inside here, and a dictionary begun on the way in
+%  would be left on the dictionary stack by it.
+%
+%  A request that states no size carries a zero for it, which is not a
+%  change to the size and is allowed from any job: what it sets is
+%  MaxFontItem, a user parameter.
+%
 /setcacheparams [ ] {  % mark [size [lower]] upper  .  -
     counttomark 3 ge {
-        3 dict begin
-        /up exch cvi def /lo exch cvi def /sz exch cvi def
-        sz lo up .setcacheparams
-        end
+        cvi 3 1 roll cvi 3 1 roll cvi 3 1 roll
+        .setcacheparams
     }{ counttomark 2 eq {
-        3 dict begin
-        /up exch cvi def /lo exch cvi def
-        0 lo up .setcacheparams
-        end
+        exch cvi exch cvi 0 3 1 roll
+        .setcacheparams
     }{ counttomark 1 eq {
         cvi 0 exch 0 exch .setcacheparams
     } if } ifelse } ifelse

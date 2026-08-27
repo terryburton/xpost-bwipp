@@ -278,6 +278,25 @@ struct _Xpost_Context {
     integer vmthreshold;
     integer vmthreshold_hist[256];
 
+    /** The MaxFontItem user parameter (PLRM C.3.2): the largest glyph, in
+        bytes, that the glyph cache keeps -- what setcachelimit sets, what
+        currentcacheparams reports as its upper bound, and what a glyph
+        bigger than it is refused entry by, rendering afresh at every show.
+        PLRM 8.2 setcachelimit says the parameter is maintained separately
+        for each context, and that modifications to it are subject to save
+        and restore; so it is held here rather than with the cache, and
+        recorded at each save level for restore to put back.
+
+        The cache is one store for the process, so the running context
+        writes its value through to the store -- whenever the value changes,
+        and whenever a context becomes the running one -- which is what
+        makes the setting of the context now executing the one the store
+        goes by. What is held is the value IN FORCE: the request held to the
+        range the store offers, so a program is read back the number the
+        cache is actually using. */
+    integer maxfontitem;
+    integer maxfontitem_hist[256];
+
     /** Whether bind replaces a bound procedure that matches an IdiomSet
         template with the paired substitute (PLRM 3.12.1). The
         IdiomRecognition user parameter: held per context as a user

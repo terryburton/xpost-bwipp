@@ -55,6 +55,26 @@ mark { /child_def 271 def } fork join cleartomark
 /child_def where { pop child_def 271 eq }{ false } ifelse
     (a definition made in a forked context is shared with the parent) assert
 
+% the font cache's per-glyph ceiling is private to a context too: PLRM 8.2
+% setcachelimit says the parameter is maintained separately for each
+% context. A forked context starts from the parent's, and what it sets is
+% its own -- the parent goes on by the ceiling it set, which is what the
+% cache goes by while the parent is the one executing.
+/blim { cachestatus 7 array astore 6 get } def
+/blim0 blim def
+5000 setcachelimit
+mark { blim } fork join
+counttomark 1 eq { 5000 eq }{ false } ifelse
+    (a forked context inherits the parent's per-glyph ceiling) assert
+cleartomark
+mark { 7777 setcachelimit blim } fork join
+counttomark 1 eq { 7777 eq }{ false } ifelse
+    (a forked context sets its own per-glyph ceiling) assert
+cleartomark
+blim 5000 eq
+    (a forked context's ceiling does not reach the parent) assert
+blim0 setcachelimit
+
 % the graphics state, unlike VM, is private to a context: a forked context
 % inherits the parent's but neither sees the other's later changes
 2 setlinewidth

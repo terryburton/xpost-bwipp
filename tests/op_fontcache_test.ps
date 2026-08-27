@@ -35,6 +35,61 @@ cachestatus 7 array astore 6 get orig eq
 
 { (x) setcachelimit } /typecheck (setcachelimit refuses a non-integer) raises
 
+% the two readings of the one parameter, used from here on
+/limit { cachestatus 7 array astore 6 get } def
+/size  { currentcacheparams counttomark array astore
+         /cptmp exch def cleartomark cptmp 0 get } def
+
+% --- the ceiling is subject to save and restore (PLRM 8.2 setcachelimit) ---
+% "Modifications to the cache limit parameter are subject to save and
+% restore." The value read inside the save is carried out on the operand
+% stack, where an integer survives the restore; the failcount could not
+% be, since it lives in local VM the restore reverts.
+/kept limit def
+save 99 setcachelimit limit exch restore
+99 eq (setcachelimit takes effect within the save it is made in) assert
+limit kept eq (and restore puts the per-glyph ceiling back) assert
+
+% --- the ceiling is the MaxFontItem user parameter (PLRM C.3.2) ---
+% One parameter reached three ways: currentuserparams, currentcacheparams
+% and cachestatus must not name three numbers for it.
+currentuserparams /MaxFontItem known
+    (MaxFontItem is a user parameter) assert
+currentuserparams /MaxFontItem get limit eq
+    (currentuserparams reports the ceiling the cache is going by) assert
+<< /MaxFontItem 12345 >> setuserparams
+limit 12345 eq (setuserparams sets the per-glyph ceiling) assert
+currentcacheparams counttomark array astore /cpm exch def cleartomark
+cpm 2 get 12345 eq (and currentcacheparams reports the same number) assert
+kept setcachelimit
+
+% --- the cache size is the MaxFontCache system parameter (PLRM C.3.2) ---
+currentsystemparams /MaxFontCache get size eq
+    (currentsystemparams and currentcacheparams agree on the cache size) assert
+
+% --- changing the cache size needs a system administrator job ---
+% "Changing the font cache size is allowed only in a system administrator
+% job" (PLRM 8.2 setcacheparams), which is why invalidaccess is among the
+% operator's errors. A run is encapsulated until it exits the server, so
+% the request is refused here -- and refused whole: the per-glyph ceiling
+% stated in the same request is not set either.
+/sizewas size def
+/limitwas limit def
+{ mark 4444 4 40000 setcacheparams } /invalidaccess
+    (an encapsulated job may not set the cache size) raises
+size sizewas eq (the refused request left the cache size alone) assert
+limit limitwas eq (and left the per-glyph ceiling alone) assert
+% a request that states no size changes no system parameter, so any job
+% may make it
+{ mark 20000 setcacheparams } (a request stating no size is allowed) works
+limit 20000 eq (and it sets the per-glyph ceiling) assert
+limitwas setcachelimit
+
+% Everything from here states a cache size, so the run becomes the system
+% administrator job that may state one. exitserver leaves the run
+% unencapsulated for the rest of the suite.
+serverdict begin 0 exitserver
+
 % --- setcacheparams and currentcacheparams ---
 % The operands sit above a mark and setcacheparams removes the mark with
 % them, as cleartomark does.

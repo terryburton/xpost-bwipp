@@ -401,8 +401,19 @@ int xpost_font_face_glyph_sidebearing(void *face, unsigned int glyph_index,
 void xpost_font_cache_status(long *bsize, long *bmax, long *msize,
                              long *mmax, long *csize, long *cmax,
                              long *blimit);
-void xpost_font_cache_setlimit(long blimit);
-void xpost_font_cache_setparams(long bmax, long lower, long upper);
+/* The per-glyph ceiling a context starts with, and so what the MaxFontItem
+   user parameter reads before anything sets it (PLRM C.3.2). Declared here
+   because the store and the context that owns the parameter must start from
+   one number rather than from two that happen to agree. */
+#define XPOST_FONT_ITEM_LIMIT_DEFAULT 32768L
+/* Both setters answer the per-glyph ceiling now in force, which is the one
+   asked for held to the range the store offers. The parameter is the
+   context's (PLRM 8.2 setcachelimit: it is maintained separately for each
+   context and is subject to save and restore), and a context that recorded
+   the value it asked for rather than the value it got would read back a
+   number the store is not going by. */
+long xpost_font_cache_setlimit(long blimit);
+long xpost_font_cache_setparams(long bmax, long lower, long upper);
 /* Drop the procedure/Type-3 masks (keyed by k1==NULL, on a virtual-memory
    serial the job boundary reverts) so none carries across a job. */
 void xpost_font_mask_cache_flush(void);

@@ -47,6 +47,7 @@
 #include "xpost_dict.h" /* read what the host settled */
 #include "xpost_name.h" /* name a setting */
 #include "xpost_file.h"
+#include "xpost_font.h" /* the glyph cache the MaxFontItem parameter governs */
 #include "xpost_handle.h"
 
 /* What this run settled under name, or a null where it settled nothing.
@@ -347,6 +348,14 @@ int xpost_context_init(Xpost_Context *ctx,
        count its banks are already paced by, so what currentuserparams
        reports before anybody sets it is what the run is doing */
     ctx->vmthreshold = XPOST_GARBAGE_COLLECTION_THRESHOLD;
+    /* The MaxFontItem user parameter a context starts with, written through
+       to the glyph cache so the store and this context begin agreeing. The
+       write-through matters at the start of a second library lifetime: the
+       store is a file-scope ceiling that the teardown has no reason to give
+       back, so without it a lifetime would begin at whatever the last
+       context left rather than where the first one started. */
+    ctx->maxfontitem = (integer)xpost_font_cache_setlimit(
+                            XPOST_FONT_ITEM_LIMIT_DEFAULT);
     ctx->idiomrecognition = 1;
     ctx->globs = NULL;
     ctx->globs_size = 0;

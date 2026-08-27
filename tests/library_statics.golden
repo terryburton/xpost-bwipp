@@ -108,6 +108,7 @@ src/lib/xpost_op_param.c        _userparam_maxopstack      outlives string-liter
 src/lib/xpost_op_param.c        _userparam_maxdictstack    outlives string-literals
 src/lib/xpost_op_param.c        _userparam_maxexecstack    outlives string-literals
 src/lib/xpost_op_param.c        _userparam_idiomrecognition outlives string-literals
+src/lib/xpost_op_param.c        _userparam_maxfontitem     outlives string-literals
 
 # The statics that name their storage by ENTITY NUMBER rather than by
 # address. An Xpost_Object holds an index into the memory table, which is

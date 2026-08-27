@@ -240,15 +240,22 @@ static void param_reverts(Xpost_Showpage_Semantics semantics, const char *what)
     xpost_destroy(ctx);
 }
 
-/* The font cache parameters a job sets are the job's own. Job 1 clamps the
- * store to a byte and the per-glyph ceiling to nothing, which would leave a
- * server caching no glyph ever again; job 2 reports what it begins from. */
+/* The font cache parameter a job sets is the job's own. Job 1 clamps the
+ * per-glyph ceiling to a byte, which would leave a server rendering every
+ * glyph afresh ever after; job 2 reports what it begins from.
+ *
+ * The ceiling is the parameter an ordinary job can set: it is MaxFontItem,
+ * a user parameter. The cache SIZE is the MaxFontCache system parameter,
+ * which PLRM 8.2 setcacheparams allows only a system administrator job to
+ * change, so no encapsulated job can carry one of those across a boundary
+ * to begin with -- and an unencapsulated one is meant to, its boundary
+ * folding what it did into the state the jobs after it start from. */
 static void stream_cache_params(Xpost_Showpage_Semantics semantics,
                                 const char *what)
 {
     Xpost_Context *ctx;
     static const char prog[] =
-        "mark 1 0 0 setcacheparams\004"
+        "1 setcachelimit\004"
         "mark currentcacheparams 4 array astore == flush";
 
     ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
@@ -266,9 +273,9 @@ static void stream_cache_params(Xpost_Showpage_Semantics semantics,
     (void) xpost_run(ctx, XPOST_INPUT_STRING, prog, sizeof prog - 1);
     outbuf[outlen < sizeof outbuf ? outlen : sizeof outbuf - 1] = '\0';
 
-    /* the clamped values, whichever way they are spelled, are what must not
-       be there: a store of one byte and a ceiling of none */
-    if (strstr(outbuf, "-mark- 1 ") || strstr(outbuf, " 0]"))
+    /* the clamped ceiling is what must not be there: currentcacheparams
+       reports it last, so a ceiling of one byte closes the printed array */
+    if (strstr(outbuf, " 1]"))
         report_failure("%s: a job's font cache parameters reached the next "
                        "job: %s", what, outbuf);
     if (!strstr(outbuf, "-mark-"))

@@ -95,7 +95,7 @@ static long gcache_csize = 0;     /* glyphs held */
 static long gcache_bmax = 1048576;
 static long gcache_cmax = 4096;
 static long gcache_mmax = 4096;
-static long gcache_blimit = 32768;
+static long gcache_blimit = XPOST_FONT_ITEM_LIMIT_DEFAULT;
 
 /* the transform and size in force per live face, recorded as they
    are installed: together with the glyph index they key the cache */
@@ -379,11 +379,13 @@ gcache_limit_in_range(long upper)
 }
 
 /* The ceiling on what the glyph cache may hold, clamped to what the
-   counters can carry. */
-void
+   counters can carry, and answered so the caller records the ceiling in
+   force rather than the one it asked for. */
+long
 xpost_font_cache_setlimit(long blimit)
 {
     gcache_blimit = gcache_limit_in_range(blimit);
+    return gcache_blimit;
 }
 
 /* A cache size of zero is the request stating none: the operator's
@@ -392,7 +394,7 @@ xpost_font_cache_setlimit(long blimit)
    for a size the request did not carry is a size no request can state.
    PLRM 8.2 leaves the cache size unchanged where the request omits it.
    The per-glyph ceiling is always carried and is always taken. */
-void
+long
 xpost_font_cache_setparams(long bmax, long lower, long upper)
 {
     (void)lower;   /* the compression threshold: rasters stay flat */
@@ -402,6 +404,7 @@ xpost_font_cache_setparams(long bmax, long lower, long upper)
     while ((gcache_bsize > gcache_bmax || gcache_csize > gcache_cmax)
            && gcache_tail)
         gcache_drop(gcache_tail);
+    return gcache_blimit;
 }
 
 /* --- the stencil-run cache -------------------------------------------

@@ -5986,29 +5986,56 @@ int _cachestatus(Xpost_Context *ctx)
    A ceiling outside the range the store offers is substituted by the
    nearest one it does, which the setter does, and is not an error here:
    the operator raises stackunderflow and typecheck and nothing besides
-   (PLRM 8.2). */
+   (PLRM 8.2).
+
+   The ceiling is the MaxFontItem user parameter, held by the context (PLRM
+   8.2 setcachelimit: maintained separately for each context, and subject to
+   save and restore). It is recorded there as well as written through to the
+   store, so that the save level this runs at can put it back and a second
+   context is not made to inherit it. MaxFontItem is a USER parameter and
+   carries none of the system-administrator restriction the cache size does. */
 static
 int _setcachelimit(Xpost_Context *ctx, Xpost_Object n)
 {
-    (void)ctx;
-    xpost_font_cache_setlimit((long)n.int_.val);
+    ctx->maxfontitem =
+        (integer)xpost_font_cache_setlimit((long)n.int_.val);
     return 0;
 }
 
 /* size lower upper  .setcacheparams  -
    the cache's byte capacity and per-glyph ceiling; the middle
    operand, a compression threshold, is accepted and recorded nowhere
-   since rasters stay flat */
+   since rasters stay flat
+
+   The capacity is the MaxFontCache system parameter, and PLRM 8.2
+   setcacheparams allows it to be changed only in a system administrator
+   job -- invalidaccess is among the operator's errors for exactly this.
+   An unencapsulated run is that job: it is what `exitserver` and `true
+   password startjob` leave behind, and what its boundary folds into the
+   state the jobs after it start from (PLRM 3.7.7). So a request that
+   states a capacity is refused while the run is encapsulated, and refused
+   whole -- the per-glyph ceiling in the same request is not applied
+   either, an operator that raises an error having done nothing.
+
+   A request that states NO capacity carries a zero here (data/font.ps
+   fills the absent operands in) and is not a change to the cache size, so
+   it is allowed from any job: it sets only MaxFontItem, which is a user
+   parameter and is not restricted.
+
+   The ceiling this settles on is recorded in the context for the reason
+   .setcachelimit records it. */
 static
 int _setcacheparams(Xpost_Context *ctx,
                      Xpost_Object size,
                      Xpost_Object lower,
                      Xpost_Object upper)
 {
-    (void)ctx;
-    xpost_font_cache_setparams((long)size.int_.val,
-                               (long)lower.int_.val,
-                               (long)upper.int_.val);
+    if (size.int_.val != 0 && ctx->job_encapsulated)
+        return invalidaccess;
+    ctx->maxfontitem =
+        (integer)xpost_font_cache_setparams((long)size.int_.val,
+                                            (long)lower.int_.val,
+                                            (long)upper.int_.val);
     return 0;
 }
 

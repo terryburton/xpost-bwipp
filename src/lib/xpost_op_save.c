@@ -34,6 +34,7 @@
 #include "xpost_stack.h"
 #include "xpost_save.h"
 #include "xpost_file.h"
+#include "xpost_font.h" /* the glyph cache MaxFontItem is written through to */
 #include "xpost_context.h"
 #include "xpost_error.h"
 #include "xpost_name.h"
@@ -137,6 +138,8 @@ int Zsave(Xpost_Context *ctx)
     if (v.save_.lev < sizeof ctx->idiomrecognition_hist)
         ctx->idiomrecognition_hist[v.save_.lev] =
             (unsigned char)ctx->idiomrecognition;
+    if (v.save_.lev < sizeof ctx->maxfontitem_hist / sizeof ctx->maxfontitem_hist[0])
+        ctx->maxfontitem_hist[v.save_.lev] = ctx->maxfontitem;
     if (!xpost_stack_push(ctx->lo, ctx->os, v))
         return stackoverflow;
     return 0;
@@ -298,6 +301,17 @@ int Vrestore(Xpost_Context *ctx,
         ctx->vmthreshold = ctx->vmthreshold_hist[V.save_.lev];
     if (V.save_.lev < sizeof ctx->idiomrecognition_hist)
         ctx->idiomrecognition = ctx->idiomrecognition_hist[V.save_.lev];
+    /* MaxFontItem is named by the same sentence and is the one parameter
+       whose value something outside the context goes by: the glyph cache
+       admits or refuses an entry by it. So giving the number back means
+       writing it through to the store as well, or a program would read the
+       reverted ceiling back while the cache went on using the one the
+       discarded level asked for (PLRM 8.2 setcachelimit). */
+    if (V.save_.lev < sizeof ctx->maxfontitem_hist / sizeof ctx->maxfontitem_hist[0])
+    {
+        ctx->maxfontitem = ctx->maxfontitem_hist[V.save_.lev];
+        (void) xpost_font_cache_setlimit(ctx->maxfontitem);
+    }
 
     return 0;
 }

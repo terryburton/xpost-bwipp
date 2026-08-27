@@ -14,6 +14,12 @@
 
 /say { print (\n) print } def
 
+% Setting the cache size is allowed only in a system administrator job
+% (PLRM 8.2 setcacheparams), and this suite states a size repeatedly, so
+% the run leaves the server first and stays unencapsulated to the end.
+% The refusal itself is asserted in tests/op_fontcache_test.ps.
+serverdict begin 0 exitserver
+
 % keep the cache as it was found
 cachestatus 7 array astore /cs0 exch def
 currentcacheparams counttomark array astore /cp0 exch def cleartomark

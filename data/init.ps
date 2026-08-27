@@ -1372,7 +1372,17 @@ end
 %  to ask, and answers nought to both.
 %
 /currentsystemparams [ ] {  % -  .  dict
-    << /RealFormat (IEEE) /ByteOrder true /MaxFontCache 1048576
+    << /RealFormat (IEEE) /ByteOrder true
+
+       % MaxFontCache is the glyph cache's byte capacity, read from the
+       % cache itself rather than stated here, so that this and
+       % currentcacheparams (data/font.ps) cannot tell a program two
+       % different numbers for the one parameter. Of the seven figures
+       % .cachestatus reports it is the second; the reference is frozen
+       % here because the private operators move out of systemdict during
+       % the lockdown and a run whose graphics never loaded leaves them
+       % where they are.
+       /MaxFontCache //.cachestatus pop pop pop pop pop exch pop
 
        % Where external resources are found: the first resource directory,
        % separated by /. Reported, not set -- the search path is the host's.

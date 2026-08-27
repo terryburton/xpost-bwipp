@@ -2163,6 +2163,12 @@ int mainloop(Xpost_Context *ctx)
 ctxswitch:
     ctx = _switch_context(ctx);
     itpdata->cid = ctx->id;
+    /* MaxFontItem is maintained separately for each context (PLRM 8.2
+       setcachelimit) while the glyph cache it governs is one store for the
+       process. The context about to run writes its own ceiling through, so
+       what the store admits an entry by is the setting of the context
+       executing rather than of whichever context set it last. */
+    (void) xpost_font_cache_setlimit(ctx->maxfontitem);
 
     /* the context's memory pointers are fixed for the life of a run;
        validate them once when a context becomes current rather than
@@ -4236,10 +4242,14 @@ static int _job_capture_baseline(Xpost_Context *ctx)
     ctx->job_namewrapsave = ctx->namewrapsave;
     memcpy(ctx->job_typenames, ctx->typenames, sizeof ctx->job_typenames);
     {
-        long bsize, msize, csize, mmax, cmax;
+        long bsize, msize, csize, mmax, cmax, blimit;
 
         xpost_font_cache_status(&bsize, &ctx->job_gcache_bmax, &msize, &mmax,
-                                &csize, &cmax, &ctx->job_gcache_blimit);
+                                &csize, &cmax, &blimit);
+        /* the per-glyph ceiling is the context's own parameter, so the
+           baseline takes it from there rather than from the store the
+           context writes it through to */
+        ctx->job_gcache_blimit = ctx->maxfontitem;
     }
     XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_SAVE_ROOT)
     return 1;
@@ -4363,11 +4373,22 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     memcpy(ctx->typenames, ctx->job_typenames, sizeof ctx->typenames);
     /* The glyph cache's byte parameters, which are the MaxFontCache system
        parameter and the MaxFontItem user parameter (PLRM 8.2
-       setcacheparams). They are held with the cache, outside the arena,
-       and PLRM C.1.1 has an encapsulated job's change to a user parameter
-       leave the default for the jobs after it alone. */
-    xpost_font_cache_setparams(ctx->job_gcache_bmax, 0,
-                               ctx->job_gcache_blimit);
+       setcacheparams). Neither is in the arena, so neither is reached by
+       the revert above: the ceiling is the context's own field and the
+       capacity is the store's.
+
+       The ceiling is what a job can carry across. PLRM C.1.1 has an
+       encapsulated job's change to a user parameter leave the value later
+       jobs begin from alone, and a job that set the ceiling to nothing
+       would otherwise leave every job after it rendering every glyph
+       afresh. The capacity is put back with it because the pair is one
+       state: an encapsulated job cannot reach it (setcacheparams refuses
+       a stated capacity outside a system administrator job) and an
+       unencapsulated one is folded into the baseline rather than reverted,
+       so this restores what it captured either way. */
+    ctx->maxfontitem = (integer)ctx->job_gcache_blimit;
+    (void) xpost_font_cache_setparams(ctx->job_gcache_bmax, 0,
+                                      ctx->job_gcache_blimit);
     ++ctx->namebind_gen;
     ctx->es_over = ctx->os_over = ctx->ds_over = 0;
     ctx->onerr_run = 0;

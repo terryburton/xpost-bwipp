@@ -41,6 +41,7 @@
 #include "xpost_error.h"
 
 #include "xpost_garbage.h"
+#include "xpost_font.h" /* the glyph cache MaxFontItem governs */
 #include "xpost_interpreter.h" /* the stack capacities the parameters name */
 #include "xpost_operator.h"
 #include "xpost_op_math.h"   /* a count, as the object the PLRM gives it */
@@ -366,6 +367,7 @@ static const char *_userparam_maxopstack = "MaxOpStack";
 static const char *_userparam_maxdictstack = "MaxDictStack";
 static const char *_userparam_maxexecstack = "MaxExecStack";
 static const char *_userparam_idiomrecognition = "IdiomRecognition";
+static const char *_userparam_maxfontitem = "MaxFontItem";
 
 /* one parameter's present value, into the dictionary being reported */
 static
@@ -400,7 +402,7 @@ int currentuserparams(Xpost_Context *ctx)
     Xpost_Object d;
     int ret;
 
-    d = xpost_dict_cons(ctx, 6);
+    d = xpost_dict_cons(ctx, 7);
     if (xpost_object_get_type(d) == invalidtype)
         return VMerror;
 
@@ -421,6 +423,13 @@ int currentuserparams(Xpost_Context *ctx)
         return ret;
     ret = _param_report_bool(ctx, d, _userparam_idiomrecognition,
                              ctx->idiomrecognition);
+    if (ret)
+        return ret;
+    /* MaxFontItem is the largest glyph the font cache keeps, in bytes
+       (PLRM C.3.2). It is the same parameter setcachelimit sets and
+       currentcacheparams reports as its upper bound, read from the one
+       place it is held, so the three cannot name three numbers. */
+    ret = _param_report(ctx, d, _userparam_maxfontitem, ctx->maxfontitem);
     if (ret)
         return ret;
 
@@ -496,8 +505,8 @@ int _param_request_bool(Xpost_Context *ctx, Xpost_Object D, const char *key,
 static
 int setuserparams(Xpost_Context *ctx, Xpost_Object D)
 {
-    integer reclaim = 0, threshold = 0;
-    int have_reclaim = 0, have_threshold = 0;
+    integer reclaim = 0, threshold = 0, fontitem = 0;
+    int have_reclaim = 0, have_threshold = 0, have_fontitem = 0;
     int idiom = 0, have_idiom = 0;
     int ret;
 
@@ -525,6 +534,10 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
                               &idiom, &have_idiom);
     if (ret)
         return ret;
+    ret = _param_request(ctx, D, _userparam_maxfontitem,
+                         &fontitem, &have_fontitem);
+    if (ret)
+        return ret;
 
     if (have_reclaim && (reclaim == 0 || reclaim == -1 || reclaim == -2))
     {
@@ -540,6 +553,11 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
     }
     if (have_idiom)
         ctx->idiomrecognition = idiom ? 1 : 0;
+    /* the same route setcachelimit takes: what is recorded is the ceiling
+       the store settled on, so a value it cannot achieve is replaced by the
+       nearest it can without an error indication (PLRM 8.2 setuserparams) */
+    if (have_fontitem)
+        ctx->maxfontitem = (integer)xpost_font_cache_setlimit(fontitem);
     return 0;
 }
 
