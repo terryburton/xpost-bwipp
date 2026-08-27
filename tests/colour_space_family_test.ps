@@ -131,6 +131,46 @@
 { [ /Pattern ] setcolorspace currentcolor setcolor } outcome /ok eq
 (Pattern) (takes that colour back through setcolor) assert2
 
+% ---- and every member answers the operators that ask after the
+% current colour in a device space
+%
+% PLRM 8.2 has currentgray, currentrgbcolor, currentcmykcolor and
+% currenthsbcolor report the current colour converted to their own
+% space, and says they cannot convert from a CIE-based or special one.
+% Cannot convert is not the same as cannot answer: what a program reads
+% then is the colour the graphics state starts at, and a program asking
+% after the current colour has no obligation to ask what space it is in
+% first. So every member answers all four, and the answer is a number.
+%
+% Asked of every member because the family is what makes it a rule. The
+% one member that refused was the pattern space, which is the member
+% that has no components to convert -- and it refused by raising
+% undefined, which is neither a conversion nor an answer. Nothing else
+% in the family behaved that way, and nothing said the pattern space
+% should.
+{
+    /sp exch def /nm exch def
+    { sp setcolorspace currentgray pop } outcome /ok eq
+    nm (answers currentgray) assert2
+    { sp setcolorspace currentrgbcolor pop pop pop } outcome /ok eq
+    nm (answers currentrgbcolor) assert2
+    { sp setcolorspace currentcmykcolor pop pop pop pop } outcome /ok eq
+    nm (answers currentcmykcolor) assert2
+    { sp setcolorspace currenthsbcolor pop pop pop } outcome /ok eq
+    nm (answers currenthsbcolor) assert2
+} eachmember
+
+% and the pattern space, which has no components to convert, answers
+% with the colour the graphics state starts at
+[ /Pattern ] setcolorspace currentgray 0.0 eq
+(Pattern) (answers currentgray with black) assert2
+[ /Pattern ] setcolorspace currentrgbcolor
+    0.0 eq exch 0.0 eq and exch 0.0 eq and
+(Pattern) (answers currentrgbcolor with black) assert2
+[ /Pattern ] setcolorspace currentcmykcolor
+    1.0 eq exch 0.0 eq and exch 0.0 eq and exch 0.0 eq and
+(Pattern) (answers currentcmykcolor with black) assert2
+
 % ---- a tint space's transform must be a procedure
 %
 % PLRM 4.8.5 gives Separation a tintTransform and DeviceN a

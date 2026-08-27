@@ -310,13 +310,17 @@ Known behavioural deviations
      apart, and undefined is what this interpreter answers for a
      required entry that is absent everywhere else. The question could
      not be settled by adjudication.
+ [/] currentgray, currentrgbcolor, currentcmykcolor, currenthsbcolor
+     (PLRM 8.2 says these "cannot convert from CIE-based or special
+     color spaces". A colour in a pattern space is answered with the
+     colour the graphics state starts at, black, there being nothing
+     there to convert. A CIE-based colour is converted rather than
+     answered that way, so a program reading one back is given the
+     device colour it renders as and not the initial colour)
  [X] setcolorrendering  the colour rendering dictionary is the conversion
-     a CIE-based colour goes through (PLRM 7.1.2), and both reference
-     interpreters ignore it -- one renders such a colour through its own
-     colour management and the other preserves the colour space rather
-     than rendering it at all, and neither calls a TransformPQR, an
-     EncodeLMN or an EncodeABC procedure. Here the dictionary is read: a
-     program that sets one gets the rendering it describes. RangePQR is
+     a CIE-based colour goes through (PLRM 7.1.2). Here the dictionary is
+     read: a program that sets one gets the rendering it describes,
+     TransformPQR, EncodeLMN and EncodeABC included. RangePQR is
      not read, which the specification allows -- it states what the
      TransformPQR procedures will see rather than clamping them, and says
      outright that they must accept values outside it.

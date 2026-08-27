@@ -1328,6 +1328,18 @@ end
             add
             1 //.min exec sub
         } bind
+
+        % A pattern is a procedure tiled over the region rather than a
+        % colour a component can be read out of, so there is nothing
+        % here to convert: PLRM 8.2 says these operators cannot convert
+        % from a special colour space. What they answer with is the
+        % colour the graphics state starts at, black, which is what a
+        % program reads before it sets one. Answering rather than
+        % refusing is what lets a program ask after the current colour
+        % without first having to ask what space it is in.
+        /Pattern {  % -  .  gray
+            0.0
+        } bind
     >>
     /DeviceRGB <<
         /DeviceGray {  % -  .  r g b
@@ -1348,6 +1360,18 @@ end
             3 index add 1 //.min exec sub  % K R 1-min(1,m+k)
             1 graphicsdict /currgstate get /colorcomp3 get  % K R G 1 y
             5 4 roll add 1 //.min exec sub  % R G 1-min(1,y+k)
+        } bind
+
+        % A pattern is a procedure tiled over the region rather than a
+        % colour a component can be read out of, so there is nothing
+        % here to convert: PLRM 8.2 says these operators cannot convert
+        % from a special colour space. What they answer with is the
+        % colour the graphics state starts at, black, which is what a
+        % program reads before it sets one. Answering rather than
+        % refusing is what lets a program ask after the current colour
+        % without first having to ask what space it is in.
+        /Pattern {  % -  .  r g b
+            0.0 0.0 0.0
         } bind
     >>
     /DeviceCMYK <<
@@ -1377,6 +1401,18 @@ end
             graphicsdict /currgstate get /colorcomp2 get
             graphicsdict /currgstate get /colorcomp3 get
             graphicsdict /currgstate get /colorcomp4 get
+        } bind
+
+        % A pattern is a procedure tiled over the region rather than a
+        % colour a component can be read out of, so there is nothing
+        % here to convert: PLRM 8.2 says these operators cannot convert
+        % from a special colour space. What they answer with is the
+        % colour the graphics state starts at, black, which is what a
+        % program reads before it sets one. Answering rather than
+        % refusing is what lets a program ask after the current colour
+        % without first having to ask what space it is in.
+        /Pattern {  % -  .  c m y k
+            0.0 0.0 0.0 1.0
         } bind
     >>
 >> put
