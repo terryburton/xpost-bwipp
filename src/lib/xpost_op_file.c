@@ -947,6 +947,12 @@ int xpost_op_file_readhexstring (Xpost_Context *ctx,
         if (eof)
             break;
     }
+    /* as readstring: a decode filter that met data its coding cannot
+       represent latched it, and PLRM 3.13 makes corrupt filter input an
+       ioerror rather than the end of the data. A chain is read through
+       its outermost, so a corrupt inner filter's latch is the chain's. */
+    if (xpost_file_stream_err(f))
+        return ioerror;
     fflush(stdout);
     S.comp_.sz = n;
     xpost_stack_push(ctx->lo, ctx->os, S);
@@ -1187,6 +1193,15 @@ int xpost_op_file_readline (Xpost_Context *ctx,
         if (ended)
             break;
     }
+    /* as readstring: a decode filter that met data its coding cannot
+       represent latched it, and PLRM 3.13 makes corrupt filter input an
+       ioerror rather than the end of the data. A chain is read through
+       its outermost, so a corrupt inner filter's latch is the chain's.
+       Asked before the line is weighed against the string, so a
+       truncated read is reported as the corruption it is rather than as
+       a line that did not fit. */
+    if (xpost_file_stream_err(f))
+        return ioerror;
     if (n == S.comp_.sz)
     {
         /* The string is exactly full. A line that ends here has been read,

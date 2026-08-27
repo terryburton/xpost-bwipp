@@ -102,7 +102,7 @@ own    fill_span_test.ps                      1
 own    fillpoly_arity_test.ps                 3
 own    filter_abandon_test.ps                 10
 own    filter_close_eod_test.ps               8
-own    filter_conformance_test.ps             3
+own    filter_conformance_test.ps             7
 own    filter_encode_pad_test.ps              7
 own    filter_leak_test.ps                    7
 own    filter_proc_test.ps                    7

@@ -127,6 +127,46 @@ gd gcheck (gcheck is true for a global object) assert
 (48656c6c6f>) /ASCIIHexDecode decodes /ok eq
     (a well-formed hex stream decodes without an error) assert
 
+% Every operator that moves bytes out of a filter asks the same
+% question. A latched coding answers its reader with the end of the
+% data, so an operator that did not ask would hand back a short line, or
+% a short string of decoded pairs, that a program cannot tell from a
+% clean end -- which is the whole of what the latch exists to prevent.
+% A rule held by one reader of a stream and not by its siblings is a
+% rule the program meets or misses by which operator it happened to
+% call.
+
+/readslines { % (data) name  .  errorname-or-/ok
+    /_n exch def /_d exch def
+    { _d _n filter 64 string readline pop pop /ok }
+    stopped { $error /errorname get } { } ifelse
+} def
+/readshex { % (data) name  .  errorname-or-/ok
+    /_n exch def /_d exch def
+    { _d _n filter 64 string readhexstring pop pop /ok }
+    stopped { $error /errorname get } { } ifelse
+} def
+
+(v) /ASCII85Decode readslines /ioerror eq
+    (readline reports the corruption readstring reports) assert
+(v) /ASCII85Decode readshex /ioerror eq
+    (and so does readhexstring) assert
+(87cURD]j7BEbo80~>) /ASCII85Decode readslines /ok eq
+    (a well-formed stream still reads a line without one) assert
+(87cURD]j7BEbo80~>) /ASCII85Decode readshex /ok eq
+    (and still reads hex digits without one) assert
+
+% and through a chain, which is read at its outermost while the latch
+% belongs to whichever filter gave up
+{ (zzz) /ASCIIHexDecode filter /RunLengthDecode filter
+  64 string readline pop pop /ok }
+stopped { $error /errorname get } { } ifelse
+/ioerror eq (readline reports a corrupt inner filter of a chain) assert
+{ (zzz) /ASCIIHexDecode filter /RunLengthDecode filter
+  64 string readhexstring pop pop /ok }
+stopped { $error /errorname get } { } ifelse
+/ioerror eq (and so does readhexstring) assert
+
 % ---- a fax decode reports what it can prove, and only that
 
 % The distinction the CCITT decoding turns on is not how much input
