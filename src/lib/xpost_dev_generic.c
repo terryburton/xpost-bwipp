@@ -51,6 +51,7 @@
 #include "xpost_operator.h" /* create operators */
 #include "xpost_op_dict.h" /* call xpost_op_any_load operator for convenience */
 #include "xpost_op_path.h" /* read a path's fill vertices */
+#include "xpost_op_font.h" /* the text route's memo of this clip, dropped with ours */
 #include "xpost_dev_driver.h" /* device contract and shared helpers */
 #include "xpost_span.h" /* scan conversion, and what takes its spans */
 #include "xpost_dev_generic.h" /* check prototypes */
@@ -1125,8 +1126,14 @@ int _newregionserial(Xpost_Context *ctx)
     {
         /* the counter has run its range: nothing cached can be told
            apart from what the reissued numbers will name, so start over
-           with nothing cached */
+           with nothing cached. Every cache filed under this serial is
+           given up here, not just this file's -- the text route keeps
+           its own memo of a clip's bands under the same number, and a
+           restart this side that left that side holding would hand a
+           later region a stale clip. tests/serial-caches is the roster
+           of what is filed under each serial counter. */
         _region_memo_flush();
+        xpost_op_font_clip_memo_drop();
     }
     xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(_region_serial_next));
     return _region_serial_next++, 0;

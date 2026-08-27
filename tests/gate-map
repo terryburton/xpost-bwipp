@@ -522,6 +522,7 @@ guards test image-config
 guards test helper-bind
 guards test host-settings
 guards test show-clip-routes
+guards test check-serial-caches
 guards test raster-classes-derivation
 guards test render-classes
 guards test encoder-units

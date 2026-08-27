@@ -18,5 +18,11 @@
 
 int xpost_oper_init_font_ops(Xpost_Context *ctx, Xpost_Object sd);
 
+/* Drops the bands the text route last read a clip region into. The memo
+   is filed under a region serial minted in xpost_dev_generic.c, so the
+   restart of that counter is what calls this: a number handed out again
+   would otherwise match an entry built from a region long gone. */
+void xpost_op_font_clip_memo_drop(void);
+
 
 #endif

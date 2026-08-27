@@ -365,6 +365,7 @@ xpost_op_cleartomark
 xpost_op_counttomark
 xpost_op_dict_copy
 xpost_op_errorunwind
+xpost_op_font_clip_memo_drop
 xpost_op_privatedict_load
 xpost_op_record_run_error
 xpost_op_stop

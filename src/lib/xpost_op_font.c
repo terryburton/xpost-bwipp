@@ -1227,7 +1227,6 @@ static unsigned long face_cache_clock = 0;
    been freed -- which is what an embedder doing a second init and asking
    for a font it had asked for before would get. Called from the same
    teardown, so the cache stops naming a face before the face goes. */
-static void _clip_memo_drop(void);
 
 /* -  .newfontserial  int
    The serial a font's cached glyph masks are keyed by. The counter only
@@ -1273,7 +1272,7 @@ static void xpost_op_font_quit(void)
     memset(face_cache, 0, sizeof(face_cache));
     face_cache_n = 0;
     face_cache_clock = 0;
-    _clip_memo_drop();
+    xpost_op_font_clip_memo_drop();
 }
 
 /* --- finding a font, and installing one ------------------------------
@@ -2198,8 +2197,13 @@ static struct
 /* Give the read-back bands up. They are one array, replaced as each
    clip is read, so what is held at any moment is the last clip read --
    and it is keyed by a serial and an entity, both of which a later
-   lifetime issues again from the start. */
-static void _clip_memo_drop(void)
+   lifetime issues again from the start.
+
+   Reached from outside this file as well: the region serial the memo is
+   filed under is minted elsewhere (.newregionserial), and a counter that
+   restarts hands out a number this memo may still be holding, so the
+   restart calls here. */
+void xpost_op_font_clip_memo_drop(void)
 {
     free(_clip_memo.band);
     memset(&_clip_memo, 0, sizeof(_clip_memo));

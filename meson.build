@@ -5972,6 +5972,20 @@ test('check-colour-spaces',
   suite: cost_fast,
   timeout: 120)
 
+# A cache the interpreter keeps outside virtual memory is filed under a
+# serial minted by a counter that only moves forward -- until it reaches
+# the end of its range and restarts. At that moment every entry still
+# filed under a number about to be handed out again names something that
+# is gone, and a restart that gives up one cache and not another leaves
+# the second holding entries the first numbers match. This holds each
+# counter's restart to the roster of what is filed under it.
+test('check-serial-caches',
+  find_program('tests/check-serial-caches.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir() ],
+  suite: cost_fast,
+  timeout: 120)
+
 # The guards read data/ and tests/ under a source root they are given, and
 # the interpreter finds the working tree by other routes when that root is
 # wrong -- so a misdirected guard reports a true result about a tree nobody

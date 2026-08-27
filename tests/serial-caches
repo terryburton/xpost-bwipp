@@ -1,0 +1,59 @@
+# The out-of-virtual-memory caches filed under a serial, and what gives
+# each one up when the counter that mints its serial restarts.
+#
+# A cache the interpreter keeps outside virtual memory cannot be keyed by
+# a number minted inside it: save, restore and the job boundary wind such
+# a counter back, and the number is handed out a second time while the
+# cache is not wound back with it. So each of these counters lives in the
+# library's own storage and only ever moves forward.
+#
+# Only ever moves forward, that is, until it reaches the end of its
+# range. Then it restarts, and at that moment every entry still filed
+# under a number it is about to hand out again names something that is
+# gone. A restart that reaches one cache and not another is the same
+# defect the counter was introduced to prevent, arriving later: the
+# entries left behind are matched by serial, by entity and by extent, and
+# a long-lived run repeats all three.
+#
+# tests/check-serial-caches.sh derives the counters and the caches from
+# src/lib and holds them to the lines below in both directions, then
+# reads each restart for the way each of its caches is given up.
+#
+#   counter <static> <file> <the function the restart happens in>
+#   cache   <name> <file> <counter> <dropper> <how>
+#
+# The three ways a cache is given up, which is the whole of what this
+# guard has to know about each one:
+#
+#   derived  a file-scope static in src/lib carrying a serial, given up
+#            by a call the restart makes by name
+#   opaque   given up by a call the restart makes by name, but not
+#            derivable here -- its serial is folded into a key rather
+#            than held in a field, so no scan of the source finds it
+#   caller   not given up at the restart at all. The cache is in virtual
+#            memory, where nothing in C can reach it, so the restart
+#            signals by handing out a number below the last one and the
+#            caller reads that. The dropper is then in the caller's file
+#            and NOT named in the restart, which is what is checked.
+
+counter _fontserial_next    src/lib/xpost_op_font.c     _newfontserial
+counter _region_serial_next src/lib/xpost_dev_generic.c _newregionserial
+counter _form_serial_next   src/lib/xpost_op_path.c     _newformserial
+
+# The glyph masks a procedure or Type 3 font paints through, filed under
+# the font's serial folded into the entry's second key.
+cache gcache_hash  src/lib/xpost_font.c        _fontserial_next    xpost_mask_cache_clear       opaque
+
+# The resolved spans of a clip region, filed under the region's serial.
+cache _region_memo src/lib/xpost_dev_generic.c _region_serial_next _region_memo_flush           derived
+
+# The same clip's bands as the text route reads them. Filed under the
+# region serial as well, and in another file from the counter, so the
+# restart reaches it by name.
+cache _clip_memo   src/lib/xpost_op_font.c     _region_serial_next xpost_op_font_clip_memo_drop derived
+
+# The captured drawing of a form, filed under the form's serial.
+cache .formcache   data/init.ps                _form_serial_next   .formcachedrop               caller
+
+counters 3
+caches 4

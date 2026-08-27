@@ -33,6 +33,8 @@ tests/check-callout-bracket.sh \
 tests/check-clip-writer.sh \
 tests/check-device-destroy.sh \
 tests/check-library-lifetime.sh \
+tests/check-serial-caches.sh \
+tests/serial-caches \
 tests/check-counter-register.sh \
 tests/check-vm-growth.sh \
 tests/check-page-return.sh \
