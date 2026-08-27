@@ -555,6 +555,15 @@ int _gstatecopy(Xpost_Context *ctx,
             unsigned int i;
             unsigned int sz = v.comp_.sz;
 
+            /* A value an access withholds is not one this may read
+               (PLRM 3.3.2). The elements are taken below by a read that
+               does no checking of its own, so the check is made here --
+               without it a copy taken through this operator would hand
+               back, with unrestricted access, what the original refused
+               to give up. */
+            if (!xpost_object_is_readable(ctx, v))
+                return invalidaccess;
+
             /* literal, as the value it replaces was: executability
                belongs to a procedure, and the walk above has already
                decided this value is not one. An array minted here
@@ -563,7 +572,12 @@ int _gstatecopy(Xpost_Context *ctx,
                state that saved it and the state that restored it would
                share one array from then on. */
             a = xpost_object_cvlit(xpost_array_cons(ctx, sz));
-            if (xpost_object_get_type(a) == invalidtype)
+            /* the constructor answers a failure with null, not with the
+               invalid object: read for the wrong one and the failure
+               goes unnoticed here and is reported, further down, as
+               whatever the null object refuses next -- which is not the
+               exhaustion that happened. */
+            if (xpost_object_get_type(a) != arraytype)
                 return VMerror;
             for (i = 0; i < sz; i++)
             {
