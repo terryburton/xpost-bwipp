@@ -283,8 +283,13 @@ setglobal
 %
 /gsave [ ] {  % -  .  -
 graphicsdict begin
+    % the refusal comes before the depth moves: a gsave that raises has
+    % saved nothing, so leaving the pointer past the last slot would take
+    % the graphics state stack with it -- every later grestore would read
+    % past the end and raise rangecheck of its own, and the run could
+    % neither carry on nor unwind
+    gptr 1 add gstackarray length ge { /gsave cvx /limitcheck signalerror } if
     /gptr gptr 1 add def
-    gptr gstackarray length ge { /gsave cvx /limitcheck signalerror } if
     gstackarray gptr gstate put  % Push copy on stack
     currgstate /currpath 2 copy get .copypath put  % Make a new working copy of path
 end

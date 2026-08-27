@@ -302,4 +302,46 @@ T3e /CallbackErrFont exch definefont pop
 (a spot function) unwinds
 clear
 
+% --- a callback that fills the graphics state stack -----------------
+% The bracket unwinds by giving back every state the callback left open,
+% so its own unwinding is the one thing that must not raise. A callback
+% the machinery runs once per sample can open a state every time and
+% reach the limit the stack has -- and what the program must be told
+% then is the error its own procedure caused, not one raised by the
+% unwinding that went looking for it. So a gsave that refuses leaves the
+% depth where it found it, and the states already open stay reachable.
+
+/gsn 0 def
+gsave
+    { { gsave /gsn gsn 1 add store } loop } stopped
+        { $error /errorname get /limitcheck ne
+            { (the gsave limit reported something other than limitcheck) note } if
+          $error /newerror false put }
+        { (gsave never reached the limit of its stack) note } ifelse
+    clear
+    { gsn { grestore } repeat } stopped
+        { (a gsave refused at the limit left the states below it unreachable) note
+          $error /newerror false put } if
+    clear
+{ grestore } stopped
+    { (a gsave refused at the limit left the caller's own state unreachable) note
+      $error /newerror false put } if
+clear
+
+/errname null def
+1 setlinewidth
+gsave
+    3 setlinewidth
+    { { gsave } settransfer 0 0 8 8 rectfill } stopped
+        { /errname $error /errorname get store $error /newerror false put }
+        { (a callback that gsaves every sample did not raise) note } ifelse
+    clear
+{ grestore } stopped
+    { (a callback that filled the stack cost the caller its own state) note
+      $error /newerror false put } if
+clear
+errname /limitcheck (the error reported is the one the callback caused) same
+currentlinewidth 1 eq { }
+    { (the caller's line width did not come back) note } ifelse
+
 bad 0 eq { (SUCCESS\n) print }{ (FAILURES: ) print bad == } ifelse
