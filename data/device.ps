@@ -343,13 +343,20 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } put
 
 %
-%  Substitute the page number for a %d marker in an output file name,
-%  counting the pages transmitted; without the marker every page writes
-%  the same file, last page standing
-%  the page counter lives in a global dict so it survives the save/restore
-%  a program wraps around each page (the separation-plate idiom); a counter
-%  kept in the local device dictionary is rewound by restore, and every page
-%  then reuses the same %d number.
+%  What has become of the page, kept where the program cannot take it
+%  back. Four facts, each written by the machinery as a page is painted
+%  and transmitted and read again at the next page: /.pageno the count of
+%  pages transmitted, which fills a %d in the output file name; /.plrmpage
+%  the count a page device's own handlers are told; /.marked whether
+%  anything has been painted since the page began; and /.sent whether any
+%  page has been transmitted at all. The accessors below carry them.
+%
+%  A program brackets its pages in save and restore -- the separation-plate
+%  idiom is exactly that -- and restore reverts local virtual memory
+%  wholesale (PLRM 3.7.2), so a record parked there is rewound between one
+%  page and the next: the %d numbering collapses onto one file, and a page
+%  the program painted is forgotten. This dictionary is global, which
+%  restore leaves alone.
 %
 .xpostsys /.pagestate 1 dict put
 
@@ -359,10 +366,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  far. A name without the marker comes back unchanged, and every page
 %  then writes the same file with the last one standing.
 %
-%  The counter lives in a global dictionary so that the save and restore
-%  a program wraps around each page -- the separation-plate idiom --
-%  does not rewind it. Kept in the local device dictionary it would be
-%  rewound, and every page would reuse the same number.
+%  The count is the record's, above, and is advanced here as the name is
+%  settled: one counter for every device there is, and one a program's
+%  restore does not rewind.
 %
 .xpostsys /.pagefilename {  % name  .  name'
     dup (%d) search {

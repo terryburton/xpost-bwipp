@@ -440,6 +440,7 @@ tests/reloc_fused_test.ps \
 tests/reloc_stress_test.ps \
 tests/render-differ.sh \
 tests/render_classes_test.ps \
+tests/render_state_bank_test.ps \
 tests/resource_load_test.c \
 tests/resource_matrix_test.ps \
 tests/roll_test.ps \
@@ -517,6 +518,7 @@ tests/run-raster-formats-test.sh \
 tests/run-refusing-target-test.sh \
 tests/run-reloc-stress-test.sh \
 tests/run-render-differ-test.sh \
+tests/run-render-state-bank-test.sh \
 tests/run-device-ps-test.sh \
 tests/run-setpagedevice-failure-test.sh \
 tests/run-statementedit-test.sh \

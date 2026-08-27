@@ -2696,6 +2696,22 @@ test('vm',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The bank the machinery's own per-render notes live in. The page's note, a
+# pattern cell's and a glyph's are each written while a procedure of the
+# program's is running and read after it returns, and generated PostScript
+# brackets such a procedure in save and restore as a matter of course. A
+# note kept in local virtual memory is rewound between the write and the
+# read, so each of the three is held to the render it costs: page numbering
+# that collapses onto one file, a Type 3 glyph that comes out blank with the
+# pen where it started, and a pattern cell filed with marks that belong to
+# the page rather than to the cell. Each case carries a control render that
+# must come out differently.
+test('render-state-bank',
+  find_program('tests/run-render-state-bank-test.sh'),
+  args: [ xpost_exe, files('tests/render_state_bank_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # roll operator: the rotation PLRM 8.2 defines, in both directions and for
 # a count larger than the group, plus a large-roll performance guard -- an
 # O(n^2) roll on a deep stack times the test out.

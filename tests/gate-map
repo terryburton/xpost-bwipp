@@ -216,6 +216,7 @@ font test op-glyphcontext
 font test noface-refusal
 font test outline-font
 font test record-glyph
+font test render-state-bank
 font test check-glyph-render-route
 font test check-type42-charstrings
 font width witness
@@ -312,6 +313,7 @@ graphics test path-*
 graphics test pattern-phase
 graphics test pattern-space
 graphics test render-differ
+graphics test render-state-bank
 graphics test save-restore-ctm
 graphics test save-restore-matrix
 graphics test setdash-finite
