@@ -26,6 +26,25 @@
 % and unreplaced. The passing pass holds the same depths over a
 % procedure that returns normally, so an operator that leaves the depth
 % wrong every time is not read as one that unwinds correctly.
+%
+% WHY THIS IS A LIST OF OPERATORS AND NOT A LIST OF SITES. The obvious
+% guard for this is a register of the places the machinery hands control
+% to a procedure of the program's, derived by reading the sources, with
+% each site saying which bracket it runs under. That guard was written
+% out and rejected, because reading the sources is what got this wrong
+% in the first place. Every site that turned out to be leaking here was
+% either absent from such a reading or described in it as protected, and
+% a reading made afterwards -- with the answers already known -- still
+% missed rectfill, whose gsave sits inside a procedure literal rather
+% than in the operator's body. A register derived that way would list
+% the sites somebody found and be silent about the ones nobody did,
+% which is the shape of a guard that reports success.
+%
+% What is enumerated here instead is the operators, which are what a
+% program can call and therefore what the contract is owed to. An
+% operator new to the language is new to this list, and an operator that
+% starts opening a graphics state it did not open before is already on
+% it. Neither depends on anyone having noticed where the gsave went.
 
 % a face answers for the text operators here: a build without a face
 % library cannot ask their half and says so rather than failing it
@@ -63,6 +82,10 @@ systemdict /NOFACES known
     [ (glyphshow)   { font 0 0 moveto /A glyphshow } ]
     [ (charpath)    { font newpath 0 0 moveto (A) true charpath fill } ]
     [ (imagemask)   { 4 4 true [4 0 0 -4 0 4] <a05000f0> imagemask } ]
+    % a form paints through a procedure of the program's inside a
+    % graphics state execform opened for the form's matrix and box
+    [ (execform)    { << /FormType 1 /BBox [0 0 8 8] /Matrix matrix
+                         /PaintProc { pop 0 0 4 4 rectfill } >> execform } ]
 ] def
 
 /nm () def  /body {} def  /g0 0 def  /d0 0 def  /er /none def

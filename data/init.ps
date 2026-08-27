@@ -1763,7 +1763,13 @@ currentglobal true setglobal
 %  failing, and the operand stack goes back to what the procedure
 %  found rather than to execform's operand.
 %
+%  The graphics state this opens is execform's own, and the grestore
+%  written after the paint is not reached when the procedure raises, so
+%  the whole body goes through the callout bracket -- which closes what
+%  the body opened whichever way the body ends.
+%
 .xpostsys /.execformdirect {  % formdict  .  -
+    {
     gsave
     dup /Matrix get concat
     dup /BBox get aload pop     % Form llx lly urx ury
@@ -1772,6 +1778,7 @@ currentglobal true setglobal
     rectclip
     dup /PaintProc get //.xpostsys /.pexec get exec
     grestore
+    } null 0 //.xpostsys /.callout get exec
 } put
 
 %
@@ -1792,11 +1799,13 @@ currentglobal true setglobal
 %  not cut at all.
 %
 .xpostsys /.execformcapture {  % formdict  .  -
+    {
     gsave
     dup /Matrix get concat
     newpath
     dup /PaintProc get //.xpostsys /.pexec get exec
     grestore
+    } null 0 //.xpostsys /.callout get exec
 } put
 setglobal
 
