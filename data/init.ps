@@ -2980,6 +2980,38 @@ currentglobal true setglobal
                 put
                 /policies merged /Policies get store
 
+                % A BOUND ON WHAT ACCUMULATES, AND WHY IT CANNOT GO.
+                %
+                % The accumulated parameters are copied whole on every
+                % call, so that a restore can revert the slot to the
+                % dictionary a save saw, and .mergepolicies rebuilds the
+                % policies into a dictionary of its own for the same
+                % reason and to keep a program that held on to the
+                % dictionary it asked with from rewriting what is in
+                % force. Both copies are load-bearing; neither can be
+                % skipped.
+                %
+                % Policies is what grows. Its entries are cumulative
+                % (PLRM 6.1.1) and its keys are not held to the
+                % parameters this interpreter has: a policy may be stated
+                % for a parameter it does not provide, and is kept, so a
+                % program naming a fresh one on every call adds a key
+                % each time. Copying a dictionary that grows by one per
+                % call costs the square of the calls, and there is no
+                % ceiling short of the dictionary size limit.
+                %
+                % So the count is bounded here, over the parameters and
+                % the policies together, well above the parameters there
+                % are and any policy a page description would state. It
+                % is not the top-level key count that needs this -- those
+                % are held to the parameter list already -- which is why
+                % the bound counts the policies too.
+                merged length
+                merged /Policies 2 copy known { get length }{ pop pop 0 } ifelse
+                add 512 gt {
+                    /setpagedevice cvx /limitcheck signalerror
+                } if
+
                 % PLRM 6.1.1: a request naming a page-device parameter this
                 % interpreter provides no behaviour for cannot be satisfied --
                 % whatever value it asks for, one turning the feature off

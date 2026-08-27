@@ -47,6 +47,24 @@ currentpagedevice /NoSuchParameter known not
 currentpagedevice length pd.n le
     (and leaves the accumulated dictionary no larger than it found it) assert
 
+% What accumulates is bounded, and Policies is what accumulates.
+%
+% A policy may be stated for a parameter this interpreter does not
+% provide, and it is kept (PLRM 6.1.1 makes the entries cumulative and
+% does not hold the keys to the parameters there are). The accumulated
+% dictionary is copied whole on every call, so a program naming a fresh
+% policy per call would cost the square of its calls and grow without
+% ceiling. A request that carries the count past the bound is refused
+% rather than served.
+{ 1 1 200 { /i exch def
+    << /Policies << i 20 string cvs cvn 1 >> >> setpagedevice } for }
+    (policies well inside the bound accumulate) works
+currentpagedevice /Policies get length 200 ge
+    (and every one of them is kept) assert
+{ 1 1 600 { /i exch def
+    << /Policies << i 1000 add 20 string cvs cvn 1 >> >> setpagedevice } for }
+    /limitcheck (naming a fresh policy on every call is refused) raises
+
 % A device's own painting procedures share the dictionary the parameters
 % live in, so the drop is what keeps a request from reaching one. Every
 % device carries Destroy and Emit; a request naming either is accepted
