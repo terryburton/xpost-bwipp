@@ -649,41 +649,6 @@ _xpost_font_face_map_select(FT_Face face)
 }
 #endif
 
-#ifdef HAVE_FREETYPE2
-/* The point in the face's own character map that a character code
-   reaches its glyph at. A face read through the symbol map keeps its
-   codes in the private-use area, so a code reaches its glyph there;
-   every other map is asked for the code itself. */
-static FT_ULong
-_xpost_font_face_code_point(FT_Face face, unsigned int code)
-{
-    if (face && face->charmap
-     && face->charmap->encoding == FT_ENCODING_MS_SYMBOL
-     && code <= 0xFF)
-    {
-        FT_ULong pua = 0xF000UL + code;
-
-        if (FT_Get_Char_Index(face, pua))
-            return pua;
-    }
-    return (FT_ULong)code;
-}
-#endif
-
-/* Whether the map the face is read through is the symbol map. */
-int
-xpost_font_face_is_symbol_encoded(void *face)
-{
-#ifdef HAVE_FREETYPE2
-    FT_Face f = (FT_Face)face;
-
-    return f && f->charmap && f->charmap->encoding == FT_ENCODING_MS_SYMBOL;
-#else
-    (void)face;
-    return 0;
-#endif
-}
-
 /* Whether the name most recently resolved landed on a face carrying
    some other name. The platform's configuration answers nearly every
    name with some face, so this is the only thing that tells a face
@@ -750,13 +715,21 @@ static const struct { const char *suffix; const char *flags; } _ps_style_suffix[
 /* Asks the platform's font configuration for the closest face to a
    name. It answers with something for almost any name, the
    substitution rules seeing to that, which is why the caller records
-   what it landed on rather than assuming it got what it asked for. */
+   what it landed on rather than assuming it got what it asked for.
+
+   The request the match was made against is handed back where the
+   caller asks for it: it is the request, not the name, that says what
+   kind of font was wanted, and the caller needs that to tell a name
+   the configuration answered from one it fell back on. */
 static FcPattern *
-_fc_match_name(const char *name)
+_fc_match_name(const char *name, FcPattern **request)
 {
     FcPattern *pattern;
     FcPattern *match;
     FcResult result;
+
+    if (request)
+        *request = NULL;
 
     pattern = FcNameParse((const FcChar8 *)name);
     if (!pattern)
@@ -770,7 +743,6 @@ _fc_match_name(const char *name)
 
     FcDefaultSubstitute(pattern);
     match = FcFontMatch(_xpost_font_fc_config, pattern, &result);
-    FcPatternDestroy(pattern);
     switch (result) {
         case FcResultMatch: break;
         case FcResultNoMatch: goto destroy_match;
@@ -778,12 +750,133 @@ _fc_match_name(const char *name)
         case FcResultNoId: break;
         case FcResultOutOfMemory: goto destroy_match;
     }
+    if (request)
+        *request = pattern;
+    else
+        FcPatternDestroy(pattern);
     return match;
 
   destroy_match:
+    FcPatternDestroy(pattern);
     if (match)
         FcPatternDestroy(match);
     return NULL;
+}
+
+/* --- a name the configuration answers, and a name it falls back on ---
+
+   Resolving a name to a face of another family is not by itself a
+   substitution. A configuration is told which families stand in for
+   which -- the families a document names and the families a machine
+   actually holds are not the same set, and mapping one onto the other
+   is what it is for -- and a name it maps is a name the machine
+   considers itself to have. What the program asked for is there; it is
+   there under another family's file. The name it asked by is still the
+   name of the font it got, and that is what the dictionary must say.
+
+   A name the configuration has nothing at all for is different. There
+   the request falls through to the generic family every request carries
+   -- the kind of font wanted rather than any font in particular -- and
+   what comes back is the machine's default face of that kind. That is
+   the substitution PLRM 8.2 permits in place of the invalidfont error,
+   and the program has been handed a font it did not ask for.
+
+   The two are told apart by asking a second question: what does this
+   machine answer for a request of this kind carrying no family at all?
+   If that is the same face, the name contributed nothing to the answer
+   and the face is the default one. If it is a different face, some
+   family of the request reached it, which is the configuration
+   answering rather than falling back. */
+
+/* the generic families, which name a kind of font rather than a font */
+static const char *_fc_generic_family[] = {
+    "serif", "sans-serif", "sans serif", "monospace",
+    "cursive", "fantasy", "system-ui", "math", "emoji"
+};
+
+static const char *
+_fc_request_generic(FcPattern *request)
+{
+    char *s;
+    int i;
+    size_t g;
+
+    for (i = 0;
+         FcPatternGetString(request, FC_FAMILY, i, (FcChar8 **)&s) == FcResultMatch;
+         i++)
+        for (g = 0; g < sizeof _fc_generic_family / sizeof *_fc_generic_family; g++)
+            if (_fc_name_eq(s, _fc_generic_family[g]))
+                return _fc_generic_family[g];
+    return NULL;
+}
+
+/* Whether the match is the face this machine answers a request of that
+   kind with when no family of its own reaches one. The style the
+   request carries goes with it, so a bold request is compared against
+   the default bold face rather than against the plain one. */
+static int
+_fc_match_is_the_default(FcPattern *request, FcPattern *match)
+{
+    const char *generic = _fc_request_generic(request);
+    FcPattern *plain;
+    FcPattern *fallback;
+    FcResult result;
+    char *mfile;
+    char *dfile;
+    int midx = 0;
+    int didx = 0;
+    int same;
+    int i;
+
+    if (!generic)
+        return 0;
+    if (FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&mfile) != FcResultMatch)
+        return 0;
+    (void)FcPatternGetInteger(match, FC_INDEX, 0, &midx);
+
+    plain = FcPatternCreate();
+    if (!plain)
+        return 0;
+    if (!FcPatternAddString(plain, FC_FAMILY, (const FcChar8 *)generic))
+    {
+        FcPatternDestroy(plain);
+        return 0;
+    }
+    /* the shape of the request, without the name: two faces of one
+       family are different files, so a request that asked for a bold
+       or an italic has to be answered by the default of that shape */
+    {
+        static const char *shape[] = { FC_WEIGHT, FC_SLANT, FC_WIDTH };
+
+        for (i = 0; i < (int)(sizeof shape / sizeof *shape); i++)
+        {
+            int v;
+
+            if (FcPatternGetInteger(request, shape[i], 0, &v) == FcResultMatch)
+                (void)FcPatternAddInteger(plain, shape[i], v);
+        }
+    }
+    if (!FcConfigSubstitute(_xpost_font_fc_config, plain, FcMatchPattern))
+    {
+        FcPatternDestroy(plain);
+        return 0;
+    }
+    FcDefaultSubstitute(plain);
+    fallback = FcFontMatch(_xpost_font_fc_config, plain, &result);
+    FcPatternDestroy(plain);
+    if (!fallback)
+        return 0;
+
+    same = FcPatternGetString(fallback, FC_FILE, 0, (FcChar8 **)&dfile)
+               == FcResultMatch
+        && strcmp(dfile, mfile) == 0;
+    if (same)
+    {
+        (void)FcPatternGetInteger(fallback, FC_INDEX, 0, &didx);
+        same = midx == didx;
+    }
+    FcPatternDestroy(fallback);
+    return same;
 }
 # endif
 
@@ -794,11 +887,12 @@ _xpost_font_face_filename_and_index_get(const char *name, int *idx)
 {
 # ifdef HAVE_FONTCONFIG
     FcPattern *match;
+    FcPattern *request;
     char *file;
     char *filename;
     FcResult result;
 
-    match = _fc_match_name(name);
+    match = _fc_match_name(name, &request);
     if (!match)
         return NULL;
 
@@ -818,22 +912,40 @@ _xpost_font_face_filename_and_index_get(const char *name, int *idx)
             {
                 char *styled = malloc(nlen + strlen(_ps_style_suffix[i].flags) + 1);
                 FcPattern *restyled;
+                FcPattern *rerequest;
 
                 if (!styled)
                     break;
                 memcpy(styled, name, nlen - slen);
                 strcpy(styled + nlen - slen, _ps_style_suffix[i].flags);
-                restyled = _fc_match_name(styled);
+                restyled = _fc_match_name(styled, &rerequest);
                 free(styled);
                 if (restyled)
                 {
                     FcPatternDestroy(match);
                     match = restyled;
+                    if (request)
+                        FcPatternDestroy(request);
+                    request = rerequest;
                 }
                 break;
             }
         }
     }
+
+    /* Whether the program was handed a font it did not ask for. Both
+       questions are asked of the match that will actually be opened,
+       the requery above having possibly replaced the first one, and of
+       the name as it arrived: a restyled query is this module's way of
+       reaching a face, not something the caller asked for.
+
+       A face carrying the name is the name's own, and a face some
+       family of the request reached is the name's too -- the
+       configuration was told those families stand for one another. Only
+       where neither holds has the name reached nothing and the machine
+       answered with its default face of that kind. */
+    _xpost_font_last_substitute = !_fc_match_is_exact(match, name)
+                               && _fc_match_is_the_default(request, match);
 
     result = FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&file);
     if (result != FcResultMatch)
@@ -849,11 +961,15 @@ _xpost_font_face_filename_and_index_get(const char *name, int *idx)
 
     filename = strdup(file);
 
+    if (request)
+        FcPatternDestroy(request);
     FcPatternDestroy(match);
 
     return filename;
 
   destroy_match:
+    if (request)
+        FcPatternDestroy(request);
     FcPatternDestroy(match);
 # endif
 
@@ -885,6 +1001,16 @@ xpost_font_face_last_file(void)
     return _xpost_font_last_file;
 }
 
+/* whether the face most recently opened by name is some face other
+   than the one the name asked for: read where the file is, and for
+   the same reason -- it answers for the last open by name and the
+   next one replaces the answer */
+int
+xpost_font_face_last_is_substitute(void)
+{
+    return _xpost_font_last_substitute;
+}
+
 /* Opens the face a name resolves to through the platform's
    configuration, and records the file it came from so that a caller
    can publish the program itself. */
@@ -897,6 +1023,10 @@ xpost_font_face_new_from_name(const char *name)
     char *filename;
     int idx;
 
+    /* nothing is a substitute until the resolution says so, so a
+       resolution that never reaches the question leaves a no behind
+       rather than the last one's answer */
+    _xpost_font_last_substitute = 0;
     filename = _xpost_font_face_filename_and_index_get(name, &idx);
     free(_xpost_font_last_file);
     _xpost_font_last_file = NULL;
@@ -1223,6 +1353,66 @@ xpost_font_face_transform(void *face, float *mat)
     (void)mat;
 #endif
 }
+
+/* The name the face states for itself: the PostScript name a font
+   program carries, and where it carries none, the family the platform
+   knows the file by. */
+int
+xpost_font_face_name_get(void *face, char *buf, int len)
+{
+#ifdef HAVE_FREETYPE2
+    const char *n = FT_Get_Postscript_Name((FT_Face)face);
+
+    if (!n || !*n)
+        n = ((FT_Face)face)->family_name;
+    if (!n || !*n)
+        return 0;
+    if ((int)strlen(n) >= len)
+        return 0;
+    strcpy(buf, n);
+    return 1;
+#else
+    (void)face;
+    (void)buf;
+    (void)len;
+    return 0;
+#endif
+}
+
+/* Whether the map the face is read through is the symbol map. */
+int
+xpost_font_face_is_symbol_encoded(void *face)
+{
+#ifdef HAVE_FREETYPE2
+    FT_Face f = (FT_Face)face;
+
+    return f && f->charmap && f->charmap->encoding == FT_ENCODING_MS_SYMBOL;
+#else
+    (void)face;
+    return 0;
+#endif
+}
+
+#ifdef HAVE_FREETYPE2
+/* The point in the face's own character map that a character code
+   reaches its glyph at. A face read through the symbol map keeps its
+   codes in the private-use area, so a code reaches its glyph there;
+   every other map is asked for the code itself. */
+static FT_ULong
+_xpost_font_face_code_point(FT_Face face, unsigned int code)
+{
+    if (face && face->charmap
+     && face->charmap->encoding == FT_ENCODING_MS_SYMBOL
+     && code <= 0xFF)
+    {
+        FT_ULong pua = 0xF000UL + code;
+
+        if (FT_Get_Char_Index(face, pua))
+            return pua;
+    }
+    return (FT_ULong)code;
+}
+#endif
 
 /* The glyph a character code selects through the face's own encoding. */
 unsigned int

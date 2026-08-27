@@ -3346,6 +3346,14 @@ test('font-encoding',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# What a font found under a name nothing here supplies says it is: the
+# name of the face that answered, not the name that reached nothing.
+test('font-substitute',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/font_substitute_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The two font directories hold different populations: the local one goes
 # away with the save level that defined its fonts, the global one does not.
 test('font-directory',

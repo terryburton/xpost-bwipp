@@ -110,6 +110,39 @@ void xpost_font_face_get_bbox(void *face, Xpost_Object *bboxarray, real em);
 int xpost_font_face_units(void *face);
 int xpost_font_face_is_truetype(void *face);
 const char *xpost_font_face_last_file(void);
+
+/**
+ * @brief Whether the face most recently opened by name is a face other
+ * than the one that name asked for.
+ *
+ * @return 1 where the face carries neither the requested name nor any
+ * name equal to it, 0 otherwise.
+ *
+ * The platform's font configuration answers almost any name with some
+ * face, so a name nothing supplies produces a face all the same --
+ * which is what PLRM 8.2 asks of findfont, and what leaves a caller
+ * unable to tell a face it asked for from one it was given instead.
+ * Read straight after xpost_font_face_new_from_name(), as
+ * xpost_font_face_last_file() is: it answers for the last open by
+ * name, and the next one replaces the answer.
+ */
+int xpost_font_face_last_is_substitute(void);
+
+/**
+ * @brief Copy the name the face carries for itself (nul-terminated).
+ *
+ * @param[in] face The font face.
+ * @param[out] buf Where the name is written.
+ * @param[in] len The room in @p buf.
+ * @return 0 where the face states no name or the name does not fit,
+ * 1 otherwise.
+ *
+ * The name the font program states for itself, and where it states
+ * none, the family the platform knows it by. It is what a font
+ * dictionary made over the face has to give as its /FontName (PLRM
+ * Table 5.7) when the name asked for reached some other face.
+ */
+int xpost_font_face_name_get(void *face, char *buf, int len);
 int xpost_font_face_is_type1(void *face);
 int xpost_font_face_is_cff(void *face);
 void xpost_font_face_free(void *face);

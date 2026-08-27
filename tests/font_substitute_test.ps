@@ -1,0 +1,115 @@
+%!testlib
+% What a font found under a name nothing here supplies says it is, run
+% through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 8.2 has findfont answer with a font in every case: a name the
+% host cannot supply "substitutes a default font or executes the
+% invalidfont error", and this build substitutes. PLRM Table 5.7 has
+% /FontName state "the name of this font". The two together decide what
+% the substitute's dictionary has to say: the name of the font it is,
+% which is the face that was found, and not the name that was asked for
+% and reached nothing.
+%
+% The statement is invisible to painting, which is why it lasted. The
+% substitute paints its own glyphs whatever its dictionary says it is
+% called. What the wrong name breaks is every program that READS the
+% name: a program that asks for a font, reads /FontName back and finds
+% the name it asked for has been told the face is there when it is not,
+% and can neither report the substitution nor choose differently.
+%
+% WHAT IS NOT A SUBSTITUTION, and is the case that matters more. A name
+% resolved to a face of another family is not one: a host is told which
+% families stand in for which, and a name it maps that way is a name it
+% considers itself to have -- the font asked for is there, under another
+% family's file, and the name asked by is still the name of the font
+% that was got. Only a name the host has nothing for at all falls
+% through to its default face, and only that is the substitution PLRM
+% 8.2 describes. The two are told apart in the font machinery; what is
+% asserted here is what a program can see of the answer.
+%
+% WHICH NAMES A HOST HAS is the host's business and differs from one
+% machine to the next, so it cannot be asserted from here -- a suite
+% that named the fonts it expected would be reporting the machine it
+% was written on. The names below are printed instead, so a log taken
+% anywhere says what that host answered.
+
+% a face answers for this suite: a build without a face library resolves
+% no faces by name at all
+systemdict /NOFACES known
+{ (SKIPPED: this suite reads the name of a face found by name, and this build carries no face library) = flush quit } if
+
+% A name no font file carries. It is not a name this suite invented to
+% be refused -- the platform's font configuration answers nearly any
+% name with some face, which is what makes a substitution happen at all.
+/fs.asked /XpostNoSuchFaceZZ def
+
+/fs.got null def
+{ fs.asked findfont /fs.got exch def } outcome /ok ne {
+    (SKIPPED: nothing on this host answers a name it does not carry, so no)
+      print ( substitution happens here) print (\n) print flush quit
+} if
+
+fs.got type /dicttype eq
+    (a name nothing supplies still answers with a font) assert
+
+% ------------------------------------------------- the name it answers by
+fs.got /FontName known
+    (a substituted font carries a FontName) assert
+fs.got /FontName get type /nametype eq
+    (a substituted font names itself with a name) assert
+fs.got /FontName get xcheck not
+    (a substituted font names itself with a literal name) assert
+fs.got /FontName get fs.asked ne
+    (a substituted font does not answer by the name that reached nothing) assert
+
+% ------------------------------------------------------ and says it again
+%
+% The face behind a name is held between lookups, so the second lookup
+% of a name takes a different route through the font machinery from the
+% first. What it says about the font must not depend on which route it
+% took.
+/fs.again null def
+{ fs.asked findfont /fs.again exch def } outcome /ok eq
+    (a substituted name answers a second time) assert
+fs.again null ne {
+    fs.again /FontName get fs.got /FontName get eq
+        (a substituted name says the same thing the second time) assert
+} if
+
+% ------------------------------------------------- and lands somewhere real
+%
+% The name a substitute answers by is the name of a face this host
+% holds, so asking for it reaches that face and it answers by itself.
+% A name that answered by something the host cannot then resolve would
+% be as useless to a program as the name that reached nothing.
+/fs.name fs.got /FontName get def
+/fs.round null def
+{ fs.name findfont /fs.round exch def } outcome /ok eq
+    (the name a substitute answers by finds a font) assert
+fs.round null ne {
+    fs.round /FontName get fs.name eq
+        (the name a substitute answers by is a name that answers by itself) assert
+} if
+
+% ---------------------------------------------------------- and is a font
+%
+% A substitute is a font and not a placeholder: PLRM 8.2 asks findfont
+% for a font, so what comes back sets and measures like one.
+{ fs.got 12 scalefont setfont (Az) stringwidth pop pop }
+    (a substituted font sets and measures) works
+
+% ------------------------------------------------- what this host answered
+%
+% Printed rather than asserted, for the reason given at the top: which
+% of these a machine holds is the machine's business. What a reader of
+% the log can see is whether a name the host resolves came back under
+% its own name, which is the whole of the distinction above.
+[ /Times-Roman /Helvetica /Courier /Symbol ] {
+    dup 40 string cvs print (: ) print
+    findfont /FontName get 40 string cvs print (\n) print
+} forall
+(note: a name nothing carries: ) print
+fs.asked 40 string cvs print (: ) print fs.name 40 string cvs print (\n) print
+flush
+
+verdict

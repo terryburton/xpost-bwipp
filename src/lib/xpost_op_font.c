@@ -1138,7 +1138,8 @@ void _face_drop(Xpost_Context *ctx, const char *facename)
    the run is asking for now rather than the first ones it ever saw. A
    wrap of the clock costs a poor choice of victim, never a wrong
    face. */
-static struct { char *name; void *face; char *file; unsigned long used; }
+static struct { char *name; void *face; char *file; unsigned long used;
+                int substitute; }
     face_cache[32];
 static int face_cache_n = 0;
 static unsigned long face_cache_clock = 0;
@@ -1225,6 +1226,7 @@ int _findfont(Xpost_Context *ctx,
     int cffreal = 0;
     int uncached = 0;
     int referenced = 0;
+    int substitute = 0;
     int ret;
 
     data.face = NULL;
@@ -1249,6 +1251,14 @@ int _findfont(Xpost_Context *ctx,
        font dictionaries exactly as a FontDirectory-cached dictionary
        already shares it.
 
+       The key is the name that was asked for, not the name of the face
+       that answered. It has to be: the lookup happens before any face
+       is open, so the name asked for is the only thing there is to key
+       on, and it is also what the run asks again with. Two names that
+       resolve to one face therefore hold an entry each, which costs
+       the derived objects built twice and cannot produce a wrong font
+       -- everything below reads the face, not the entry.
+
        The cache holds a fixed number of names and the run may ask for
        more: a name arriving at a full cache takes the place of the one
        asked for longest ago. What being out of the cache costs a name
@@ -1268,6 +1278,7 @@ int _findfont(Xpost_Context *ctx,
             {
                 data.face = face_cache[fi].face;
                 ffile = face_cache[fi].file;
+                substitute = face_cache[fi].substitute;
                 face_cache[fi].used = ++face_cache_clock;
                 slot = fi;
                 break;
@@ -1276,10 +1287,12 @@ int _findfont(Xpost_Context *ctx,
         if (data.face == NULL)
         {
             data.face = xpost_font_face_new_from_name(fname);
-            /* the file the face was just opened from: the library
-               answers for the last open, so it is read here and not
-               after anything else may have opened a face */
+            /* the file the face was just opened from, and whether the
+               name reached the face it asked for: the library answers
+               for the last open, so both are read here and not after
+               anything else may have opened a face */
             ffile = xpost_font_face_last_file();
+            substitute = xpost_font_face_last_is_substitute();
             if (data.face != NULL)
             {
                 int at = face_cache_n;
@@ -1314,6 +1327,7 @@ int _findfont(Xpost_Context *ctx,
                 face_cache[at].file = ffile ? strdup(ffile) : NULL;
                 face_cache[at].name = strdup(fname);
                 face_cache[at].face = data.face;
+                face_cache[at].substitute = substitute;
                 face_cache[at].used = ++face_cache_clock;
                 slot = at;
                 ffile = face_cache[slot].file;
@@ -1323,6 +1337,55 @@ int _findfont(Xpost_Context *ctx,
         if (data.face == NULL){
             free(fname);
             return invalidfont;
+        }
+
+        /* What the dictionary is a font of. PLRM Table 5.7 has
+           /FontName state "the name of this font", and the name asked
+           for is not always the name of what was found: the platform's
+           configuration answers nearly every name with some face, so a
+           name nothing supplies produces a font all the same -- which
+           is what PLRM 8.2 requires of findfont, and what would leave a
+           program unable to tell the font it asked for from the one it
+           was handed. Where the face carries the name it was asked for,
+           that name is its own and stands; where it does not, the
+           dictionary states the name the face carries.
+
+           The name is stamped here rather than at the construction
+           above, that being before there is a face to read it from.
+           It is interned in global virtual memory, as the glyph names
+           below are and for the same reason: a font found under one
+           allocation mode and read under the other names itself with
+           the same object.
+
+           A substitution is also the build's own decision, so it says
+           so on the channel it says such things on. It goes below the
+           level a run prints by default: findfont produced a font,
+           which is what the specification asks of it, so nothing has
+           gone wrong -- and a page setting text in a dozen substituted
+           names would otherwise say so a dozen times on a run that
+           asked for none of it. */
+        if (substitute)
+        {
+            char namebuf[256];
+
+            if (xpost_font_face_name_get(data.face, namebuf, sizeof namebuf))
+            {
+                unsigned int oldmode = ctx->vmmode;
+                Xpost_Object facename;
+
+                XPOST_LOG_WARN("Font %s not found, using %s", fname, namebuf);
+                ctx->vmmode = GLOBAL;
+                facename = xpost_object_cvlit(xpost_name_cons(ctx, namebuf));
+                ctx->vmmode = oldmode;
+                if (xpost_object_get_type(facename) == invalidtype)
+                {
+                    ret = VMerror;
+                    goto fail;
+                }
+                ret = xpost_dict_put(ctx, fontdict, name_FontName, facename);
+                if (ret)
+                    goto fail;
+            }
         }
 
         /* a base font publishes its glyph complement: programs size

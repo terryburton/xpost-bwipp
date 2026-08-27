@@ -96,6 +96,7 @@ src/lib/xpost_log.c             _xpost_log_dump_file       outlives the-hosts-no
 src/lib/xpost_log.c             _xpost_log_level_names     outlives string-literals
 src/lib/xpost_interpreter.c     _record_spill              outlives string-literals
 src/lib/xpost_op_font.c         _cid_private_keys          outlives string-literals
+src/lib/xpost_font.c            _fc_generic_family         outlives string-literals
 # The intern table pairs each name static with its spelling: the
 # spellings are string literals and the slots point at the statics
 # registered as reset below, so the table itself holds nothing a
