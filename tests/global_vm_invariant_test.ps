@@ -116,8 +116,13 @@
 (filter: ASCIIHexDecode) {
     (48656c6c6f>) /ASCIIHexDecode filter dup 32 string readstring pop pop closefile
 } measure
+% The stream carries a correct check value. One whose check value does not
+% match the data it follows is a stream the filter cannot vouch for, which
+% PLRM 3.13 makes an ioerror -- and an exercise that raises allocates
+% nothing and would be counted clean, so a wrong one here would quietly
+% stop measuring anything.
 (filter: FlateDecode) {
-    (789c0b492d2e0100045d01c1>) /ASCIIHexDecode filter /FlateDecode filter
+    (789c0b492d2e010003dd01a1>) /ASCIIHexDecode filter /FlateDecode filter
     dup 32 string readstring pop pop closefile
 } measure
 
