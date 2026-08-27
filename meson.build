@@ -5538,7 +5538,8 @@ test('check-device-destroy',
   find_program('tests/check-device-destroy.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir() ])
+  args: [ meson.current_source_dir() ],
+  timeout: 240)
 
 # The library's lifetime is counted but nothing stands for it, so state
 # that wants to last one lives in a file-scope static -- which lasts the
@@ -5570,7 +5571,8 @@ test('check-counter-register',
   find_program('tests/check-counter-register.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir() ])
+  args: [ meson.current_source_dir() ],
+  timeout: 240)
 
 # The third kind of leak, and the only instrument that finds it. The
 # sanitizers see memory that was allocated and never freed; the collector
@@ -5626,7 +5628,8 @@ test('check-device-roster',
   find_program('tests/check-device-roster.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # A device says what it is by the entries on its class, and the machinery
 # above it reads them and sends it different work accordingly. Every such
@@ -5713,13 +5716,15 @@ test('check-function-facts',
   find_program('tests/check-function-facts.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 test('check-colorrendering-facts',
   find_program('tests/check-colorrendering-facts.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 test('check-plrm-operators',
   find_program('tests/check-plrm-operators.sh'),
@@ -5835,7 +5840,8 @@ test('check-halftone-transfer',
   find_program('tests/check-halftone-transfer.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # A bilevel device compares a grey against the threshold under its pixel
 # in three places -- the device's own method, the compiled rectangle
@@ -5848,7 +5854,8 @@ test('check-screen-paths',
   find_program('tests/check-screen-paths.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # A Type 42 font dictionary owes the glyph complement PLRM Table 5.7
 # states, whether or not the TrueType file behind it names its glyphs,
@@ -5953,7 +5960,8 @@ test('check-error-quiet',
   priority: guard_priority,
   args: [ xpost_exe ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  timeout: 240)
 
 test('check-testlib',
   find_program('tests/check-testlib.sh'),

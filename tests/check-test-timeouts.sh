@@ -4,16 +4,13 @@
 # default, and the raising is not optional.
 #
 # A limit that a test does not name is thirty seconds, which is a number
-# meson chose knowing nothing about this suite. Measured at one process
-# per core the longest test here runs seventeen seconds and the longest
-# one leaning on that default runs six, so the default is between two and
-# five times what the work costs -- and a gate runs on a machine doing
-# other things. Subscribing the cores twice over stretched every test in
-# this suite by between one and a half and four times, and the six-second
-# one has been seen to reach thirty on a loaded machine and be killed
-# there. A test killed by a clock reports the same red as a test that
-# found a defect, and a red that is not a defect teaches a reader to
-# discount red.
+# meson chose knowing nothing about this suite. Two hundred and eighty
+# tests lean on it, and a gate runs on a machine doing other things: with
+# the cores subscribed twice over, the longest of those has been measured
+# at twenty-nine seconds -- and two guards that used to lean on it
+# reached the multiplied limit exactly and were killed there. A test
+# killed by a clock reports the same red as a test that found a defect,
+# and a red that is not a defect teaches a reader to discount red.
 #
 # So no configuration is left on the bare default: each carries a test
 # setup that multiplies it, and the setup is the default one so that a
@@ -24,6 +21,11 @@
 # visible -- the suite goes on passing on an idle machine and starts
 # failing at random on a busy one, which is the shape that reads as
 # flakiness rather than as a regression.
+#
+# The multiplier is the floor and not the whole answer. A test whose own
+# cost has grown to where the multiplied default is no longer a margin
+# names a limit of its own in meson.build, and the guards that read the
+# whole of a family's sources are where that has been needed.
 #
 # Read out of meson.build rather than listed here, so a configuration
 # added tomorrow is inside the rule the day it is added.
