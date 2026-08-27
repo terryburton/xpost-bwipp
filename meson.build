@@ -5250,15 +5250,13 @@ test('setpagedevice-failure',
   suite: cost_slow,
   timeout: 300)
 
-# The page device accumulates its parameters, and a request naming a fresh
-# key on every call would grow the accumulated dictionary -- copied whole on
-# every call -- without end. The count of accumulated keys is bounded, so
-# such a request is refused rather than a run made to cost the square of its
-# calls; repeated standard requests, which replace keys already there, are
-# unaffected.
-test('setpagedevice-paramcap',
+# What a page-device request may state, and what becomes of anything else.
+# The parameters accumulate across calls and currentpagedevice reports
+# them; a key that is not one of them is accepted and dropped, so it
+# reaches neither the report nor the device the marks go through.
+test('setpagedevice-params',
   find_program('tests/run-ps-test.sh'),
-  args: [ xpost_exe, files('tests/setpagedevice_paramcap_test.ps') ],
+  args: [ xpost_exe, files('tests/setpagedevice_params_test.ps') ],
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 

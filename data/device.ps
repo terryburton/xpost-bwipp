@@ -913,6 +913,50 @@ end } bind put
 %  device it was replacing already gone. The entry refused is named in
 %  $error, as every entry a page-device request is refused over is.
 %
+%
+%  The page-device parameters a request may carry, and the whole of
+%  them. A request naming anything else is accepted and the entry
+%  dropped: the parameters are what the device answers for, and a key
+%  outside them describes nothing this interpreter renders by.
+%
+%  Dropping rather than keeping is what stops a request reaching past
+%  the parameters into the device itself. A device dictionary holds the
+%  procedures the machinery paints through -- FillRect, PaintImage,
+%  ClipPath, Destroy and eighty-five more (tests/device-facts) -- under
+%  ordinary names in the same dictionary the parameters live in, so a
+%  request whose key happened to be one of those names replaced the
+%  method with the program's procedure and every later mark went through
+%  it. The parameters are enumerated here instead, and nothing else a
+%  request names is written anywhere.
+%
+%  The list is PLRM 6.2 Table 6.1, less the parameters that describe
+%  media this interpreter does not select between, plus the device
+%  features it reads for itself: the coverage a glyph's edge is sent at,
+%  whether an extent-tracking device counts a white mark as ink, and the
+%  four codec knobs the compiled writers read. The band budget and the
+%  spill choice are not among them -- those are system parameters, asked
+%  and answered through currentsystemparams -- and neither are the
+%  distiller parameters, which setdistillerparams carries.
+%
+.xpostsys /.pagedeviceparams <<
+    /PageSize 0 /HWResolution 0 /PageOffset 0 /ImagingBBox 0 /Margins 0
+    /Orientation 0 /MirrorPrint 0 /NegativePrint 0 /ImageShift 0
+    /MediaColor 0 /MediaWeight 0 /MediaType 0 /MediaClass 0
+    /MediaPosition 0 /InsertSheet 0 /LeadingEdge 0 /ManualFeed 0
+    /InputAttributes 0 /OutputAttributes 0 /DeferredMediaSelection 0
+    /NumCopies 0 /Collate 0 /Duplex 0 /Tumble 0 /Jog 0 /OutputType 0
+    /OutputFaceUp 0 /TraySwitch 0 /AdvanceMedia 0 /AdvanceDistance 0
+    /CutMedia 0 /RollFedMedia 0
+    /Policies 0 /PolicyReport 0 /BeginPage 0 /EndPage 0 /Install 0
+    /OutputDevice 0 /OutputFile 0 /PageDeviceName 0
+    /ProcessColorModel 0 /UseCIEColor 0
+    /Separations 0 /SeparationColorNames 0 /SeparationOrder 0
+    /MaxSeparations 0 /Trapping 0 /TrappingDetails 0
+    /TextAlphaBits 0 /WhiteIsOpaque 0
+    /png_compression_level 0 /png_interlaced 0 /png_filter 0
+    /jpeg_quality 0
+>> put
+
 .xpostsys /.checkpagehandlers {  % dict  .  dict
     [ /BeginPage /EndPage /Install ] {
         2 copy known {

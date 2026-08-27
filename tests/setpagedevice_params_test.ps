@@ -1,0 +1,61 @@
+%!testlib
+% What a page-device request may state, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% setpagedevice merges each request into the page-device dictionary the
+% last call left, and currentpagedevice reports it. What merges is the
+% page-device parameters and nothing else: a key that is not one of them
+% is accepted -- the request is not refused over it -- and dropped, so it
+% reaches neither the report nor the device.
+%
+% Dropping is what keeps a request inside the parameters. A device
+% dictionary holds the procedures the machinery paints through under
+% ordinary names in the same dictionary the parameters live in, so a key
+% carried across from a request could name one of those and replace it,
+% and every later mark would go through the program's procedure instead.
+% It also settles the accumulation: a program cannot name a fresh key on
+% every call, so the dictionary copied whole on each call cannot grow
+% past the parameters there are.
+
+% A rich request naming every standard parameter at once is far below the
+% bound and is accepted.
+{ << /PageSize [612 792] /HWResolution [72 72] /ImagingBBox null
+     /Orientation 0 /NumCopies 1 /MediaColor (white) /MediaType (plain)
+     /Duplex false /Tumble false /Collate false /BeginPage {} /EndPage {}
+     /Install {} /Policies << /PageSize 3 >> >> setpagedevice }
+    (a request naming the standard parameters is accepted) works
+
+% The same keys set again and again do not accumulate: each put replaces a
+% key already there, so the count does not move. Six hundred such requests
+% -- more than the bound -- prove it by not reaching the bound; were the
+% keys accumulating, this many would cross it and raise.
+{ 1 1 600 { pop << /PageSize [1 1] /NumCopies 1 >> setpagedevice } for }
+    (repeated identical requests do not accumulate to the bound) works
+
+% A key that is no page-device parameter is accepted and dropped: the
+% request goes through, and the key reaches neither the report nor the
+% accumulated dictionary. So naming a fresh one on every call cannot
+% grow that dictionary at all.
+currentpagedevice length /pd.n exch def
+{ << /PageSize [612 792] /NoSuchParameter 42 >> setpagedevice }
+    (a request naming something that is not a parameter is accepted) works
+currentpagedevice /NoSuchParameter known not
+    (and the key it named is not reported back) assert
+{ 1 1 200 { /i exch def
+    << /PageSize [612 792] i 20 string cvs cvn i >> setpagedevice } for }
+    (naming a fresh key on every call raises nothing) works
+currentpagedevice length pd.n le
+    (and leaves the accumulated dictionary no larger than it found it) assert
+
+% A device's own painting procedures share the dictionary the parameters
+% live in, so the drop is what keeps a request from reaching one. Every
+% device carries Destroy and Emit; a request naming either is accepted
+% and neither reaches the device.
+{ << /Destroy { } /Emit { } >> setpagedevice }
+    (a request naming a device's own procedures is accepted) works
+currentpagedevice /Destroy known not
+    (and Destroy is not taken from it) assert
+currentpagedevice /Emit known not
+    (and neither is Emit) assert
+
+verdict

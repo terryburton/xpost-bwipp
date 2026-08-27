@@ -34,22 +34,25 @@
 /bail { /verdict exch def stop } def
 
 {
-    % An operator of the program's own under /Destroy, which a page
-    % device request puts there: setpagedevice writes the keys it was
-    % given into the instance it builds, so the slot is one a program
-    % reaches without naming anything internal. The release runs where no
-    % procedure can run and nothing catches an error, so what runs there
-    % is a release a device class installed or nothing at all. dup is an
-    % operator whose having run is visible: the release pushes the
-    % instance before calling what it recorded, so a call leaves the
-    % instance and its duplicate behind on the operand stack. Every
-    % device answers this one, the request reaching the instance whatever
-    % the class put in the slot.
+    % An operator of the program's own under /Destroy, written onto the
+    % instance the request built. A page-device request cannot put it
+    % there: a request states page-device parameters and a device's
+    % painting procedures are not among them, so a key naming one is
+    % dropped rather than carried onto the device. The slot is reached
+    % here the way the later cases reach it, through the device the
+    % graphics state holds. The release runs where no procedure can run
+    % and nothing catches an error, so what runs there is a release a
+    % device class installed or nothing at all. dup is an operator whose
+    % having run is visible: the release pushes the instance before
+    % calling what it recorded, so a call leaves the instance and its
+    % duplicate behind on the operand stack. Every device answers this
+    % one, whatever the class put in the slot.
     count /before exch def
     save
-    << /PageSize [400 400] /Destroy /dup load >> setpagedevice
+    << /PageSize [400 400] >> setpagedevice
+    getdevice /Destroy /dup load put
     getdevice /Destroy get type /operatortype ne
-        { (FAILURE: the request's Destroy did not reach the instance) bail }
+        { (FAILURE: the operator did not reach the instance) bail }
     if
 
     restore

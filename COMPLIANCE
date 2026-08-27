@@ -61,11 +61,13 @@ Level 2 operators
  [X] setcolorspace (all colour-space families; colour rendering dictionaries
      are recorded, not applied)
  [X] setpagedevice (OutputDevice, PageSize, HWResolution, OutputFile,
-     PageOffset, ImagingBBox, Policies; other keys reach the device as
-     features, where PLRM 6.1.1 has a device recognise no key it has no
-     feature for -- so a key the specification does not define is never
-     an unsatisfied parameter request here, and a print job can expand
-     the set of keys a page device carries. A device keeping its page as
+     PageOffset, ImagingBBox, Policies; a request states page-device
+     parameters and a key that is not one of them is accepted -- the
+     request is not refused over it -- and dropped, so it is neither
+     reported by currentpagedevice nor carried onto the device. A key
+     the specification does not define is therefore never an unsatisfied
+     parameter request here, and a print job cannot expand the set of
+     keys a page device carries. A device keeping its page as
      rows keeps only the rows an imaging bounding box reaches, so a mark
      painted outside the box a program declared is not rendered. A page
      size that is not a whole number of the device's pixels is taken as
