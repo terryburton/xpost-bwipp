@@ -127,6 +127,35 @@ MAKERNAMES { { (PROGRAM-OWNED) } def } forall
     gsave nulldevice newpath 0 0 moveto 10 10 lineto stroke grestore
 } stopped not (nulldevice survives redefined maker names) assert
 
+% What privatedict holds in GLOBAL virtual memory is read-only. Those bodies
+% are the machinery the interpreter runs by name while a program is running --
+% the device makers a page-device request executes to build the device it asked
+% for, and the start procedures each job is primed with -- and the dictionary
+% itself is public, handed out by the .privatedict operator. A restore does not
+% reach global virtual memory (PLRM 3.7.2), so a body a program could write into
+% is one whose replacement would stand for the rest of the job. The bodies are
+% read off the dictionary rather than listed here, so one added later is asked
+% the same question.
+[ .privatedict { pop } forall ]
+{ .privatedict 1 index get
+    dup type /arraytype eq
+    { dup gcheck
+        { wcheck { (WRITABLE-GLOBAL-BODY: ) print == false }{ pop true } ifelse }
+        { pop pop true } ifelse }
+    { pop pop true } ifelse
+    (privatedict holds no writable global body) assert
+} forall
+
+% and the seal is the one a write meets: an element of a maker's body cannot be
+% replaced. The operands the refused write was given come back to the operand
+% stack (PLRM 3.11), so the depth is taken back to what it was.
+count /osdepth exch def
+{ .privatedict /newPPMIMAGEdevice get 0 42 put } stopped
+    (a write into a device maker's body is refused) assert
+$error /errorname known { $error /errorname get /invalidaccess eq }{ false } ifelse
+    (the refusal is invalidaccess) assert
+count osdepth gt { count osdepth sub { pop } repeat } if
+
 startupudlen 0 eq (userdict was empty at startup) assert
 
 % The CIE converter family lives in the global .xpostsys and is baked into its

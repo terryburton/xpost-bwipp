@@ -3744,6 +3744,37 @@ currentglobal true setglobal
             userdict /.gstatetemplate known { userdict /.gstatetemplate undef } if
             setglobal
 
+            % Freeze the bodies privatedict holds in GLOBAL virtual memory.
+            % These are the machinery the interpreter reaches by name while a
+            % program is running -- the device makers a page-device request
+            % executes to build the device it asked for, and the start
+            % procedures each job is primed with -- and a program reaches the
+            % dictionary itself through the .privatedict operator, which is
+            % public so that a driver prolog can name it. A restore does not
+            % reach global virtual memory (PLRM 3.7.2), so a body written into
+            % there decides what the machinery runs for the rest of the job.
+            %
+            % The local members are left writable, and the bank is the whole of
+            % the reason: the device classes take a job's page geometry and the
+            % scratch is rewritten at every render, and a write to either is
+            % reverted by the restore that ends the save level it was made in.
+            %
+            % Which bodies these are is read off the dictionary rather than
+            % listed here, so a body added later is held to the same rule
+            % without a list beside it having to be remembered.
+            currentglobal false setglobal
+            [ .privatedict { pop } forall ]
+            { .privatedict 1 index get
+                dup type /arraytype eq
+                { dup gcheck
+                    { dup wcheck
+                        { readonly .privatedict 3 1 roll put }
+                        { pop pop } ifelse }
+                    { pop pop } ifelse }
+                { pop pop } ifelse
+            } forall
+            setglobal
+
             % The interpreter is locked down. Recorded last, so that a lockdown
             % which stopped anywhere above records instead what stopped it.
             .internaldict /LOCKDOWN_DONE true put

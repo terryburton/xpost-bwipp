@@ -127,7 +127,7 @@ own    idiom_test.ps                          1
 own    imaging_bbox_test.ps                   5
 own    internal_debug_ops_test.ps             1
 own    interpreter_test.ps                    6
-own    isolation_test.ps                      13
+own    isolation_test.ps                      14
 own    large_object_test.ps                   3
 own    local_vm_invariant_test.ps             4
 own    loop_exit_test.ps                      6
