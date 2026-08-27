@@ -846,7 +846,17 @@ int read_hex_digit( Xpost_File *f, int *p )
    extra call into the stream costs a fraction of a percent on a bulk
    transfer to or from a disk file, and small enough that a procedure
    which reaches these operators again pays for it at every level of
-   the nesting the interpreter permits. */
+   the nesting the interpreter permits.
+
+   Two cursors run in each transfer and they are not the same kind of
+   thing. The outer one is a position in the string, which is what the
+   string's own size field bounds, and it is carried in a word as such a
+   position must be. The pair inside -- how much of this pass the buffer
+   has room for, and how far into the buffer the pass has got -- are
+   indices into that fixed array and are bounded by its extent, so they
+   are counted in a type as wide as the constant rather than in the
+   width the string's field happens to have. tests/narrow_cursors.golden
+   is the register of the first kind. */
 #define XPOST_FILE_XFER 2048
 
 /* Store n staged bytes into the string at off. */
@@ -914,8 +924,8 @@ int xpost_op_file_readhexstring (Xpost_Context *ctx,
     while (n < S.comp_.sz)
     {
         char stage[XPOST_FILE_XFER];
-        word room = S.comp_.sz - n;
-        word k = 0;
+        unsigned int room = S.comp_.sz - n;
+        unsigned int k = 0;
         int ret;
 
         if (room > sizeof stage)
@@ -963,8 +973,8 @@ int xpost_op_file_writehexstring (Xpost_Context *ctx,
     while (n < S.comp_.sz)
     {
         char stage[XPOST_FILE_XFER];
-        word room = S.comp_.sz - n;
-        word k;
+        unsigned int room = S.comp_.sz - n;
+        unsigned int k;
         int ret;
 
         if (room > sizeof stage)
@@ -1143,8 +1153,8 @@ int xpost_op_file_readline (Xpost_Context *ctx,
     while (n < S.comp_.sz)
     {
         char stage[XPOST_FILE_XFER];
-        word room = S.comp_.sz - n;
-        word k = 0;
+        unsigned int room = S.comp_.sz - n;
+        unsigned int k = 0;
         int ended = 0;
         int ret;
 
