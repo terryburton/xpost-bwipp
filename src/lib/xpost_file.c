@@ -1193,6 +1193,7 @@ _plain_file_init(Xpost_File *f, Xpost_File_Methods *methods)
     f->wraps = XPOST_FILE_WRAPS_NOTHING;
     f->job_stream = 0;
     f->eot = 0;
+    f->err = 0;
 }
 
 static Xpost_File *
@@ -1489,6 +1490,7 @@ a85_readch(Xpost_File *f)
         {
             XPOST_LOG_ERR("character %d in ASCII85Decode stream", c);
             ff->base.eod = 1;
+            ff->base.methods.err = 1;
             break;
         }
         grp[n++] = c - '!';
@@ -1528,6 +1530,7 @@ a85_readch(Xpost_File *f)
         {
             XPOST_LOG_ERR("group value exceeds 2^32-1 in ASCII85Decode stream");
             ff->base.eod = 1;
+            ff->base.methods.err = 1;
             return EOF;
         }
         t32 = (unsigned int)tuple;
@@ -2328,6 +2331,7 @@ hex_readch(Xpost_File *f)
     {
         XPOST_LOG_ERR("character %d in ASCIIHexDecode stream", c);
         ff->base.eod = 1;
+        ff->base.methods.err = 1;
         return EOF;
     }
     do
@@ -2346,6 +2350,7 @@ hex_readch(Xpost_File *f)
         {
             XPOST_LOG_ERR("character %d in ASCIIHexDecode stream", c);
             ff->base.eod = 1;
+            ff->base.methods.err = 1;
             lo = 0;
         }
         else if (!ff->base.eod)
@@ -2616,6 +2621,7 @@ flate_refill(Xpost_FlateFile *ff)
         {
             XPOST_LOG_ERR("FlateDecode error %d", ret);
             ff->base.eod = 1;
+            ff->base.methods.err = 1;
             break;
         }
     }
@@ -2659,6 +2665,7 @@ flate_refill(Xpost_FlateFile *ff)
             {
                 XPOST_LOG_ERR("FlateDecode error %d", ret);
                 ff->base.eod = 1;
+                ff->base.methods.err = 1;
                 break;
             }
             if (ff->strm.avail_out == 0)   /* a byte past the buffer; stream continues */
@@ -2722,6 +2729,17 @@ typedef struct Xpost_DctFile
     struct jpeg_source_mgr jsrc;
     JOCTET jbytes[2];
     int started;
+    /* Whether this stream is a JPEG at all, which is what separates the
+       two ways the decoder can give up. A JPEG opens with a
+       start-of-image marker; the first two bytes the source hands over
+       are kept to see it. A stream that never had one holds no image and
+       decodes to nothing; one that had it and then failed is corrupt. */
+    int nfed;
+    unsigned char soi[2];
+    int sawsoi;
+    /* the source ran out before the decoder was finished with it, so the
+       end-of-image marker it was given was invented rather than read */
+    int ranout;
     unsigned char *row;
     unsigned int rown, rowi;
 } Xpost_DctFile;
@@ -2770,11 +2788,22 @@ dct_fill_input_buffer(j_decompress_ptr cinfo)
            scanlines it has. The marker is both its bytes: handed the
            second one alone the decoder sees no marker and asks for input
            that will never come, for as long as it is asked to decode. */
+        ff->ranout = 1;
         ff->jbytes[0] = 0xff;
         ff->jbytes[1] = 0xd9;
         ff->jsrc.next_input_byte = ff->jbytes;
         ff->jsrc.bytes_in_buffer = 2;
         return TRUE;
+    }
+
+    /* the opening bytes decide whether this was ever a JPEG; the
+       end-of-image marker the branch above invents is not the stream's
+       own and is counted by neither */
+    if (ff->nfed < 2)
+    {
+        ff->soi[ff->nfed++] = (unsigned char)c;
+        if (ff->nfed == 2)
+            ff->sawsoi = (ff->soi[0] == 0xff && ff->soi[1] == 0xd8);
     }
 
     ff->jbytes[0] = (JOCTET)c;
@@ -2828,7 +2857,17 @@ dct_readch(Xpost_File *f)
 
     if (setjmp(ff->jmp))
     {
+        /* The library's error path lands here, and three unlike things
+           arrive on it. A stream that opened as a JPEG and then ran out
+           is corrupt input, which PLRM 3.13 makes an ioerror. A stream
+           that was never a JPEG holds no image and nothing went wrong
+           with it, so it decodes to nothing and raises nothing. A whole
+           JPEG container with no image in it is the same kind of
+           nothing, and is left reporting nothing: PLRM does not settle
+           it, and the answer is not derivable from what does. */
         ff->base.eod = 1;
+        if (ff->sawsoi && ff->ranout)
+            ff->base.methods.err = 1;
         return EOF;
     }
     if (!ff->started)
@@ -3358,6 +3397,7 @@ lzw_readch(Xpost_File *f)
     {
         XPOST_LOG_ERR("LZWDecode: code out of range");
         ff->base.base.eod = 1;
+        ff->base.base.methods.err = 1;
         return EOF;
     }
 
@@ -3526,13 +3566,19 @@ fax_bit(Xpost_FaxFile *ff)
     return bitdec_get(&ff->base, 1);
 }
 
-enum { FAX_RUN_EOL = -2, FAX_RUN_ERR = -1 };
+/* Three unlike answers, and the decode turns on telling them apart. The
+   input running out is not a fault: the bits that would have proved
+   something one way or the other never arrived, so the stream ends and
+   the partial row is dropped. Bits that cannot be a code, or a run
+   carrying the row past its width, are proved wrong by what is already
+   in hand, and stay wrong however the stream ends. */
+enum { FAX_RUN_EOF = -3, FAX_RUN_EOL = -2, FAX_RUN_ERR = -1 };
 
 /* one complete run length of the given colour: makeup codes add to
    a following terminating code.  An end-of-line code stands in
    either table so fill bits and markers surface here. */
 static int
-fax_runlength(Xpost_FaxFile *ff, int color)
+fax_runlength(Xpost_FaxFile *ff, int color, int atrowstart)
 {
     int total = 0;
 
@@ -3544,14 +3590,21 @@ fax_runlength(Xpost_FaxFile *ff, int color)
         unsigned int code = 0;
         int len = 0, run = FAX_RUN_ERR, i, b;
 
-        while (len < 14 && run == FAX_RUN_ERR)
+        /* Zeros keep their options open. Eleven of them and a one is an
+           end-of-line marker, and a row may be padded with as many more
+           ahead of it as the encoder liked, so while nothing but zeros
+           has arrived no length makes them wrong -- at the start of a
+           row. Mid-row there is no marker to be waiting for and no
+           padding to skip, so the same zeros are a code that cannot be
+           one, and the ordinary limit applies. */
+        while (run == FAX_RUN_ERR && (len < 14 || (code == 0 && atrowstart)))
         {
             b = fax_bit(ff);
             if (b < 0)
-                return FAX_RUN_ERR;
+                return FAX_RUN_EOF;   /* no more bits, not bad bits */
             code = code << 1 | (unsigned int)b;
             len++;
-            if (len == 12 && code == 1)
+            if (code == 1 && len >= 12)
                 return total ? FAX_RUN_ERR : FAX_RUN_EOL;
             for (i = 0; i < n; i++)
                 if (tab[i].len == len && tab[i].code == code)
@@ -3699,7 +3752,7 @@ fax_1d_row(Xpost_FaxFile *ff)
            the changing-element buffer, as the two-dimensional decoder does */
         if (ci > ff->columns)
             return -1;
-        run = fax_runlength(ff, color);
+        run = fax_runlength(ff, color, pos == 0 && ci == 0);
         if (run == FAX_RUN_EOL)
         {
             if (pos == 0 && ci == 0)
@@ -3713,11 +3766,23 @@ fax_1d_row(Xpost_FaxFile *ff)
             }
             return -1;
         }
+        /* Out of input ends the stream wherever it happened: a row only
+           half decoded is dropped rather than delivered, and nothing is
+           reported, because nothing was established. */
+        if (run == FAX_RUN_EOF)
+            return -2;
         if (run < 0)
-            return ci == 0 && pos == 0 ? -2 : -1; /* clean EOF at a row edge */
+            return -1;
+        /* A run is complete here -- makeup codes were gathered into it by
+           fax_runlength and only a terminating code returns -- so this is
+           where the width is answerable. A run reaching past the row is
+           not a run to be cut down to fit: whatever produced it was not
+           describing this row. Cutting it instead finishes the row out of
+           whatever the bits happened to say, which turns a corrupt stream
+           into a picture. */
         pos += run;
         if (pos > ff->columns)
-            pos = ff->columns;
+            return -1;
         ff->cur[ci++] = pos;
         color ^= 1;
     }
@@ -3761,12 +3826,18 @@ fax_2d_row(Xpost_FaxFile *ff)
             break;
         case FAX_H:
             start = a0 < 0 ? 0 : a0;
-            r1 = fax_runlength(ff, color);
-            r2 = r1 < 0 ? r1 : fax_runlength(ff, !color);
+            r1 = fax_runlength(ff, color, 0);
+            r2 = r1 < 0 ? r1 : fax_runlength(ff, !color, 0);
+            if (r1 == FAX_RUN_EOF || r2 == FAX_RUN_EOF)
+                return -2;
             if (r1 < 0 || r2 < 0)
                 return -1;
-            if (start + r1 > ff->columns) r1 = ff->columns - start;
-            if (start + r1 + r2 > ff->columns) r2 = ff->columns - start - r1;
+            /* as the one-dimensional path: a run past the row's width is
+               the row being wrong, not a run to be trimmed */
+            if (start + r1 > ff->columns)
+                return -1;
+            if (start + r1 + r2 > ff->columns)
+                return -1;
             ff->cur[ci++] = start + r1;
             ff->cur[ci++] = start + r1 + r2;
             a0 = start + r1 + r2;
@@ -3874,6 +3945,7 @@ fax_decoderow(Xpost_FaxFile *ff)
     {
         XPOST_LOG_ERR("CCITTFaxDecode: damaged row %d", ff->rowsdone);
         ff->base.base.eod = 1;
+        ff->base.base.methods.err = 1;
         return EOF;
     }
 
@@ -5565,6 +5637,7 @@ _filter_object_cons(Xpost_Memory_File *mem, Xpost_File *ff,
     ff->wraps = wraps;
     ff->job_stream = 0;
     ff->eot = 0;
+    ff->err = 0;
     f.tag = filetype;
     if (!xpost_memory_table_alloc(mem, XPOST_HANDLE_ENTITY_SIZE, filetype,
                                   &ent))

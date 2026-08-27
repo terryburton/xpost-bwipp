@@ -750,6 +750,13 @@ int xpost_op_file_read(Xpost_Context *ctx,
     b = xpost_file_read_byte(ctx->lo, f);
     if (xpost_file_ioblock_disarm())
         return ioblock;
+    {
+        /* as readstring: a filter that failed to decode is an ioerror,
+           not the end of the data (PLRM 3.13) */
+        Xpost_File *fp = xpost_file_get_file_pointer(ctx->lo, f);
+        if (fp && fp->err)
+            return ioerror;
+    }
     if (xpost_object_get_type(b) == invalidtype)
     {
         /* a closed file reads as end-of-data rather than erroring */
@@ -940,6 +947,12 @@ int xpost_op_file_readstring (Xpost_Context *ctx,
     f = xpost_file_get_file_pointer(ctx->lo, F);
     s = xpost_string_get_pointer(ctx, S);
     n = xpost_file_read(s, 1, S.comp_.sz, f);
+    /* A decode filter that met data its coding cannot represent latched
+       it. That is not a short read: PLRM 3.13 makes corrupt filter input
+       an ioerror, so the program is told rather than handed a clean-
+       looking end of data. */
+    if (f->err)
+        return ioerror;
     /* the count read is compared against the string's own length in the
        wider signed type: a read that answered short answers short */
     if (n == (integer)S.comp_.sz)

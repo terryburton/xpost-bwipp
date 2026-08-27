@@ -1,5 +1,6 @@
 %!testlib
-% A malformed or truncated JPEG stream must end the decode, not hang it.
+% A malformed or truncated JPEG stream must end the decode, not hang it,
+% and a stream that was cut short must say so rather than read as empty.
 % Run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
 % The decoder is fed from the filter's source a byte at a time, and a
@@ -28,9 +29,14 @@
     { pop -1 }{ length } ifelse    % true means data followed: unexpected here
 } def
 
-{ truncated reads 0 eq (a truncated JPEG stream yields no scanlines) assert }
-stopped { (FAIL: reading a truncated stream errored) print (\n) print
-          /failcount failcount 1 add store } if
+% A stream that opened as a JPEG and then ran out is corrupt input, not
+% an empty image, and PLRM 3.13 makes that an ioerror. Reading it as no
+% scanlines would be indistinguishable from a picture that is genuinely
+% blank.
+{ truncated reads pop } stopped
+    (a truncated JPEG stream reports rather than reading as empty) assert
+$error /errorname get /ioerror eq
+    (a truncated JPEG stream is an ioerror) assert
 clear
 
 { (not a jpeg, just some text) reads 0 eq
@@ -44,13 +50,16 @@ stopped { (FAIL: reading an empty stream errored) print (\n) print
           /failcount failcount 1 add store } if
 clear
 
-% read to exhaustion rather than once: the loop has to end
+% read to exhaustion rather than once: the loop has to end. It ends by
+% raising now rather than by running out of scanlines, and the point of
+% the case is unchanged -- what must not happen is waiting for input that
+% will never arrive.
 /rounds 0 def
 { /f truncated /DCTDecode filter def
   { f 64 string readstring not { exit } if pop
     /rounds rounds 1 add store
     rounds 1000 ge { exit } if } loop
-} stopped not (reading a truncated stream to its end terminates) assert
+} stopped (reading a truncated stream to its end ends the read) assert
 rounds 1000 lt (the read to exhaustion ends rather than repeating) assert
 clear
 
@@ -71,10 +80,12 @@ stopped { (FAIL: reading a stream with a comment errored) print (\n) print
           /failcount failcount 1 add store } if
 clear
 
-{ <FFD8FFFE00200102> reads 0 eq
-    (a stream cut off inside a comment yields no scanlines) assert }
-stopped { (FAIL: reading a stream cut off in a comment errored) print (\n) print
-          /failcount failcount 1 add store } if
+% the payload this one declares never arrives, so the stream ran out:
+% cut short inside a comment is cut short like any other
+{ <FFD8FFFE00200102> reads pop } stopped
+    (a stream cut off inside a comment reports) assert
+$error /errorname get /ioerror eq
+    (a stream cut off inside a comment is an ioerror) assert
 clear
 
 % An image that does decode, with a comment spliced in ahead of

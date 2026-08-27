@@ -115,6 +115,15 @@ struct Xpost_File
     int job_stream;
     int eot; /* a 0x04 was read from a job_stream: this job ended at the
                 delimiter and the stream has more after it */
+    /* A decode filter that met data its coding cannot represent latches
+       this. It is not end-of-data: the data is wrong, and PLRM 3.13 makes
+       that an ioerror for every filter that can tell (an ASCII85 character
+       outside the alphabet, an impossible 5-tuple, a damaged compressed
+       stream). The reading operator asks after the read and raises, so a
+       program is told its stream was corrupt rather than handed a short
+       answer that reads like a clean end. Every subtype begins with this
+       struct, so one latch serves all of them. */
+    int err;
 };
 
 /* What a file's handle is recorded and asked for as: the base every

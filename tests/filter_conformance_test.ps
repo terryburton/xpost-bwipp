@@ -93,6 +93,79 @@ currentglobal true setglobal
 setglobal
 gd gcheck (gcheck is true for a global object) assert
 
+% ---- a decode filter reports data its coding cannot represent
+
+% PLRM 3.13 makes corrupt filter input an ioerror: an ASCII85 character
+% outside the alphabet, a 5-tuple naming a value above 2^32-1, a hex digit
+% that is not one, a compressed stream the decompressor rejects. The
+% failure has to reach the program, because the alternative is worse than
+% wrong -- a short read is indistinguishable from a clean end of data, so a
+% truncated embedded image reads as an empty one and the job carries on
+% painting nothing.
+
+/decodes { % (data) name  .  errorname-or-/ok
+    /_n exch def /_d exch def
+    { _d _n filter 64 string readstring pop pop /ok }
+    stopped { $error /errorname get } { } ifelse
+} def
+
+(v) /ASCII85Decode decodes /ioerror eq
+    (an ASCII85 character outside the alphabet is an ioerror) assert
+(uuuuu~>) /ASCII85Decode decodes /ioerror eq
+    (an ASCII85 5-tuple above 2^32-1 is an ioerror) assert
+(zzz) /ASCIIHexDecode decodes /ioerror eq
+    (a character that is not a hex digit is an ioerror) assert
+(abcdefgh) /FlateDecode decodes /ioerror eq
+    (a flate stream the decompressor rejects is an ioerror) assert
+(abcdefgh) /LZWDecode decodes /ioerror eq
+    (an LZW stream the decompressor rejects is an ioerror) assert
+
+% and a stream its coding does represent still reads without one
+(87cURD]j7BEbo80~>) /ASCII85Decode decodes /ok eq
+    (a well-formed ASCII85 stream decodes without an error) assert
+(48656c6c6f>) /ASCIIHexDecode decodes /ok eq
+    (a well-formed hex stream decodes without an error) assert
+
+% ---- a fax decode reports what it can prove, and only that
+
+% The distinction the CCITT decoding turns on is not how much input
+% arrived: it is whether the bits in hand establish a violation before
+% the input runs out. Bits that cannot be a code, and a run carrying a
+% row past its declared width, are wrong however the stream ends. Input
+% that stops first establishes nothing -- the run that would have proved
+% something never finished -- so the stream ends, the half-decoded row is
+% dropped, and nothing is reported.
+%
+% The pairs below differ by one bit of evidence either side of that line,
+% which is what makes them worth keeping: a rule that reports too eagerly
+% fails the left column, and one that never reports fails the right.
+
+(abcd) /CCITTFaxDecode decodes /ok eq
+    (four bytes of rubbish end the fax decode without a verdict) assert
+(abcde) /CCITTFaxDecode decodes /ioerror eq
+    (the fifth byte completes a run past the row and is an ioerror) assert
+
+<4D9A80> /CCITTFaxDecode decodes /ok eq
+    (a run sequence landing exactly on the row width decodes) assert
+<4D8E> /CCITTFaxDecode decodes /ioerror eq
+    (a run sequence one pixel past the row width is an ioerror) assert
+
+<60D100> /CCITTFaxDecode decodes /ok eq
+    (a row filled to its width by its last run decodes) assert
+<60D3> /CCITTFaxDecode decodes /ioerror eq
+    (a last run overshooting the width is an ioerror) assert
+
+% a makeup code carries no verdict of its own: the run it belongs to has
+% not finished, so a row already owed twice its width is still unproven
+<4DA6C0> /CCITTFaxDecode decodes /ok eq
+    (runs owed past the width but unterminated end without a verdict) assert
+
+% zeros are fill ahead of a row and cannot be a code inside one
+<00000000> /CCITTFaxDecode decodes /ok eq
+    (a row preceded by nothing but fill bits ends without a verdict) assert
+<350000> /CCITTFaxDecode decodes /ioerror eq
+    (zeros where a run code belongs are an ioerror) assert
+
 % A procedure standing as a data source or target is exercised in
 % tests/filter_proc_test.ps, which holds the calls to the contract PLRM
 % 3.13.1 states for them.
