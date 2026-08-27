@@ -1,0 +1,40 @@
+%!testlib
+% What scope a spot function runs in on a device that halftones for
+% itself, run through `xpost -d pbm` by run-screen-ps-test.sh.
+%
+% A screening device builds its threshold cell by sampling the spot
+% function across the cell, and the builder holds its own working names
+% in a dictionary of its own -- two of them, counting the refresh that
+% calls it. The samples must not run under those. A program defines a
+% counter through its spot and reads it back afterwards, and a
+% definition landing in the builder's dictionary is thrown away with it;
+% every name the builder holds shadows one of the program's meanwhile.
+%
+% The sampling on the setscreen path states this requirement above
+% itself and compiles its calls to run after its dictionary has ended.
+% This is the same requirement on the other path to the same procedure,
+% and that path is reached only by painting on a device that screens --
+% which is why this suite is painted somewhere that does, and why the
+% ordinary null-device harness cannot ask the question at all.
+
+/scr.depth 0 def
+/scr.proc false def
+/scr.ran false def
+/scr.top 0 def
+
+countdictstack /scr.top exch def
+
+150 45 { pop pop
+         /scr.ran true store
+         countdictstack /scr.depth exch store
+         currentdict /proc known /scr.proc exch store
+         0.5 } setscreen
+0 0 20 20 rectfill
+
+scr.ran (the screening device sampled the spot function) assert
+scr.depth scr.top eq
+    (the spot function ran in the scope its caller had) assert
+scr.proc not
+    (the spot function did not see the builder's own names) assert
+
+verdict

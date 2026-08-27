@@ -519,7 +519,16 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             a ys yc sub mul b xs xc sub mul sub q div 2 mul
             dup 1 ge { 2 sub } if dup -1 lt { 2 add } if .clamparg
             quad { exch neg } repeat
-            proc
+
+            % The spot procedure is the program's, and it must not run
+            % under this dictionary: a program defines counters through
+            % it and reads them back afterwards, and a definition landing
+            % in here would be lost with the dictionary. So the call goes
+            % through the bracket that takes the machinery's dictionaries
+            % off for the length of it -- this one and the refresh's,
+            % which is the only route here -- as the sampling on the
+            % setscreen path does.
+            currentdict /proc get null 2 //.pcallout exec
             count d0 sub
             dup 0 le { pop 0 }{ 1 sub { exch pop } repeat } ifelse
             vals y L mul x add 3 -1 roll put

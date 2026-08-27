@@ -26,6 +26,7 @@ tests/blit_range_test.ps \
 tests/build_personality_test.ps \
 tests/cacheparams_range_test.ps \
 tests/callback_bracket_test.ps \
+tests/screen_scope_test.ps \
 tests/callback_reentry_test.ps \
 tests/check-buffer-family.sh \
 tests/check-callout-bracket.sh \
@@ -514,6 +515,7 @@ tests/run-raster-formats-test.sh \
 tests/run-refusing-target-test.sh \
 tests/run-reloc-stress-test.sh \
 tests/run-render-differ-test.sh \
+tests/run-screen-ps-test.sh \
 tests/run-setpagedevice-failure-test.sh \
 tests/run-statementedit-test.sh \
 tests/run-strict-ps-test.sh \

@@ -3268,6 +3268,15 @@ test('callback-bracket',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# What scope a spot function runs in on a device that halftones for
+# itself. That path is reached only by painting somewhere that screens,
+# so this suite is painted on one rather than on the null device.
+test('screen-scope',
+  find_program('tests/run-screen-ps-test.sh'),
+  args: [ xpost_exe, files('tests/screen_scope_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Every text-showing operator against both kinds of font. Each operator
 # walks its string its own way, so one positioning a glyph correctly says
 # nothing about the next.
