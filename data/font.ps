@@ -935,7 +935,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     //.showclip exec
     graphicsdict /currgstate get /currfont get
     dup //.fontroute exec /composite eq {
-        exch //.xpostsys /.showtype0 get exec
+        exch /show //.xpostsys /.showtype0 get exec
     }{
     dup //.fontroute exec /face eq {
         pop
@@ -980,7 +980,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         7 dict begin
         /fnt exch def /str exch def /mchar exch def /cdy exch def /cdx exch def
         /.showhook { mchar eq { cdx cdy rmoveto } if } def  % char  .  -
-        fnt str //.xpostsys /.showtype0 get exec
+        fnt str /widthshow //.xpostsys /.showtype0 get exec
         end
     }{
     dup //.fontroute exec /face eq {
@@ -1040,7 +1040,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         6 dict begin
         /fnt exch def /str exch def /ady exch def /adx exch def
         /.showhook { pop adx ady rmoveto } def  % char  .  -
-        fnt str //.xpostsys /.showtype0 get exec
+        fnt str /ashow //.xpostsys /.showtype0 get exec
         end
     }{
     dup //.fontroute exec /face eq {
@@ -1098,7 +1098,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /fnt exch def /str exch def /ady exch def /adx exch def
         /mchar exch def /cdy exch def /cdx exch def
         /.showhook { adx ady rmoveto mchar eq { cdx cdy rmoveto } if } def  % char  .  -
-        fnt str //.xpostsys /.showtype0 get exec
+        fnt str /awidthshow //.xpostsys /.showtype0 get exec
         end
     }{
     dup //.fontroute exec /face eq {

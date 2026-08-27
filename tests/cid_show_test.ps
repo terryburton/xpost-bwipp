@@ -398,6 +398,54 @@ WC inkof 0 gt (the byte shown back from the procedure marks the page) check
 WC W differs 0 eq (and marks the glyph the CID selected) check
 WC WL differs 0 gt (rather than the glyph its last byte would select) check
 
+% and the rebinding stands for that one character only. PLRM 8.2 says the
+% string the procedure shows "must consist of a single byte equal to the
+% code given to proc, or a rangecheck error occurs", so anything else is
+% refused rather than painting whatever the rebound mapping reaches for
+% it: a wrong byte would reach the undefined glyph, and a longer string a
+% glyph per byte, neither of which the walk selected.
+/cs.pr null def /cs.d 0 def /cs.r null def
+/cs.c 0 def
+/cs.err { % proc  .  errorname or null
+    count 1 sub /cs.d exch def
+    /cs.pr exch def
+    { widefnt newpath 10 20 moveto /cs.pr load WIDECODE cshow } stopped
+    { $error /errorname get $error /newerror false put }{ null } ifelse
+    /cs.r exch def
+    count cs.d sub dup 0 gt { { pop } repeat }{ pop } ifelse
+    cs.r
+} bind def
+{ pop pop 1 string dup 0 4 -1 roll put show } cs.err null eq
+    (the code given is shown) check
+{ pop pop pop 1 string dup 0 99 put show } cs.err /rangecheck eq
+    (a byte other than the code given is refused) check
+{ pop pop /cs.c exch def 2 string dup 0 cs.c put dup 1 cs.c put show } cs.err /rangecheck eq
+    (the code given twice over is refused) check
+{ pop pop pop () show } cs.err /rangecheck eq
+    (a string with no byte at all is refused) check
+
+% and the refusal names the operator the program called. Every show
+% variant walks a composite through the same code, so a refusal that
+% named one of them would report that name to the others, and PLRM 3.11.1
+% has $error /command hold what was executing for the program to read.
+/cs.cmd { % proc  .  the operator, as it prints
+    count 1 sub /cs.d exch def
+    /cs.pr exch def
+    { widefnt newpath 10 20 moveto /cs.pr load WIDECODE cshow } stopped
+    { $error /command get $error /newerror false put }{ null } ifelse
+    /cs.r exch def
+    count cs.d sub dup 0 gt { { pop } repeat }{ pop } ifelse
+    /cs.r load 40 string cvs
+} bind def
+{ pop pop pop 1 string dup 0 99 put show } cs.cmd (show) eq
+    (the refusal names show) check
+{ pop pop pop 0 0 1 string dup 0 99 put ashow } cs.cmd (ashow) eq
+    (the refusal names ashow) check
+{ pop pop pop 0 0 32 1 string dup 0 99 put widthshow } cs.cmd (widthshow) eq
+    (the refusal names widthshow) check
+{ pop pop pop 0 0 32 0 0 1 string dup 0 99 put awidthshow } cs.cmd (awidthshow) eq
+    (the refusal names awidthshow) check
+
 % and the width the procedure is handed is that CID's as well: it is
 % measured through the same mapping the show goes through, so a Metrics
 % entry keyed by the CID the CMap resolved (PLRM 5.11.3) governs it.

@@ -182,14 +182,10 @@ Level 3 operators
      within one modal level. The CIDInit procedure set is complete:
      notdef mappings and usematrix are taken, though a single-descendant
      job applies neither)
- [X] cshow through a CID-keyed composite (PLRM 8.2). Two things it says
-     of the procedure are not held to here. The string the procedure
-     passes to show "must consist of a single byte equal to the code
-     given to proc, or a rangecheck error occurs"; any other string is
-     taken rather than refused, and reaches the undefined glyph, one per
-     byte. And currentfont, which PLRM 8.2 has returning "the current
-     descendant base font or CIDFont" while the procedure runs, returns
-     the composite instead, as does rootfont
+ [X] cshow through a CID-keyed composite (PLRM 8.2). One thing it says
+     of the procedure is not held to here: currentfont, which PLRM 8.2
+     has returning "the current descendant base font or CIDFont" while
+     the procedure runs, returns the composite instead, as does rootfont
  [ ] Metrics2, CDevProc (PLRM 5.9.2). Writing mode 1 is not rendered,
      so the second set of metrics Metrics2 holds has nothing here to
      govern. CDevProc is not called in either writing mode, so a font

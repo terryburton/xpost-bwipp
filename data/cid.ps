@@ -785,10 +785,25 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  settles; the byte-mapped FMapTypes decode and dispatch per
 %  descendant instead.
 %
-/.showtype0 {  % font str  .  -
-    1 index /FMapType get 9 ne {
+/.showtype0 {  % font str /opname  .  -
+    2 index /FMapType get 9 ne {
+        pop
         //.showfmap exec
     }{
+        % While cshow's rebinding is the current font it stands for one
+        % character and no other: PLRM 8.2 says the string a procedure
+        % shows under it "must consist of a single byte equal to the code
+        % given to proc, or a rangecheck error occurs". So a show of
+        % anything else is refused here rather than painting whatever
+        % glyph the rebound mapping happens to reach for it. Every show
+        % variant walks a composite through here, so the refusal reports
+        % the one the program called rather than a name they would share.
+        2 index /.cshbyte 2 copy known {
+            get 2 index
+            dup length 1 eq { 0 get }{ pop -1 } ifelse
+            ne { dup cvx /rangecheck signalerror } if
+        }{ pop pop } ifelse
+        pop
         % the CID the walk hands over stays beneath the index it hands
         % over, so it reaches whichever operator the route settles on:
         % .glyphshowidx below, or the outline operator .showroute sends
@@ -837,7 +852,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                  /.cidranges [ <00> <00> cid ] >>
     >>
     <00>
-    //.showtype0 exec
+    /glyphshow //.showtype0 exec
     graphicsdict /currgstate get /currfont prev put
     end
 } def
@@ -955,7 +970,10 @@ end
 %  rebound, for the length of one call, to a mapping under which that
 %  byte and nothing else stands for that CID. The byte is a byte and the
 %  CID is whatever the CMap resolved, so a CID above 255 is shown, and
-%  measured, as the CID it is.
+%  measured, as the CID it is. The byte is recorded with the rebinding,
+%  so a show of anything else under it -- another byte, more than one,
+%  none at all -- is refused with the rangecheck PLRM 8.2 gives it
+%  rather than reaching whatever glyph the rebound mapping holds for it.
 %
 /cshow [ /proctype /stringtype ] {  % proc string  .  -
     /cshow //.needfont exec
@@ -999,7 +1017,8 @@ end
         /exe /exec load def
         /ppexec //.pexec def
         /cm fnt /CMap get def
-        /bw fnt dup length 1 add dict copy def
+        % room for the rebound mapping and for the byte it stands for
+        /bw fnt dup length 2 add dict copy def
         % the rebinding is one character's, so it is done a character at
         % a time, which puts it in the compiled program rather than
         % here; the operator that does it is embedded the way exec is
@@ -1014,6 +1033,7 @@ end
             currentdict /bw get /CMap
                 code cid //.cshbytecmap exec
                 currentdict /putin get
+            currentdict /bw get /.cshbyte code currentdict /putin get
             code
             currentdict /bw get
             1 string dup 0 code put
