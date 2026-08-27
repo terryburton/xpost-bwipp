@@ -30,6 +30,12 @@
 #   the lookup-table shapes the two CIE pre-extensions accept, since the
 #   array nesting is the whole difference between those two families
 #
+#   what each special family's own parameters must be -- an Indexed
+#   palette and index range, the colorant a Separation names, the array
+#   of colorants a DeviceN names -- recorded as the error name each
+#   fault answers with, since which error a program is given is what
+#   tells it what it got wrong
+#
 #   an uncoloured pattern over every family as a base, ink counted --
 #   the crossing where this family's two live defects were found
 #
@@ -67,6 +73,7 @@ awk 'NF >= 5 && $2 ~ /^(device|cie|indexed|tint|pattern)$/ { print $1 " " $2 " "
     "$work/reg" | sort > "$work/reg.fam"
 awk '$1 == "table" { print $2 " " $3 " " $4 }' "$work/reg" | sort > "$work/reg.table"
 awk '$1 == "base"  { print $2 " " $3 }'        "$work/reg" | sort > "$work/reg.base"
+awk '$1 == "param" { print $2 " " $3 " " $4 }' "$work/reg" | sort > "$work/reg.param"
 awk 'NF >= 3 && $2 ~ /^(settled|thorn|heading)$/ { print $1 }' "$work/reg" \
     | sort -u > "$work/reg.diverge"
 
@@ -303,6 +310,56 @@ if ! cmp -s "$work/reg.table" "$work/got.table"; then
     fail=1
 fi
 
+# ---- each special family's own parameters
+#
+# One space per case, each priced at a single component so that the same
+# colour paints every one of them: a well-formed space is the one that
+# has to keep painting, and a malformed one is the one that has to name
+# the fault a program can act on.
+paramcase() {       # <family> <case> -> the space
+    case $1-$2 in
+    Indexed-well-formed)       printf '[ /Indexed /DeviceGray 1 <0000> ]' ;;
+    Indexed-hival-too-big)     printf '[ /Indexed /DeviceGray 4096 4097 string ]' ;;
+    Indexed-hival-not-integer) printf '[ /Indexed /DeviceGray 1.5 <0000> ]' ;;
+    Indexed-lookup-short)      printf '[ /Indexed /DeviceGray 1 <00> ]' ;;
+    Indexed-lookup-number)     printf '[ /Indexed /DeviceGray 1 42 ]' ;;
+    Separation-name-string)    printf '[ /Separation (Spot colour) /DeviceGray { } ]' ;;
+    Separation-name-number)    printf '[ /Separation 42 /DeviceGray { } ]' ;;
+    DeviceN-names-string)      printf '[ /DeviceN [ (A) ] /DeviceGray { } ]' ;;
+    DeviceN-names-not-array)   printf '[ /DeviceN /A /DeviceGray { } ]' ;;
+    DeviceN-names-number)      printf '[ /DeviceN [ 42 ] /DeviceGray { } ]' ;;
+    DeviceN-names-empty)       printf '[ /DeviceN [ ] /DeviceGray { } ]' ;;
+    *)                         printf '' ;;
+    esac
+}
+: > "$work/got.param"
+while read -r fam kase verdict; do
+    sp=$(paramcase "$fam" "$kase")
+    if [ -z "$sp" ]; then
+        echo "FAIL: the register has a param line for $fam $kase and no probe builds it"
+        fail=1
+        continue
+    fi
+    ans=$(run "$sp setcolorspace 0 setcolor 5 5 30 30 rectfill")
+    case $ans in
+        blank)  echo "$fam $kase mute" >> "$work/got.param" ;;
+        ink\ *) echo "$fam $kase takes" >> "$work/got.param" ;;
+        *)      echo "$fam $kase $ans" >> "$work/got.param" ;;
+    esac
+done < "$work/reg.param"
+sort "$work/got.param" -o "$work/got.param"
+if ! cmp -s "$work/reg.param" "$work/got.param"; then
+    echo "FAIL: what the special families make of their own parameters is not"
+    echo "      what the register records:"
+    diff "$work/reg.param" "$work/got.param" 2>/dev/null | sed 's/^/      /'
+    echo "      Each of these parameters is quiet when it is wrong: a short"
+    echo "      palette reads colours off the end of its string, a lookup that"
+    echo "      is a number leaves that number where the base space wanted its"
+    echo "      components, and a bare colorant name is priced by the length"
+    echo "      of the name."
+    fail=1
+fi
+
 # ---- an uncoloured pattern over every family as a base
 : > "$work/got.base"
 while read -r fam verdict; do
@@ -342,6 +399,7 @@ count() {           # <keyword> <how many were derived>
 count families    "$(grep -c . "$work/reg.fam")"
 count tables      "$(grep -c . "$work/reg.table")"
 count bases       "$(grep -c . "$work/reg.base")"
+count params      "$(grep -c . "$work/reg.param")"
 count divergences "$(grep -c . "$work/reg.diverge")"
 
 # ---- the divergences, each found by its own probe
@@ -361,6 +419,15 @@ case $(run "[ /DeviceN [ /None ] /DeviceGray { } ] setcolorspace
             0.5 setcolor 5 5 30 30 rectfill") in
     blank) ;;
     ink\ *) echo special-names-in-devicen >> "$work/got.diverge" ;;
+esac
+# PLRM 4.8.3 requires a WhitePoint whose Y is 1.0; one that says 2.0 is
+# taken. Probed on the component the specification pins to a single
+# value rather than on the X or Z it requires to be positive, because a
+# zero there is taken here too and only shows itself later, as an
+# undefinedresult out of the division it feeds.
+case $(run "[ /CIEBasedA << /WhitePoint [0.9505 2.0 1.089] >> ] setcolorspace
+            0 setcolor 5 5 30 30 rectfill") in
+    blank|ink\ *) echo cie-whitepoint-unconstrained >> "$work/got.diverge" ;;
 esac
 # ---- the None colorant, asked of every painting operator
 #
@@ -452,7 +519,8 @@ if [ -n "$thorns" ]; then
 fi
 
 [ "$fail" = 0 ] || exit 1
-printf 'SUCCESS (%s families derived from the roster and each one painting, %s table shape(s), %s base(s) under an uncoloured pattern, %s divergence(s) each found by its own probe)\n' \
+printf 'SUCCESS (%s families derived from the roster and each one painting, %s table shape(s), %s parameter case(s), %s base(s) under an uncoloured pattern, %s divergence(s) each found by its own probe)\n' \
     "$(grep -c . "$work/reg.fam")" "$(grep -c . "$work/reg.table")" \
+    "$(grep -c . "$work/reg.param")" \
     "$(grep -c . "$work/reg.base")" "$(grep -c . "$work/reg.diverge")"
 exit 0

@@ -1154,6 +1154,131 @@ end
 } put
 
 %
+%  A colorant name where the specification asks for one.
+%
+%  PLRM 4.8.5 states a Separation's name, and every entry of a DeviceN
+%  names array, as a name or a string object -- the two interchangeably,
+%  a string being the form for a colorant whose name carries spaces or
+%  other characters a name cannot hold. Nothing else is one.
+%
+%  Asked in one place for the reason .csproc is: it is one statement made
+%  at two sites, and a colorant read as a name at one and as anything at
+%  all at the other is the same space refused by one family and taken by
+%  the other.
+%
+.xpostsys /.csname {  % obj  .  -
+    type dup /nametype eq exch /stringtype eq or not
+        { /setcolorspace cvx /typecheck signalerror } if
+} put
+
+%
+%  Where each tint family carries its colorants, and whether it carries
+%  one or many.
+%
+%  A Separation names a single colorant (PLRM 4.8.5) and a DeviceN an
+%  array of them (PLRM 4.8.5, DeviceN Color Spaces), both at the second
+%  element. That difference is the whole of what separates the two
+%  families, and it is exactly the kind of thing a reader written for one
+%  and used for the other gets wrong -- a name has a length, so a bare
+%  name where an array of names belongs is counted as though it were an
+%  array of that many colorants.
+%
+%  Keyed by FAMILY rather than by kind, because the kind is what the two
+%  share and the carriage is what they do not.
+%  tests/check-colour-spaces.sh holds the keys to the roster, so a tint
+%  family arriving without a line is reported.
+%
+%    <family>  [ <element the colorants sit at>  <one|many> ]
+%
+.xpostsys /.colorantsat <<
+    /Separation [ 1 /one ]
+    /DeviceN    [ 1 /many ]
+>> put
+
+%
+%  Every colorant a tint space names is a colorant name, and a space that
+%  carries an array of them carries at least one.
+%
+%  A DeviceN space names the colorants it paints with, and the length of
+%  that array is the number of components a colour in the space carries
+%  (PLRM 4.8.5). An empty array names no colorant and prices the space at
+%  no components: setcolor would read nothing off the stack, the tint
+%  transform would be called with nothing, and the space would paint with
+%  no colorant at all. That is not a colour space, and the fault is in
+%  the value rather than in its type, so it is refused as out of range.
+%
+%  Checked where the space is set rather than where a colour is painted,
+%  because this is the last moment the operator the program named is
+%  still the one a refusal will be reported against.
+%
+.xpostsys /.cscolorants {  % space  .  -
+    3 dict begin
+    /sp exch def
+    /at //.colorantsat /sp load 0 get get def
+    /nm /sp load at 0 get get def
+    at 1 get /one eq {
+        /nm load //.csname exec
+    }{
+        /nm load type dup /arraytype ne exch /packedarraytype ne and
+            { /setcolorspace cvx /typecheck signalerror } if
+        /nm load length 0 eq
+            { /setcolorspace cvx /rangecheck signalerror } if
+        0 1 /nm load length 1 sub {
+            /nm load exch get //.csname exec
+        } for
+    } ifelse
+    end
+} put
+
+%
+%  An Indexed space's palette: how far it may be indexed, and what the
+%  colour at an index is read out of.
+%
+%  PLRM 4.8.4 states hival as an integer no greater than 4095, and lookup
+%  as either a procedure or a string of m x (hival + 1) bytes, where m is
+%  the number of components in the base space. Each of the three is a
+%  fault a program can only be usefully told about here. A hival above
+%  4095 is a table wider than a 12-bit sample can address. A palette
+%  shorter than the entries it is priced for holds colours nothing wrote:
+%  an index into the part that is not there raises against whichever
+%  painting operator reached it, having accepted the space that was
+%  already wrong. A lookup that is neither a string nor a procedure is
+%  executed anyway: a number leaves itself, so the base space is handed
+%  one component where it wanted m, and what the program is told about is
+%  the stack.
+%
+%  The base's component count is MEASURED from the base rather than
+%  assumed, because the length the specification asks for is written in
+%  terms of it; the base has been validated as a colour space in its own
+%  right before this is asked, so it has a count to give.
+%
+.xpostsys /.csindexed {  % space  .  -
+    4 dict begin
+    /sp exch def
+
+    % the four-element form is the only one PLRM 4.8.4 states, and the
+    % parameters below are not there to be read in any other
+    /sp load length 4 lt
+        { /setcolorspace cvx /typecheck signalerror } if
+
+    /hv /sp load 2 get def
+    /hv load type /integertype ne
+        { /setcolorspace cvx /typecheck signalerror } if
+    /hv load 4095 gt
+        { /setcolorspace cvx /rangecheck signalerror } if
+
+    /lu /sp load 3 get def
+    /lu load type /stringtype eq {
+        /m /sp load 1 get //.spacecomponents exec def
+        /lu load length m /hv load 1 add mul lt
+            { /setcolorspace cvx /rangecheck signalerror } if
+    }{
+        /lu load //.csproc exec
+    } ifelse
+    end
+} put
+
+%
 %  The decode entries each CIE-based family may carry, and how many
 %  procedures each entry holds. A count of zero means the entry is the
 %  procedure itself rather than an array of them.
@@ -1284,8 +1409,19 @@ end
         /sp load //.spacekind exec /tint eq {
             /sp load length 4 lt
                 { /setcolorspace cvx /typecheck signalerror } if
+            % and the colorants the space is named for, which is the
+            % element the two tint families carry differently
+            /sp load //.cscolorants exec
             /sp load 3 get //.csproc exec
         } if
+        % An Indexed space's palette is stated in terms of its base --
+        % how far it may be indexed, and how many bytes an entry takes
+        % (PLRM 4.8.4) -- so it is asked after the base above, which is
+        % what leaves the base validated and able to give a count. Asked
+        % of the parameterised form only, for the same reason the CIE
+        % entries below are.
+        /sp load //.spacekind exec /indexed eq { /sp load type /arraytype eq
+            { /sp load //.csindexed exec } if } if
         % asked of the parameterised form only: a CIE family named on
         % its own carries no dictionary to hold entries at all, and is
         % refused below for naming a family nothing can reduce

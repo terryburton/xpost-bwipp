@@ -296,7 +296,7 @@
 % above is what refuses it, rather than a walk that would otherwise
 % follow it round with no end, over an operand a program writes in two
 % lines.
-{ /c [ /Indexed /DeviceRGB 1 <0000> ] def c 1 c put c setcolorspace }
+{ /c [ /Indexed /DeviceRGB 1 <000000000000> ] def c 1 c put c setcolorspace }
     outcome /rangecheck eq
 (Indexed) (naming itself as its own base is refused) assert2
 { /c [ /Separation /Spot /DeviceGray { } ] def c 2 c put c setcolorspace }
@@ -394,5 +394,151 @@
 { [ /CIEBasedABC << /WhitePoint WP /DecodeABC [ {} {} {} ] >> ]
   setcolorspace } outcome /ok eq
 (CIEBasedABC) (still takes procedures in its decode entries) assert2
+
+
+% ---- an Indexed space's palette is as wide as its base
+%
+% PLRM 4.8.4 states the lookup string as being "of length m x (hival + 1),
+% where m is the number of color components in the base color space". So
+% the length the specification asks for is not a property of the Indexed
+% space at all: it is the base's width multiplied by the number of
+% entries, and a palette short of it is one whose last colours are read
+% off the end of the string.
+%
+% Asked over every member that may be a base, for the reason the rule is
+% written in terms of the base: m differs by member, from one for a
+% device grey to four for a DeviceCMYK or a CIE pre-extension, and a
+% check written against one member's width is a check that lets every
+% wider member through. The width is MEASURED from the colour each space
+% is entered holding rather than listed here, so a member whose width
+% changes is asked the question its new width poses.
+%
+% The two members that may not be a base at all are left out: an Indexed
+% base and a Pattern base are refused by the composition rule above,
+% which would answer this product instead of the length rule.
+%
+% BOTH directions, since a palette of exactly the stated length is what
+% every well-formed Indexed space carries.
+{
+    /sp exch def /nm exch def
+    gsave sp setcolorspace currentcolorspace 0 get grestore /fam exch def
+    fam [ /Indexed /Pattern ] inset not {
+        gsave
+            count /before exch def
+            sp setcolorspace currentcolor
+            count before sub /ncomp exch def
+            ncomp { pop } repeat
+        grestore
+        % hival 1, so the palette holds two entries and the length the
+        % specification asks for is 2m -- and 2m - 1 is a palette whose
+        % second colour is one byte short of being there
+        { [ /Indexed sp 1 ncomp 2 mul string ] setcolorspace } outcome /ok eq
+        nm (is taken as an Indexed base under a palette of m x (hival + 1) bytes) assert2
+        { [ /Indexed sp 1 ncomp 2 mul 1 sub string ] setcolorspace }
+            outcome /rangecheck eq
+        nm (is refused as an Indexed base under a palette one byte shorter) assert2
+    } if
+} eachmember
+
+% ---- and hival is an integer index the specification admits
+%
+% PLRM 4.8.4: "The hival parameter is an integer that specifies the
+% maximum valid index value", and "hival can be no greater than 4095,
+% which is what would be required to index a table with 12-bit color
+% sample values." An integer is the type, and 4095 is the bound; a value
+% past it is a table wider than any sample can address, and a value of
+% another type is not an index at all.
+{ [ /Indexed /DeviceRGB 4096 40000 string ] setcolorspace } outcome /rangecheck eq
+(Indexed) (refuses a hival above the 4095 PLRM 4.8.4 caps it at) assert2
+{ [ /Indexed /DeviceRGB 4095 12288 string ] setcolorspace } outcome /ok eq
+(Indexed) (still takes the largest hival PLRM 4.8.4 admits) assert2
+{ [ /Indexed /DeviceRGB 1.5 <FF000000FF00> ] setcolorspace } outcome /typecheck eq
+(Indexed) (refuses a hival that is not an integer) assert2
+{ [ /Indexed /DeviceRGB 1 <FF000000FF00> ] setcolorspace } outcome /ok eq
+(Indexed) (still takes an integer hival) assert2
+
+% ---- and lookup is a string or a procedure, and nothing else
+%
+% PLRM 4.8.4 gives the colour table two forms and no third: "the lookup
+% parameter, which can be either a procedure or a string". A number there
+% is the value that goes wrong furthest from its cause -- executing it
+% leaves that number on the stack, so the base space is handed one
+% component where it wanted three and the program is told about it by
+% whichever painting operator got there first.
+{ [ /Indexed /DeviceRGB 1 42 ] setcolorspace } outcome /typecheck eq
+(Indexed) (refuses a lookup that is neither a string nor a procedure) assert2
+{ [ /Indexed /DeviceRGB 1 { pop 0 0 0 } ] setcolorspace } outcome /ok eq
+(Indexed) (still takes a procedure as its lookup) assert2
+
+% ---- a tint space names its colorants, and a colorant name is a name
+%      or a string
+%
+% PLRM 4.8.5 states a Separation's name parameter as "a name or string
+% object specifying the name of the colorant", and adds that "Name and
+% string objects can be used interchangeably as names". The DeviceN
+% entry states the same of every element of its names array: "an array of
+% colorant names, specified as name or string objects."
+%
+% One statement over two families, so it is asked of both. Which is the
+% point of asking it here rather than at either family's own site: the
+% two carry their colorants differently -- one singly, one in an array --
+% and a rule about what a colorant name is that is written where the
+% carriage is written is a rule that gets written once.
+%
+% BOTH directions: both forms the specification admits must still be
+% taken, since a spot colour whose name carries a space can only be given
+% as a string.
+/colorant null def
+/namedtint [
+    (Separation) { [ /Separation /colorant load /DeviceGray { } ] }
+    (DeviceN)    { [ /DeviceN [ /colorant load ] /DeviceGray { } ] }
+] def
+
+/eachtint {                             % { name proc }  .  -
+    /tbody exch def
+    0 2 namedtint length 2 sub {
+        /ti exch def
+        namedtint ti get namedtint ti 1 add get tbody
+    } for
+} bind def
+
+{
+    /mk exch def /tnm exch def
+    /colorant /Spot def
+    { /mk load exec setcolorspace } outcome /ok eq
+    tnm (takes a name where PLRM 4.8.5 asks for a colorant name) assert2
+    /colorant (Spot colour) def
+    { /mk load exec setcolorspace } outcome /ok eq
+    tnm (takes a string there too, the two being interchangeable) assert2
+    /colorant 42 def
+    { /mk load exec setcolorspace } outcome /typecheck eq
+    tnm (refuses a number there, which is neither) assert2
+} eachtint
+
+% ---- and a DeviceN carries its colorants in an array of at least one
+%
+% PLRM 4.8.5: "The names parameter in the color space array passed to
+% setcolorspace is an array of colorant names... The length of the array
+% determines the number of components, and hence the number of operands
+% required by the setcolor operator when this space is the current color
+% space."
+%
+% So the array is what prices the space, and the two ways of getting it
+% wrong are both silent. A bare name where the array belongs is counted
+% by its own length, because a name has one -- so a colorant called Gold
+% prices the space at four components and reads four operands off the
+% stack. An empty array prices it at none: setcolor reads nothing, the
+% tint transform is called with nothing, and the space names no colorant
+% to paint with. The first is the wrong type of object; the second is the
+% right type carrying a value the family admits no space at, so it is
+% refused as out of range.
+{ [ /DeviceN /A /DeviceGray { } ] setcolorspace } outcome /typecheck eq
+(DeviceN) (refuses a names parameter that is not an array) assert2
+{ [ /DeviceN [ ] /DeviceGray { } ] setcolorspace } outcome /rangecheck eq
+(DeviceN) (refuses an empty names array, which names no colorant and prices the space at none) assert2
+{ [ /DeviceN [ /A /B ] /DeviceRGB { pop pop 0 0 0 } ] setcolorspace } outcome /ok eq
+(DeviceN) (still takes an array of colorant names) assert2
+{ [ /DeviceN [ (A) (B) ] /DeviceRGB { pop pop 0 0 0 } ] setcolorspace } outcome /ok eq
+(DeviceN) (still takes them as strings) assert2
 
 verdict

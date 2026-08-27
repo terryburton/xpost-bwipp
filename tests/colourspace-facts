@@ -64,6 +64,46 @@ table CIEBasedDEFG  short-strings refuses
 
 tables 6
 
+# What each special colour space's own parameters must be, and what each
+# family answers when they are not.
+#
+# The three special families other than Pattern each carry parameters
+# nothing else does: an Indexed space a palette and the index range it
+# holds, a Separation the colorant it names, a DeviceN the array of
+# colorants it names. Every one of those is stated by PLRM 4.8.4 or
+# 4.8.5, and every one of them is quiet when it is wrong -- a palette too
+# short reads colours off the end of its string, a lookup that is a
+# number leaves that number where the base space wanted its components,
+# a bare colorant name where an array belongs prices the space by the
+# length of the name.
+#
+# So they are PROBED here, one space per case, and the answer recorded is
+# the error name rather than the fact of a refusal: which error a program
+# is given is what tells it whether it handed over the wrong kind of
+# thing or a thing of the right kind with a value outside what the family
+# admits. PLRM's setcolorspace entry names typecheck for the first and
+# rangecheck for the second.
+#
+# BOTH directions: a well-formed space of each family is probed here too,
+# since a check that refuses what the specification admits is worse than
+# the one it replaced.
+#
+#   param <family> <case> <takes|errorname>
+
+param Indexed     well-formed        takes
+param Indexed     hival-too-big      rangecheck
+param Indexed     hival-not-integer  typecheck
+param Indexed     lookup-short       rangecheck
+param Indexed     lookup-number      typecheck
+param Separation  name-string        takes
+param Separation  name-number        typecheck
+param DeviceN     names-string       takes
+param DeviceN     names-not-array    typecheck
+param DeviceN     names-number       typecheck
+param DeviceN     names-empty        rangecheck
+
+params 11
+
 # An uncoloured pattern paints its cells in the space underneath it, so
 # every family above is also a base a pattern can be laid over. That
 # crossing is where this family's two live defects were found, one at a
@@ -102,5 +142,6 @@ space-array-rebuilt  settled  currentcolorspace does not hand back the object th
 
 special-names-in-devicen  settled  PLRM 4.8.5 says the special colorant names All and None are not allowed in a DeviceN names array, and one there is accepted and painted through the transform like any other name. Accepting it is the common reading, so refusing it would turn pages that render everywhere today into errors for a rule nothing enforces. The names are meaningful only to a Separation, where they are honoured
 
+cie-whitepoint-unconstrained  settled  PLRM 4.8.3 requires a CIE-based space's WhitePoint to have a Y component of 1.0 and X and Z components greater than zero, and BlackPoint components no less than zero, but states no error for a dictionary that says otherwise, and setcolorspace's own entry names none either. A WhitePoint whose Y is 2.0 is taken; an X or Z of zero is taken as well and surfaces later as undefinedresult out of the arithmetic that divides by it, which reports against whatever painting operator reached the conversion rather than against the operator that supplied the dictionary. Refusing either would be choosing an error the specification does not name, so both are left as they are and recorded here
 
-divergences 3
+divergences 4

@@ -41,6 +41,13 @@
 #   line there is one whose decode entries are taken whatever type they
 #   are
 #
+#   every family of kind tint states in .colorantsat where it carries the
+#   colorants it names, and only such a family states one. The two tint
+#   families carry them differently -- a Separation one colorant, a
+#   DeviceN an array of them -- and a family with no line there is one
+#   whose colorants are read by whichever of the two shapes the reader
+#   was written for
+#
 # The kinds table is the roster. Adding a family means adding it there,
 # and this then asks whether the rest of the family's statements were
 # made -- which is the thing that was missing when four of the eleven
@@ -80,8 +87,9 @@ table .spacecomps > "$work/comps"
 table .ciecomps   > "$work/cie"
 table .spaceunder > "$work/under"
 table .ciedecodes > "$work/decodes"
+table .colorantsat > "$work/colorants"
 
-for f in kinds comps cie under decodes; do
+for f in kinds comps cie under decodes colorants; do
     if [ ! -s "$work/$f" ]; then
         echo "FAILURES: data/color.ps states no $f table, or it is not"
         echo "      written where this can read it. The tables are the"
@@ -171,6 +179,26 @@ guard_hold "$work/want.cie" "$work/have.decodes" \
     "of kind cie and given no .ciedecodes line. Its decode entries are
       then whatever the program put there:" \
     "given a .ciedecodes line and not of kind cie in the roster:"
+[ "$guard_held" -eq 0 ] || fail=1
+
+# ---- and every tint family says where its colorants are carried
+#
+# A Separation names one colorant and a DeviceN an array of them (PLRM
+# 4.8.5), both at the same element. That difference is all there is
+# between the two families, and a name has a length just as an array
+# does, so a reader written for one and used for the other prices a bare
+# colorant name as though it were that many colorants. A family absent
+# from .colorantsat is a family that check cannot reach.
+awk '$2 == "tint" { print $1 }' "$work/kinds" | sort > "$work/want.colorants"
+awk '{ print $1 }' "$work/colorants" | sort > "$work/have.colorants"
+
+guard_held=0
+guard_hold "$work/want.colorants" "$work/have.colorants" \
+    "of kind tint and given no .colorantsat line. Where it names its
+      colorants is then stated nowhere, and they are read by whichever
+      shape the reader happens to have been written for:" \
+    "given a .colorantsat line and not of kind tint in the roster. A
+      space that carries no colorant names has none to be found:"
 [ "$guard_held" -eq 0 ] || fail=1
 
 if [ "$fail" -ne 0 ]; then

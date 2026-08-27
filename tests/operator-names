@@ -14,10 +14,11 @@
 # is that operator, and most of these are: the halftone helpers are reached
 # only under sethalftone, the shading ones only under shfill, the CID ones
 # only under show, the two masked image types only under image, and the
-# colour-space validator and the two helpers it calls -- .csproc, which
-# asks whether an entry is a procedure, and .cieprocs, which asks it of
-# every decode entry a CIE-based family carries -- only under
-# setcolorspace. Two
+# colour-space validator and the helpers it calls -- .csproc and .csname,
+# which ask whether an object is a procedure and whether it is a colorant
+# name, and .cieprocs, .cscolorants and .csindexed, which ask after the
+# decode entries of a CIE-based family, the colorants a tint space names
+# and an Indexed space's palette -- only under setcolorspace. Two
 rows are fine for a different reason: .endpage names
 # the page-device procedure that returned the wrong type, not its caller,
 # and .upathcheck names uappend because ufill, ueofill and ustroke call the
@@ -41,6 +42,9 @@ rows are fine for a different reason: .endpage names
 .crdtable                   setcolor
 .crdvalidate                setcolorrendering
 .crossdashbound             stroke
+.cscolorants                setcolorspace
+.csindexed                  setcolorspace
+.csname                     setcolorspace
 .csproc                     setcolorspace
 .csvalidate                 setcolorspace
 .doclip                     clip

@@ -30,7 +30,7 @@
 } def
 
 % self-referential spaces are refused, not walked forever
-{ /cs [ /Indexed /DeviceRGB 1 <0000> ] def cs 1 cs put cs setcolorspace } errname
+{ /cs [ /Indexed /DeviceRGB 1 <000000000000> ] def cs 1 cs put cs setcolorspace } errname
     /rangecheck eq (a colour space whose Indexed base is itself is refused) assert
 { /d [ /Separation /S /DeviceRGB { } ] def d 2 d put d setcolorspace } errname
     /rangecheck eq (a Separation whose alternative is itself is refused) assert
@@ -50,10 +50,12 @@
   [ /Separation /S /DeviceGray /tt load ] setcolorspace 0.5 setcolor } errname
     /limitcheck eq (a tint transform recolouring in its own space is bounded) assert
 
-% ordinary nested spaces still reduce and are accepted
-{ [ /Indexed /DeviceRGB 255 <000000> ] setcolorspace } errname
+% ordinary nested spaces still reduce and are accepted. Each palette is
+% as long as its base is wide -- m x (hival + 1) bytes, PLRM 4.8.4 -- so
+% what these ask about is the reduction and not the palette.
+{ [ /Indexed /DeviceRGB 255 768 string ] setcolorspace } errname
     null eq (an Indexed space over DeviceRGB is accepted) assert
-{ [ /Indexed [ /Separation /Spot /DeviceCMYK { pop 0 0 0 0 } ] 1 <00> ] setcolorspace } errname
+{ [ /Indexed [ /Separation /Spot /DeviceCMYK { pop 0 0 0 0 } ] 1 <0000> ] setcolorspace } errname
     null eq (an Indexed space over a Separation is accepted) assert
 { [ /DeviceN [ /a /b ] /DeviceCMYK { pop pop 0 0 0 0 } ] setcolorspace } errname
     null eq (a DeviceN space is accepted) assert
