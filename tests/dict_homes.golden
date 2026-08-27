@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 426
+entries 429
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -37,6 +37,7 @@ entries 426
 # of the template: a slot the template declares and this list does not
 # the device class dictionaries, one per PostScript-implemented device
 .gscratch /.lresources
+.gscratch /.cshmeas
 .gscratch /.pfdict
 .gscratch /.stencilcache
 .gscratch /.t4nopaint
@@ -174,8 +175,10 @@ entries 426
 .xpostsys /.crdvalidate
 .xpostsys /.csalt
 .xpostsys /.cscolorants
+.xpostsys /.cshhold
 .xpostsys /.cshmeasure
 .xpostsys /.cshsetfont
+.xpostsys /.cshsubst
 .xpostsys /.csindexed
 .xpostsys /.csinitcolor
 .xpostsys /.cskeys

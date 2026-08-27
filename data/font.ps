@@ -112,13 +112,56 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  composite nor procedural is the only thing that answers.
 %
 .xpostsys /.fontroute {  % font  .  /composite | /build | /face
-    % A descendant carrying cshow's special measure is walked the way the
-    % composite it stands for would be: it is the current font only while
-    % that procedure runs, and what it paints is the CID the walk chose.
-    dup /.cshcid known { pop /composite }{
     /FontType 2 copy known { get }{ pop pop -1 } ifelse
     dup 0 eq { pop /composite }{ 3 eq { /build }{ /face } ifelse } ifelse
-    } ifelse
+} put
+
+%
+%  --- cshow's special measure -----------------------------------------
+%
+%  PLRM 8.2 has cshow run its procedure with the descendant the mapping
+%  selected as the current font, and arranges that a show of the one
+%  character code it hands the procedure paints "the one identified by
+%  the originally selected CID". Through a CID-keyed composite those two
+%  are not the same thing: a CIDFont's glyphs are reached by CID and a
+%  string reaches none of them, so the code has to stand for the CID by
+%  some other arrangement than the font.
+%
+%  The arrangement is a mapping under which that one byte, and no other
+%  code, names that one CID -- and it is held here rather than on the
+%  font, because the font is the program's to hold. currentfont hands it
+%  to the procedure, which may keep it, write it, scale it and define it
+%  under a name of its own; anything the measure were made of there would
+%  outlive the call that meant it and answer for whatever the program put
+%  in it afterwards. A slot the program cannot reach expires with the
+%  call by construction, and cannot be forged into a show that no cshow
+%  is running.
+%
+%  So the slot holds, while one call of the procedure runs, the font that
+%  call is running under, the composite that stands for it, and the code
+%  that composite maps -- and null the rest of the time. cid.ps writes
+%  it; every operator that resolves a string through the current font
+%  reads it through .cshsubst below, and nothing else does. The font
+%  parameter itself is untouched, so currentfont still answers with the
+%  descendant, glyphshow still meets a CIDFont and takes a CID, and the
+%  metrics a glyph is placed by are still the descendant's.
+%
+.gscratch /.cshmeas null put
+
+%
+%  The font an operator resolves a string through: the current font,
+%  unless it is the one cshow's procedure is running under, in which case
+%  the composite the measure stands for.
+%
+%  The substitution is per operator, not per font: it decides what a
+%  string means and nothing else, so the font parameter a program can ask
+%  about is never the substituted one.
+%
+.xpostsys /.cshsubst {  % font  .  font
+    .gscratch /.cshmeas get
+    dup null eq
+        { pop }
+        { dup 0 get 2 index eq { exch pop 1 get }{ pop } ifelse } ifelse
 } put
 
 %
@@ -940,7 +983,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /show //.needfont exec
     /show //.needpoint exec
     //.showclip exec
-    graphicsdict /currgstate get /currfont get
+    graphicsdict /currgstate get /currfont get //.cshsubst exec
     dup //.fontroute exec /composite eq {
         exch /show //.xpostsys /.showtype0 get exec
     }{
@@ -982,7 +1025,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /widthshow //.needfont exec
     /widthshow //.needpoint exec
     //.showclip exec
-    graphicsdict /currgstate get /currfont get
+    graphicsdict /currgstate get /currfont get //.cshsubst exec
     dup //.fontroute exec /composite eq {
         % A composite font: add the delta after the character whose full
         % (multi-byte) code matches, as the ordinary composite show walks it.
@@ -1044,7 +1087,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /ashow //.needfont exec
     /ashow //.needpoint exec
     //.showclip exec
-    graphicsdict /currgstate get /currfont get
+    graphicsdict /currgstate get /currfont get //.cshsubst exec
     dup //.fontroute exec /composite eq {
         % A composite font decodes to descendant glyphs; walk it with the
         % ordinary composite show and add the delta after each character.
@@ -1103,7 +1146,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /awidthshow //.needfont exec
     /awidthshow //.needpoint exec
     //.showclip exec
-    graphicsdict /currgstate get /currfont get
+    graphicsdict /currgstate get /currfont get //.cshsubst exec
     dup //.fontroute exec /composite eq {
         % A composite font: the ashow delta after every character, plus the
         % widthshow delta after the character whose full code matches.
@@ -1440,7 +1483,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 /stringwidth [ /stringtype ] {  % string  .  wx wy
     /stringwidth //.needfont exec
-    graphicsdict /currgstate get /currfont get
+    graphicsdict /currgstate get /currfont get //.cshsubst exec
     dup //.fontroute exec /face eq { pop //stringwidth }{
     pop
 
@@ -1625,7 +1668,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     3 dict begin
     /cpwant exch def
     /cpstr exch def
-    /cpfont graphicsdict /currgstate get /currfont get def
+    /cpfont graphicsdict /currgstate get /currfont get //.cshsubst exec def
     cpfont //.fontroute exec /build eq {
         cpstr stringwidth rmoveto
     }{

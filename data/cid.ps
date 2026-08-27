@@ -706,6 +706,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /cm fnt /CMap get def
     /desc fnt /FDepVector get 0 get def
 
+    % The walk paints each glyph with the descendant current, and the
+    % font a glyph was painted from is not the caller's to lose. What
+    % goes back at the end is what was current on the way in, which is
+    % not always the font walked: a show under cshow's measure walks the
+    % composite that stands for the descendant while the descendant is
+    % what is current, and glyphshow through a CIDFont walks a composite
+    % that stands for the CIDFont in the same way.
+    /prev graphicsdict /currgstate get /currfont get def
+
     % A CIDFontType 2 descendant renders through an assembled face,
     % rebuilt when its glyph directory has grown since.
     desc /CIDFontType 2 copy known { get 2 eq }{ pop pop false } ifelse {
@@ -775,7 +784,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         fc .showhook
         /p p w add def
     } loop
-    graphicsdict /currgstate get /currfont fnt put
+    graphicsdict /currgstate get /currfont prev put
     end
 } def
 
@@ -786,27 +795,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  descendant instead.
 %
 /.showtype0 {  % font str /opname  .  -
-    2 index /.cshcid 2 copy known {
-        % cshow's special measure (PLRM 8.2). The font current while the
-        % procedure runs is the descendant the walk selected, which is
-        % what currentfont must answer with; a CIDFont's glyphs are
-        % reached by CID and a string reaches none of them, so the show
-        % the procedure makes is answered from the CID the walk resolved
-        % rather than from the string.
-        %
-        % The string is held to the one byte first: it "must consist of a
-        % single byte equal to the code given to proc, or a rangecheck
-        % error occurs". Every show variant comes through here, so the
-        % refusal reports the operator the program called.
-        get                                     % font str opname cid
-        3 index /.cshbyte get                   % font str opname cid byte
-        3 index dup length 1 eq { 0 get }{ pop -1 } ifelse
-        ne { 1 index cvx /rangecheck signalerror } if
-        3 index exch                            % font str opname font cid
-        //.xpostsys /.cidglyphshow get exec
-        pop pop pop
-    }{
-    pop pop
+    % cshow's special measure (PLRM 8.2), if this is the composite that
+    % stands for it: the string "must consist of a single byte equal to
+    % the code given to proc, or a rangecheck error occurs", so it is
+    % held to that byte before the walk reaches a code the measure never
+    % meant. Every show variant comes through here, so the refusal
+    % reports the operator the program called rather than a name they
+    % would share.
+    .gscratch /.cshmeas get
+    dup null eq { pop false }{ 1 get 3 index eq } ifelse {
+        .gscratch /.cshmeas get 2 get
+        2 index ne { dup cvx /rangecheck signalerror } if
+    } if
     2 index /FMapType get 9 ne {
         pop
         //.showfmap exec
@@ -818,7 +818,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % a pattern colour and an outline font to instead
         { null { .glyphshowidx } //.showroute exec }
         //.cmapwalk exec
-    } ifelse
     } ifelse
 } def
 
@@ -840,16 +839,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  working copy, as composefont walks its descendants through the
 %  copies it takes of them.
 %
-%  The walk leaves the font it walked current, and the font a glyph was
-%  painted from is not the caller's to lose: the caller's font goes
-%  back.
-%
 /.cidglyphshow {  % cidfont cid  .  -
     3 dict begin
     /cid exch def
     dup wcheck not { dup length 4 add dict copy } if
     /desc exch def
-    /prev graphicsdict /currgstate get /currfont get def
     <<
         /FontType 0
         /FMapType 9
@@ -862,7 +856,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     >>
     <00>
     /glyphshow //.showtype0 exec
-    graphicsdict /currgstate get /currfont prev put
     end
 } def
 
@@ -927,6 +920,21 @@ end
 } put
 
 %
+%  Park a measure in the slot font.ps keeps for it, remembering in the
+%  measure itself what stood there before, so that the walk which parked
+%  it can put that back however it ends.
+%
+%  A compiled walk reaches the slot through here rather than by embedding
+%  the scratch dictionary in the program it builds: that dictionary is a
+%  local object and the program may be built in global VM, where a local
+%  object may not be stored (PLRM 3.7.2).
+%
+.xpostsys /.cshhold {  % meas  .  -
+    dup 3 .gscratch /.cshmeas get put
+    .gscratch exch /.cshmeas exch put
+} put
+
+%
 %  cshow's walks compile into programs that run after the private dict
 %  ends, so the procedure executes on the caller's stacks with no
 %  machinery state live anywhere: no names for its defs to collide
@@ -951,14 +959,26 @@ end
 %  character code from string (or its last byte, if the code is more
 %  than 1 byte long)", and a show of that one byte, with the font the
 %  operator leaves current, paints "the one identified by the originally
-%  selected CID". Both halves are the rebinding below: the composite is
-%  rebound, for the length of one call, to a mapping under which that
-%  byte and nothing else stands for that CID. The byte is a byte and the
-%  CID is whatever the CMap resolved, so a CID above 255 is shown, and
-%  measured, as the CID it is. The byte is recorded with the rebinding,
-%  so a show of anything else under it -- another byte, more than one,
-%  none at all -- is refused with the rangecheck PLRM 8.2 gives it
-%  rather than reaching whatever glyph the rebound mapping holds for it.
+%  selected CID". The byte is a byte and the CID is whatever the CMap
+%  resolved, so a CID above 255 is shown, and measured, as the CID it is.
+%
+%  The two halves are made of different things. The font is the
+%  descendant the mapping selected, which is what currentfont must answer
+%  with, and it is the program's from the moment the procedure asks for
+%  it. The measure is a mapping under which that one byte, and no other
+%  code, stands for that CID -- and it is parked in the scratch slot
+%  font.ps keeps for it, not written on the font, because a font is
+%  something the program may keep, write, scale and define under a name
+%  of its own long after this call is over. Only the operators that
+%  resolve a string through the current font read the slot, and only
+%  while the call runs; the slot goes back to what it held on the way in
+%  however the walk ends, so a nested cshow gets its own measure and
+%  gives this one back.
+%
+%  The string a show under the measure is given is held to the one byte
+%  -- "or a rangecheck error occurs" -- which is done where the walk
+%  starts rather than here, so that every show variant reports the
+%  refusal under its own name.
 %
 /cshow [ /proctype /stringtype ] {  % proc string  .  -
     /cshow //.needfont exec
@@ -1006,10 +1026,10 @@ end
         % The font the procedure runs under is the descendant the walk
         % selected, because PLRM 8.2 has currentfont answer with "the
         % current descendant base font or CIDFont" while it runs. It is a
-        % copy, so that the character the measure stands for can be
-        % written on it without reaching the descendant the composite
-        % keeps; and it is one copy for the call, rewritten per character,
-        % because the correspondence it states is one character's.
+        % copy, so that what a show of it does to a font -- assembling a
+        % face on it, for one -- does not reach the descendant the
+        % composite keeps. One copy serves the whole call: it says which
+        % font the measure is for and nothing about which character.
         /bw fnt /FDepVector get 0 get dup length 4 add dict copy def
 
         % The descendant carries its own matrix and the composite carries
@@ -1019,19 +1039,43 @@ end
         % takes the product rather than half of it.
         bw /FontMatrix
             bw /FontMatrix get fnt /FontMatrix get matrix concatmatrix put
-        % the rebinding is one character's, so it is done a character at
-        % a time, which puts it in the compiled program rather than
-        % here; the operator that does it is embedded the way exec is
+
+        % The mapping the measure is: this composite over a CMap in which
+        % one byte, and no other code, names one CID. The composite is
+        % otherwise the one that was set, so the writing mode, the
+        % matrix and the descendant the face is assembled on are the ones
+        % a show of the same text goes through.
+        %
+        % A byte cannot name a CID above 255 and most CIDs in a real font
+        % are above 255, so a mapping that sent each byte to the CID of
+        % the same number would be one the CID could not be reached
+        % through; what makes the byte enough is that it has only one CID
+        % to stand for. Which byte and which CID is one character's
+        % business, so the string and the range the mapping is made of
+        % are rewritten per character, in the compiled program rather
+        % than here; the operator that rewrites them is embedded the way
+        % exec is.
+        /cs 1 string def
+        /rng [ cs cs 0 ] def
+        /mfnt fnt dup length 1 add dict copy def
+        mfnt /CMap << /.codespaces [ <00> <FF> ] /.cidranges rng >> put
+
+        % What the slot holds while the procedure runs: the font it runs
+        % under, the composite that stands for it, the code that
+        % composite maps -- and, so the walk can put it back however it
+        % ends, whatever the slot held on the way in.
+        /meas [ bw mfnt cs null ] def
         /putin /put load def
         /p 0 def
         [
+        currentdict /meas get //.cshhold currentdict /exe get
         {
             p str length ge { exit } if
             str p cm //.cmapnext exec
             /w exch def /cid exch def
             /code str p w add 1 sub get def
-            currentdict /bw get /.cshbyte code currentdict /putin get
-            currentdict /bw get /.cshcid cid currentdict /putin get
+            currentdict /cs get 0 code currentdict /putin get
+            currentdict /rng get 2 cid currentdict /putin get
             code
             currentdict /bw get
             1 string dup 0 code put
@@ -1043,7 +1087,14 @@ end
         } loop
         ] cvx
         end
-        { exec exit } loop
+
+        % However the walk ends -- run out, left by an exit from the
+        % procedure, or abandoned by an error in it -- the measure it
+        % parked goes back to what stood there before it, and the error
+        % is raised again for the caller's own handling.
+        { { exec exit } loop } stopped
+        .gscratch /.cshmeas 2 copy get 3 get put
+        { stop } if
     } ifelse
     }{
         10 dict begin

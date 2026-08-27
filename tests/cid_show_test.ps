@@ -518,6 +518,96 @@ cs.w 12 near (the width is the one the CID names) check
 widemetfnt WIDECODE stringwidth pop cs.w near
     (which is the width the same text is shown at) check
 
+% and the rest of what a CIDFont answers is answered while the procedure
+% runs, because the descendant is what is current and not something
+% standing in for it. PLRM 5.11.3 has glyphshow take a CID from a
+% CIDFont; the show variants that position each glyph themselves reach
+% the same glyph the plain show reaches; and charpath appends its
+% outline rather than moving the pen over a glyph it never took.
+/cs.raise { % proc  .  errorname or null
+    count 1 sub /cs.d exch def
+    stopped { $error /errorname get $error /newerror false put }{ null } ifelse
+    /cs.r exch def
+    count cs.d sub dup 0 gt { { pop } repeat }{ pop } ifelse
+    cs.r
+} bind def
+/cs.samebox { % a b  .  bool
+    2 dict begin /bb1 exch def /bb0 exch def
+    true 0 1 3 { dup bb0 exch get exch bb1 exch get near and } for
+    end
+} bind def
+/CG { widefnt newpath 10 20 moveto
+      { pop pop pop 257 glyphshow } WIDECODE cshow } greysnap def
+CG inkof 0 gt (glyphshow inside the procedure marks the page) check
+CG W differs 0 eq (and marks the glyph the walk selected) check
+/CX { widefnt newpath 10 20 moveto
+      { pop pop 1 string dup 0 4 -1 roll put [ 0 ] xshow } WIDECODE cshow } greysnap def
+CX W differs 0 eq (xshow inside the procedure marks the same glyph) check
+/CY { widefnt newpath 10 20 moveto
+      { pop pop 1 string dup 0 4 -1 roll put [ 0 ] yshow } WIDECODE cshow } greysnap def
+CY W differs 0 eq (yshow inside the procedure marks the same glyph) check
+/CXY { widefnt newpath 10 20 moveto
+       { pop pop 1 string dup 0 4 -1 roll put [ 0 0 ] xyshow } WIDECODE cshow } greysnap def
+CXY W differs 0 eq (xyshow inside the procedure marks the same glyph) check
+initgraphics widefnt newpath 10 20 moveto
+{ pop pop 1 string dup 0 4 -1 roll put true charpath } WIDECODE cshow
+/cs.bb [ pathbbox ] def
+initgraphics widefnt newpath 10 20 moveto WIDECODE true charpath
+/cs.bb0 [ pathbbox ] def
+cs.bb cs.bb0 cs.samebox
+    (charpath inside the procedure appends the glyph the walk selected) check
+
+% and the measure the walk makes is not made of the font. The font the
+% procedure is handed is the program's from the moment it asks for it --
+% to keep, to write, to scale, to define under a name of its own -- so a
+% measure written there would outlive the call that meant it and answer
+% afterwards for whatever the program had since put in it. It carries
+% what the descendant carries and nothing besides, and once the call is
+% over a show through it marks nothing: PLRM 5.11.3 says the show
+% operators "cannot be used" with a CIDFont as the current font, and
+% with nothing standing for its codes that is what it is -- whether the
+% font answers by refusing or by reaching no glyph.
+%
+% The walk is ended three ways, because the measure has to go however
+% the walk goes: run out, left by an exit from the procedure, and
+% abandoned by an error in it.
+/cs.held null def /cs.extra 0 def
+widefnt /cs.desc currentfont /FDepVector get 0 get def
+initgraphics newpath 10 20 moveto
+{ pop pop pop /cs.held currentfont store } WIDECODE cshow
+cs.held { pop cs.desc exch known not { /cs.extra cs.extra 1 add store } if } forall
+cs.extra 0 eq
+    (the font the procedure is handed carries what the descendant carries) check
+/cs.after { % held  .  ink
+    initgraphics erasepage 0 setgray newpath 10 20 moveto
+    setfont
+    count /cs.d exch def
+    { 1 string dup 0 1 put show } stopped { $error /newerror false put } if
+    count cs.d sub dup 0 gt { { pop } repeat }{ pop } ifelse
+    snap inkof
+} bind def
+cs.held cs.after 0 eq
+    (and a show through it once the walk has run out marks nothing) check
+widefnt initgraphics newpath 10 20 moveto
+{ pop pop pop /cs.held currentfont store exit } WIDECODE cshow
+cs.held cs.after 0 eq
+    (nor once the procedure has left the walk by exit) check
+{ widefnt initgraphics newpath 10 20 moveto
+  { pop pop pop /cs.held currentfont store stop } WIDECODE cshow } cs.raise pop
+cs.held cs.after 0 eq
+    (nor once the procedure has abandoned the walk by failing) check
+
+% and a walk inside the procedure makes its own measure and gives this
+% one back, so the procedure can still show the code it was given after
+% one has run.
+/cs.nc 0 def /cs.nf null def
+/CN { widefnt newpath 10 20 moveto
+      { pop pop /cs.nc exch store /cs.nf currentfont store
+        cidfnt { pop pop pop } CODES cshow
+        cs.nf setfont
+        1 string dup 0 cs.nc put show } WIDECODE cshow } greysnap def
+CN W differs 0 eq (a walk inside the procedure gives the outer measure back) check
+
 % --- a CIDFont as the current font -------------------------------------
 %
 % PLRM 5.11.3 lets a CIDFont dictionary "be treated as if it were a font
