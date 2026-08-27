@@ -1,8 +1,8 @@
 % Array packing mode (setpacking / currentpacking, PLRM 8.2), run through
 % `xpost -d null` by run-ps-test.sh. A packed array is read-only, so packing is
 % observed through wcheck. xpost stores a packed array as a read-only array but
-% tags it, so -- like Ghostscript and Adobe Distiller -- the type operator
-% reports a distinct packedarraytype and an ordinary read-only array does not.
+% tags it, so the type operator reports a distinct packedarraytype where an
+% ordinary read-only array does not, which is what PLRM 3.3.3 describes.
 
 /failcount 0 def
 /assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def

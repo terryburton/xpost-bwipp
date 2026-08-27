@@ -4,8 +4,8 @@
 #   %%[ Error: NAME; OffendingCommand: CMD ]%%
 # (note the space before the closing bracket) followed by the flush notice
 #   %%[ Flushing: rest of job (to end-of-file) will be ignored ]%%
-# while a clean quit or a self-caught error reports neither. The two lines were
-# verified byte-for-byte against Adobe Distiller.
+# while a clean quit or a self-caught error reports neither. The two lines are
+# held to the byte, being what a job's consumer parses.
 #   $1  path to the built xpost binary
 set -u
 xpost=$1

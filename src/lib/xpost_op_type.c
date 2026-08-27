@@ -670,12 +670,12 @@ int conv_real (real num,
         return 3;
     }
 
-    /* the shortest decimal that reads back to the same value, as the
-       reference interpreters produce. Find the fewest significant
+    /* the shortest decimal that reads back to the same value. Find
+       the fewest significant
        digits whose round trip is exact, take the decimal exponent from
        that same scientific rendering (not from log10, which rounds the
-       wrong way at the powers of ten), then present it as the
-       reference does: fixed notation while the magnitude sits between
+       wrong way at the powers of ten), then present it thus: fixed
+       notation while the magnitude sits between
        1e-4 and 1e6, scientific outside that band. A fixed value that
        comes out whole gains a ".0" so it scans back as a real. */
     for (prec = 1; prec < 17; prec++)

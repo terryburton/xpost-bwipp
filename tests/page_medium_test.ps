@@ -22,9 +22,9 @@
 % to and takes the page exactly. PageSize reports what was asked for
 % either way.
 %
-% The reference interpreters take the nearest whole pixel rather than the
-% next, so a page that rounds down leaves them a medium smaller than the
-% page and the far edge of the page is clipped away. Both answers are
+% Taking the nearest whole pixel rather than the next means a page that
+% rounds down gets a medium smaller than the page, and the far edge of
+% the page is clipped away. Both answers are
 % inside PLRM 6.2.7 and neither departs from it, so the difference is one
 % to know about rather than one to correct; an interpreter changed to the
 % other answer would fail the assertion below about the page being inside
@@ -101,8 +101,7 @@
     % over it where the page rounded up, and short of it, clipping the
     % page's far edge, where it rounded down. PLRM 6.2.7 describes both a
     % nearest medium and a next larger one without choosing, and this
-    % takes the nearest, which is what the reference interpreters make of
-    % a size that is not a whole number of pixels.
+    % takes the nearest for a size that is not a whole number of pixels.
     /halfpx 0.5 72 rx div mul eps add def
     urx w halfpx sub ge  ury h halfpx sub ge and
     (the default clip reaches within half a pixel of the page) assert

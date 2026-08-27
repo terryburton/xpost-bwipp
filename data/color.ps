@@ -1429,8 +1429,8 @@ end
 %  The components are recorded in RGB, converted with the usual
 %  hexcone model (hue scaled to a sector 0-5; the sector's fractional
 %  part blends between the derived p, q and t values). Each component is
-%  clamped to [0,1] first, as the reference interpreters clamp hue rather
-%  than wrap it.
+%  clamped to [0,1] first: hue is clamped rather than wrapped, so a hue
+%  above 1 is the same colour as a hue of 1 and not the same as a hue of 0.
 %
 /sethsbcolor [ /numbertype /numbertype /numbertype ] {  % hue saturation brightness  .  -
     3 { //.c01 exec 3 1 roll } repeat

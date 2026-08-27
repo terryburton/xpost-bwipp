@@ -38,7 +38,7 @@ Level 1 operators
 
  [X] image (12-bit samples render at the raster's 8-bit depth)
  [X] setscreen (a spot procedure that leaves no result loses nothing
-     from the caller's stack, where the reference interpreters error)
+     from the caller's stack, where an error is the commoner answer)
  [X] base font CharStrings (a face whose program cannot be read
      publishes glyph indices)
  [X] base font Encoding (recovered from the face and not read out of the
@@ -83,9 +83,8 @@ Level 2 operators
  [X] Install (a request whose Install fails stays in force, so the
      procedure runs again on the next activation of the device; the
      specification does not say what becomes of a request whose Install
-     does not complete, and the reference interpreters disagree -- one
-     puts the page device the request replaced back and the other does
-     not)
+     does not complete, and practice differs -- the page device the
+     request replaced is sometimes put back and sometimes not)
  [X] BeginPage, EndPage (called with the count of pages the device has
      transmitted, EndPage also with the reason -- 0 showpage, 1 copypage,
      2 the device going away -- and its boolean decides whether the page
@@ -95,9 +94,9 @@ Level 2 operators
      copypage, where a program can catch it, but not out of a device
      handover, which would leave the device impossible to replace.
      copypage ends a page with reason 1 and does not count it, as the
-     operator descriptions have it; the reference interpreter collapses
-     copypage into showpage, reason 0 and counted, as a LanguageLevel 3
-     interpreter may)
+     operator descriptions have it; collapsing copypage into showpage,
+     reason 0 and counted, is also open to a LanguageLevel 3
+     interpreter and is the commoner choice)
  [X] image with dict argument (ImageTypes 1, 3 and 4; Interpolate
      smooths the samples of any shape on the direct raster path,
      while a mask still decides each pixel by its nearest sample;
@@ -296,8 +295,8 @@ Known behavioural deviations
      WhitePoint and undefined for a missing TransformPQR. PLRM 7.1.3
      Table 7.1 marks both required and gives no reason to tell them
      apart, and undefined is what this interpreter answers for a
-     required entry that is absent everywhere else. The second oracle
-     could not be driven for this question.
+     required entry that is absent everywhere else. The question could
+     not be settled by adjudication.
  [X] setcolorrendering  the colour rendering dictionary is the conversion
      a CIE-based colour goes through (PLRM 7.1.2), and both reference
      interpreters ignore it -- one renders such a colour through its own
@@ -318,8 +317,8 @@ Known behavioural deviations
      many ways, is printed as far as a budget of depth and of printing done
      allows, and the operator then returns: past the budget an array prints
      as an array rather than being entered and an element list stops short.
-     Both reference interpreters instead descend into such a structure until
-     the execution stack overflows, and abandon the job on the error that
+     The commoner behaviour is to descend into such a structure until the
+     execution stack overflows, and abandon the job on the error that
      raises. PLRM 8.2 leaves the details of how == formats its output
      "intentionally unspecified", and says what these operators write for a
      structure that ends and nothing about one that does not. Returning is

@@ -3092,8 +3092,8 @@ userdict /fm.m get 2 eq (an unwritable form paints directly each time) assert
 initgraphics
 
 % a font dictionary's entries carry the attributes a program reads:
-% the matrix is data, the bounding box answers executable as the
-% reference interpreters do, and the encoding is data
+% the matrix is data, the bounding box answers executable, and the
+% encoding is data
 basefont null ne {
     basefont /FontMatrix get xcheck not
     (a font matrix is literal) assert

@@ -4,10 +4,9 @@
 %
 % The PLRM's token entry addresses only end-of-input before a token
 % begins (return false); it is silent on end-of-input inside a string
-% literal. The reference interpreters report syntaxerror for all three
-% literal forms, on the string and file scan paths alike, and the
-% scanner follows them: a literal whose terminator never arrives is
-% not a token.
+% literal. A literal whose terminator never arrives is not a token, so
+% the scanner reports syntaxerror for all three literal forms, on the
+% string and file scan paths alike.
 %
 % A comment runs to the next newline or form feed (PLRM 3.1), and a
 % newline is CR alone, LF alone or the CR-LF pair, all three of which

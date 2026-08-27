@@ -2,9 +2,9 @@
 %
 % A radix number is unsigned and keeps the same twos-complement representation
 % in the integer type's width, and one that exceeds that width is a limitcheck.
-% This is specific to the 32-bit integer type and is adjudicated against Adobe
-% Distiller and PLRM (an interpreter with wider integers keeps larger values as
-% integers), so it is checked on xpost only, not compared to Ghostscript.
+% This is specific to the 32-bit integer type (an interpreter with wider
+% integers keeps larger values as integers), so it is checked on xpost only
+% rather than compared across implementations.
 
 /failcount 0 def
 /assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def

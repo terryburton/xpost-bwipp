@@ -138,7 +138,7 @@ countdictstack st.dsd eq (== balances the dict stack when nesting) assert
 (\0) 0 get 0 eq (a one-digit octal decodes) assert
 
 % cvs of a real produces the shortest decimal that reads back to the
-% same value, in the notation the reference interpreters use: fixed
+% same value, in the customary notation: fixed
 % between 1e-4 and 1e6, scientific outside, a whole value keeping its
 % .0. It once emitted full binary-float precision, and a large value
 % corrupted a digit.
@@ -863,7 +863,7 @@ statusdict /manualfeed false put
 currentdict /#copies undef
 
 % --- ashow/widthshow/awidthshow add their spacing deltas in user space
-%     for a Type 3 font (per-char advances verified against Distiller) ---
+%     for a Type 3 font (per-char advances verified) ---
 /st.boxfont 10 dict def st.boxfont begin
   /FontType 3 def /FontMatrix [0.001 0 0 0.001 0 0] def
   /FontBBox [0 0 1000 1000] def
@@ -883,7 +883,7 @@ end
 
 % --- the spacing show family also carries through composite (FMapType)
 %     fonts: each character decodes to a descendant, then advances; the
-%     advances were verified against Distiller ---
+%     advances were verified ---
 /st.cA << /FontType 3 /FontMatrix matrix /FontBBox [0 0 0 0]
   /Encoding 256 array 0 1 255 { 1 index exch /.notdef put } for
   /BuildChar { pop pop 7 0 setcharwidth } bind >> definefont pop
@@ -981,8 +981,7 @@ b4 currentpagedevice /PageSize get 0 get 728 eq
     (b4 measures 728 points across) assert
 
 % --- names carry every byte of their string, embedded nuls included
-% (PLRM cvn: a name lexically the same as the string; gs and Distiller
-% agree) ---
+% (PLRM cvn: a name lexically the same as the string) ---
 <00> cvn () cvn ne (a one-nul name differs from the empty name) assert
 <00> cvn length 1 eq (a one-nul name has length 1) assert
 <610062> cvn (ab) cvn ne (an embedded nul is not a terminator) assert

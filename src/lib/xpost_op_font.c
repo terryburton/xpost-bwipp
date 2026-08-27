@@ -1630,7 +1630,8 @@ have_charstrings: ;
         }
     }
 
-    /* executable, as the reference interpreters answer it */
+    /* executable: what a program reads back is the array's own
+       attribute, and this one is built rather than scanned */
     fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
     xpost_font_face_get_bbox(data.face, fontbboxarray, istt ? 1.0 : 1000.0);
     if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
@@ -1936,7 +1937,8 @@ int _loadfont42(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable, as the reference interpreters answer it */
+    /* executable: what a program reads back is the array's own
+       attribute, and this one is built rather than scanned */
     fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
     /* a Type 42 dictionary maps one em to one character-space unit */
     xpost_font_face_get_bbox(data.face, fontbboxarray, 1.0);
@@ -3960,7 +3962,8 @@ int _loadcidfont0(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable, as the reference interpreters answer it */
+    /* executable: what a program reads back is the array's own
+       attribute, and this one is built rather than scanned */
     fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
     xpost_font_face_get_bbox(data.face, fontbboxarray, 1000.0);
     if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
@@ -4197,7 +4200,8 @@ int _loadfont1(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable, as the reference interpreters answer it */
+    /* executable: what a program reads back is the array's own
+       attribute, and this one is built rather than scanned */
     fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
     xpost_font_face_get_bbox(data.face, fontbboxarray, 1000.0);
     if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
@@ -4930,7 +4934,8 @@ int _loadcidfont2(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable, as the reference interpreters answer it */
+    /* executable: what a program reads back is the array's own
+       attribute, and this one is built rather than scanned */
     fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
     xpost_font_face_get_bbox(data.face, fontbboxarray, 1.0);
     if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),

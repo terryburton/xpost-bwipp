@@ -357,8 +357,7 @@ rgbdev /ImgData [ [ (\001) (\002) (\003) readonly ] ] put
 % operator entries say they reduce, which on its own reads as a request
 % for a rung already passed being nothing to do. But both entries also
 % list invalidaccess among their errors, and a request that can never
-% succeed is what that error is there for. Two independent
-% implementations consulted on this both refuse, and so does xpost. A
+% succeed is what that error is there for, so xpost refuses it. A
 % dictionary answers differently and deliberately so; the reason is with
 % the dictionary cases further down.
 %
@@ -501,10 +500,9 @@ ran (the execute-only procedure named from inside another ran) bchk
 % is refused outright. For those the request is about the one reference the
 % asker holds, so refusing it is a complete answer; for a dictionary there
 % is nothing the operator could grant the asker that it would not also be
-% granting everyone else, so the request has nowhere to go either way. The
-% two implementations consulted split on exactly this case and agree on
-% every other; xpost takes the accepting reading, and the case below is
-% what pins it.
+% granting everyone else, so the request has nowhere to go either way.
+% PLRM does not settle this one case, though it settles every other;
+% xpost takes the accepting reading, and the case below is what pins it.
 /shd 3 dict def
 shd /k 1 put
 /shd2 shd def

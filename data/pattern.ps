@@ -49,9 +49,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  setcolorspace and setcolor and gives it no error list of its own, and
 %  says its operand is a dictionary instantiated by makepattern -- so a
 %  dictionary carrying no type is not a deficient pattern but the wrong
-%  kind of operand, which is a type error. The two reference
-%  implementations consulted split on this, one each way, and the
-%  specification leaves the name open; what it does not leave open is that
+%  kind of operand, which is a type error. PLRM leaves the error name
+%  open and practice splits on it; what it does not leave open is that
 %  only one place should know the vocabulary.
 %
 .xpostsys /.patterntype {  % dict /operator /absent  .  int

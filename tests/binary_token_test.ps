@@ -3,25 +3,25 @@
 % (written to SCRATCH and executed), with the resulting objects dumped
 % in a canonical form and errors reported by name.
 %
-% The expected output is the PLRM's answer, cross-checked against two
-% independent interpreters: Adobe Distiller (Acrobat 5.0.1) and
-% Ghostscript 10.02.1. Both reproduce the golden except where they
-% deviate from the specification; where they disagree, the PLRM text
-% decides:
+% The expected output is the PLRM's answer. It was cross-checked against
+% independent implementations, which reproduce the golden except where
+% they depart from the specification; where implementations disagree the
+% PLRM text decides, and these three are the places that happened:
 %
 %   - fixed-point token (137) with a real representation byte (48, 49,
 %     or their low-order forms): the PLRM defines only the fixed
 %     representations for this token, so it is malformed ->
-%     syntaxerror. Distiller agrees; Ghostscript leniently accepts the
-%     homogeneous-array real representations and returns the real.
+%     syntaxerror. A lenient reading accepts the homogeneous-array real
+%     representations and returns the real; that is not what the text
+%     says.
 %   - executable numbers and booleans in a binary object sequence: the
 %     record's attribute bit applies to every object type, so the
-%     scanned object is executable. Distiller agrees; Ghostscript
-%     strips the attribute from scalars.
+%     scanned object is executable. Stripping the attribute from
+%     scalars is a departure.
 %   - a sequence name record whose length field reads out of bounds is
 %     malformed -> syntaxerror per the PLRM's malformed-sequence list.
-%     Ghostscript agrees; Distiller reports limitcheck, its 127-byte
-%     name limit firing before the bounds check.
+%     A 127-byte name limit firing first reports limitcheck instead,
+%     which answers a different question.
 %
 % run-bintok-test.sh compares xpost against the committed golden
 % record, so a regression in the scanner fails the check. A change to

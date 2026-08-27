@@ -313,12 +313,12 @@ case $(centres "<< /ImageType 1 /Width 8 /Height 1 /BitsPerComponent 1
                    /DataSource <AA> >> imagemask") in
     *\ *) echo stencil-decode-not-held-to-its-two-values >> "$work/got.diverge" ;;
 esac
-# and more than one data source, which this refuses where both oracles do not
+# and more than one data source, which this refuses where it is commonly taken
 case $(centres "<< /ImageType 1 /Width 8 /Height 1 /BitsPerComponent 1
                    /MultipleDataSources true
                    /Decode [0 1] /ImageMatrix [8 0 0 -1 0 1]
                    /DataSource [ <AA> ] >> imagemask") in
-    typecheck) echo stencil-strictness-differs-from-both >> "$work/got.diverge" ;;
+    typecheck) echo stencil-strictness-is-the-specification-s >> "$work/got.diverge" ;;
 esac
 sort -u "$work/got.diverge" -o "$work/got.diverge"
 

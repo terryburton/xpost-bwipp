@@ -1,11 +1,11 @@
 %!testlib
 % A wrong-typed operand is a typecheck even when the same operator carries a
 % higher-arity signature whose extra operands are absent: the missing operands
-% must not turn the type mismatch into a stackunderflow. PLRM and Adobe Distiller
-% raise typecheck for the matrix-building operators here; Ghostscript reports
-% stackunderflow, so this is an xpost/Distiller conformance check run through
-% `xpost -d null` and is NOT expected to print SUCCESS on Ghostscript. The
-% transform family, where Ghostscript agrees, is covered by op_matrix_gstate.
+% must not turn the type mismatch into a stackunderflow. PLRM raises typecheck
+% for the matrix-building operators here. Implementations differ on this, so it
+% is a conformance check run through `xpost -d null` against the specification
+% and is not a cross-implementation comparison. The transform family, where
+% the answer is not disputed, is covered by op_matrix_gstate.
 
 
 % the two-operand forms: a non-number operand is a typecheck, not masked into a

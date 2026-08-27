@@ -2947,9 +2947,8 @@ currentglobal true setglobal
                 % width and height are points, written into its output syntax)
                 /pwf size 0 get sx mul def
                 /phf size 1 get sy mul def
-                % The medium is the nearest whole pixel to the page, which is
-                % what the reference interpreters make of a size that is not
-                % one. PLRM 6.2.7 describes both a nearest medium and a next
+                % The medium is the nearest whole pixel to the page.
+                % PLRM 6.2.7 describes both a nearest medium and a next
                 % larger one and does not choose between them, so the page a
                 % program describes is the same either way and only the medium
                 % under it differs. Rounded down, the far edge of the page

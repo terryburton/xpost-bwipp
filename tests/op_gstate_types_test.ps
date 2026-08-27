@@ -13,7 +13,7 @@ currentmiterlimit isreal (default miterlimit is real) assert
 currentrgbcolor pop pop isreal (default rgb component is real) assert
 currentdash exch pop isreal (default dash offset is real) assert
 
-% integer arguments are coerced to real, as the reference interpreters do
+% integer arguments are coerced to real
 1 setgray currentgray isreal (setgray of an integer gives a real) assert
 1 0 0 setrgbcolor currentrgbcolor pop pop isreal (setrgbcolor of integers gives reals) assert
 0 0 0 1 setcmykcolor currentcmykcolor pop pop pop isreal (setcmykcolor of integers gives reals) assert

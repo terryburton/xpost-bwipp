@@ -100,7 +100,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  category name, the path separator and the instance name into the scratch
 %  string and return the part used -- where the instance would be installed or
 %  found. Runs with the category implementation dictionary current, so Category
-%  resolves. The name is taken verbatim, as the reference interpreters take it.
+%  resolves. The name is taken verbatim, not folded or rewritten.
 %
 .xpostsys /.resourcefilename {  % name scratch  .  substring
     exch dup type /stringtype ne { 128 string cvs } if   % Scratch namestr
