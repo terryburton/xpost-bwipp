@@ -13,7 +13,11 @@
 # than landing unread. A row is fine when every route to the helper really
 # is that operator, and most of these are: the halftone helpers are reached
 # only under sethalftone, the shading ones only under shfill, the CID ones
-# only under show, the two masked image types only under image. Two
+# only under show, the two masked image types only under image, and the
+# colour-space validator and the two helpers it calls -- .csproc, which
+# asks whether an entry is a procedure, and .cieprocs, which asks it of
+# every decode entry a CIE-based family carries -- only under
+# setcolorspace. Two
 rows are fine for a different reason: .endpage names
 # the page-device procedure that returned the wrong type, not its caller,
 # and .upathcheck names uappend because ufill, ueofill and ustroke call the
@@ -32,10 +36,12 @@ rows are fine for a different reason: .endpage names
 .checkpagehandlers          setpagedevice
 .checkpagepolicies          setpagedevice
 .cidface                    show
+.cieprocs                   setcolorspace
 .crdinv3                    setcolor
 .crdtable                   setcolor
 .crdvalidate                setcolorrendering
 .crossdashbound             stroke
+.csproc                     setcolorspace
 .csvalidate                 setcolorspace
 .doclip                     clip
 .endpage                    EndPage

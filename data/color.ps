@@ -794,8 +794,7 @@ end
         /sp exch def
         graphicsdict /currgstate get /colorspace /Pattern put
         graphicsdict /currgstate get /patbase
-            sp type /arraytype eq { sp length 1 gt { sp 1 get }{ null } ifelse }
-                                  { null } ifelse
+            sp //.xpostsys /.spacebeneath get exec
         put
         end
     }{
@@ -887,8 +886,8 @@ end
         % already a pattern space, its own underlying space.
         currentcolorspace
         dup //.xpostsys /.spaceispattern get exec {
-            dup type /arraytype eq { dup length 1 gt }{ false } ifelse
-                { 1 get }{ pop /DeviceGray } ifelse
+            //.xpostsys /.spacebeneath get exec
+            dup null eq { pop /DeviceGray } if
         } if
         [ /Pattern 3 -1 roll ] setcolorspace
     } ifelse
@@ -1015,6 +1014,63 @@ end
 } put
 
 %
+%  What each composing family is built over, and what may not be there.
+%
+%  PLRM 4.8.1 calls Indexed, Separation, DeviceN and Pattern the special
+%  colour spaces, and each of them is a space built over another one.
+%  Which element carries that other space differs, and so does what may
+%  sit there: an Indexed base may not be a Pattern or another Indexed
+%  space (PLRM 4.8.4), a Separation or DeviceN alternative may not be any
+%  special space at all (PLRM 4.8.5), and the space underlying a Pattern
+%  may not itself be a Pattern space (PLRM 4.9.2).
+%
+%  Three statements of one shape, so one table rather than a test at each
+%  of three sites -- three sites is how one of them comes to be written
+%  and the other two forgotten, which is the state this found the
+%  interpreter in.
+%
+%  Keyed by KIND rather than by family name, so that a new family of a
+%  kind already here is answered by the line already here rather than by
+%  a line nobody remembered to add. tests/check-colour-spaces.sh holds
+%  the keys to the roster in both directions.
+%
+%    <kind>  [ <element the space beneath sits at>  <kinds refused there>... ]
+%
+.xpostsys /.spaceunder <<
+    /indexed  [ 1 /indexed /pattern ]
+    /tint     [ 2 /indexed /tint /pattern ]
+    /pattern  [ 1 /pattern ]
+>> put
+
+%
+%  The colour space a composing space is built over, or null where it
+%  carries none.
+%
+%  An Indexed space's base, a Separation or DeviceN space's alternative,
+%  a Pattern space's underlying space. A Pattern space may leave it out
+%  (PLRM 4.9.1) and any space given as a bare family name carries no
+%  parameters at all, so an answer of null is an ordinary one and not a
+%  fault.
+%
+%  One reader rather than one per caller: the validator, the graphics
+%  state and setpattern all have to find the same space there, and two
+%  of them digging it out differently is a space validated as one thing
+%  and painted in another.
+%
+.xpostsys /.spacebeneath {  % space  .  space'|null
+    2 dict begin
+    /sp exch def
+    /at //.spaceunder /sp load //.spacekind exec 2 copy known
+        { get 0 get }{ pop pop null } ifelse def
+    at null eq { null }{
+        /sp load type /arraytype ne { null }{
+            /sp load length at le { null }{ /sp load at get } ifelse
+        } ifelse
+    } ifelse
+    end
+} put
+
+%
 %  Whether a colour set in this space can produce visible output at all.
 %
 %  PLRM 4.8.5 gives the colorant name None exactly this meaning: painting
@@ -1055,12 +1111,15 @@ end
 %
 .xpostsys /.spacereduce {  % space  .  space
     % A colour space reaches its device space in as many steps as it
-    % nests, which is a handful; a space that reaches itself would reduce
-    % forever. Count the steps and refuse a space that has not reduced in
-    % far more than any real space nests -- it names itself -- rather than
-    % follow the cycle with no end and no allocation to trip a limit. The
-    % count rides under the space on the stack and is dropped at either
-    % exit, so a caller sees only the space it passed reduced.
+    % nests, which is a handful. A space that reached itself would reduce
+    % forever -- a loop with no end and no allocation to trip a limit --
+    % and what keeps one from arriving here is the rule about what may
+    % sit beneath a composing space, which admits no nesting order a
+    % space can appear twice in. The count is the floor under this walk
+    % rather than that rule: it refuses a space that has not reduced in
+    % far more steps than any real space nests. It rides under the space
+    % on the stack and is dropped at either exit, so a caller sees only
+    % the space it passed reduced.
     256 exch
     {
         exch 1 sub dup 0 lt
@@ -1080,22 +1139,135 @@ end
 } put
 
 %
-%  Walk a colour space down to the device space a colour in it is finally
-%  recorded in, without touching the graphics state: an Indexed space
-%  reduces through its base, a Separation or DeviceN through its
-%  alternative, and a CIE-based family to device RGB. A family none of
-%  those knows is undefined.
+%  A procedure where the specification asks for one.
+%
+%  The language calls a procedure an executable array, so an array that
+%  is not executable is not one and neither is anything of another type.
+%  Asked in one place because every entry that has to be a procedure is
+%  the same question -- a tint transform, a CIE decode -- and each site
+%  spelling the test again is each site free to spell it differently.
+%
+.xpostsys /.csproc {  % obj  .  -
+    dup type dup /arraytype eq exch /packedarraytype eq or
+    exch xcheck and not
+        { /setcolorspace cvx /typecheck signalerror } if
+} put
+
+%
+%  The decode entries each CIE-based family may carry, and how many
+%  procedures each entry holds. A count of zero means the entry is the
+%  procedure itself rather than an array of them.
+%
+%  PLRM Tables 4.5 to 4.8 give every one of these the type procedure,
+%  and a value of another type is not one. A number in particular is
+%  taken in silence: executing a number leaves that number, so the
+%  component the decode was to have transformed becomes a constant and
+%  every colour set in the space is wrong with nothing raised.
+%
+%  A table because it is one rule over four families and eight entries,
+%  and a family whose entries are listed nowhere is a family the rule
+%  cannot reach. tests/check-colour-spaces.sh holds the keys to the
+%  roster, so a CIE family arriving without a line is reported.
+%
+.xpostsys /.ciedecodes <<
+    /CIEBasedA    [ /DecodeA 0 /DecodeLMN 3 ]
+    /CIEBasedABC  [ /DecodeABC 3 /DecodeLMN 3 ]
+    /CIEBasedDEF  [ /DecodeDEF 3 /DecodeABC 3 /DecodeLMN 3 ]
+    /CIEBasedDEFG [ /DecodeDEFG 4 /DecodeABC 3 /DecodeLMN 3 ]
+>> put
+
+%
+%  Every decode entry a CIE-based space carries is a procedure, and an
+%  entry holding several holds as many as its family asks for.
+%
+%  Checked where the space is set rather than where a colour is
+%  converted, because a decode runs at unpredictable times (PLRM 4.8.3)
+%  and a fault found then is reported against whichever painting
+%  operator reached it instead of against the operator that supplied it.
+%
+.xpostsys /.cieprocs {  % space  .  -
+    8 dict begin
+    /sp exch def
+    /sp load length 2 lt
+        { /setcolorspace cvx /rangecheck signalerror } if
+    /pd /sp load 1 get def
+    /ks //.ciedecodes /sp load 0 get get def
+    0 2 ks length 2 sub {
+        /i exch def
+        /k ks i get def
+        /n ks i 1 add get def
+        /pd load k known {
+            % the entry rides the stack rather than a name: it is the
+            % program's object and a procedure reached through a name
+            % would be run rather than looked at
+            /pd load k get
+            n 0 eq {
+                //.csproc exec
+            }{
+                dup type dup /arraytype ne exch /packedarraytype ne and
+                    { /setcolorspace cvx /typecheck signalerror } if
+                dup length n lt
+                    { /setcolorspace cvx /rangecheck signalerror } if
+                0 1 n 1 sub { 1 index exch get //.csproc exec } for
+                pop
+            } ifelse
+        } if
+    } for
+    end
+} put
+
+%
+%  Whether a colour space is one, refused where it is not.
+%
+%  Every statement a family makes about its own shape is asked here: what
+%  may sit beneath a composing space, that a tint transform and a CIE
+%  decode are procedures, and that the family a colour finally lands in
+%  is one this interpreter can record a colour in. A family none of those
+%  knows is undefined.
+%
+%  All of it at the moment the space is SET rather than at the moment a
+%  colour in it is painted, because this is the last moment the operator
+%  the program named is still the one a refusal will be reported against
+%  -- and because a graphics state left holding a space that answers
+%  nothing tells the program at a place it cannot connect to the cause.
 %
 .xpostsys /.csvalidate {  % space  .  -
-    1 dict begin
+    3 dict begin
     /sp exch def
-    sp //.spaceispattern exec {
-        % A pattern space carries the space its uncoloured cells paint
-        % with as a second element, when it carries one at all.
-        sp type /arraytype eq {
-            sp length 1 gt { sp 1 get //.xpostsys /.csvalidate get exec } if
-        } if
-    }{
+
+    % Every name here is read back through `load`. What is being
+    % validated is the program's own object, and an executable one --
+    % which a colour space may perfectly well be, since setcolorspace
+    % states its operand as any type -- would be RUN rather than looked
+    % at were it reached the ordinary way.
+
+    % The space this one is built over, where it is built over one at
+    % all: an Indexed base, a Separation or DeviceN alternative, the
+    % space underlying a Pattern. Not every space may sit there, and
+    % which ones may not is .spaceunder's to say (PLRM 4.8.4, 4.8.5 and
+    % 4.9.2). Refused here because this is the last moment the operator
+    % the program named is still the one that will be reported.
+    /un /sp load //.spacebeneath exec def
+    /un load null ne {
+        /ru //.spaceunder /sp load //.spacekind exec get def
+        1 1 ru length 1 sub {
+            ru exch get /un load //.spacekind exec eq
+                { /setcolorspace cvx /rangecheck signalerror } if
+        } for
+
+        % and it is then a colour space in its own right, which is what
+        % PLRM 4.8.4 and 4.8.5 ask for when they say a base or an
+        % alternative is given exactly as it would be given to
+        % setcolorspace itself.
+        %
+        % The walk ends because the rule above leaves one nesting order
+        % and no other: a Pattern over an Indexed over a tint space over
+        % a device or CIE space. No space can appear beneath itself, so
+        % none can be reached twice.
+        /un load //.xpostsys /.csvalidate get exec
+    } if
+
+    /sp load //.spaceispattern exec not {
         % A tint space reaches its alternative space by calling a
         % procedure the program supplied (PLRM 4.8.5), so a fourth
         % element that cannot be called is not a tint transform and the
@@ -1109,23 +1281,25 @@ end
         % and PLRM still requires dummy values to be provided; a dummy
         % of a kind that could never be called is not one, and admitting
         % it here would admit it for every colorant name alike.
-        sp //.spacekind exec /tint eq {
-            sp length 4 lt
+        /sp load //.spacekind exec /tint eq {
+            /sp load length 4 lt
                 { /setcolorspace cvx /typecheck signalerror } if
-            sp 3 get
-            dup type dup /arraytype eq exch /packedarraytype eq or
-            exch xcheck and not
-                { /setcolorspace cvx /typecheck signalerror } if
+            /sp load 3 get //.csproc exec
         } if
-        /sp sp //.spacereduce exec def
+        % asked of the parameterised form only: a CIE family named on
+        % its own carries no dictionary to hold entries at all, and is
+        % refused below for naming a family nothing can reduce
+        /sp load //.spacekind exec /cie eq { /sp load type /arraytype eq
+            { /sp load //.cieprocs exec } if } if
+        /sp /sp load //.spacereduce exec def
 
         % An array still standing here names a family nothing reduced
-        sp type /arraytype eq { /sp sp 0 get def } if
-        sp type /nametype ne
+        /sp load type /arraytype eq { /sp /sp load 0 get def } if
+        /sp load type /nametype ne
             { /setcolorspace cvx /typecheck signalerror } if
-        //.spacecomps sp known not
+        //.spacecomps /sp load known not
             { /setcolorspace cvx /undefined signalerror } if
-    } ifelse
+    } if
     end
 } put
 

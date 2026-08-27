@@ -30,6 +30,17 @@
 #   every kind named is one of the five, so a table entry cannot invent
 #   a sixth kind that nothing dispatches on
 #
+#   every kind that is a special colour space -- indexed, tint, pattern,
+#   the three built over another space -- states in .spaceunder what may
+#   not sit beneath it, and only such a kind states one. A special space
+#   with no line there is one the composition rules of PLRM 4.8.4, 4.8.5
+#   and 4.9.2 cannot reach
+#
+#   every family of kind cie states in .ciedecodes which decode entries
+#   it carries, and only such a family states one. A CIE family with no
+#   line there is one whose decode entries are taken whatever type they
+#   are
+#
 # The kinds table is the roster. Adding a family means adding it there,
 # and this then asks whether the rest of the family's statements were
 # made -- which is the thing that was missing when four of the eleven
@@ -67,8 +78,10 @@ table() {                               # $1 table name -> "name value" lines
 table .spacekinds > "$work/kinds"
 table .spacecomps > "$work/comps"
 table .ciecomps   > "$work/cie"
+table .spaceunder > "$work/under"
+table .ciedecodes > "$work/decodes"
 
-for f in kinds comps cie; do
+for f in kinds comps cie under decodes; do
     if [ ! -s "$work/$f" ]; then
         echo "FAILURES: data/color.ps states no $f table, or it is not"
         echo "      written where this can read it. The tables are the"
@@ -122,6 +135,43 @@ if [ -n "$both" ]; then
     echo "      and would answer for every such space alike."
     fail=1
 fi
+
+# ---- the special kinds say what may not sit beneath them, and only they
+#
+# An Indexed space is built over a base, a tint space over an
+# alternative, a Pattern over the space its uncoloured cells paint with.
+# Each of the three admits a different set (PLRM 4.8.4, 4.8.5, 4.9.2),
+# and a kind absent from .spaceunder is one whose sub-space is validated
+# against nothing at all -- which is the state an accepted Pattern over
+# a Pattern was found in.
+awk '$2 == "indexed" || $2 == "tint" || $2 == "pattern" { print $2 }' \
+    "$work/kinds" | sort -u > "$work/want.under"
+awk '{ print $1 }' "$work/under" | sort > "$work/have.under"
+
+guard_held=0
+guard_hold "$work/want.under" "$work/have.under" \
+    "a special colour space in the roster and given no .spaceunder line.
+      What may not be built under it is then stated nowhere, and every
+      space is admitted there:" \
+    "given a .spaceunder line and not a special colour space in the
+      roster. A device or CIE-based space is built over nothing, so a
+      rule for what may sit beneath it is a rule nothing will consult:"
+[ "$guard_held" -eq 0 ] || fail=1
+
+# ---- and every CIE family says which decode entries it carries
+#
+# The decode entries are procedures (PLRM Tables 4.5 to 4.8), and a
+# value of another type is taken in silence -- executing a number leaves
+# that number, so the decoded component becomes a constant. A family
+# absent from .ciedecodes is a family that check cannot reach.
+awk '{ print $1 }' "$work/decodes" | sort > "$work/have.decodes"
+
+guard_held=0
+guard_hold "$work/want.cie" "$work/have.decodes" \
+    "of kind cie and given no .ciedecodes line. Its decode entries are
+      then whatever the program put there:" \
+    "given a .ciedecodes line and not of kind cie in the roster:"
+[ "$guard_held" -eq 0 ] || fail=1
 
 if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the colour space families do not agree"

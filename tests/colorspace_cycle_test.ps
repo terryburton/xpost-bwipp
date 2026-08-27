@@ -7,13 +7,19 @@
 % it is finally recorded in. A space that reaches itself along that walk
 % -- an Indexed base or a Separation alternative that is the space itself
 % -- would reduce forever: a loop that allocates nothing, so no VMerror
-% breaks it, and cannot be interrupted. The walk is bounded well above
-% any real nesting, so a self-referential space is refused (typecheck, as
-% the oracles give it) rather than walked without end.
+% breaks it, and cannot be interrupted.
 %
-% The bound must not change anything else: a space that names an unknown
-% family is still undefined, not refused as though it were a cycle, and
-% every ordinary nested space still reduces and is accepted.
+% What refuses such a space is the rule about what may sit beneath a
+% composing one. A space that names itself as its own base or its own
+% alternative is a special colour space beneath a special colour space,
+% and PLRM 4.8.4, 4.8.5 and 4.9.2 admit none of those, so it is refused
+% (rangecheck) before anything walks it. That is also why the walk
+% terminates in general: the rule leaves one nesting order and no other,
+% so no space can be reached twice.
+%
+% The refusal must not change anything else: a space that names an
+% unknown family is still undefined, not refused as though it were a
+% cycle, and every ordinary nested space still reduces and is accepted.
 
 /failcount 0 def
 /assert { % bool (name) . -
@@ -25,9 +31,13 @@
 
 % self-referential spaces are refused, not walked forever
 { /cs [ /Indexed /DeviceRGB 1 <0000> ] def cs 1 cs put cs setcolorspace } errname
-    /typecheck eq (a colour space whose Indexed base is itself is refused) assert
+    /rangecheck eq (a colour space whose Indexed base is itself is refused) assert
 { /d [ /Separation /S /DeviceRGB { } ] def d 2 d put d setcolorspace } errname
-    /typecheck eq (a Separation whose alternative is itself is refused) assert
+    /rangecheck eq (a Separation whose alternative is itself is refused) assert
+{ /e [ /DeviceN [ /a ] /DeviceRGB { } ] def e 2 e put e setcolorspace } errname
+    /rangecheck eq (a DeviceN whose alternative is itself is refused) assert
+{ /f [ /Pattern null ] def f 1 f put f setcolorspace } errname
+    /rangecheck eq (a Pattern whose underlying space is itself is refused) assert
 
 % A tint transform that sets a colour in its own space re-enters the
 % conversion without end. Each level is a fresh, one-step-reducible space

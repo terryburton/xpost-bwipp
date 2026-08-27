@@ -200,4 +200,199 @@
 { [ /DeviceN [ /A /B ] /DeviceRGB { pop pop 0 0 0 } ] setcolorspace } outcome /ok eq
 (DeviceN) (still takes a procedure) assert2
 
+% ---- what may sit beneath a space that is built over another one
+%
+% Four of the eleven are built over another colour space: an Indexed
+% space over its base, a Separation and a DeviceN over their alternative,
+% a Pattern over the space its uncoloured cells paint with. Not every
+% space may sit there, and each of the four admits a different set:
+%
+%   PLRM 4.8.4  an Indexed base is any device or CIE-based space, or a
+%               Separation or DeviceN, but not a Pattern and not another
+%               Indexed
+%   PLRM 4.8.5  a Separation or DeviceN alternative is any device or
+%               CIE-based space and no special space at all
+%   PLRM 4.9.2  the space underlying a Pattern may not be a Pattern
+%
+% Asked as a product -- every member under every one of the four -- for
+% the reason this file exists. It is three rules of one shape, and a rule
+% of that shape is enforced wherever somebody wrote a test for it: a
+% Pattern under a Pattern was accepted while a Pattern under an Indexed
+% was refused, and nothing could see the difference, because no site
+% asked the same question of the second family that it asked of the
+% first.
+%
+% BOTH directions, since a rule that refuses too much is as wrong as one
+% that refuses too little: a member the specification admits beneath a
+% family must still be accepted there.
+%
+% The refused sets are written out as the specification writes them, as
+% family names -- not as a classification this file would then have to
+% keep in step with the interpreter's own.
+
+/inset {                                % name array  .  bool
+    /theset exch def /wanted exch def
+    false theset { wanted eq or } forall
+} bind def
+
+/beneath {                    % { composed } [refused] (refused) (taken)  .  -
+    /takenmsg exch def /refusedmsg exch def
+    /refused exch def /composed exch def
+    fam refused inset {
+        { /composed load exec setcolorspace } outcome /rangecheck eq
+        nm refusedmsg assert2
+    }{
+        { /composed load exec setcolorspace } outcome /ok eq
+        nm takenmsg assert2
+    } ifelse
+} bind def
+
+{
+    /sp exch def /nm exch def
+    % which family this member is, asked of the space its constructor
+    % built rather than read off a second list this test would have to
+    % keep in step with the first
+    gsave sp setcolorspace currentcolorspace 0 get grestore /fam exch def
+
+    % How many components a colour in this member takes, MEASURED from
+    % the colour the space is entered holding rather than listed. The
+    % composed spaces below are only well-formed if what sits beneath
+    % them is fed the number of components it consumes -- a palette
+    % entry that wide, a tint transform returning that many -- and a
+    % member fed the wrong number would be reported as refused by the
+    % rule when it was refused for being malformed.
+    gsave
+        count /before exch def
+        sp setcolorspace currentcolor
+        count before sub /ncomp exch def
+        ncomp { pop } repeat
+    grestore
+    /tint [ /pop cvx ncomp { 0.0 } repeat ] cvx def
+    /palette ncomp 2 mul string def
+
+    { [ /Indexed sp 1 palette ] }
+        [ /Indexed /Pattern ]
+        (is refused as an Indexed base)
+        (is still taken as an Indexed base) beneath
+
+    { [ /Separation /Spot sp /tint load ] }
+        [ /Indexed /Separation /DeviceN /Pattern ]
+        (is refused as a Separation alternative)
+        (is still taken as a Separation alternative) beneath
+
+    { [ /DeviceN [ /A ] sp /tint load ] }
+        [ /Indexed /Separation /DeviceN /Pattern ]
+        (is refused as a DeviceN alternative)
+        (is still taken as a DeviceN alternative) beneath
+
+    { [ /Pattern sp ] }
+        [ /Pattern ]
+        (is refused as the space under a Pattern)
+        (is still taken as the space under a Pattern) beneath
+} eachmember
+
+% and a space that names itself is one of those compositions, whichever
+% family it is -- a special space beneath a special space. So the rule
+% above is what refuses it, rather than a walk that would otherwise
+% follow it round with no end, over an operand a program writes in two
+% lines.
+{ /c [ /Indexed /DeviceRGB 1 <0000> ] def c 1 c put c setcolorspace }
+    outcome /rangecheck eq
+(Indexed) (naming itself as its own base is refused) assert2
+{ /c [ /Separation /Spot /DeviceGray { } ] def c 2 c put c setcolorspace }
+    outcome /rangecheck eq
+(Separation) (naming itself as its own alternative is refused) assert2
+{ /c [ /DeviceN [ /A ] /DeviceGray { } ] def c 2 c put c setcolorspace }
+    outcome /rangecheck eq
+(DeviceN) (naming itself as its own alternative is refused) assert2
+{ /c [ /Pattern null ] def c 1 c put c setcolorspace }
+    outcome /rangecheck eq
+(Pattern) (naming itself as its own underlying space is refused) assert2
+
+% ---- and a colour space is read, never run
+%
+% PLRM 8.2 states setcolorspace's operand as an array, and an array may
+% be executable. What is inside it is the program's, so the space is
+% looked at and never executed -- including the space beneath it, which
+% reaches the same reader by a different route.
+{ [ /Pattern { (a colour space was RUN\n) print /DeviceGray } ] setcolorspace }
+    outcome /typecheck eq
+(Pattern) (does not run a procedure handed to it as its underlying space) assert2
+{ [ /Indexed { (a colour space was RUN\n) print /DeviceGray } 1 <00> ]
+  setcolorspace } outcome /typecheck eq
+(Indexed) (does not run a procedure handed to it as its base) assert2
+{ [ /Separation /Spot { (a colour space was RUN\n) print /DeviceGray } { } ]
+  setcolorspace } outcome /typecheck eq
+(Separation) (does not run a procedure handed to it as its alternative) assert2
+{ { (a colour space was RUN\n) print /DeviceGray } setcolorspace }
+    outcome /typecheck eq
+(a space) (that is itself a procedure is not run) assert2
+
+% ---- and a CIE-based family's decode entries are procedures
+%
+% PLRM Tables 4.5 to 4.8 give DecodeA, DecodeABC, DecodeDEF, DecodeDEFG
+% and DecodeLMN the type procedure. A value of another type is not one,
+% and a number is the value that goes wrong in silence: executing a
+% number leaves that number, so the component the decode was to have
+% transformed becomes that constant, and every colour set in the space
+% is wrong with nothing raised.
+%
+% Asked of each family with the entries that family carries, because the
+% entry names are the whole difference between them -- and an entry one
+% family carries and another does not is exactly the shape of thing that
+% gets a check written for it once.
+
+/WP [0.9505 1.0 1.089] def
+/DEFTAB [ 2 2 2 [ <000000FF000000FF000000FFFF>
+                  <FFFFFF808080404040000000FF> ] ] def
+/DEFGTAB [ 2 2 2 2 [ [ <000000FF000000FF000000FFFF>
+                       <FFFFFF808080404040000000FF> ]
+                     [ <101010202020303030404040FF>
+                       <505050606060707070808080FF> ] ] ] def
+
+/decodes [
+    (CIEBasedA)    { << /WhitePoint WP >> }
+        [ (CIEBasedA DecodeA)      /DecodeA    42
+          (CIEBasedA DecodeLMN)    /DecodeLMN  [ 1 2 3 ] ]
+    (CIEBasedABC)  { << /WhitePoint WP >> }
+        [ (CIEBasedABC DecodeABC)  /DecodeABC  [ 1 2 3 ]
+          (CIEBasedABC DecodeLMN)  /DecodeLMN  [ 1 2 3 ] ]
+    (CIEBasedDEF)  { << /WhitePoint WP /Table DEFTAB >> }
+        [ (CIEBasedDEF DecodeDEF)  /DecodeDEF  [ 1 2 3 ]
+          (CIEBasedDEF DecodeABC)  /DecodeABC  [ 1 2 3 ]
+          (CIEBasedDEF DecodeLMN)  /DecodeLMN  [ 1 2 3 ] ]
+    (CIEBasedDEFG) { << /WhitePoint WP /Table DEFGTAB >> }
+        [ (CIEBasedDEFG DecodeDEFG) /DecodeDEFG [ 1 2 3 4 ]
+          (CIEBasedDEFG DecodeABC)  /DecodeABC  [ 1 2 3 ]
+          (CIEBasedDEFG DecodeLMN)  /DecodeLMN  [ 1 2 3 ] ]
+] def
+
+0 3 decodes length 3 sub {
+    /di exch def
+    /dnm decodes di get def
+    /dbase decodes di 1 add get def
+    /dents decodes di 2 add get def
+
+    % the family with no decode entry at all is accepted, so what follows
+    % refuses the entry rather than the family
+    { [ dnm cvn dbase exec ] setcolorspace } outcome /ok eq
+    dnm (is accepted carrying no decode entry) assert2
+
+    0 3 dents length 3 sub {
+        /ei exch def
+        { [ dnm cvn dbase exec
+            dup dents ei 1 add get dents ei 2 add get put ] setcolorspace }
+        outcome /typecheck eq
+        dents ei get (holds a number where the specification asks for a procedure) assert2
+    } for
+} for
+
+% and a procedure is still taken, so the check refuses only what it means to
+{ [ /CIEBasedA << /WhitePoint WP /DecodeA { } /DecodeLMN [ {} {} {} ] >> ]
+  setcolorspace } outcome /ok eq
+(CIEBasedA) (still takes procedures in its decode entries) assert2
+{ [ /CIEBasedABC << /WhitePoint WP /DecodeABC [ {} {} {} ] >> ]
+  setcolorspace } outcome /ok eq
+(CIEBasedABC) (still takes procedures in its decode entries) assert2
+
 verdict

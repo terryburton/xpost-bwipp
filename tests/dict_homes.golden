@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 417
+entries 422
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -123,10 +123,12 @@ entries 417
 .xpostsys /.cieclampcomps
 .xpostsys /.ciecomps
 .xpostsys /.cieconv
+.xpostsys /.ciedecodes
 .xpostsys /.ciedefgdev
 .xpostsys /.ciedefdev
 .xpostsys /.ciefams
 .xpostsys /.cielmndev
+.xpostsys /.cieprocs
 .xpostsys /.cierange
 .xpostsys /.cierangekeys
 .xpostsys /.ciedev
@@ -174,6 +176,7 @@ entries 417
 .xpostsys /.cshsetfont
 .xpostsys /.csinitcolor
 .xpostsys /.cskeys
+.xpostsys /.csproc
 .xpostsys /.csreckeys
 .xpostsys /.csspot
 .xpostsys /.csvalidate
@@ -393,6 +396,7 @@ entries 417
 .xpostsys /.showoutline
 .xpostsys /.showroute
 .xpostsys /.showtype0
+.xpostsys /.spacebeneath
 .xpostsys /.spacecomponents
 .xpostsys /.spacecomps
 .xpostsys /.spaceispattern
@@ -400,6 +404,7 @@ entries 417
 .xpostsys /.spacekinds
 .xpostsys /.spacenomarks
 .xpostsys /.spacereduce
+.xpostsys /.spaceunder
 .xpostsys /.spreadgrayscreen
 .xpostsys /.sskeys
 .xpostsys /.ssreckeys
