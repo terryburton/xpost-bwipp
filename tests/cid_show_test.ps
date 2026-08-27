@@ -424,6 +424,27 @@ WC WL differs 0 gt (rather than the glyph its last byte would select) check
 { pop pop pop () show } cs.err /rangecheck eq
     (a string with no byte at all is refused) check
 
+% and the font the procedure runs under is the descendant the walk
+% selected. PLRM 8.2 has currentfont answer with "the current descendant
+% base font or CIDFont" while a cshow procedure runs, and rootfont with
+% what setfont was given, so a program can ask both which descendant the
+% mapping chose and which font it set. The two are told apart by asking
+% each of them: a font that answered for both would pass either question
+% asked alone.
+/cs.cf null def /cs.rf null def
+widefnt
+/cs.set currentfont def
+newpath 10 20 moveto
+{ pop pop pop /cs.cf currentfont store /cs.rf rootfont store } WIDECODE cshow
+cs.cf /CIDFontType known
+    (currentfont is the descendant CIDFont) check
+cs.cf /CIDFontName get /CIDWideTest eq
+    (and it is the descendant this composite carries) check
+cs.rf cs.set eq
+    (rootfont is the font that was set) check
+cs.cf cs.rf ne
+    (and the two are not the same font) check
+
 % and the refusal names the operator the program called. Every show
 % variant walks a composite through the same code, so a refusal that
 % named one of them would report that name to the others, and PLRM 3.11.1

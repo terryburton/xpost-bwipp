@@ -786,23 +786,31 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  descendant instead.
 %
 /.showtype0 {  % font str /opname  .  -
+    2 index /.cshcid 2 copy known {
+        % cshow's special measure (PLRM 8.2). The font current while the
+        % procedure runs is the descendant the walk selected, which is
+        % what currentfont must answer with; a CIDFont's glyphs are
+        % reached by CID and a string reaches none of them, so the show
+        % the procedure makes is answered from the CID the walk resolved
+        % rather than from the string.
+        %
+        % The string is held to the one byte first: it "must consist of a
+        % single byte equal to the code given to proc, or a rangecheck
+        % error occurs". Every show variant comes through here, so the
+        % refusal reports the operator the program called.
+        get                                     % font str opname cid
+        3 index /.cshbyte get                   % font str opname cid byte
+        3 index dup length 1 eq { 0 get }{ pop -1 } ifelse
+        ne { 1 index cvx /rangecheck signalerror } if
+        3 index exch                            % font str opname font cid
+        //.xpostsys /.cidglyphshow get exec
+        pop pop pop
+    }{
+    pop pop
     2 index /FMapType get 9 ne {
         pop
         //.showfmap exec
     }{
-        % While cshow's rebinding is the current font it stands for one
-        % character and no other: PLRM 8.2 says the string a procedure
-        % shows under it "must consist of a single byte equal to the code
-        % given to proc, or a rangecheck error occurs". So a show of
-        % anything else is refused here rather than painting whatever
-        % glyph the rebound mapping happens to reach for it. Every show
-        % variant walks a composite through here, so the refusal reports
-        % the one the program called rather than a name they would share.
-        2 index /.cshbyte 2 copy known {
-            get 2 index
-            dup length 1 eq { 0 get }{ pop -1 } ifelse
-            ne { dup cvx /rangecheck signalerror } if
-        }{ pop pop } ifelse
         pop
         % the CID the walk hands over stays beneath the index it hands
         % over, so it reaches whichever operator the route settles on:
@@ -810,6 +818,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % a pattern colour and an outline font to instead
         { null { .glyphshowidx } //.showroute exec }
         //.cmapwalk exec
+    } ifelse
     } ifelse
 } def
 
@@ -854,30 +863,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     <00>
     /glyphshow //.showtype0 exec
     graphicsdict /currgstate get /currfont prev put
-    end
-} def
-
-%
-%  The mapping cshow rebinds a CID-keyed composite to for the duration
-%  of one call of its procedure: a single byte -- the last byte of the
-%  code the walk decoded, which is the code cshow puts on the stack --
-%  standing for the CID that walk resolved, and no other code carrying
-%  a glyph at all.
-%
-%  One mapping per character, because the correspondence it states is
-%  one character's. A byte cannot name a CID above 255 and most CIDs in
-%  a real font are above 255, so a mapping that sent each byte to the
-%  CID of the same number would be a mapping the CID could not be
-%  reached through; what makes the byte enough is that it has only one
-%  CID to stand for.
-%
-/.cshbytecmap {  % code cid  .  cmap
-    2 dict begin
-    /cid exch def
-    /cs 1 string def
-    cs 0 3 -1 roll put
-    << /.codespaces [ <00> <FF> ]
-       /.cidranges [ cs cs cid ] >>
     end
 } def
 
@@ -1017,8 +1002,23 @@ end
         /exe /exec load def
         /ppexec //.pexec def
         /cm fnt /CMap get def
-        % room for the rebound mapping and for the byte it stands for
-        /bw fnt dup length 2 add dict copy def
+
+        % The font the procedure runs under is the descendant the walk
+        % selected, because PLRM 8.2 has currentfont answer with "the
+        % current descendant base font or CIDFont" while it runs. It is a
+        % copy, so that the character the measure stands for can be
+        % written on it without reaching the descendant the composite
+        % keeps; and it is one copy for the call, rewritten per character,
+        % because the correspondence it states is one character's.
+        /bw fnt /FDepVector get 0 get dup length 4 add dict copy def
+
+        % The descendant carries its own matrix and the composite carries
+        % the size, because scalefont scales a composite's FontMatrix and
+        % leaves its descendants alone: what a glyph is painted at is the
+        % two concatenated. The copy is made current on its own, so it
+        % takes the product rather than half of it.
+        bw /FontMatrix
+            bw /FontMatrix get fnt /FontMatrix get matrix concatmatrix put
         % the rebinding is one character's, so it is done a character at
         % a time, which puts it in the compiled program rather than
         % here; the operator that does it is embedded the way exec is
@@ -1030,10 +1030,8 @@ end
             str p cm //.cmapnext exec
             /w exch def /cid exch def
             /code str p w add 1 sub get def
-            currentdict /bw get /CMap
-                code cid //.cshbytecmap exec
-                currentdict /putin get
             currentdict /bw get /.cshbyte code currentdict /putin get
+            currentdict /bw get /.cshcid cid currentdict /putin get
             code
             currentdict /bw get
             1 string dup 0 code put

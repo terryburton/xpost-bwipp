@@ -112,8 +112,13 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  composite nor procedural is the only thing that answers.
 %
 .xpostsys /.fontroute {  % font  .  /composite | /build | /face
+    % A descendant carrying cshow's special measure is walked the way the
+    % composite it stands for would be: it is the current font only while
+    % that procedure runs, and what it paints is the CID the walk chose.
+    dup /.cshcid known { pop /composite }{
     /FontType 2 copy known { get }{ pop pop -1 } ifelse
     dup 0 eq { pop /composite }{ 3 eq { /build }{ /face } ifelse } ifelse
+    } ifelse
 } put
 
 %
