@@ -595,6 +595,25 @@ if [ "${pag_said%%|*}" != "$want" ]; then
     fail=1
 fi
 
+# The roster is sealed, and so is each maker in it. An entry is a
+# procedure a page-device request runs to build the device it names, so a
+# roster or a maker a program could write into is one that decides what
+# runs as the device. A procedure's access is the reference's own rather
+# than the object's, so a maker is sealed by putting the sealed one back
+# before the roster itself is sealed; a `readonly` whose answer is
+# discarded seals nothing.
+if ! grep -q '\.devicemakers get exch 2 copy get readonly put' "$init_ps"; then
+    echo "FAIL: the device makers are not sealed into the roster, so a"
+    echo "      program reaching one could write the body a page-device"
+    echo "      request runs to build its device"
+    fail=1
+fi
+if ! grep -q '\.devicemakers get readonly pop' "$init_ps"; then
+    echo "FAIL: the device roster is not declared read-only, so a program"
+    echo "      reaching it could name a procedure of its own as a device"
+    fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the device rosters disagree"
     exit 1

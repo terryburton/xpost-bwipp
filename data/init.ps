@@ -2850,6 +2850,16 @@ currentglobal true setglobal
             % for the rest of the job. It is complete here -- the entries are
             % stated above and the drivers this build left out have just been
             % dropped -- and nothing writes it afterwards.
+            % Each maker is sealed before the roster is, because a
+            % procedure's access is the reference's own rather than the
+            % object's: an array read back out of a sealed dictionary is
+            % writable unless the sealed one was put there sealed. A
+            % maker whose body could be written is a maker that decides
+            % what runs as the device just as an entry of the program's
+            % own would.
+            [ .xpostsys /.devicemakers get { pop } forall ] {
+                .xpostsys /.devicemakers get exch 2 copy get readonly put
+            } forall
             .xpostsys /.devicemakers get readonly pop
             setglobal
 
