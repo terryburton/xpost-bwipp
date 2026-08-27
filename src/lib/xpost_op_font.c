@@ -458,7 +458,22 @@ int _metrics_number(Xpost_Context *ctx, Xpost_Object arr, int i, real *out)
     return 1;
 }
 
-/* A /Metrics entry for this glyph name overrides its width (PLRM 5.9.2):
+/* Whether a /Metrics dictionary can be asked about this glyph at all:
+   there has to be one, a matrix to carry its values into device space,
+   and a key to look the glyph up under. The key is the glyph's name in a
+   base font (PLRM 5.9.2) and its CID in a CIDFont (PLRM 5.11.3), so both
+   types of key are keys here and a dictionary of one kind answers
+   nothing to a key of the other. */
+static
+int _metrics_askable(const textstate *ts, Xpost_Object glyphkey)
+{
+    return ts->cdmat_ok
+        && xpost_object_get_type(ts->metrics) == dicttype
+        && (xpost_object_get_type(glyphkey) == nametype
+         || xpost_object_get_type(glyphkey) == integertype);
+}
+
+/* A /Metrics entry for this glyph overrides its width (PLRM 5.9.2):
    a number is a new x width, a two-element array carries the width in its
    second element, a four-element array carries the width vector in its
    last two. The values are in character space; deliver the device-space
@@ -467,18 +482,16 @@ int _metrics_number(Xpost_Context *ctx, Xpost_Object arr, int i, real *out)
 static
 int _metrics_advance(Xpost_Context *ctx,
                      const textstate *ts,
-                     Xpost_Object glyphname,
+                     Xpost_Object glyphkey,
                      long *ax,
                      long *ay)
 {
     Xpost_Object v;
     real wx, wy = 0.0;
 
-    if (!ts->cdmat_ok
-     || xpost_object_get_type(ts->metrics) != dicttype
-     || xpost_object_get_type(glyphname) != nametype)
+    if (!_metrics_askable(ts, glyphkey))
         return 0;
-    v = xpost_dict_get(ctx, ts->metrics, glyphname);
+    v = xpost_dict_get(ctx, ts->metrics, glyphkey);
     if (xpost_object_get_type(v) == integertype)
         wx = (real)v.int_.val;
     else if (xpost_object_get_type(v) == realtype)
@@ -501,7 +514,7 @@ int _metrics_advance(Xpost_Context *ctx,
     return 1;
 }
 
-/* A /Metrics entry for this glyph name may also override where the glyph
+/* A /Metrics entry for this glyph may also override where the glyph
    sits against its origin (PLRM 5.9.2): the two-element array's first
    element is the x component of a new left sidebearing, and the
    four-element array's first two are the x and y components of one. A
@@ -521,7 +534,7 @@ int _metrics_advance(Xpost_Context *ctx,
 static
 int _metrics_sidebearing(Xpost_Context *ctx,
                          const textstate *ts,
-                         Xpost_Object glyphname,
+                         Xpost_Object glyphkey,
                          void *face,
                          unsigned int glyph_index,
                          long *dx,
@@ -531,11 +544,9 @@ int _metrics_sidebearing(Xpost_Context *ctx,
     real sx = 0.0, sy = 0.0;
     long nx, ny;
 
-    if (!ts->cdmat_ok
-     || xpost_object_get_type(ts->metrics) != dicttype
-     || xpost_object_get_type(glyphname) != nametype)
+    if (!_metrics_askable(ts, glyphkey))
         return 0;
-    v = xpost_dict_get(ctx, ts->metrics, glyphname);
+    v = xpost_dict_get(ctx, ts->metrics, glyphkey);
     if (xpost_object_get_type(v) != arraytype
      || (v.comp_.sz != 2 && v.comp_.sz != 4))
         return 0;
@@ -3404,7 +3415,7 @@ int _show_glyph(Xpost_Context *ctx,
                 real *xpos,
                 real *ypos,
                 unsigned int glyph_index,
-                Xpost_Object glyphname,
+                Xpost_Object glyphkey,
                 int ncomp,
                 Xpost_Object comp1,
                 Xpost_Object comp2,
@@ -3430,7 +3441,7 @@ int _show_glyph(Xpost_Context *ctx,
        face puts it. */
     long sbx = 0, sby = 0;
 
-    _metrics_sidebearing(ctx, ts, glyphname, data.face, glyph_index,
+    _metrics_sidebearing(ctx, ts, glyphkey, data.face, glyph_index,
                          &sbx, &sby);
 
     if (ts->vector)
@@ -3529,7 +3540,7 @@ int _show_glyph(Xpost_Context *ctx,
         }
     }
     /* a /Metrics entry for this glyph overrides the face's advance */
-    _metrics_advance(ctx, ts, glyphname, &advance_x, &advance_y);
+    _metrics_advance(ctx, ts, glyphkey, &advance_x, &advance_y);
     /* the face transform leaves the advance in y-up glyph space; the
        pen advances in y-down device space, keeping the fractional part
        (truncating each glyph's advance drifts the line's length) */
@@ -3777,16 +3788,22 @@ int _show(Xpost_Context *ctx,
     return ret;
 }
 
-/* glyphname  .glyphshow  -
-   paint the single glyph the name selects, bypassing the encoding,
-   and advance the current point by the glyph's width. The
+/* Paint the single glyph a caller selects directly, bypassing the
+   encoding, and advance the current point by the glyph's width. The
    PostScript-level glyphshow sends Type 3 fonts to their build
-   procedures instead of here. */
+   procedures instead of here.
+
+   The glyph is selected by name, as glyphshow selects one, or by index,
+   as a CMap walk selects one. The key is what the font's /Metrics
+   dictionary would name this glyph's metrics under -- the name in a base
+   font (PLRM 5.9.2), the CID in a CIDFont (PLRM 5.11.3) -- which the
+   index route cannot derive from the index and is therefore told. */
 static
 int _glyphshow_common(Xpost_Context *ctx,
                       Xpost_Object gname,
                       int byname,
-                      unsigned int gid)
+                      unsigned int gid,
+                      Xpost_Object glyphkey)
 {
     Xpost_Object gs;
     Xpost_Object fontdict;
@@ -3838,7 +3855,7 @@ int _glyphshow_common(Xpost_Context *ctx,
         ? _glyph_index_for_name(ctx, ts.charstrings, data.face, gname)
         : gid;
     painted = _show_glyph(ctx, devdic, putpix, data, &ts, &xpos, &ypos,
-                          glyph_index, byname ? gname : invalid,
+                          glyph_index, glyphkey,
                           ncomp, comp[0], comp[1], comp[2], comp[3], &inked);
 
     /* the point the operator reached is the point it leaves behind,
@@ -3865,27 +3882,32 @@ int _glyphshow_common(Xpost_Context *ctx,
 }
 
 /* Paints one glyph named directly, rather than through the font's
-   encoding. */
+   encoding. A base font's metrics are named for the glyph, so the name
+   is the key as well as the selector. */
 static
 int _glyphshow(Xpost_Context *ctx,
                Xpost_Object gname)
 {
-    return _glyphshow_common(ctx, gname, 1, 0);
+    return _glyphshow_common(ctx, gname, 1, 0, gname);
 }
 
-/* index  .glyphshowidx  -
+/* cid index  .glyphshowidx  -
    paint the single glyph at the given index in the current font's
    face and advance the current point by its width; the composite
    font machinery reaches glyphs by index once a CMap has resolved
-   the character code */
+   the character code to a CID and the CIDMap has resolved the CID to
+   an index. The CID comes with the index because it is what the
+   descendant's /Metrics dictionary keys this glyph's metrics under
+   (PLRM 5.11.3), and nothing downstream of the walk can recover it. */
 static
 int _glyphshowidx(Xpost_Context *ctx,
+                  Xpost_Object cid,
                   Xpost_Object gidx)
 {
     if (gidx.int_.val < 0)
         return rangecheck;
     return _glyphshow_common(ctx, null, 0,
-                             (unsigned int)gidx.int_.val);
+                             (unsigned int)gidx.int_.val, cid);
 }
 
 /* --- building a font from a program the job supplied -----------------
@@ -5799,12 +5821,15 @@ int _stringoutline(Xpost_Context *ctx,
    the outline's points are in. The glyph is selected the way the
    caller selects one, by name or by index, and the advance comes with
    it either way because a string's comes from stringwidth, which has
-   no form that names a glyph or numbers one. */
+   no form that names a glyph or numbers one. The key is what the
+   font's /Metrics dictionary names this glyph's metrics under, as it
+   is on the route that paints one. */
 static
 int _glyphoutline_common(Xpost_Context *ctx,
                          Xpost_Object gname,
                          int byname,
-                         unsigned int gid)
+                         unsigned int gid,
+                         Xpost_Object glyphkey)
 {
     Xpost_Object gs;
     Xpost_Object fontdict;
@@ -5852,7 +5877,7 @@ int _glyphoutline_common(Xpost_Context *ctx,
            collector's origin carries the shift, so every point the walk
            reports arrives already moved; the outline's points are y-up,
            which is the convention the shift comes back in. */
-        if (_metrics_sidebearing(ctx, &ts, byname ? gname : invalid,
+        if (_metrics_sidebearing(ctx, &ts, glyphkey,
                                  data.face, glyph_index, &sbx, &sby))
         {
             oc.px = sbx / 65536.0;
@@ -5877,7 +5902,7 @@ int _glyphoutline_common(Xpost_Context *ctx,
     }
     /* a /Metrics entry for this glyph overrides the face's advance,
        as it does on the raster route */
-    _metrics_advance(ctx, &ts, byname ? gname : invalid, &advance_x, &advance_y);
+    _metrics_advance(ctx, &ts, glyphkey, &advance_x, &advance_y);
 
     ret = _oc_array(ctx, &oc, &arr);
     if (ret)
@@ -5896,22 +5921,25 @@ static
 int _glyphoutline(Xpost_Context *ctx,
                   Xpost_Object gname)
 {
-    return _glyphoutline_common(ctx, gname, 1, 0);
+    return _glyphoutline_common(ctx, gname, 1, 0, gname);
 }
 
-/* index  .glyphoutlineidx  array advx advy
+/* cid index  .glyphoutlineidx  array advx advy
    The outline and advance of the glyph at the given index in the
    current font's face. The composite font machinery reaches glyphs by
    index once a CMap has resolved the character code, and reaches
-   their outlines the same way. */
+   their outlines the same way -- carrying the CID alongside, as the
+   route that paints the glyph does, because that is what the
+   descendant's /Metrics dictionary keys it under (PLRM 5.11.3). */
 static
 int _glyphoutlineidx(Xpost_Context *ctx,
+                     Xpost_Object cid,
                      Xpost_Object gidx)
 {
     if (gidx.int_.val < 0)
         return rangecheck;
     return _glyphoutline_common(ctx, null, 0,
-                                (unsigned int)gidx.int_.val);
+                                (unsigned int)gidx.int_.val, cid);
 }
 
 /* --- the language's cache parameters ---------------------------------
@@ -6013,7 +6041,7 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
     INSTALL;
     op = xpost_operator_cons(ctx, ".glyphshow", (Xpost_Op_Func)_glyphshow, 1, nametype);
     INSTALL;
-    op = xpost_operator_cons(ctx, ".glyphshowidx", (Xpost_Op_Func)_glyphshowidx, 1, integertype);
+    op = xpost_operator_cons(ctx, ".glyphshowidx", (Xpost_Op_Func)_glyphshowidx, 2, integertype, integertype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".loadcidfont0", (Xpost_Op_Func)_loadcidfont0, 1, dicttype);
     INSTALL;
@@ -6041,7 +6069,7 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
     INSTALL;
     op = xpost_operator_cons(ctx, ".glyphoutline", (Xpost_Op_Func)_glyphoutline, 1, nametype);
     INSTALL;
-    op = xpost_operator_cons(ctx, ".glyphoutlineidx", (Xpost_Op_Func)_glyphoutlineidx, 1, integertype);
+    op = xpost_operator_cons(ctx, ".glyphoutlineidx", (Xpost_Op_Func)_glyphoutlineidx, 2, integertype, integertype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".cachestatus", (Xpost_Op_Func)_cachestatus, 0);
     INSTALL;

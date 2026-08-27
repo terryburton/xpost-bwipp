@@ -333,6 +333,95 @@ cs.n 2 eq (the procedure ran once per decoded character) check
 C inkof 0 gt (the glyph the procedure showed marks the page) check
 C S differs 0 eq (and is the glyph the walk paints) check
 
+% --- a descendant's Metrics dictionary, keyed by CID --------------------
+%
+% PLRM 5.11.3 gives a CIDFont a Metrics dictionary of the same three
+% forms PLRM 5.9.2 gives a base font -- a width, a sidebearing and a
+% width, or both as vectors -- but keyed by CID rather than by glyph
+% name, its values in the units the descendant's FontMatrix defines. So
+% the walk's two selectors are not interchangeable: the glyph comes from
+% the index the CIDMap resolved it to, and its metrics come from the CID
+% that was resolved. A CIDMap that sends the two apart is what tells them
+% apart, and there is one below.
+%
+% Asked of each route a composite's text takes: the width stringwidth
+% reports, the outline charpath appends, and the ink show leaves.
+/p.name (cid metrics:) def
+/mkcidmetrics {  % /descname /compname cidmap metrics|null  .  -
+    5 dict begin
+    /m exch def /cmap exch def /cn exch def /dn exch def
+    10 dict begin
+        /CIDFontType 2 def
+        /CIDFontName dn def
+        /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+        /FontMatrix [1 0 0 1 0 0] def
+        /FontType 42 def
+        /CIDCount 3 def
+        /GDBytes 1 def
+        /CIDMap cmap def
+        /GlyphDirectory 0 dict def
+        m null ne { /Metrics m def } if
+        /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+    CIDFontName currentdict end /CIDFont defineresource pop
+    cn /CIDShowTestCMap [ dn ] composefont pop
+    end
+} bind def
+
+% the same descendant with and without an entry for CID 1, and the pair
+% again under a CIDMap that sends CID 1 to glyph 2 and CID 2 to glyph 1
+/CIDMetPlainD /CIDMetPlain <000102> null mkcidmetrics
+/CIDMetWD /CIDMetW <000102> << 1 [ 0.2 0.6 ] >> mkcidmetrics
+/CIDMetSwapD /CIDMetSwap <000201> null mkcidmetrics
+/CIDMetSwapCD /CIDMetSwapC <000201> << 1 [ 0.2 0.6 ] >> mkcidmetrics
+/CIDMetSwapGD /CIDMetSwapG <000201> << 2 [ 0.2 0.6 ] >> mkcidmetrics
+
+% one code, which this CMap decodes to CID 1
+/CIDMetCode <0001> def
+/cmwidth { % /fontname  .  real
+    findfont 20 scalefont setfont CIDMetCode stringwidth pop
+} bind def
+/cmpathleft { % /fontname  .  real
+    findfont 20 scalefont setfont
+    gsave newpath 10 20 moveto CIDMetCode false charpath
+    pathbbox pop pop pop grestore
+} bind def
+/cmshow { % /fontname x  .  snap
+    exch findfont 20 scalefont setfont
+    initgraphics erasepage 0 setgray
+    20 moveto CIDMetCode show
+    snap
+} bind def
+
+/CIDMetPlain cmwidth /cmw0 exch def
+/CIDMetW cmwidth /cmw1 exch def
+cmw0 cmw1 near not
+    (a descendant's Metrics sets the width of the CID it names) check
+cmw1 12 near
+    (to the width the entry names, in the units the descendant's matrix gives) check
+
+/CIDMetPlain cmpathleft /cmp0 exch def
+/CIDMetW cmpathleft /cmp1 exch def
+cmp1 cmp0 gt
+    (and moves the outline charpath appends by the sidebearing it names) check
+
+% the ink and the outline agree about the move: the glyph the overriding
+% sidebearing paints is the glyph the face paints from a pen that far
+% along, to the pixel
+/CIDMetW 10 cmshow /cmpage exch def
+/CIDMetPlain 10 cmshow cmpage differs 0 gt
+    (a Metrics sidebearing moves the ink show leaves) check
+/CIDMetPlain 10 cmp1 cmp0 sub add cmshow cmpage differs 0 eq
+    (by exactly what it moved the outline) check
+
+% the key is the CID and not the glyph index the CIDMap sent it to: this
+% CIDMap sends CID 1 to glyph 2, so an entry under 1 governs the glyph
+% that gets shown and an entry under 2 governs nothing shown here
+/CIDMetSwap cmwidth /cmws exch def
+/CIDMetSwapC cmwidth cmws near not
+    (an entry keyed by the CID shown governs it) check
+/CIDMetSwapG cmwidth cmws near
+    (and an entry keyed by the glyph index it maps to governs nothing) check
+
 % --- Type 4 CIDFonts and the BitmapFontInit procedure set ---------------
 %
 % PLRM 5.11: a Type 4 CIDFont carries no glyph descriptions at all. Its

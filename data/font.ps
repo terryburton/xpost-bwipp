@@ -821,6 +821,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 %  The subject is the string to paint, or a single glyph the caller
 %  selects by name as glyphshow does or by index as a CMap walk does.
+%  A glyph selected by index arrives with the CID that selected it
+%  underneath, which is left where it is: the subject is the index, and
+%  the pair reaches .glyphcharpath together as the walk handed it over.
 %  The hook runs after each character with its code on the stack and
 %  carries whatever the operator moves the pen by between characters; a
 %  null hook means the operator moves it by nothing, and then the whole
@@ -1447,7 +1450,13 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  stringwidth, so its advance comes back from the outline operator in
 %  the glyph space the outline's points are in.
 %
-.xpostsys /.glyphcharpath {  % name|index  .  -
+%  A numbered glyph is numbered by the walk, which hands over the CID it
+%  resolved as well as the index it resolved it to; the outline operator
+%  takes both, because the advance it reports is the one the CID's
+%  /Metrics entry names where the descendant has one (PLRM 5.11.3). A
+%  named glyph carries its own key and is one operand.
+%
+.xpostsys /.glyphcharpath {  % name|cid index  .  -
     2 dict begin
     dup type /nametype eq { .glyphoutline }{ .glyphoutlineidx } ifelse
     /gay exch def /gax exch def

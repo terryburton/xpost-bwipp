@@ -678,12 +678,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 
 %
 %  Walk a string through a CMap-mapped composite font (the FMapType 9
-%  of composefont), calling the procedure with each glyph's index in
-%  the descendant's face. Each code decodes to a CID, the CID maps to a
-%  glyph index through the descendant's CIDMap (GDBytes bytes per
-%  entry, across the array of segments), and the descendant is the font
-%  in force while the procedure runs, its face carried through the
+%  of composefont), calling the procedure with each glyph's CID and its
+%  index in the descendant's face. Each code decodes to a CID, the CID
+%  maps to a glyph index through the descendant's CIDMap (GDBytes bytes
+%  per entry, across the array of segments), and the descendant is the
+%  font in force while the procedure runs, its face carried through the
 %  composite's matrix.
+%
+%  Both selectors go to the procedure because both are needed and only
+%  the walk holds both: the index is what names the glyph to the face,
+%  and the CID is what names its metrics to the descendant's /Metrics
+%  dictionary (PLRM 5.11.3), which is keyed by CID and not by glyph
+%  name. Nothing after the walk can recover the CID from the index --
+%  the CIDMap runs one way.
 %
 %  What becomes of the glyph is the procedure's and not the walk's,
 %  because this is the only way to a CID-keyed glyph: a string names it
@@ -761,7 +768,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         desc /CIDFontType 2 copy known { get 4 eq }{ pop pop false } ifelse {
             desc gid //.t4show exec
         }{
-            gid gproc
+            cid gid gproc
         } ifelse
         /fc 0 def
         0 1 w 1 sub { str p 3 -1 roll add get fc 256 mul add /fc exch def } for
@@ -782,6 +789,10 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     1 index /FMapType get 9 ne {
         //.showfmap exec
     }{
+        % the CID the walk hands over stays beneath the index it hands
+        % over, so it reaches whichever operator the route settles on:
+        % .glyphshowidx below, or the outline operator .showroute sends
+        % a pattern colour and an outline font to instead
         { null { .glyphshowidx } //.showroute exec }
         //.cmapwalk exec
     } ifelse

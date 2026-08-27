@@ -135,11 +135,11 @@ Copied /Private Base /Private get dup length string copy put
       (invalidfont) (stringwidth through ) what joinlabel expecterr
     { fd setfont 4 8 moveto /A gshow }
       (invalidfont) (.glyphshow through ) what joinlabel expecterr
-    { fd setfont 4 8 moveto 36 gshowidx }
+    { fd setfont 4 8 moveto 36 36 gshowidx }
       (invalidfont) (.glyphshowidx through ) what joinlabel expecterr
     { fd setfont /A goutline }
       (invalidfont) (.glyphoutline through ) what joinlabel expecterr
-    { fd setfont 36 goutlidx }
+    { fd setfont 36 36 goutlidx }
       (invalidfont) (.glyphoutlineidx through ) what joinlabel expecterr
     { fd setfont (Ab) soutline }
       (invalidfont) (.stringoutline through ) what joinlabel expecterr
@@ -193,7 +193,7 @@ pop
 Base 30 scalefont setfont
 blank
 4 8 moveto
-{ 999999 gshowidx } (rangecheck) (an index past the face's glyphs) expecterr
+{ 0 999999 gshowidx } (rangecheck) (an index past the face's glyphs) expecterr
 ink 0 eq (a refused index marked nothing) require
 
 % a CharStrings of the program's own, sending a name past the face
@@ -227,7 +227,7 @@ FontPrivatePast 30 scalefont setfont
 ink 0 gt (.glyphshow of one still marks the page) require
 blank
 Base 30 scalefont setfont
-4 8 moveto 36 gshowidx
+4 8 moveto 36 36 gshowidx
 ink 0 gt (an index the face does hold still marks the page) require
 
 % --- a copy of a font dictionary shares its face ------------------------

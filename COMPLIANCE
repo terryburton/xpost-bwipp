@@ -51,14 +51,6 @@ Level 1 operators
      reaches its glyph at; for any other such face the standard encoding
      stands over it, so a code it reaches no glyph for is named rather
      than reported as .notdef, which is what Table 5.7 asks for it)
- [/] Metrics, Metrics2, CDevProc (PLRM 5.9.2). A base font's Metrics
-     dictionary is applied to the glyphs the text operators paint and to
-     the outline charpath appends -- the width and the left sidebearing,
-     in each of the three forms the section gives. A CIDFont's Metrics,
-     whose keys are CIDs (PLRM 5.11.3), is not read at all. Metrics2 and
-     CDevProc are not read either; writing mode 1 is not rendered, so a
-     second set of metrics has nothing here to govern
-
  [X] handleerror (an error out of a procedure-implemented operator
      restores the stacks to their depths at the call; operands the
      procedure had already consumed are not pushed back)
@@ -191,6 +183,11 @@ Level 3 operators
      one-byte codes. The CIDInit procedure set is complete: notdef
      mappings and usematrix are taken, though a single-descendant job
      applies neither)
+ [ ] Metrics2, CDevProc (PLRM 5.9.2). Writing mode 1 is not rendered,
+     so the second set of metrics Metrics2 holds has nothing here to
+     govern. CDevProc is not called in either writing mode, so a font
+     that derives its metrics by procedure is shown with the metrics it
+     would have had without one
  [X] setsmoothness, currentsmoothness (recorded only)
  [X] Type 4 CIDFonts, and the BitmapFontInit procedure set: addglyph,
      removeall, removeglyphs (charpath over such a font marks nothing,
