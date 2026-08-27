@@ -485,6 +485,106 @@ int _dict_forall_step (Xpost_Context *ctx,
     return 0;
 }
 
+/* dict1 dict2  .gstatecopy  dict2
+   Copy dict1's entries into dict2, giving every entry that holds a
+   literal array an array of its own.
+
+   The value in a graphics state entry is an object the program still
+   holds: setcolorspace records the space it was handed and setdash the
+   array it was handed, so copying a restored value over whatever the
+   entry already holds would rewrite the program's array underneath it.
+   Where the restored value names that same array -- as an uncoloured
+   pattern's space names the base it was built over -- each restore
+   wraps it one level deeper until nothing can read it as a space at
+   all. A packed array is read-only and cannot be written through, and
+   an executable array is a procedure a graphics state shares rather
+   than copies -- a transfer or spot function is the same procedure
+   whichever state names it -- so neither is copied.
+
+   In C because it runs twice for every gsave, once to take the state
+   and once to put it back, over a dictionary of fifty-three entries of
+   which three to six hold an array: the walk cost several times what
+   the copying does. */
+static
+int _gstatecopy(Xpost_Context *ctx,
+                Xpost_Object D1,
+                Xpost_Object D2)
+{
+    unsigned int cursor;
+
+    if (!xpost_object_is_readable(ctx, D1))
+        return invalidaccess;
+    if (!xpost_object_is_writeable(ctx, D2))
+        return invalidaccess;
+
+    for (cursor = 0; ; ++cursor)
+    {
+        Xpost_Memory_File *mem;
+        unsigned int n, ad;
+        dicrec *tp;
+        Xpost_Object k, v;
+        int ret;
+
+        /* The table is located afresh on every step. Consing the copy of
+           an array value, and the put that files it, may each grow the
+           memory the table sits in, which moves it; a pointer taken
+           before either would address whatever now occupies the old
+           place. */
+        mem = xpost_context_select_memory(ctx, D1);
+        n = DICTABN(xpost_dict_max_length_memory(mem, D1));
+        if (cursor >= n)
+            break;
+        if (!xpost_memory_table_get_addr(mem, xpost_object_get_ent(D1), &ad))
+        {
+            XPOST_LOG_ERR("cannot retrieve address for dict ent %u",
+                          xpost_object_get_ent(D1));
+            return VMerror;
+        }
+        tp = xpost_dict_table_of(xpost_dict_head_at(mem, ad));
+
+        k = tp[cursor].key;
+        if (xpost_object_get_type(k) == nulltype)
+            continue;
+        if (xpost_object_get_type(k) == extendedtype)
+            k = xpost_dict_convert_extended_to_number(k);
+        v = tp[cursor].value;
+
+        if (xpost_object_get_type(v) == arraytype && !xpost_object_is_exe(v))
+        {
+            Xpost_Object a;
+            unsigned int i;
+            unsigned int sz = v.comp_.sz;
+
+            /* literal, as the value it replaces was: executability
+               belongs to a procedure, and the walk above has already
+               decided this value is not one. An array minted here
+               without saying so is executable, and the entry it lands
+               in is then one this copy will never copy again -- the
+               state that saved it and the state that restored it would
+               share one array from then on. */
+            a = xpost_object_cvlit(xpost_array_cons(ctx, sz));
+            if (xpost_object_get_type(a) == invalidtype)
+                return VMerror;
+            for (i = 0; i < sz; i++)
+            {
+                ret = xpost_array_put(ctx, a, (integer)i,
+                                      xpost_array_get(ctx, v, (integer)i));
+                if (ret)
+                    return ret;
+            }
+            v = a;
+        }
+
+        ret = xpost_dict_put(ctx, D2, k, v);
+        if (ret)
+            return ret;
+    }
+
+    if (!xpost_stack_push(ctx->lo, ctx->os, D2))
+        return stackoverflow;
+    return 0;
+}
+
 /* dict proc  forall  -
    execute proc for each key value pair in dict */
 static
@@ -680,6 +780,8 @@ int xpost_oper_init_dict_ops (Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, "copy", (Xpost_Op_Func)xpost_op_dict_copy, 2, dicttype, dicttype);
     INSTALL;
     op = xpost_operator_cons(ctx, "forall", (Xpost_Op_Func)xpost_op_dict_proc_forall, 2, dicttype, proctype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".gstatecopy", (Xpost_Op_Func)_gstatecopy, 2, dicttype, dicttype);
     INSTALL;
     op = xpost_operator_cons(ctx, "forall.dict.iterate", (Xpost_Op_Func)xpost_op_dict_forall_iterate, 0);
     op = xpost_operator_cons(ctx, "currentdict", (Xpost_Op_Func)xpost_op_currentdict, 0);

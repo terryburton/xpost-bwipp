@@ -192,44 +192,22 @@ setglobal
 %
 %  Graphics State Operators -- Device Independent
 %
-.xpostsys /.gstatecopy {  % dict1 dict2  .  dict2'
-    begin
-    {  % key val
-        %pstack()= %1 index =
-        dup type /arraytype eq
-        1 index xcheck not and {  % key val
-            1 index  % Key val key
-            currentdict 1 index known {  % key val key  (key known in currentdict)
-                pop  % Key val
-
-                % The value goes into storage of its own, never into
-                % whatever the entry already holds. An array reached from
-                % a graphics state entry is not the graphics state's to
-                % write: setcolorspace records the space the program
-                % handed it and setdash the array the program handed it,
-                % so the entry names an object the program still holds
-                % and can still read. Copying a restored value over that
-                % object rewrites the program's array underneath it, and
-                % where the restored value names that same array -- as an
-                % uncoloured pattern's space names the base it was built
-                % over -- each restore wraps it one level deeper until
-                % nothing can read it as a space at all.
-                dup length array
-                copy
-                def
-            }{  % key val key   (key not known in currentdict)
-                exch  % Key key val
-                dup length array  % Key key val val2
-                copy  % Key key val2
-                def
-                pop
-            } ifelse
-        }{  % not arraytype
-            def
-        } ifelse
-    } forall
-    currentdict end
-} put
+%
+%  Copy one graphics state's entries into another, giving every entry
+%  that holds a literal array an array of its own. The value in a
+%  graphics state entry is an object the program still holds --
+%  setcolorspace records the space it was handed and setdash the array
+%  it was handed -- so a copy that wrote over whatever the entry already
+%  held would rewrite the program's array underneath it.
+%
+%  The operator is the C one, reached under this name so that the six
+%  places that copy a graphics state read it the way they always have.
+%  It runs twice for every gsave, once to take the state and once to put
+%  it back, over a dictionary of fifty-three entries of which three to
+%  six hold an array; walking that in PostScript cost several times what
+%  the copying does.
+%
+.xpostsys /.gstatecopy /.gstatecopy load put
 
 %
 %  Give this context its own graphics state, copied from the one it still shares
