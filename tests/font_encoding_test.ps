@@ -83,13 +83,27 @@ initgraphics
 % never ran.
 /fe.find { % [names] . font|null
     /fe.got null def
+    /fe.gotname null def
     {   /fe.nm exch def
         { fe.nm findfont } stopped { clear $error /newerror false put }{
-            dup type /dicttype eq { /fe.got exch def }{ pop } ifelse
+            dup type /dicttype eq { /fe.got exch def /fe.gotname fe.nm def }
+                                  { pop } ifelse
         } ifelse
         fe.got null ne { exit } if
     } forall
     fe.got
+} bind def
+
+% Which name answered, said out loud. What a font name resolves to is the
+% host's business and differs from one machine to the next, so an
+% assertion that fails here without naming the face it was looking at
+% cannot be read from a log taken somewhere one cannot reach. fe.gotname
+% holds the name the last fe.find took, so a caller announces it before
+% asking for another.
+/fe.announce { % name|null (subject) . -
+    exch dup null eq
+    { pop print ( : no face resolves here\n) print }
+    { 40 string cvs exch print (: ) print print (\n) print } ifelse
 } bind def
 
 /departs { % font . bool  (its encoding is not the standard one)
@@ -118,10 +132,15 @@ initgraphics
 
 /symfont [ /Symbol /StandardSymbols /StandardSymbolsPS /ZapfDingbats
            /Dingbats /D050000L ] fe.find def
+/symfontname fe.gotname def
 symfont null ne { symfont symbolic not { /symfont null def } if } if
 
 /textfont [ /Times-Roman /Helvetica /Courier /NimbusRoman /DejaVuSans
             /LiberationSerif /NotoSans ] fe.find def
+/textfontname fe.gotname def
+
+symfontname (note: symbolic candidate) fe.announce
+textfontname (note: text candidate) fe.announce
 
 % ------------------------------------------------ the shape of the entry
 %

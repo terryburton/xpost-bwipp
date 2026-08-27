@@ -128,6 +128,7 @@ count    xpost_file.h:Xpost_DiskFile        poll_before_read
 count    xpost_file.h:Xpost_File            closed
 count    xpost_file.h:Xpost_File            ent
 count    xpost_file.h:Xpost_File            eot
+count    xpost_file.h:Xpost_File            err
 count    xpost_file.h:Xpost_File            job_stream
 count    xpost_file.h:Xpost_File            owned
 count    xpost_file.h:Xpost_File            refs

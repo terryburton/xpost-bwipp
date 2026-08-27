@@ -50,10 +50,16 @@ static const char *_xpost_log_level_names[] =
     "DBG"
 };
 
+/* Held as a plain int, not as the level enum. Every enumerator of that
+   enum is non-negative, so it may be given an unsigned type, and a level
+   set below the lowest one then wraps past every level rather than
+   falling under them -- asking for less than errors would turn
+   everything on. Signed, a level below the lowest suppresses all of
+   them, which is the only way to silence the channel entirely. */
 #ifdef _DEBUG
-static Xpost_Log_Level _xpost_log_level = XPOST_LOG_LEVEL_DBG;
+static int _xpost_log_level = XPOST_LOG_LEVEL_DBG;
 #else
-static Xpost_Log_Level _xpost_log_level = XPOST_LOG_LEVEL_ERR;
+static int _xpost_log_level = XPOST_LOG_LEVEL_ERR;
 #endif
 
 static Xpost_Log_Print_Cb _xpost_log_print_cb = xpost_log_print_cb_stderr;
@@ -377,7 +383,7 @@ xpost_log_print(Xpost_Log_Level level,
         return;
     }
 
-    if (level > _xpost_log_level)
+    if ((int)level > _xpost_log_level)
         return;
 
     va_start(args, fmt);
@@ -402,7 +408,7 @@ xpost_log_print_dump(Xpost_Log_Level level,
         return;
     }
 
-    if (level > _xpost_log_level)
+    if ((int)level > _xpost_log_level)
         return;
 
     va_start(args, fmt);
