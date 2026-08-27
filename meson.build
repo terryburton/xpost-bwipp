@@ -3055,7 +3055,8 @@ test('op-cvrs',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
-# array and string get/put require an integer index (a real is a typecheck).
+# array and string get/put require an integer index (a real is a typecheck),
+# and a string element must be a character in 0 to 255.
 test('op-index-type',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/op_index_type_test.ps') ],

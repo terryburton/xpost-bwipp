@@ -143,6 +143,14 @@ int Sput(Xpost_Context *ctx,
 {
     if (!xpost_object_is_writeable(ctx, S))
         return invalidaccess;
+    /* a string's "elements must be integers in the range 0 to 255"
+       (PLRM 3.3.7). A value outside that range is no element of a
+       string, so it is refused rather than narrowed to the byte it
+       happens to end in: narrowed, it reads back as a character the
+       program never wrote and nothing downstream can tell the two
+       apart. */
+    if (C.int_.val < 0 || C.int_.val > 255)
+        return rangecheck;
     return xpost_string_put(ctx, S, I.int_.val, C.int_.val);
 }
 

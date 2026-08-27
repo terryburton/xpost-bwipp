@@ -3,7 +3,8 @@
 % is a typecheck (PLRM). A dictionary key may be any type, so a real key is
 % still valid; an array element may be any object, so a real value in a put is
 % still valid, while a string holds bytes, so a real value in a string put is a
-% typecheck. Run through `xpost -d null` by run-ps-test.sh.
+% typecheck and an integer outside 0 to 255 is a rangecheck. Run through
+% `xpost -d null` by run-ps-test.sh.
 
 
 % integer indices work as before
@@ -22,6 +23,22 @@
 % a string byte must be an integer; a real value is a typecheck
 { (abc) 0 65.0 put } /typecheck (string put of a real value is typecheck) raises
 { (abc) 0 65.5 put } /typecheck (string put of a fractional value is typecheck) raises
+
+% and it must be a character: a string's "elements must be integers in
+% the range 0 to 255" (PLRM 3.3.7), so a value outside that range is a
+% rangecheck rather than the byte it ends in. A
+% narrowed value is the dangerous outcome, not the refusal: 257 stored as
+% 1 reads back as a character the program never wrote, and nothing
+% downstream can tell it from one it did.
+(abc) dup 0 255 put 0 get 255 eq (string put of the top character) assert
+(abc) dup 0 0 put 0 get 0 eq (string put of the bottom character) assert
+{ (abc) 0 256 put } /rangecheck (string put one past the top is rangecheck) raises
+{ (abc) 0 257 put } /rangecheck (string put of a value that would narrow is rangecheck) raises
+{ (abc) 0 -1 put } /rangecheck (string put below the bottom is rangecheck) raises
+{ (abc) 0 65792 put } /rangecheck (string put of a value narrowing to zero is rangecheck) raises
+
+% an array element is any object, so the same values are stored whole there
+[0 0 0] dup 0 257 put 0 get 257 eq (array put of 257 stores 257) assert
 
 % an array element is any object, so a real value is accepted
 [0 0 0] dup 1 9.5 put 1 get 9.5 sub abs 1e-6 lt (array put of a real value is accepted) assert
