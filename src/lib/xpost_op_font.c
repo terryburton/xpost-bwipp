@@ -629,7 +629,10 @@ _t1_charstrings_from_file(Xpost_Context *ctx, const char *path)
                        | ((size_t)raw[off + 5] << 24);
 
             off += 6;
-            if (off + seg > rawlen)
+            /* keep the segment within the file, without an off+seg wrap
+               where size_t is as wide as the length the four bytes
+               above can state */
+            if (seg > rawlen - off)
                 goto out;
             memcpy(flat + flatlen, raw + off, seg);
             flatlen += seg;
@@ -5111,7 +5114,11 @@ int _loadcidfont2(Xpost_Context *ctx,
         }
         else
         {
-            if ((size_t)srcoff + srclen > total)
+            /* keep the table within the data, without a srcoff+srclen
+               wrap where size_t is as wide as the two 32-bit fields
+               the directory states them in */
+            if ((size_t)srcoff > total
+                || (size_t)srclen > total - (size_t)srcoff)
             {
                 free(buf); free(out);
                 return invalidfont;
