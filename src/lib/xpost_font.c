@@ -18,6 +18,7 @@
 # include <config.h>
 #endif
 
+#include <stdio.h> /* snprintf */
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -629,6 +630,69 @@ xpost_font_quit(void)
 }
 
 #ifdef HAVE_FREETYPE2
+/* Reading a face through the map it states.
+
+   The rendering library selects a character map for a face only where
+   the face states one over the standard code space; a face whose only
+   map is the symbol map is left with none selected, and then every
+   character code of it reaches no glyph at all. That map is an
+   encoding all the same -- the font's own, its codes reaching their
+   glyphs at the private-use points U+F020..U+F0FF -- so it is selected
+   here, and such a face means by its codes what it says it means
+   rather than nothing. */
+static void
+_xpost_font_face_map_select(FT_Face face)
+{
+    if (!face || face->charmap || face->num_charmaps <= 0)
+        return;
+    (void)FT_Select_Charmap(face, FT_ENCODING_MS_SYMBOL);
+}
+#endif
+
+#ifdef HAVE_FREETYPE2
+/* The point in the face's own character map that a character code
+   reaches its glyph at. A face read through the symbol map keeps its
+   codes in the private-use area, so a code reaches its glyph there;
+   every other map is asked for the code itself. */
+static FT_ULong
+_xpost_font_face_code_point(FT_Face face, unsigned int code)
+{
+    if (face && face->charmap
+     && face->charmap->encoding == FT_ENCODING_MS_SYMBOL
+     && code <= 0xFF)
+    {
+        FT_ULong pua = 0xF000UL + code;
+
+        if (FT_Get_Char_Index(face, pua))
+            return pua;
+    }
+    return (FT_ULong)code;
+}
+#endif
+
+/* Whether the map the face is read through is the symbol map. */
+int
+xpost_font_face_is_symbol_encoded(void *face)
+{
+#ifdef HAVE_FREETYPE2
+    FT_Face f = (FT_Face)face;
+
+    return f && f->charmap && f->charmap->encoding == FT_ENCODING_MS_SYMBOL;
+#else
+    (void)face;
+    return 0;
+#endif
+}
+
+/* Whether the name most recently resolved landed on a face carrying
+   some other name. The platform's configuration answers nearly every
+   name with some face, so this is the only thing that tells a face
+   that was asked for from one that was given instead. A build that
+   resolves no names by itself substitutes nothing, and leaves it at
+   the no. */
+static int _xpost_font_last_substitute = 0;
+
+#ifdef HAVE_FREETYPE2
 # ifdef HAVE_FONTCONFIG
 
 /* --- finding a face by name ------------------------------------------
@@ -853,6 +917,7 @@ xpost_font_face_new_from_name(const char *name)
         return NULL;
     }
 
+    _xpost_font_face_map_select(face);
     _xpost_font_last_file = filename;
     _xpost_font_faces++;
 
@@ -881,6 +946,8 @@ xpost_font_face_new_from_memory(const unsigned char *data, size_t len)
         XPOST_LOG_INFO("Font program can not be opened or read or is broken (error : %d)", err);
         return NULL;
     }
+
+    _xpost_font_face_map_select(face);
 
     /* the face reads the program where it lies, so the program becomes
        the face's from here. A face that cannot be given its program is
@@ -1164,10 +1231,43 @@ xpost_font_face_glyph_index_get(void *face, char c)
 #ifdef HAVE_FREETYPE2
     /* the character code is a byte value: keep 128-255 out of the
        sign extension */
-    return FT_Get_Char_Index(face, (unsigned char)c);
+    unsigned int code = (unsigned char)c;
+
+    return FT_Get_Char_Index(face,
+                             _xpost_font_face_code_point((FT_Face)face, code));
 #else
     (void)face;
     (void)c;
+    return 0;
+#endif
+}
+
+/* The name a face that names no glyphs gives a character code: the
+   point its own character map reaches the glyph at, spelled the way
+   the resolution below reads such a name back. */
+int
+xpost_font_face_code_glyph_name(void *face, unsigned int code,
+                                char *buf, int len)
+{
+#ifdef HAVE_FREETYPE2
+    FT_ULong cp;
+    char name[16];
+
+    if (code > 0xFF)
+        return 0;
+    cp = _xpost_font_face_code_point((FT_Face)face, code);
+    if (!FT_Get_Char_Index((FT_Face)face, cp))
+        return 0;
+    snprintf(name, sizeof name, "u%04lX", (unsigned long)cp);
+    if ((int)strlen(name) >= len)
+        return 0;
+    strcpy(buf, name);
+    return 1;
+#else
+    (void)face;
+    (void)code;
+    (void)buf;
+    (void)len;
     return 0;
 #endif
 }

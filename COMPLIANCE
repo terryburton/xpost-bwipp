@@ -46,7 +46,11 @@ Level 1 operators
      has no standard-named glyph for is reported by the name its
      character map reaches, so a font program encoding that code as some
      third name is reported as neither. A face that names none of its
-     glyphs supplies no encoding and the standard one stands)
+     glyphs supplies an encoding only where its character map is the
+     symbol map, whose codes are reported by the point each of them
+     reaches its glyph at; for any other such face the standard encoding
+     stands over it, so a code it reaches no glyph for is named rather
+     than reported as .notdef, which is what Table 5.7 asks for it)
 
  [X] handleerror (an error out of a procedure-implemented operator
      restores the stacks to their depths at the call; operands the

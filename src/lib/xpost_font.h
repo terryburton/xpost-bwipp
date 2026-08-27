@@ -222,6 +222,45 @@ unsigned int xpost_font_face_own_name_index_get(void *face, const char *name);
 unsigned int xpost_font_face_glyph_name_count(void *face);
 
 /**
+ * @brief Whether the face keeps its character codes in the symbol map.
+ *
+ * @param[in] face The font face.
+ * @return 1 where the map the face is read through is the symbol map,
+ * 0 otherwise.
+ *
+ * A face read through that map states an encoding of its own: its
+ * codes are the font's, not the standard set's, and they reach their
+ * glyphs at the private-use points U+F020..U+F0FF rather than at the
+ * points the standard names stand for. So none of the standard names
+ * reaches a glyph on such a face, and the standard encoding is not a
+ * statement about it -- which is what a caller building the /Encoding
+ * of a base font (PLRM 5.2 and Table 5.7) has to know.
+ */
+int xpost_font_face_is_symbol_encoded(void *face);
+
+/**
+ * @brief Copy the name a face that names no glyphs gives a character
+ * code (nul-terminated).
+ *
+ * @param[in] face The font face.
+ * @param[in] code The character code, 0..255.
+ * @param[out] buf Where the name is written.
+ * @param[in] len The room in @p buf.
+ * @return 0 where the code reaches no glyph or the name does not fit,
+ * 1 otherwise.
+ *
+ * A glyph on such a face has no name in the font program, and a base
+ * font has to name every code it encodes. The name is therefore made
+ * from the point the face's own character map reaches the glyph at,
+ * written the way xpost_font_face_glyph_name_index_get() reads such a
+ * name back -- so a name this answers selects the glyph the code
+ * selects, which is the property /Encoding and /CharStrings are read
+ * for.
+ */
+int xpost_font_face_code_glyph_name(void *face, unsigned int code,
+                                    char *buf, int len);
+
+/**
  * @brief Copy the name of the given glyph into buf (nul-terminated).
  * Returns 0 on a nameless glyph or a face without glyph names.
  */

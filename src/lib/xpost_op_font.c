@@ -1580,11 +1580,14 @@ int _findfont(Xpost_Context *ctx,
                 unsigned int i;
                 unsigned int nnames = 1; /* .notdef */
                 unsigned int oldmode;
+                int symbolic = xpost_font_face_is_symbol_encoded(data.face);
 
                 for (i = 0; xpost_font_face_std_name_at(data.face, i,
                                                         &snm, &gi); i++)
                     if (gi)
                         nnames++;
+                if (symbolic)
+                    nnames += 256;
 
                 oldmode = ctx->vmmode;
                 ctx->vmmode = GLOBAL;
@@ -1602,6 +1605,29 @@ int _findfont(Xpost_Context *ctx,
                         continue;
                     ret = xpost_dict_put(ctx, csdict,
                                          xpost_name_cons(ctx, snm),
+                                         xpost_int_cons((integer)gi));
+                }
+                /* A face read through the symbol map answers to none of
+                   those names: its codes are the font's own and reach
+                   their glyphs in the private-use area of the code
+                   space, where no standard name points. What it does
+                   answer to is the point each of its codes reaches a
+                   glyph at, which is the name the encoding of such a
+                   face carries -- so the two say the same thing about
+                   the same glyphs, which is what a program re-encoding
+                   from this dictionary's keys depends on. */
+                for (i = 0; symbolic && !ret && i < 256; i++)
+                {
+                    char cbuf[128];
+
+                    if (!xpost_font_face_code_glyph_name(data.face, i,
+                                                         cbuf, sizeof cbuf))
+                        continue;
+                    gi = xpost_font_face_glyph_index_get(data.face, (char)i);
+                    if (!gi)
+                        continue;
+                    ret = xpost_dict_put(ctx, csdict,
+                                         xpost_name_cons(ctx, cbuf),
                                          xpost_int_cons((integer)gi));
                 }
                 ctx->vmmode = oldmode;
@@ -1721,10 +1747,17 @@ fail:
    The operand is the standard encoding, offered rather than held here
    so that the one array the language defines is the one this reads.
 
-   A face that names no glyphs of its own has no encoding to give.
-   Its codes still reach glyphs, through the character map, but nothing
-   at the end of that is a name; this answers null and the caller's
-   standard encoding stands.
+   A face that names no glyphs of its own has no encoding to give, and
+   this answers null so that the caller's standard encoding stands --
+   with one exception. A face read through the symbol map states an
+   encoding without naming a glyph: its codes are the font's own and
+   reach their glyphs in the private-use area of the code space, where
+   none of the standard names points. The standard encoding is then a
+   statement about that font which is not true, and what is put at each
+   code instead is the point its own character map reaches the glyph
+   at, spelled the way a name resolves back to a glyph here -- the same
+   name the glyph complement beside it is published under, so the two
+   agree about the same glyphs.
 
    Where the face does name its glyphs, what it says depends on what
    kind of font program it is, because the two kinds keep their
@@ -1775,12 +1808,14 @@ int _faceencoding(Xpost_Context *ctx,
     Xpost_Object enc;
     unsigned int oldmode;
     int istt;
+    int named;
     int departs = 0;
     int c;
 
+    named = face ? xpost_font_face_glyph_name_count(face) != 0 : 0;
     if (!face
      || stdenc.comp_.sz != 256
-     || !xpost_font_face_glyph_name_count(face))
+     || (!named && !xpost_font_face_is_symbol_encoded(face)))
     {
         if (!xpost_stack_push(ctx->lo, ctx->os, null))
             return stackoverflow;
@@ -1798,7 +1833,7 @@ int _faceencoding(Xpost_Context *ctx,
         names[c] = xpost_array_get(ctx, stdenc, c);
         gids[c] = 0;
 
-        if (!istt)
+        if (!istt && named)
         {
             char sbuf[128];
             Xpost_Object sstr;
@@ -1828,7 +1863,10 @@ int _faceencoding(Xpost_Context *ctx,
         }
 
         gi = xpost_font_face_glyph_index_get(face, (char)c);
-        if (gi && xpost_font_face_glyph_name_get(face, gi, nbuf, sizeof nbuf))
+        if (gi && (xpost_font_face_glyph_name_get(face, gi, nbuf, sizeof nbuf)
+                || (!named
+                 && xpost_font_face_code_glyph_name(face, (unsigned int)c,
+                                                    nbuf, sizeof nbuf))))
         {
             ctx->vmmode = GLOBAL;
             names[c] = xpost_object_cvlit(xpost_name_cons(ctx, nbuf));
@@ -1838,7 +1876,7 @@ int _faceencoding(Xpost_Context *ctx,
             gids[c] = gi;
             departs = 1;
         }
-        else if (istt)
+        else if (istt || !named)
             names[c] = xpost_object_cvlit(name_dotnotdef);
     }
 
