@@ -4392,12 +4392,14 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     ++ctx->namebind_gen;
     ctx->es_over = ctx->os_over = ctx->ds_over = 0;
     ctx->onerr_run = 0;
-    /* the one cache outside virtual memory the image restore cannot reach
-       and whose key the restore invalidates: a procedure/Type-3 glyph mask
-       is keyed by a font serial minted in virtual memory, which the restore
-       reverts, so a later job could mint the same serial and be answered an
-       earlier job's glyph. Drop those masks (FreeType-face glyphs are kept:
-       their key is the face pointer, which does not revert). */
+    /* the one cache outside virtual memory whose key a job can choose: a
+       procedure/Type-3 glyph mask is keyed by the serial the font
+       dictionary carries under .fontid, and a font dictionary is the
+       program's to write. Two jobs presenting one serial over different
+       glyph descriptions would otherwise share the entries filed under it,
+       and the second would be answered the first job's glyph. Drop those
+       masks (FreeType-face glyphs are kept: their key is the face pointer,
+       which nothing a program writes decides). */
     xpost_font_mask_cache_flush();
 }
 

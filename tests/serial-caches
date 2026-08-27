@@ -41,7 +41,11 @@ counter _region_serial_next src/lib/xpost_dev_generic.c _newregionserial
 counter _form_serial_next   src/lib/xpost_op_path.c     _newformserial
 
 # The glyph masks a procedure or Type 3 font paints through, filed under
-# the font's serial folded into the entry's second key.
+# the serial folded into the entry's second key. The counter mints that
+# serial, but it is stamped into the font dictionary and a font dictionary
+# is the program's to write, so this is the one cache here whose key a job
+# can also choose -- which is why the job boundary flushes it as well
+# (xpost_font_mask_cache_flush), over and above the restart below.
 cache gcache_hash  src/lib/xpost_font.c        _fontserial_next    xpost_mask_cache_clear       opaque
 
 # The resolved spans of a clip region, filed under the region's serial.
