@@ -3446,7 +3446,13 @@ systemdict /NOFACES known not {
         erasepage
         gsave
         /SbProbe findfont 20 scalefont setfont
-        newpath 8 20 moveto (A) show
+        % Far enough in that neither probe can be clipped by an edge: the
+        % glyph moves by the difference between the sidebearing named and
+        % the one the face drew it with, so a face with a large left
+        % bearing puts the sb-0 probe LEFT of the pen, and the sb-500 one
+        % ten pixels right of that. Both have to land inside the square
+        % this reads, whichever face the platform substitutes.
+        newpath 20 20 moveto (A) show
         grestore
         /sbcol 64 def
         0 1 63 {
@@ -3463,6 +3469,9 @@ systemdict /NOFACES known not {
     << /A [ 0 400 ] >> sbleft /sb0col exch def
     << /A [ 500 400 ] >> sbleft /sb500col exch def
     sb0col 64 lt (the probe glyph reached the page) assert
+    sb500col 64 lt (the moved probe glyph is still inside the square read) assert
+    sb0col 0 gt (the probe glyph is not against the left edge, where a
+                 clipped one would read as column zero) assert
     sb500col sb0col sub 500 0.02 mul sub abs 1.5 lt
         (a Metrics sidebearing moves the glyph show paints) assert
     << /A [ 0 400 ] >> sbleft pop (A) stringwidth pop /sbw exch def
