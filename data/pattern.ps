@@ -559,15 +559,28 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  Paint the current path with the pattern colour: the path becomes the
 %  clip and the pattern tiles across it.
 %
+%  The walk goes through the bracket, because the cells it steps run the
+%  program's paint procedure and that procedure may raise. The graphics
+%  state opened here holds the caller's clip and the caller's path, and
+%  the walk replaces both -- the clip with the region the cells are cut
+%  to, the path with whatever a cell was building. An error carrying
+%  past this point without the close would leave those in force: the
+%  program catches the error (PLRM 3.11.1 leaves it free to), carries on
+%  painting, and paints through a clip that is one fill's spans and no
+%  part of its own state. Closing it here puts the caller's state back
+%  however the walk ends, and the error goes on to the caller.
+%
 /.patternfill {  % -  .  -
     false //.patterndevfill exec not {
-        gsave
-        flattenpath
-        false //.fillsubjparts exec
-        //.clippartsmeet exec
-        //.patternclip exec
-        //.patterntile exec
-        grestore
+        {
+            gsave
+            flattenpath
+            false //.fillsubjparts exec
+            //.clippartsmeet exec
+            //.patternclip exec
+            //.patterntile exec
+            grestore
+        } null 0 //.callout exec
     } if
     newpath
 } def
@@ -577,13 +590,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 /.patterneofill {  % -  .  -
     true //.patterndevfill exec not {
-        gsave
-        flattenpath
-        true //.fillsubjparts exec
-        //.clippartsmeet exec
-        //.patternclip exec
-        //.patterntile exec
-        grestore
+        {
+            gsave
+            flattenpath
+            true //.fillsubjparts exec
+            //.clippartsmeet exec
+            //.patternclip exec
+            //.patterntile exec
+            grestore
+        } null 0 //.callout exec
     } if
     newpath
 } def

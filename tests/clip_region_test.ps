@@ -385,6 +385,61 @@ gsave
     105 105 inkat not (a fill inside the gsave stays inside its own clip) assert
 grestore
 
+% --- the clip a caught error in a paint procedure leaves in force -----
+% A pattern's cells are painted by a procedure of the program's, and a
+% program's procedure may fail. PLRM 3.11.1 leaves the program free to
+% catch what one of its own raises and go on painting, so an error that
+% escapes a paint procedure and is caught around the painting operator is
+% a way that operator ends, as returning is.
+%
+% The tiling puts the region it is about to paint in force as the clip,
+% under a graphics state opened over the caller's. Left open, that state
+% is what everything painted afterwards is painted in: the clip is then
+% one fill's spans and no part of the clip the program set, and the rest
+% of the page is cut to nothing -- a failure whose only evidence is the
+% marks that never appear.
+%
+% Where the error is caught is what the case turns on. A paint procedure
+% that catches its own never lets one out, the walk finishes, and there is
+% nothing left open -- which is the second half below, so that a run
+% passing the first for want of ever raising cannot read as this being
+% held.
+
+initgraphics erasepage
+/gp0 graphicsdict /gptr get def
+{ << /PatternType 1 /PaintType 1 /TilingType 1
+     /BBox [0 0 8 8] /XStep 8 /YStep 8
+     /PaintProc { pop 0 setgray 0 0 4 4 rectfill
+                  /deliberate-fault cvx exec } >>
+  matrix makepattern setpattern
+  100 100 200 200 boxpath fill } stopped
+(an error inside a paint procedure reaches the program) assert
+graphicsdict /gptr get gp0 eq
+(and leaves no graphics state of the tiling's open behind it) assert
+clippath pathbbox
+/qy1 exch def /qx1 exch def /qy0 exch def /qx0 exch def
+qx0 0 (the clip afterwards is the program's own at its left edge) assertnear
+qy0 0 (and at its bottom edge) assertnear
+qx1 300 (and at its right edge, not the fill's) assertnear
+qy1 300 (and at its top edge, not the fill's) assertnear
+0 setgray 20 20 60 60 boxpath fill
+50 50 inkat (so a fill after the caught error marks the page) assert
+
+% and the procedure that catches its own error: the walk finishes, its
+% cells are on the page, and what is painted next is painted where it was
+initgraphics erasepage
+{ << /PatternType 1 /PaintType 1 /TilingType 1
+     /BBox [0 0 8 8] /XStep 8 /YStep 8
+     /PaintProc { pop 0 setgray 0 0 4 4 rectfill
+                  { /deliberate-fault cvx exec } stopped pop } >>
+  matrix makepattern setpattern
+  100 100 200 200 boxpath fill } stopped not
+(a paint procedure catching its own error does not fail the fill) assert
+106 106 inkat (and the cells it painted are on the page) assert
+0 setgray 20 20 60 60 boxpath fill
+50 50 inkat (with a fill afterwards marking the page as well) assert
+initgraphics
+
 % --- a region painted in pieces covers what one fill covers -----------
 % The rule two device regions meet by is stated at .regionmeet, and this
 % is the case that settles a boundary question about it. A tiling pattern
