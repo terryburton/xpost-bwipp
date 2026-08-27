@@ -90,6 +90,22 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 .xpost_DSCWRITE /.registersep undef
 
 %
+%  No pattern construct either. This document is LanguageLevel 1, which
+%  has no pattern operator and no pattern colour space, so there is
+%  nothing for a reader of it to be handed a cell and a name for. The
+%  class this one copies offers both, and a copy carries what it was
+%  copied from, so the offer is withdrawn here: left standing, it would
+%  put a cell and a paint naming it into a program whose prolog defines
+%  neither. The pattern is decomposed into the fills it resolves to
+%  instead, which is the route every device without the construct has.
+%
+.xpost_DSCWRITE /PatternOverlap undef
+.xpost_DSCWRITE /PatternCell undef
+.xpost_DSCWRITE /FillPattern undef
+.xpost_DSCWRITE /.patterntell undef
+.xpost_DSCWRITE /.patterntake undef
+
+%
 %  A paint states its colour only where the stream does not carry it
 %  already, and what this stream carries is not what a PDF one does. The
 %  prolog defines G over g, RG over rg and K over k, so the operators a

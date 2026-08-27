@@ -170,6 +170,28 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
+%  What is known about a cell being captured, kept where the program
+%  cannot take it back.
+%
+%  A cell is captured by running the paint procedure, which is the
+%  program's, and a program may bracket one in save and restore. restore
+%  reverts local virtual memory wholesale (PLRM 3.7.2), so a flag parked
+%  there while the procedure runs is reverted with it and the capture
+%  would be trusted on the strength of a note the procedure erased. This
+%  dictionary is global, which restore leaves alone.
+%
+%  /incell says a capture is running, and /spoiled that something in it
+%  cannot be carried. The cells below are what spoils one: a pattern's
+%  space is fixed against the page when the pattern is instantiated, so a
+%  pattern painted inside a cell is anchored to the page and not to the
+%  cell around it, and marks made under it belong to coordinates the cell
+%  is not written in. There is nothing wrong with the marks; they are
+%  simply not the cell's. So the capture is dropped and the cells are
+%  walked, which places every one of them against the page.
+%
+.xpostsys /.cellstate << /incell false /spoiled false >> put
+
+%
 %  Tile the current pattern colour over the current clip region: every
 %  cell whose pattern-space step position meets the region's box runs
 %  the pattern's paint procedure under the pattern space translated to
@@ -182,6 +204,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  with this procedure's own dictionary on the stack behind it.
 %
 /.patterntile {  % -  .  -
+    //.cellstate /incell get { //.cellstate /spoiled true put } if
     {
     16 dict begin
     /pat graphicsdict /currgstate get /patdict get def
@@ -308,17 +331,244 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
+%  Whether the cell reaches no further than the step between cells.
+%
+%  PLRM Table 4.9 lets XStep and YStep differ from the BBox, and a step
+%  shorter than the box is a tiling whose cells overlap. A construct
+%  whose tile is its step cannot say that -- what falls outside the tile
+%  is where the next one begins -- and says so of itself
+%  (/PatternOverlap); those patterns are painted by the walk below.
+%
+/.patternfits {  % pat  .  bool
+    4 dict begin
+    /p exch def
+    /b p /BBox get def
+    b 2 get b 0 get sub abs p /XStep get abs le
+    b 3 get b 1 get sub abs p /YStep get abs le and
+    end
+} def
+
+%
+%  Whether the pattern in force reaches the device as a pattern, rather
+%  than as the cells this file steps over the region.
+%
+%  A format with a tiling construct of its own holds the cell once and
+%  tiles it over whatever the paint covers, so what the output carries
+%  does not grow with the area painted. The cells stepped here do: one
+%  shape per cell, and a cell for every step across the region. So where
+%  a device offers the construct, the pattern goes that way.
+%
+%  What it asks of the pattern is that it is a tiling pattern (PLRM
+%  4.9.1) -- a shading pattern paints a gradient across the whole region
+%  and has no cell to hold -- and of the device that it would take the
+%  path being painted whole, since what it is handed is that path and a
+%  colour. A device answering no to either is painted by the walk below,
+%  as it always has been.
+%
+/.patterndevice {  % pat  .  bool
+    DEVICE /FillPattern known
+    DEVICE /PatternCell known and
+    DEVICE /.patterntell known and
+    DEVICE /.patterntake known and
+    DEVICE /PatternOverlap known and {
+        dup /PatternType get 1 eq {
+            DEVICE /PatternOverlap get
+            { pop true }{ //.patternfits exec } ifelse
+        }{ pop false } ifelse
+        //.devtakespath exec and
+    }{ pop false } ifelse
+} def
+
+%
+%  Capture the current pattern's cell as the device's own content and
+%  file it there, answering the name a paint refers to it by.
+%
+%  The device is handed device coordinates, so the transformation in
+%  force during the capture is what decides the coordinates the cell is
+%  written in, and the pattern space then travels to the device as a
+%  matrix beside the cell rather than as the coordinates themselves. It
+%  is a scaling and a shift and nothing else: the cell is written square
+%  to its own axes whatever the pattern space does with it, which is what
+%  lets the two steps go over as the program stated them.
+%
+%  The shift puts the cell's box at the origin. What the box is against
+%  is the corner the cell is stepped from, and a construct that says
+%  where its tile begins says it from that corner; a cell written about
+%  the pattern space's origin instead would have to carry the offset to
+%  it in every such statement.
+%
+%  The scale is the pattern space's own. A coordinate written into the
+%  cell then carries what a coordinate written into the page carries: a
+%  cell captured at unit scale under a pattern space that magnifies
+%  would be written to a precision the magnification afterwards
+%  multiplies, and the cell would land off the grid the rest of the page
+%  is on. The larger of the two axis scales is taken, so neither axis is
+%  the coarser for it.
+%
+%  The clip in force is the cell's box with room around it. It is a
+%  rectangle so that what the paint procedure draws reaches the device
+%  whole rather than resolved against a region; and it is wider than the
+%  box because what falls outside the box is the consumer's to cut, the
+%  format requiring the cell to be clipped to it (PLRM 4.9.2, and the
+%  same of the construct written out).
+%
+/.patterncell {  % -  .  n true | false
+    16 dict begin
+    count /n0 exch def
+    /pat graphicsdict /currgstate get /patdict get def
+    /pm pat /Implementation get def
+    /bb pat /BBox get def
+    /bx0 bb 0 get bb 2 get 2 copy gt { exch } if pop def
+    /bx1 bb 0 get bb 2 get 2 copy lt { exch } if pop def
+    /by0 bb 1 get bb 3 get 2 copy gt { exch } if pop def
+    /by1 bb 1 get bb 3 get 2 copy lt { exch } if pop def
+    /sc pm 0 get dup mul pm 1 get dup mul add sqrt
+       pm 2 get dup mul pm 3 get dup mul add sqrt
+       2 copy lt { exch } if pop def
+
+    % A pattern space that collapses has no scale to write the cell at,
+    % and one that magnifies past what a coordinate can carry has no
+    % useful one; the walk below paints those.
+    sc 0 gt sc 1e30 lt and {
+        /cm [ sc 0 0 sc bx0 sc mul neg by0 sc mul neg ] def
+        DEVICE dup /.patterntell get exec
+    }{ false } ifelse
+    {
+        /at exch def
+        /d0 countdictstack def
+
+        % What a capture running inside this one was told, put back
+        % however this one ends: the outer capture is the one still
+        % standing, and what spoiled this one did not spoil that.
+        /wasin //.cellstate /incell get def
+        /wasbad //.cellstate /spoiled get def
+        //.cellstate /incell true put
+        //.cellstate /spoiled false put
+        {
+            {
+                gsave
+                cm setmatrix
+
+                % the cell's box with room around it, installed as the
+                % region and handed over as the shape as well, so a
+                % paint that does reach the edge reaches the device as a
+                % path and a clip rather than as spans
+                /mx bx1 bx0 sub dup 0 le { pop 1 } if def
+                /my by1 by0 sub dup 0 le { pop 1 } if def
+                newpath
+                bx0 mx sub by0 my sub moveto
+                bx1 mx add by0 my sub lineto
+                bx1 mx add by1 my add lineto
+                bx0 mx sub by1 my add lineto
+                closepath
+                graphicsdict /currgstate get /currpath get
+                [ graphicsdict /currgstate get /currpath get .copypath false ]
+                //.setclipregion exec
+                newpath
+
+                % An uncoloured pattern's cells take the colour set
+                % beneath them (PLRM Table 4.9), which is painted into
+                % the cell here: the cell filed is the cell in that
+                % colour, and the same pattern in another colour files
+                % another cell. A coloured pattern's procedure sets its
+                % own (the colour is reset first, so a procedure that
+                % paints without setting one cannot re-enter the tiling).
+                pat /PaintType get 2 eq {
+                    graphicsdict /currgstate get /patbase get
+                    dup null ne {
+                        setcolorspace
+                        graphicsdict /currgstate get /patcomps get
+                        dup null ne { aload pop setcolor }{ pop } ifelse
+                    }{ pop 0 setgray } ifelse
+                }{
+                    0 setgray
+                } ifelse
+
+                % The paint procedure runs on the caller's stacks: its
+                % defs are its own, out of this dict's names.
+                pat dup /PaintProc get
+                null 1 //.pcallout exec
+                grestore
+            } null 0 //.callout exec
+        } stopped {
+            % The capture is open and holds part of a cell, which is not
+            % the page's content and must not be left in it; the
+            % dictionaries and operands the failure left behind go with
+            % it, and the caller is handed the failure it was owed.
+            countdictstack d0 sub { end } repeat
+            count n0 sub dup 0 gt { { pop } repeat }{ pop } ifelse
+            at false DEVICE dup /.patterntake get exec pop
+            //.cellstate /incell wasin put
+            //.cellstate /spoiled wasbad put
+            end
+            stop
+        } if
+        count n0 sub dup 0 gt { { pop } repeat }{ pop } ifelse
+        /bad //.cellstate /spoiled get def
+        at bad not DEVICE dup /.patterntake get exec /chunks exch def
+        //.cellstate /incell wasin put
+        //.cellstate /spoiled wasbad put
+        bad {
+            % nothing filed: the cells are walked instead
+            end false
+        }{
+        [ 0 0 bx1 bx0 sub sc mul by1 by0 sub sc mul ]
+        pat /XStep get sc mul
+        pat /YStep get sc mul
+        pat /TilingType get
+        cm matrix invertmatrix pm matrix concatmatrix
+        chunks
+        DEVICE dup /PatternCell get exec
+        end true
+        } ifelse
+    }{ end false } ifelse
+} def
+
+%
+%  Hand the fill to the device as a pattern, and say whether it went.
+%
+%  What the device is given is the path being painted and the cell,
+%  which is what the construct is: a colour a fill is made in. So the
+%  clip goes over the same way a fill of any other colour's does, and
+%  the rule the path is read under travels with it.
+%
+/.patterndevfill {  % evenodd  .  bool
+    graphicsdict /currgstate get /patdict get
+    dup null eq { pop pop false }{
+    //.patterndevice exec {
+        % A fill that cannot reach the region marks nothing. The walk
+        % below arrives at the same blank by resolving the fill against
+        % the region and finding no span to paint; here the consumer
+        % would be handed a fill and a clip that cancel and carry both
+        % to reach it, so the question is asked outright.
+        .clipmisses { pop flushpage true }{
+        //.patterncell exec {
+            exch graphicsdict /currgstate get /.eorule 3 -1 roll put
+            //.devsendclip exec
+            DEVICE dup /FillPattern get exec
+            graphicsdict /currgstate get /.eorule false put
+            true //.setpagemarked exec
+            flushpage
+            true
+        }{ pop false } ifelse
+        } ifelse
+    }{ pop false } ifelse } ifelse
+} def
+
+%
 %  Paint the current path with the pattern colour: the path becomes the
 %  clip and the pattern tiles across it.
 %
 /.patternfill {  % -  .  -
-    gsave
-    flattenpath
-    false //.fillsubjparts exec
-    //.clippartsmeet exec
-    //.patternclip exec
-    //.patterntile exec
-    grestore
+    false //.patterndevfill exec not {
+        gsave
+        flattenpath
+        false //.fillsubjparts exec
+        //.clippartsmeet exec
+        //.patternclip exec
+        //.patterntile exec
+        grestore
+    } if
     newpath
 } def
 
@@ -326,13 +576,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  The same, under the even-odd rule.
 %
 /.patterneofill {  % -  .  -
-    gsave
-    flattenpath
-    true //.fillsubjparts exec
-    //.clippartsmeet exec
-    //.patternclip exec
-    //.patterntile exec
-    grestore
+    true //.patterndevfill exec not {
+        gsave
+        flattenpath
+        true //.fillsubjparts exec
+        //.clippartsmeet exec
+        //.patternclip exec
+        //.patterntile exec
+        grestore
+    } if
     newpath
 } def
 end

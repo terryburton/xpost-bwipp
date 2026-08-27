@@ -271,6 +271,34 @@ answer dscwrite set:DeviceCMYK,DeviceRGB,Process data/dscwrite.ps
     given.
 disposition settled
 
+question PatternOverlap pdfwrite svgwrite
+    Whether the tiling construct this writer has can hold a cell larger
+    than the step between cells. PLRM Table 4.9 lets XStep and YStep
+    differ from the BBox, and a step shorter than the box is a tiling
+    whose cells overlap; data/pattern.ps reads this before it captures a
+    cell, and hands the pattern to the walk that steps the cells where
+    the answer is no.
+    There is no family answer, and it is not a property of the device so
+    much as of the format it writes: two formats that both have a tiling
+    construct need not have the same one, and the question is asked of
+    the construct each has. A device with no such construct is asked
+    nothing and states nothing.
+family per-device
+answer pdfwrite true data/pdfwrite.ps
+    The construct states the step and the cell's box as separate
+    entries, and says of them that they may differ (PDF 8.7.3.1), so a
+    cell reaching past its step is expressible.
+    This stops being true if the writer stops emitting XStep and YStep
+    from the pattern's own entries.
+answer svgwrite false data/svgwrite.ps
+    The tile of the construct SVG has is its step: the element states
+    one width and one height, and what falls outside them is where the
+    next tile begins (SVG 1.1 13.3). So a cell overlapping its
+    neighbours cannot be written as one.
+    This stops being true if the format gains a way to state a tile and
+    a spacing separately.
+disposition settled
+
 question .groundvaries bgr jpeg pbm pgm png pngalpha ppm raster tiff record
     Whether the row this device shows over a row of the page it holds no
     pixel of is the same row whatever the row is. A class storing the
@@ -567,6 +595,8 @@ method .bandwrite bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .begindoc dscwrite pdfwrite
 method .emitdevpath dscwrite pdfwrite svgwrite
 method .pathelems dscwrite pdfwrite svgwrite
+method .patterntake pdfwrite svgwrite
+method .patterntell pdfwrite svgwrite
 method BlendPix bgr jpeg pbm pgm png pngalpha ppm raster tiff record
 method .claimdoc dscwrite pdfwrite
 method ClipPath dscwrite pdfwrite svgwrite
@@ -601,6 +631,7 @@ method FillPath bbox dscwrite pdfwrite svgwrite
     does not grow with the device grid the polygon route resolves an
     even-odd interior against. Raster devices scan-convert polygons and
     have no use for the path itself.
+method FillPattern pdfwrite svgwrite
 method FillPoly every
 method FillRect every
 method Flush bgr raster record
@@ -615,9 +646,12 @@ method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage dscwrite pdfwrite svgwrite
 method PaintStencil dscwrite pdfwrite svgwrite
+method PatternCell pdfwrite svgwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
 method .pdfoverprint dscwrite pdfwrite
+method .pdfresources dscwrite pdfwrite
+method .pdfsame dscwrite pdfwrite
 method .playmake record
 method .pushcolor bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .put dscwrite pdfwrite svgwrite
@@ -646,8 +680,10 @@ method .strcat dscwrite pdfwrite
 method .streamdefaults dscwrite pdfwrite
 method .streamreset dscwrite pdfwrite
 method StrokePath dscwrite pdfwrite svgwrite
+method .svgfull svgwrite
 method .svgnum svgwrite
 method .svgrgb svgwrite
+method .svgsame svgwrite
 method .t0build dscwrite pdfwrite
 method .t4build dscwrite pdfwrite
 method .takecolor bgr jpeg pbm pgm png pngalpha ppm raster tiff
@@ -701,6 +737,7 @@ state OutputFileName every
 state .pdffillcolor dscwrite pdfwrite
 state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
+state .pdfpatterns dscwrite pdfwrite
 state .pdfstrokecolor dscwrite pdfwrite
 state .playclass record
 state .playdev record
@@ -711,6 +748,7 @@ state Private bgr dscwrite jpeg pdfwrite png pngalpha raster svgwrite record
 state r svgwrite
 state .svgids svgwrite
 state .svgmasks svgwrite
+state .svgpatterns svgwrite
 state .vecticket dscwrite pdfwrite
 state w dscwrite pdfwrite svgwrite
 state width every

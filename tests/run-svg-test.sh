@@ -146,5 +146,79 @@ echo "$(sed -n 's/.*<mask id="xm0"\([^!]*\)<\/mask>.*/\1/p' "$c")" | grep -q '<p
 sed -n 's/.*<mask id="xm0"\([^!]*\)<\/mask>.*/\1/p' "$c" | grep -q '<image' \
     && fail "the mask holds a raster, which a viewer is not required to read"
 
+# --- a tiling pattern goes out as the pattern SVG has for it ----------
+#
+# SVG 1.1 13.3 has the construct the language has (PLRM 4.9): a pattern
+# element holding the cell, tiled by the reader over whatever the fill
+# covers. Without it the interpreter steps the cells itself and the
+# document carries a shape per cell, so what it weighs grows with the
+# area filled -- 1,200 of them for the fill below.
+#
+# The tile is the step, and that is also this construct's limit: a cell
+# larger than its step overlaps its neighbours, which one width and one
+# height cannot say, so those keep the route they had.
+#
+# The last half is that the cell is written once however many fills name
+# it, and that an uncoloured pattern (PLRM Table 4.9 PaintType 2) in two
+# colours is two cells, the colour being painted into the cell.
+d=$tmp/d.svg
+cat > "$tmp/d.ps" <<'DEOF'
+<< /PageSize [400 500] >> setpagedevice
+/pat <<
+  /PatternType 1 /PaintType 1 /TilingType 1
+  /BBox [0 0 10 10] /XStep 10 /YStep 10
+  /PaintProc { pop 1 0 0 setrgbcolor 1 1 8 8 rectfill }
+>> matrix makepattern def
+/upat <<
+  /PatternType 1 /PaintType 2 /TilingType 1
+  /BBox [0 0 10 10] /XStep 10 /YStep 10
+  /PaintProc { pop 0 0 moveto 10 10 lineto 0 10 lineto closepath fill }
+>> matrix makepattern def
+/Pattern setcolorspace pat setpattern
+20 20 moveto 320 20 lineto 320 420 lineto 20 420 lineto closepath fill
+% the same pattern again: one element, not two
+30 430 moveto 200 430 lineto 200 480 lineto 30 480 lineto closepath fill
+[/Pattern /DeviceRGB] setcolorspace
+0 0 1 upat setcolor
+330 20 moveto 390 20 lineto 390 200 lineto 330 200 lineto closepath fill
+0 1 0 upat setcolor
+330 220 moveto 390 220 lineto 390 400 lineto 330 400 lineto closepath fill
+showpage
+DEOF
+"$xpost" -q -d svgwrite -o "$d" "$tmp/d.ps" </dev/null >/dev/null 2>&1
+[ -s "$d" ] || fail "the SVG writer emitted nothing for a pattern"
+grep -q '<pattern id="xp0" patternUnits="userSpaceOnUse"' "$d" \
+    || fail "the tiling pattern went out as the cells the interpreter steps rather than as the pattern element SVG has for exactly this"
+np=$(grep -o '<pattern id="xp' "$d" | wc -l | tr -d ' ')
+[ "$np" = 3 ] || fail "expected 3 pattern elements -- one coloured pattern used twice, and one uncoloured pattern in two colours -- saw $np"
+nu=$(grep -o 'fill="url(#xp' "$d" | wc -l | tr -d ' ')
+[ "$nu" = 4 ] || fail "expected 4 fills naming a pattern, saw $nu"
+grep -q 'fill="url(#xp0)"[^>]*d="M20 480L320 480L320 80L20 80Z"' "$d" \
+    || fail "the pattern fill is not one path naming the pattern"
+# the cell is clipped to its box, which the tile is not: a step wider
+# than the box would otherwise let the tile show what the box excludes
+grep -q '<clipPath id="xb0"><rect x="0" y="0" width="10" height="10"/></clipPath>' "$d" \
+    || fail "the cell is not clipped to the box PLRM 4.9.2 clips it to"
+# and the document does not carry the cells: a shape per cell would be
+# 1,200 paths for the first fill alone
+ndp=$(grep -c '<path' "$d")
+[ "$ndp" -le 12 ] || fail "the pattern fills went out as $ndp paths, which is the cells stepped rather than the pattern named"
+
+# A cell larger than its step overlaps its neighbours, and one width and
+# one height cannot say that: those keep the route they had.
+e=$tmp/e.svg
+cat > "$tmp/e.ps" <<'EEOF'
+<< /PageSize [200 200] >> setpagedevice
+<< /PatternType 1 /PaintType 1 /TilingType 1
+   /BBox [0 0 20 20] /XStep 8 /YStep 8
+   /PaintProc { pop 1 0.5 0 setrgbcolor 0 0 20 3 rectfill } >> matrix makepattern
+/Pattern setcolorspace setpattern
+20 20 moveto 180 20 lineto 180 180 lineto 20 180 lineto closepath fill
+showpage
+EEOF
+"$xpost" -q -d svgwrite -o "$e" "$tmp/e.ps" </dev/null >/dev/null 2>&1
+[ -s "$e" ] || fail "the SVG writer emitted nothing for an overlapping pattern"
+grep -q '<pattern' "$e" && fail "a cell larger than its step was written as a tile, which states one width and one height and cannot say the cells overlap"
+
 echo SUCCESS
 exit 0

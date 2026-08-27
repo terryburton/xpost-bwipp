@@ -3993,6 +3993,27 @@ typedef struct
        one: a string per piece is virtual memory taken and given back on
        the hot path of every mark on the page. */
     Xpost_String_Buffer pend;
+    /* The substream in progress, and whether there is one. A pattern's
+       cell is a content stream of its own (PDF 8.7.3.1) built with the
+       marking methods that build the page, so it is captured out of the
+       page's own buffer; the record has to answer for the cell while
+       that lasts. A stream nothing has been written into carries
+       nothing, so the slots are emptied for the capture and brought
+       back after: a writer that suppressed an operator against what the
+       page carries would leave the cell relying on state the cell's own
+       stream never states.
+
+       One capture at a time. A cell captured inside a cell would be
+       written in the outer cell's coordinates while the pattern space
+       the inner one was instantiated in says otherwise, and refusing it
+       here is what makes that true wherever a capture is reached
+       from -- the caller then tiles the cells itself, which is the
+       route every device without this has. */
+    int insub;
+    size_t subat;               /* where in the content the cell starts */
+    int subdepth;
+    int subover;
+    Pdf_Gs_Slot subslot[XPOST_PDF_GS_SLOTS];
 } Pdf_Gs;
 
 typedef struct
@@ -4330,6 +4351,116 @@ static int _pdfrestore(Xpost_Context *ctx, Xpost_Object devdic)
         return ret;
     if (!_pdf_acc_put(ctx, priv, &a))
         return VMerror;
+    return 0;
+}
+
+/* .pdfsubbegin  % devdic  .  n true | false
+   .pdfsubend    % n devdic  .  [str ...]
+
+   Open and close a content stream captured out of the page's own
+   accumulator. A tiling pattern's cell is a stream of its own (PDF
+   8.7.3.1) written with the same marking methods the page is written
+   with, so it is written where they write and lifted out again
+   afterwards: .pdfsubbegin answers where the cell starts, and
+   .pdfsubend answers with the bytes from there to the end as
+   <=65535-byte strings (the PostScript string limit) and winds the
+   content back so the page reads as though the cell had never been
+   written into it.
+
+   What the record of the stream's graphics state carries goes with
+   them: the cell's stream starts carrying nothing, and what the page
+   carried is back in force once the cell is out. See Pdf_Gs.
+
+   .pdfsubbegin answers false rather than refusing when there is no
+   accumulator to capture out of, or a capture already open: the caller
+   then paints the cells itself, which is the route a device without
+   these has. */
+static int _pdfsubbegin(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a) || !_pdf_gs_of(ctx, priv, &a))
+    {
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+    if (a.gs->insub)
+    {
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+    a.gs->insub = 1;
+    a.gs->subat = a.content.len;
+    a.gs->subdepth = a.gs->depth;
+    a.gs->subover = a.gs->over;
+    memcpy(a.gs->subslot, a.gs->level[a.gs->depth].slot,
+           sizeof(a.gs->subslot));
+    memset(&a.gs->level[a.gs->depth], 0, sizeof(a.gs->level[0]));
+    a.gs->over = 0;
+    a.gs->pend.len = 0;
+    /* the record hangs off the accumulator by pointer, so what it holds
+       is written where it lives and the struct needs no storing back */
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons((integer)a.gs->subat));
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
+    return 0;
+}
+
+static int _pdfsubend(Xpost_Context *ctx, Xpost_Object at, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, result;
+    size_t pos, start, len;
+    int nchunks, i, ret;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+
+    /* Where the cell started is read off the record and not off the
+       operand: the two are the same number, and the one the capture
+       itself wrote is the one that cannot have been altered between
+       the calls. The operand stands in only for a capture this never
+       opened, where winding back to it is the caller's own statement
+       of what to discard. */
+    start = a.gs->insub ? a.gs->subat : (size_t)(at.int_.val < 0 ? 0 : at.int_.val);
+    if (start > a.content.len)
+        start = a.content.len;
+    len = a.content.len - start;
+
+    if (a.gs->insub)
+    {
+        a.gs->depth = a.gs->subdepth;
+        a.gs->over = a.gs->subover;
+        memcpy(a.gs->level[a.gs->depth].slot, a.gs->subslot,
+               sizeof(a.gs->subslot));
+        a.gs->insub = 0;
+    }
+    a.gs->pend.len = 0;
+
+    nchunks = (int)((len + 65534) / 65535);
+    if (nchunks == 0)
+        nchunks = 1;
+    result = xpost_object_cvlit(xpost_array_cons(ctx, nchunks));
+    pos = start;
+    for (i = 0; i < nchunks; i++)
+    {
+        size_t chunk = a.content.len - pos;
+        if (chunk > 65535)
+            chunk = 65535;
+        ret = xpost_array_put(ctx, result, i,
+                              xpost_object_cvlit(
+                                  xpost_string_cons(ctx, chunk,
+                                                    a.content.s + pos)));
+        if (ret)
+            return ret;
+        pos += chunk;
+    }
+    a.content.len = start;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    xpost_stack_push(ctx->lo, ctx->os, result);
     return 0;
 }
 
@@ -4787,6 +4918,9 @@ static int _pdfreset(Xpost_Context *ctx, Xpost_Object devdic)
         a.gs->depth = 0;
         a.gs->over = 0;
         a.gs->pend.len = 0;
+        /* a page whose capture never closed -- an error out of a paint
+           procedure caught by the job -- ends with it */
+        a.gs->insub = 0;
     }
     if (!_pdf_acc_put(ctx, priv, &a))
         return VMerror;
@@ -5046,6 +5180,9 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfsave", (Xpost_Op_Func)_pdfsave, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfrestore", (Xpost_Op_Func)_pdfrestore, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfsubbegin", (Xpost_Op_Func)_pdfsubbegin, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfsubend", (Xpost_Op_Func)_pdfsubend, 2,
+            integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfchunks", (Xpost_Op_Func)_pdfchunks, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdffree", (Xpost_Op_Func)_pdffree, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".devinstalled", (Xpost_Op_Func)_devinstalled, 1, dicttype); INSTALL;

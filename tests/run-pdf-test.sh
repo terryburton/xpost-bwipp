@@ -556,3 +556,115 @@ grep -aq '/Decode \[1 0\]' "$maskpdf" || {
     exit 1; }
 rm -f "$maskpdf"
 echo "stencil emission and reuse OK"
+
+# --- a tiling pattern goes out as the pattern PDF has for it ---
+#
+# PDF 8.7.3.1 has the construct the language has (PLRM 4.9): a /Pattern
+# resource holding the cell as a content stream of its own, tiled by the
+# consumer over whatever the paint covers. Without it the interpreter
+# steps the cells itself and the page carries a shape per cell, so what
+# the document weighs grows with the area painted -- the fill below is
+# 1,200 cells, and twice the area is twice the document. The resource is
+# the same size whatever it covers.
+#
+# What is measured is that growth and not a byte count: the page is
+# painted twice over, once at each of two areas, and a document that
+# carries the cells rather than naming them grows between the two.
+#
+# The second half is what says the construct is reused rather than
+# restated. One pattern painted in two places is one resource; and an
+# uncoloured pattern (PLRM Table 4.9 PaintType 2) painted in two colours
+# is two, the colour being painted into the cell rather than left to the
+# space the cell is used in.
+patps=$(mktemp)
+patpdf=./pat-$$.pdf
+patbig=./patbig-$$.pdf
+trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf" "$statps" "$statpdf" "$patps" "$patpdf" "$patbig"' EXIT INT TERM
+patprog() {   # $1 the half-width of the pattern fill
+cat <<PEOF
+<< /PageSize [400 500] >> setpagedevice
+<< /CompressPages false >> setdistillerparams
+/pat <<
+  /PatternType 1 /PaintType 1 /TilingType 1
+  /BBox [0 0 10 10] /XStep 10 /YStep 10
+  /PaintProc { pop 1 0 0 setrgbcolor 1 1 8 8 rectfill }
+>> matrix makepattern def
+/upat <<
+  /PatternType 1 /PaintType 2 /TilingType 1
+  /BBox [0 0 10 10] /XStep 10 /YStep 10
+  /PaintProc { pop 0 0 moveto 10 10 lineto 0 10 lineto closepath fill }
+>> matrix makepattern def
+/Pattern setcolorspace pat setpattern
+20 20 moveto $1 20 lineto $1 420 lineto 20 420 lineto closepath fill
+% the same pattern again: one resource, not two
+30 430 moveto 200 430 lineto 200 480 lineto 30 480 lineto closepath fill
+[/Pattern /DeviceRGB] setcolorspace
+0 0 1 upat setcolor
+330 20 moveto 390 20 lineto 390 200 lineto 330 200 lineto closepath fill
+0 1 0 upat setcolor
+330 220 moveto 390 220 lineto 390 400 lineto 330 400 lineto closepath fill
+showpage
+PEOF
+}
+patprog 320 > "$patps"
+run_xpost "the pattern run" -d pdfwrite -o "$patpdf" "$patps"
+patprog 160 > "$patps"
+run_xpost "the half-area pattern run" -d pdfwrite -o "$patbig" "$patps"
+rm -f "$patps"
+
+[ -s "$patpdf" ] || { echo "FAIL: the PDF writer emitted nothing for a pattern"; exit 1; }
+grep -aq '/PatternType 1' "$patpdf" || {
+    echo "FAIL: the tiling pattern went out as the cells the interpreter"
+    echo "      steps rather than as the /Pattern resource PDF 8.7.3.1 has"
+    echo "      for exactly this"
+    exit 1; }
+grep -aq '/Pattern cs /P0 scn' "$patpdf" || {
+    echo "FAIL: no paint in the /Pattern colour space names a resource"
+    exit 1; }
+npat=$(grep -ac '/Type /Pattern' "$patpdf")
+[ "$npat" = 3 ] || {
+    echo "FAIL: expected 3 pattern objects -- one coloured pattern used"
+    echo "      twice, and one uncoloured pattern in two colours -- saw $npat"
+    exit 1; }
+grep -aqE '/Pattern << /P0 [0-9]+ 0 R /P1 [0-9]+ 0 R /P2 [0-9]+ 0 R >>' "$patpdf" || {
+    echo "FAIL: the page's Resources do not name the three patterns its"
+    echo "      content refers to"
+    exit 1; }
+# the cell is the cell and nothing more: a resource holding the stepped
+# cells would carry a shape per cell here too
+patlen=$(sed -n 's:.*/PatternType 1 .*/Length \([0-9]*\).*:\1:p' "$patpdf" | head -1)
+case $patlen in
+    '' | *[!0-9]*) echo "FAIL: no pattern stream length to read"; exit 1 ;;
+esac
+[ "$patlen" -lt 400 ] || {
+    echo "FAIL: the pattern cell is $patlen bytes; the paint procedure it"
+    echo "      holds draws one rectangle"
+    exit 1; }
+# and the document does not grow with the area the pattern covers
+whole=$(wc -c < "$patpdf")
+half=$(wc -c < "$patbig")
+[ "$((whole - half))" -lt 64 ] && [ "$((half - whole))" -lt 64 ] || {
+    echo "FAIL: the same page over twice the area is $whole bytes against"
+    echo "      $half -- the cells are in the document rather than named"
+    exit 1; }
+echo "tiling pattern emission and reuse OK ($whole bytes over 1200 cells)"
+
+# A shading pattern (PLRM 4.9.1 type 2) has no cell to hold: it paints a
+# gradient across the whole region and travels the route it always has.
+shpps=$(mktemp)
+cat > "$shpps" <<'SEOF'
+<< /PageSize [200 200] >> setpagedevice
+<< /PatternType 2 /Shading << /ShadingType 2 /ColorSpace /DeviceRGB
+   /Coords [20 20 180 180]
+   /Function << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 0 1] /N 1 >>
+   /Extend [true true] >> >> matrix makepattern
+/Pattern setcolorspace setpattern
+20 20 moveto 180 20 lineto 180 180 lineto 20 180 lineto closepath fill
+showpage
+SEOF
+run_xpost "the shading-pattern run" -d pdfwrite -o "$patpdf" "$shpps"
+rm -f "$shpps"
+grep -aq '/Type /Pattern' "$patpdf" && {
+    echo "FAIL: a shading pattern was filed as a tiling pattern's cell"
+    exit 1; }
+echo "shading pattern keeps its route OK"

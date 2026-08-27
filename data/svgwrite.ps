@@ -48,6 +48,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /VectorGlyphs true   % Text operators emit glyph outlines, not bitmaps
     /VectorSyntax /svg   % ... spelled as SVG path data
 
+    % Whether the tiling construct this writer has can hold a cell larger
+    % than the step between cells -- overlapping cells, which PLRM Table
+    % 4.9 allows by letting XStep and YStep differ from the BBox. SVG's
+    % tile is its step: the element states one width and one height, and
+    % what falls outside them is what the next tile begins (SVG 1.1
+    % 13.3). So a pattern whose cell overlaps its neighbours cannot be
+    % written as one, and the interpreter steps those cells itself.
+    /PatternOverlap false
+
     /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
@@ -79,6 +88,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         setglobal
         .svgids /clipid 0 put
         .svgids /maskid 0 put
+        .svgids /patid 0 put
 
         % The clipPath last written and the region it was written for, so
         % that a run of shapes under one clip refers to the one element
@@ -87,6 +97,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         .svgids /clipser 0 put
         .svgids /clipfor 0 put
         /.svgmasks 64 dict def  % masks already written, so a repeated glyph is written once
+        /.svgpatterns 0 array def  % tiling cells already written as pattern elements
     currentdict
     } //.indict exec } bind
 
@@ -468,6 +479,180 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         (\)"/></g>\n) .put
     } //.indict exec }
 
+    % A tiling pattern reaches a reader as the format's own construct: a
+    % pattern element holding the cell, and a fill naming it (SVG 1.1
+    % 13.3). What the document carries is then the cell, once, however
+    % much of the page the pattern covers -- where a writer stepping the
+    % cells itself carries a shape per cell, and the document grows with
+    % the area.
+    %
+    % The cell is captured out of this device's own accumulator, since
+    % the marking methods that write the page are the ones that write the
+    % cell: .patterntell says where the cell starts and .patterntake
+    % lifts back out what was written since, leaving the page's content
+    % as it was. The interpreter runs the paint procedure between the two
+    % (data/pattern.ps).
+    %
+    % What .patterntell answers is a token of this device's own making,
+    % handed back to .patterntake and read by nobody in between. Beside
+    % where the cell starts it holds what the page was mid-use of, all of
+    % which the cell must be kept out of: an element the cell writes ends
+    % up inside the pattern element rather than beside the page's own, so
+    % the page may not go on referring to it, and one the page wrote is
+    % not the cell's to refer to either. The identity counters are the
+    % exception and keep running, since what they hand out has to stay
+    % unique across the whole document wherever the element lands.
+    /.patterntell {  % IMAGE  .  token true | false
+    {
+        currentdict //.internaldict /.pdfsubbegin get exec {
+            [ exch .svgmasks
+              .svgids /clipser get .svgids /clipfor get
+              currentdict /.svgclipopen 2 copy known
+                  { get }{ pop pop false } ifelse ]
+            /.svgmasks 64 dict def
+            .svgids /clipser 0 put
+            .svgids /clipfor 0 put
+            true
+        }{ false } ifelse
+    } //.indict exec } bind
+
+    /.patterntake {  % token keep IMAGE  .  [str ...]
+    {
+        pop                                     % Whether it is kept
+        dup 0 get                               % Token at
+        currentdict
+        //.internaldict /.pdfsubend get exec    % Token chunks
+        exch                                    % Chunks token
+        dup 1 get /.svgmasks exch def
+        dup 2 get .svgids exch /clipser exch put
+        dup 3 get .svgids exch /clipfor exch put
+        4 get /.svgclipopen exch def
+    } //.indict exec } bind
+
+    % Write a captured cell as a pattern element and answer the number
+    % the fills naming it refer to it by.
+    %
+    % The same cell written twice is one element: a page painting one
+    % pattern in several places captures it once per paint -- the capture
+    % is what says two are the same -- and an element per paint would put
+    % the cell in the document as many times as it is used.
+    %
+    % The tile is the step, which is what this format has: x and y put
+    % the tile where the cell's box is and width and height carry it to
+    % the next one. The box itself is enforced by a clip of its own,
+    % because a step wider than the box would otherwise let the tile show
+    % what the box excludes -- the language clips a cell to its box (PLRM
+    % 4.9.2) and the tile is not that rectangle.
+    /PatternCell {  % bbox xstep ystep tilingtype matrix chunks IMAGE  .  n
+    {
+        {svchunks svmat svtt svys svxs svbb}{exch def}forall
+
+        % The spacing PLRM Table 4.9 names as TilingType is taken and
+        % not written: it says how far a reader may move a cell to keep
+        % the spacing even, and this format's element gives a reader
+        % nowhere to be told that.
+
+        % The spacing is a distance, and a negative step describes the
+        % same tiling walked the other way (PLRM Table 4.9); a tile has
+        % an extent and not a direction.
+        /svxs svxs abs def
+        /svys svys abs def
+        /svlen 0 def svchunks { length svlen add /svlen exch def } forall
+        /svhit -1 def
+        0 1 .svgpatterns length 1 sub {
+            /svi exch def
+            svhit 0 lt {
+                /svc .svgpatterns svi get def
+                svc /len get svlen eq
+                svc /xs get svxs eq and
+                svc /ys get svys eq and {
+                    svc /bb get svbb .svgsame
+                    { svc /mat get svmat .svgsame }{ false } ifelse
+                    { svc /chunks get svchunks .svgsame }{ false } ifelse
+                        { /svhit svc /id get def } if
+                } if
+            } if
+        } for
+        svhit 0 lt {
+            /svhit .svgids /patid get def
+            .svgids /patid svhit 1 add put
+            /.svgpatterns [ .svgpatterns aload pop
+                << /bb svbb /xs svxs /ys svys /mat svmat
+                   /chunks svchunks /len svlen /id svhit >> ] def
+
+            % The cell's box, as the clip the tile's content is drawn
+            % through. It is written beside the pattern element rather
+            % than inside it because what a clip path holds is read where
+            % it is referred from.
+            (<clipPath id="xb) .put svhit 20 string cvs .put
+            ("><rect x=") .put svbb 0 get .svgfull
+            (" y=") .put svbb 1 get .svgfull
+            (" width=") .put svbb 2 get svbb 0 get sub .svgfull
+            (" height=") .put svbb 3 get svbb 1 get sub .svgfull
+            ("/></clipPath>\n) .put
+
+            (<pattern id="xp) .put svhit 20 string cvs .put
+            (" patternUnits="userSpaceOnUse" x=") .put svbb 0 get .svgfull
+            (" y=") .put svbb 1 get .svgfull
+            (" width=") .put svxs .svgfull
+            (" height=") .put svys .svgfull
+            (" patternTransform="matrix\() .put
+            svmat 0 get .svgfull (,) .put svmat 1 get .svgfull (,) .put
+            svmat 2 get .svgfull (,) .put svmat 3 get .svgfull (,) .put
+            svmat 4 get .svgfull (,) .put svmat 5 get .svgfull
+            (\)"><g clip-path="url\(#xb) .put svhit 20 string cvs .put (\)">\n) .put
+            svchunks { .put } forall
+            (</g></pattern>\n) .put
+        } if
+        svhit
+    } //.indict exec } bind
+
+    % A number at the accumulator's full precision, where .svgnum's two
+    % decimals are not enough: a pattern's matrix is a scale, and a
+    % coordinate written through it is out by whatever the matrix was
+    % rounded by, once per cell across the page.
+    /.svgfull {  % num  .  -
+        //.internaldict /.pdfnumstr get exec .put
+    } bind
+
+    % Whether two arrays hold the same things, element by element. What
+    % it is asked of is a written cell and a fresh one: strings compare
+    % by what they hold, so two captures of one paint procedure answer
+    % the same cell however many times it was run.
+    /.svgsame {  % a b  .  bool
+        2 copy length exch length eq {
+            /.sseq true def
+            0 1 2 index length 1 sub {
+                /.ssi exch def
+                .sseq {
+                    2 copy .ssi get exch .ssi get eq not
+                        { /.sseq false def } if
+                } if
+            } for
+            pop pop .sseq
+        }{ pop pop false } ifelse
+    } bind
+
+    % Paint the current path in a written cell: one path element naming
+    % the pattern, under the rule in force -- the same walk a fill of a
+    % plain colour takes, so a pattern fill keeps its curves as one does.
+    /FillPattern {  % n IMAGE  .  -
+    {
+        (<path fill="url\(#xp) .put 20 string cvs .put (\)" fill-rule=) .put
+        graphicsdict /currgstate get /.eorule 2 copy known
+            { get }{ pop pop false } ifelse
+            { ("evenodd") }{ ("nonzero") } ifelse .put
+        ( d=") .put
+        .emitdevpath pop
+        ("/>\n) .put
+
+        % a clip adopted for this fill ends with it
+        currentdict /.svgclipopen 2 copy known { get }{ pop pop false } ifelse {
+            (</g>\n) .put
+            /.svgclipopen false def
+        } if
+    } //.indict exec } bind
+
     % r g b IMAGE . -  ; fill the current path as one path element with
     % curves preserved (the flattening fill goes through FillPoly
     % instead), subpaths closed implicitly by the nonzero fill rule --
@@ -617,6 +802,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % the one starting, so nothing may refer to it again
         currentdict /.svgids get /clipser 0 put
         currentdict /.svgids get /clipfor 0 put
+
+        % nor may a fill on the page starting name a pattern element
+        % written into the one just emitted
+        currentdict /.svgids get /patid 0 put
+        /.svgpatterns 0 array def
     } //.indict exec }
 >> def
 

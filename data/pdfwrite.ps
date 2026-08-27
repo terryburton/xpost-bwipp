@@ -100,6 +100,13 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /NoOutput true  % Keep this device's own vector FillPoly (no rasterizing)
     /VectorGlyphs true  % Text operators emit glyph outlines, not bitmaps
 
+    % Whether the tiling construct this writer has can hold a cell larger
+    % than the step between cells -- overlapping cells, which PLRM Table
+    % 4.9 allows by letting XStep and YStep differ from the BBox. PDF
+    % states the step and the box separately and says so of them (PDF
+    % 8.7.3.1), so it can.
+    /PatternOverlap true
+
     /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
@@ -115,6 +122,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
         /.pdfimages 0 array def
         /.pdfmasks 64 dict def  % masks already filed, so a repeated glyph files once
+        /.pdfpatterns 0 array def  % tiling cells filed as /Pattern resources
         /.opused 8 dict def   % Overprint states used on this page -> ExtGState entries
 
         % first content op: the device matrix mapping device coords to PDF
@@ -313,6 +321,155 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /.qrestore {  % -  .  -
         currentdict //.internaldict /.pdfrestore get exec
     } bind
+
+    % A tiling pattern reaches a consumer as the format's own construct:
+    % a /Pattern resource holding the cell as a content stream of its
+    % own, and a paint in the /Pattern colour space naming it (PDF
+    % 8.7.3.1). What the document carries is then the cell, once, however
+    % much of the page the pattern covers -- where a writer stepping the
+    % cells itself carries a shape per cell, and the page grows with the
+    % area.
+    %
+    % The cell is captured out of this device's own accumulator, since
+    % the marking methods that write the page are the ones that write the
+    % cell: .patterntell says where the cell starts and .patterntake
+    % lifts back out what was written since, leaving the page's content
+    % as it was. The interpreter runs the paint procedure between the two
+    % (data/pattern.ps), under the coordinates the cell is written in.
+    %
+    % .patterntell answers false where there is nothing to capture into,
+    % or a capture is already open -- a cell captured inside a cell would
+    % be written in the outer cell's coordinates -- and the interpreter
+    % then steps the cells itself.
+    %
+    % What .patterntell answers is a token of this device's own making,
+    % handed back to .patterntake and read by nobody in between. Beside
+    % where the cell starts it holds what the page had filed when the
+    % capture opened, because a cell may file more than its bytes: an
+    % image it draws is an XObject and an overprint it sets is an
+    % ExtGState entry, and a capture the interpreter then drops would
+    % leave the page declaring resources nothing on it refers to. So
+    % .patterntake is told whether the capture is being kept, and puts
+    % those back where it is not.
+    %
+    % The clip a fill adopts is put back either way. It says a q stands
+    % in the stream awaiting the Q the fill's own emission writes, and
+    % the q of a fill made inside the cell is in the cell's stream: left
+    % standing, it would have the page's next fill write a Q against a q
+    % that is no longer there.
+    /.patterntell {  % IMAGE  .  token true | false
+    {
+        currentdict //.internaldict /.pdfsubbegin get exec {
+            [ exch .pdfimages .pdfmasks dup length dict copy
+              .opused dup length dict copy
+              currentdict /.pdfclipopen 2 copy known
+                  { get }{ pop pop false } ifelse ]
+            true
+        }{ false } ifelse
+    } //.indict exec } bind
+
+    /.patterntake {  % token keep IMAGE  .  [str ...]
+    {
+        exch                                    % Keep token
+        dup 0 get                               % Keep token at
+        currentdict
+        //.internaldict /.pdfsubend get exec    % Keep token chunks
+        3 1 roll                                % Chunks keep token
+        exch not {
+            /.pdfimages 1 index 1 get def
+            /.pdfmasks 1 index 2 get def
+            /.opused 1 index 3 get def
+        } if
+        /.pdfclipopen exch 4 get def
+    } //.indict exec } bind
+
+    % File a captured cell for this page and answer the number the
+    % content refers to it by.
+    %
+    % The same cell filed twice is one resource. A page painting one
+    % pattern in several places captures it once per paint -- the
+    % capture is what says two are the same -- and a resource per paint
+    % would put the cell in the document as many times as it is used.
+    %
+    % Keyed on the bytes and on every parameter of the tiling, each
+    % compared in full: a resource is those bytes under those
+    % parameters, so two agreeing throughout are one and two differing
+    % anywhere are two. An uncoloured pattern's colour is among the
+    % bytes, having been painted into the cell, so one pattern used in
+    % two colours files as two cells.
+    /PatternCell {  % bbox xstep ystep tilingtype matrix chunks IMAGE  .  n
+    {
+        {pcchunks pcmat pctt pcys pcxs pcbb}{exch def}forall
+
+        % The matrix arrives as the mapping from the coordinates the
+        % cell was written in to the device's, and PDF wants the mapping
+        % to the default space of the stream the pattern is used in (PDF
+        % 8.7.3.1). The page's content sets its own matrix as its first
+        % operator, which is a change within the stream and not part of
+        % that default space, so the same flip is composed here.
+        /pcmat pcmat [ 1 0 0 -1 0 height ] matrix concatmatrix def
+        /pclen 0 def pcchunks { length pclen add /pclen exch def } forall
+        /pchit -1 def
+        0 1 .pdfpatterns length 1 sub {
+            /pci exch def
+            pchit 0 lt {
+                /pcc .pdfpatterns pci get def
+                pcc /len get pclen eq
+                pcc /tt get pctt eq and
+                pcc /xs get pcxs eq and
+                pcc /ys get pcys eq and {
+                    pcc /bb get pcbb .pdfsame
+                    { pcc /mat get pcmat .pdfsame }{ false } ifelse
+                    { pcc /chunks get pcchunks .pdfsame }{ false } ifelse
+                    { /pchit pci def } if
+                } if
+            } if
+        } for
+        pchit 0 lt {
+            /pchit .pdfpatterns length def
+            /.pdfpatterns [ .pdfpatterns aload pop
+                << /bb pcbb /xs pcxs /ys pcys /tt pctt /mat pcmat
+                   /chunks pcchunks /len pclen >> ] def
+        } if
+        pchit
+    } //.indict exec } bind
+
+    % Whether two arrays hold the same things, element by element. What
+    % it is asked of is a filed cell and a fresh one: strings compare by
+    % what they hold, so two captures of one paint procedure answer the
+    % same cell however many times it was run.
+    /.pdfsame {  % a b  .  bool
+        2 copy length exch length eq {
+            /.pseq true def
+            0 1 2 index length 1 sub {
+                /.psi exch def
+                .pseq {
+                    2 copy .psi get exch .psi get eq not
+                        { /.pseq false def } if
+                } if
+            } for
+            pop pop .pseq
+        }{ pop pop false } ifelse
+    } bind
+
+    % Paint the current path in a filed cell: the /Pattern colour space
+    % and the resource's name (PDF 8.7.3.1), then the path itself and
+    % the fill operator the rule in force asks for -- the same walk a
+    % fill of a plain colour takes, so a pattern fill keeps its curves
+    % as one does.
+    /FillPattern {  % n IMAGE  .  -
+    {
+        .pdfoverprint
+        (/Pattern cs /P) .sput 20 string cvs .sput ( scn\n) .sput
+        .gsfill .send pop
+        currentdict //.internaldict /.pdffillpath get exec
+
+        % a clip adopted for this fill ends with it
+        currentdict /.pdfclipopen 2 copy known { get }{ pop pop false } ifelse {
+            .qrestore
+            /.pdfclipopen false def
+        } if
+    } //.indict exec } bind
 
     % Overprint reaches a consumer as an ExtGState selection and by no
     % other route, so a stream with nothing written into it is already in
@@ -914,6 +1071,65 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } ifelse
     } //.indict exec }
 
+    % The resources the content refers to, as the body of a /Resources
+    % dictionary. It is written for the page and again for every pattern
+    % on it, because a pattern's cell is a content stream of its own and
+    % what the cell refers to it refers to from there (PDF 8.7.3.1): a
+    % cell drawing an image, painting in a separation or setting an
+    % overprint names the objects the page names, and both are written
+    % from here so the two cannot come apart.
+    %
+    % Whether the patterns themselves are named is the caller's to say. A
+    % pattern's own resources name none, since a cell captured inside a
+    % cell is refused (.patterntell) and no cell's content can therefore
+    % refer to one.
+    %
+    % It runs with the device current, from .emitpage, and reads the
+    % counts and object numbers that method worked out.
+    /.pdfresources {  % withpatterns  .  -
+        /prpat exch def
+        nseps 0 gt {
+            ( /ColorSpace <<) .vw
+            0 1 nseps 1 sub {
+                /si exch def
+                ( /CS) .vw si 20 string cvs .vw ( [) .vw
+                si currentdict //.internaldict /.pdfsepget get exec pop .vw
+                ( ) .vw //.vecout /sobj get si get 20 string cvs .vw ( 0 R]) .vw
+            } for
+            ( >>) .vw
+        } if
+        nimg 0 gt {
+            ( /XObject <<) .vw
+            0 1 nimg 1 sub {
+                /ii exch def
+                ( /Im) .vw ii 20 string cvs .vw
+                ( ) .vw imgobjs ii get 20 string cvs .vw ( 0 R) .vw
+            } for
+            ( >>) .vw
+        } if
+        .opused length 0 gt {
+            ( /ExtGState <<) .vw
+            .opused {
+                exch ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
+                aload pop                                   % Op mode
+                ( /OPM ) .vw 20 string cvs .vw              % Consume mode
+                ( /OP ) .vw dup { (true) }{ (false) } ifelse .vw
+                ( /op ) .vw { (true) }{ (false) } ifelse .vw
+                ( >>) .vw
+            } forall
+            ( >>) .vw
+        } if
+        prpat npat 0 gt and {
+            ( /Pattern <<) .vw
+            0 1 npat 1 sub {
+                /prj exch def
+                ( /P) .vw prj 20 string cvs .vw
+                ( ) .vw patobjs prj get 20 string cvs .vw ( 0 R) .vw
+            } for
+            ( >>) .vw
+        } if
+    } bind
+
     % A showpage emits the page, and one writer writes it either way.
     %
     % Without a %d in the output name the pages accumulate into the one file
@@ -1059,6 +1275,44 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             ( >>\nstream\n) .vw imc { .vw } forall (\nendstream\nendobj\n) .vw
         } for
 
+        % This page's pattern objects. Every number is taken before any
+        % of them is written, because each pattern carries the page's own
+        % resources and those name the objects standing beside it.
+        /npat .pdfpatterns length def
+        /patobjs npat array def
+        0 1 npat 1 sub { patobjs exch .nextobj put } for
+        0 1 npat 1 sub {
+            /pti exch def
+            /pte .pdfpatterns pti get def
+            /pto patobjs pti get def
+            pto .recordoff
+            % Held uncompressed where the page's own content is
+            % (CompressPages, a distiller parameter): a cell is content
+            % stream text as the page is, so a document asked for
+            % readable is readable throughout.
+            flated {
+                pte /chunks get //.internaldict /.flatecompress get exec
+                /ptf exch def /ptc exch def
+            }{
+                /ptf false def /ptc pte /chunks get def
+            } ifelse
+            /ptlen 0 def ptc { length ptlen add /ptlen exch def } forall
+            pto 20 string cvs .vw ( 0 obj\n) .vw
+            (<< /Type /Pattern /PatternType 1 /PaintType 1 /TilingType ) .vw
+            pte /tt get 20 string cvs .vw
+            ( /BBox [) .vw
+            pte /bb get { .pdfnumstr .vw ( ) .vw } forall
+            (] /XStep ) .vw pte /xs get .pdfnumstr .vw
+            ( /YStep ) .vw pte /ys get .pdfnumstr .vw
+            ( /Matrix [) .vw
+            pte /mat get { .pdfnumstr .vw ( ) .vw } forall
+            (] /Resources <<) .vw
+            false .pdfresources
+            ( >> /Length ) .vw ptlen 20 string cvs .vw
+            ptf { ( /Filter /FlateDecode) .vw } if
+            ( >>\nstream\n) .vw ptc { .vw } forall (\nendstream\nendobj\n) .vw
+        } for
+
         % The page object, referencing the content, every registered
         % separation and this page's images; its parent is the page tree.
         /pgobj .nextobj def
@@ -1066,37 +1320,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         pgobj 20 string cvs .vw ( 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ) .vw
         ws .vw ( ) .vw hs .vw (] /Contents ) .vw coobj 20 string cvs .vw
         ( 0 R /Resources <<) .vw
-        nseps 0 gt {
-            ( /ColorSpace <<) .vw
-            0 1 nseps 1 sub {
-                /si exch def
-                ( /CS) .vw si 20 string cvs .vw ( [) .vw
-                si currentdict //.internaldict /.pdfsepget get exec pop .vw
-                ( ) .vw //.vecout /sobj get si get 20 string cvs .vw ( 0 R]) .vw
-            } for
-            ( >>) .vw
-        } if
-        nimg 0 gt {
-            ( /XObject <<) .vw
-            0 1 nimg 1 sub {
-                /ii exch def
-                ( /Im) .vw ii 20 string cvs .vw
-                ( ) .vw imgobjs ii get 20 string cvs .vw ( 0 R) .vw
-            } for
-            ( >>) .vw
-        } if
-        .opused length 0 gt {
-            ( /ExtGState <<) .vw
-            .opused {
-                exch ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
-                aload pop                                   % Op mode
-                ( /OPM ) .vw 20 string cvs .vw              % Consume mode
-                ( /OP ) .vw dup { (true) }{ (false) } ifelse .vw
-                ( /op ) .vw { (true) }{ (false) } ifelse .vw
-                ( >>) .vw
-            } forall
-            ( >>) .vw
-        } if
+        true .pdfresources
         ( >> >>\nendobj\n) .vw
 
         % record the page in the tree's Kids list and bump the count
@@ -1107,6 +1331,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         .streamreset
         /.pdfimages 0 array def
         /.pdfmasks 64 dict def
+        /.pdfpatterns 0 array def
         /.opused 8 dict def
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
     } //.indict exec } bind
