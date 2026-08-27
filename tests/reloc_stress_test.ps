@@ -9,8 +9,10 @@
 %
 % Sites covered: dictionary rehash (dicgrow), string-to-name conversion
 % (cvn), encoded number strings (.numstring2array through uappend), path
-% construction and filling (.fillpolyargs), and image blitting
-% (.blitrow) on a raster device.
+% construction and filling (.fillpolyargs), image blitting (.blitrow) on
+% a raster device, and the string transfers between a program and a
+% stream a procedure stands behind (readstring, readline, readhexstring,
+% writestring, writehexstring).
 
 
 % --- dictionary growth across relocations ---
@@ -65,5 +67,123 @@ patherr not (repeated path fills survive relocation) assert
     grestore
 } for } stopped { /imgerr true store } if
 imgerr not (repeated images survive relocation) assert
+
+% --- string transfers over a stream a procedure stands behind ---
+% Every byte crossing such a stream runs the interpreter, and the
+% procedures below allocate hard while it does, so the string the
+% transfer is filling or emptying moves under it. A transfer that held a
+% pointer into that string would use the old address for its next byte.
+%
+% The transfers are longer than the buffer an operator stages them
+% through, so each one is made of several stream calls and the string is
+% given the chance to move between them as well as within them.
+
+/churn { 20 { 20000 string pop } repeat } def
+
+% readstring, fed by a source procedure
+/pat (0123456789abcdef) def
+/patblk 512 string def
+0 1 511 { patblk exch dup 16 mod pat exch get put } for
+/srcn 0 def
+/relocsrc {
+    /srcn srcn 1 add def
+    srcn 12 le { churn patblk }{ () } ifelse
+} def
+/rsrc { relocsrc } 0 (\377\376) /SubFileDecode filter def
+/rsbuf 5000 string def
+rsrc rsbuf readstring pop length 5000 eq
+    (a procedure source fills a string across relocations) assert
+/rsok true def
+0 1 4999 {
+    /i exch def
+    rsbuf i get pat i 16 mod get ne { /rsok false store } if
+} for
+rsok (every byte a procedure source supplied arrived intact) assert
+
+% readline, over the same kind of stream
+/xblk 512 string def
+0 1 511 { xblk exch 120 put } for
+/lnn 0 def
+/relocln {
+    /lnn lnn 1 add def
+    lnn 10 le { churn xblk }{ (\n) } ifelse
+} def
+/lsrc { relocln } 0 (\377\376) /SubFileDecode filter def
+/lnbuf 6000 string def
+lsrc lnbuf readline pop
+dup length 5120 eq (a procedure source fills a line across relocations) assert
+/lnok true def
+0 1 5119 {
+    /i exch def
+    dup i get 120 ne { /lnok false store } if
+} for
+pop
+lnok (every byte of that line arrived intact) assert
+
+% readhexstring, whose bytes are built two digits at a time
+/hpat (4142434445464748) def
+/hexblk 1024 string def
+0 1 1023 { hexblk exch dup 16 mod hpat exch get put } for
+/hxn 0 def
+/relochx {
+    /hxn hxn 1 add def
+    hxn 8 le { churn hexblk }{ () } ifelse
+} def
+/hsrc { relochx } 0 (\377\376) /SubFileDecode filter def
+/hxbuf 4000 string def
+hsrc hxbuf readhexstring pop
+dup length 4000 eq
+    (a procedure source fills a hex string across relocations) assert
+/hxok true def
+0 1 3999 {
+    /i exch def
+    dup i get 65 i 8 mod add ne { /hxok false store } if
+} for
+pop
+hxok (every byte decoded from it arrived intact) assert
+
+% writestring, emptied into a target procedure. The target reports what
+% it was given and hands back a fresh buffer, so the filter comes back
+% for another one every five hundred and twelve bytes.
+/wtcount 0 def
+/wtbad false def
+/reloctgt {
+    pop
+    dup length /wtlen exch def
+    0 1 wtlen 1 sub { 1 index exch get 65 ne { /wtbad true store } if } for
+    pop
+    /wtcount wtcount wtlen add store
+    churn
+    512 string
+} def
+/wtgt { reloctgt } /NullEncode filter def
+/wtdata 5000 string def
+0 1 4999 { wtdata exch 65 put } for
+wtgt wtdata writestring
+wtgt closefile
+wtcount 5000 eq
+    (a procedure target is given every byte written across relocations) assert
+wtbad not (and every byte it was given arrived intact) assert
+
+% writehexstring, which reads the string a byte at a time and writes two
+/whcount 0 def
+/whbad false def
+/relocwh {
+    pop
+    dup length /whlen exch def
+    0 1 whlen 1 sub { 1 index exch get 66 ne { /whbad true store } if } for
+    pop
+    /whcount whcount whlen add store
+    churn
+    512 string
+} def
+/whtgt { relocwh } /NullEncode filter def
+/whdata 3000 string def
+0 1 2999 { whdata exch 187 put } for
+whtgt whdata writehexstring
+whtgt closefile
+whcount 6000 eq
+    (a procedure target is given every hex digit written across relocations) assert
+whbad not (and every digit it was given arrived intact) assert
 
 verdict

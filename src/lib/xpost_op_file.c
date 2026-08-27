@@ -831,6 +831,56 @@ int read_hex_digit( Xpost_File *f, int *p )
     return eof;
 }
 
+/* Bytes cross between a string and a stream through a buffer here
+   rather than through a pointer into the string taken once. A stream
+   may be one a procedure supplies bytes to or takes bytes from, and
+   every byte moved over such a stream runs the interpreter: what the
+   procedure-source reader in xpost_file.c states of the string a
+   procedure hands back holds of the string an operator was given, and
+   an allocation between two stream calls may move it. Each transfer
+   below derives the string's address after the stream call that
+   precedes the copy and drops it before the next, so no pointer into
+   the memory file spans a stream call.
+
+   The buffer is sized for both ends of that: large enough that the
+   extra call into the stream costs a fraction of a percent on a bulk
+   transfer to or from a disk file, and small enough that a procedure
+   which reaches these operators again pays for it at every level of
+   the nesting the interpreter permits. */
+#define XPOST_FILE_XFER 2048
+
+/* Store n staged bytes into the string at off. */
+static
+int _string_fill(Xpost_Context *ctx, Xpost_Object S,
+                 integer off, const char *stage, integer n)
+{
+    char *s;
+
+    if (n <= 0)
+        return 0;
+    s = xpost_string_get_pointer(ctx, S);
+    if (!s)
+        return VMerror;
+    memcpy(s + off, stage, (size_t)n);
+    return 0;
+}
+
+/* Stage n bytes out of the string at off. */
+static
+int _string_drain(Xpost_Context *ctx, Xpost_Object S,
+                  integer off, char *stage, integer n)
+{
+    char *s;
+
+    if (n <= 0)
+        return 0;
+    s = xpost_string_get_pointer(ctx, S);
+    if (!s)
+        return VMerror;
+    memcpy(stage, s + off, (size_t)n);
+    return 0;
+}
+
 /* file string  readhexstring  substring true
                                substring false
    read hex-encoded data from file into string */
@@ -843,7 +893,6 @@ int xpost_op_file_readhexstring (Xpost_Context *ctx,
     int c[2];
     int eof = 0;
     Xpost_File *f;
-    char *s;
     if (!xpost_file_get_status(ctx->lo, F))
     {
         /* a closed file reads as end-of-data rather than erroring */
@@ -860,17 +909,33 @@ int xpost_op_file_readhexstring (Xpost_Context *ctx,
     if (!xpost_object_is_writeable(ctx, S))
         return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
-    s = xpost_string_get_pointer(ctx, S);
 
-    for (n = 0; n < S.comp_.sz; n++)
+    n = 0;
+    while (n < S.comp_.sz)
     {
-        eof = read_hex_digit(f, &c[0]);
-        XPOST_LOG_INFO("read %c", c[0]);
-        if (!eof) eof = read_hex_digit(f, &c[1]);
-        if (eof) break;
-        XPOST_LOG_INFO("read %c", c[1]);
-        s[n] = ((strchr(hex, toupper(c[0])) - hex) << 4)
-             + (strchr(hex, toupper(c[1])) - hex);
+        char stage[XPOST_FILE_XFER];
+        word room = S.comp_.sz - n;
+        word k = 0;
+        int ret;
+
+        if (room > sizeof stage)
+            room = sizeof stage;
+        while (k < room)
+        {
+            eof = read_hex_digit(f, &c[0]);
+            XPOST_LOG_INFO("read %c", c[0]);
+            if (!eof) eof = read_hex_digit(f, &c[1]);
+            if (eof) break;
+            XPOST_LOG_INFO("read %c", c[1]);
+            stage[k++] = ((strchr(hex, toupper(c[0])) - hex) << 4)
+                       + (strchr(hex, toupper(c[1])) - hex);
+        }
+        ret = _string_fill(ctx, S, n, stage, k);
+        if (ret)
+            return ret;
+        n += k;
+        if (eof)
+            break;
     }
     fflush(stdout);
     S.comp_.sz = n;
@@ -888,29 +953,42 @@ int xpost_op_file_writehexstring (Xpost_Context *ctx,
 {
     word n;
     Xpost_File *f;
-    char *s;
     if (!xpost_file_get_status(ctx->lo, F))
         return ioerror;
     if (!xpost_object_is_writeable(ctx, F))
         return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
-    s = xpost_string_get_pointer(ctx, S);
 
-    for (n = 0; n < S.comp_.sz; n++)
+    n = 0;
+    while (n < S.comp_.sz)
     {
-        char h[2];
-        int d;
-        /* char is signed on most platforms; hex is indexed by value */
-        unsigned char b = (unsigned char)s[n];
-        h[0] = hex[b / 16];
-        h[1] = hex[b % 16];
-        d = _divert_output(ctx, f, h, 2);
-        if (d < 0) return ioerror;
-        if (d) continue;
-        if (xpost_file_putc(f, h[0]) == EOF)
-            return ioerror;
-        if (xpost_file_putc(f, h[1]) == EOF)
-            return ioerror;
+        char stage[XPOST_FILE_XFER];
+        word room = S.comp_.sz - n;
+        word k;
+        int ret;
+
+        if (room > sizeof stage)
+            room = sizeof stage;
+        ret = _string_drain(ctx, S, n, stage, room);
+        if (ret)
+            return ret;
+        for (k = 0; k < room; k++)
+        {
+            char h[2];
+            int d;
+            /* char is signed on most platforms; hex is indexed by value */
+            unsigned char b = (unsigned char)stage[k];
+            h[0] = hex[b / 16];
+            h[1] = hex[b % 16];
+            d = _divert_output(ctx, f, h, 2);
+            if (d < 0) return ioerror;
+            if (d) continue;
+            if (xpost_file_putc(f, h[0]) == EOF)
+                return ioerror;
+            if (xpost_file_putc(f, h[1]) == EOF)
+                return ioerror;
+        }
+        n += room;
     }
     return 0;
 }
@@ -925,7 +1003,6 @@ int xpost_op_file_readstring (Xpost_Context *ctx,
 {
     integer n;
     Xpost_File *f;
-    char *s;
     if (!xpost_object_is_readable(ctx,F))
         return invalidaccess;
     /* a zero-length string could hold nothing, so asking to fill one is an
@@ -946,8 +1023,24 @@ int xpost_op_file_readstring (Xpost_Context *ctx,
     if (!xpost_object_is_writeable(ctx, S))
         return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
-    s = xpost_string_get_pointer(ctx, S);
-    n = xpost_file_read(s, 1, S.comp_.sz, f);
+    n = 0;
+    while (n < (integer)S.comp_.sz)
+    {
+        char stage[XPOST_FILE_XFER];
+        integer want = (integer)S.comp_.sz - n;
+        integer got;
+        int ret;
+
+        if (want > (integer)sizeof stage)
+            want = (integer)sizeof stage;
+        got = xpost_file_read(stage, 1, want, f);
+        ret = _string_fill(ctx, S, n, stage, got);
+        if (ret)
+            return ret;
+        n += got;
+        if (got < want)
+            break;
+    }
     /* A decode filter that met data its coding cannot represent latched
        it. That is not a short read: PLRM 3.13 makes corrupt filter input
        an ioerror, so the program is told rather than handed a clean-
@@ -980,21 +1073,42 @@ int xpost_op_file_writestring (Xpost_Context *ctx,
 {
     Xpost_File *f;
     char *s;
+    integer n;
     if (!xpost_file_get_status(ctx->lo, F))
         return ioerror;
     if (!xpost_object_is_writeable(ctx, F))
         return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
     s = xpost_string_get_pointer(ctx, S);
+    if (!s)
+        return VMerror;
     {
+        /* a diverted stream is the process's own output, which no
+           procedure stands behind: the handler is shown the whole
+           string in the one call it expects */
         int d = _divert_output(ctx, f, s, S.comp_.sz);
         if (d < 0) return ioerror;
         if (d) return 0;
     }
-    /* the count written is compared against the string's own length in
-       the wider signed type: a write that answered short answers short */
-    if (xpost_file_write(s, 1, S.comp_.sz, f) != (integer)S.comp_.sz)
-        return ioerror;
+    n = 0;
+    while (n < (integer)S.comp_.sz)
+    {
+        char stage[XPOST_FILE_XFER];
+        integer want = (integer)S.comp_.sz - n;
+        int ret;
+
+        if (want > (integer)sizeof stage)
+            want = (integer)sizeof stage;
+        ret = _string_drain(ctx, S, n, stage, want);
+        if (ret)
+            return ret;
+        /* the count written is compared against what was handed over in
+           the wider signed type: a write that answered short answers
+           short */
+        if (xpost_file_write(stage, 1, want, f) != want)
+            return ioerror;
+        n += want;
+    }
     return 0;
 }
 
@@ -1007,7 +1121,6 @@ int xpost_op_file_readline (Xpost_Context *ctx,
                             Xpost_Object S)
 {
     Xpost_File *f;
-    char *s;
     word n;
     int c = ' ';
     if (!xpost_file_get_status(ctx->lo, F))
@@ -1026,22 +1139,43 @@ int xpost_op_file_readline (Xpost_Context *ctx,
     if (!xpost_object_is_writeable(ctx, S))
         return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
-    s = xpost_string_get_pointer(ctx, S);
-    for (n = 0; n < S.comp_.sz; n++)
+    n = 0;
+    while (n < S.comp_.sz)
     {
-        c = xpost_file_getc(f);
-        if (c == EOF || c == '\n')
-            break;
-        if (c == '\r')
+        char stage[XPOST_FILE_XFER];
+        word room = S.comp_.sz - n;
+        word k = 0;
+        int ended = 0;
+        int ret;
+
+        if (room > sizeof stage)
+            room = sizeof stage;
+        while (k < room)
         {
-            /* CR, LF and CRLF each end the line (PLRM 3.8): consume
-               the whole marker, return the line without it */
-            int c2 = xpost_file_getc(f);
-            if (c2 != '\n' && c2 != EOF)
-                xpost_file_ungetc(f, c2);
-            break;
+            c = xpost_file_getc(f);
+            if (c == EOF || c == '\n')
+            {
+                ended = 1;
+                break;
+            }
+            if (c == '\r')
+            {
+                /* CR, LF and CRLF each end the line (PLRM 3.8): consume
+                   the whole marker, return the line without it */
+                int c2 = xpost_file_getc(f);
+                if (c2 != '\n' && c2 != EOF)
+                    xpost_file_ungetc(f, c2);
+                ended = 1;
+                break;
+            }
+            stage[k++] = c;
         }
-        s[n] = c;
+        ret = _string_fill(ctx, S, n, stage, k);
+        if (ret)
+            return ret;
+        n += k;
+        if (ended)
+            break;
     }
     if (n == S.comp_.sz)
     {
