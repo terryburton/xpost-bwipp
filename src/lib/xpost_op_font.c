@@ -5959,7 +5959,16 @@ int _glyphoutlineidx(Xpost_Context *ctx,
                      Xpost_Object cid,
                      Xpost_Object gidx)
 {
+    /* The index is carried on to the face as an unsigned int, so one
+       that does not fit is refused rather than narrowed, exactly as the
+       route that paints the glyph refuses it. A wide build's integer is
+       wider than that field: narrowed, an index past the top lands back
+       inside the range and names some other glyph, so a character with
+       no glyph is handed the outline and the advance of one that has,
+       with no error to say so. */
     if (gidx.int_.val < 0)
+        return rangecheck;
+    if ((integer)(unsigned int)gidx.int_.val != gidx.int_.val)
         return rangecheck;
     return _glyphoutline_common(ctx, null, 0,
                                 (unsigned int)gidx.int_.val, cid);

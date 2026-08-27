@@ -465,6 +465,33 @@ tr.one tr.two ne (the two are told apart by their ink) check
 4294967298 tr.ink -1 eq
     (and so is the next one) check
 
+% and the outline route asks the same of the index. A glyph is reached
+% by index there too -- charpath appends what the walk would have
+% painted -- so a CID past what the index field holds must be refused on
+% the way to the outline exactly as it is on the way to the raster. The
+% two ends of the range are told apart by the shape of the path: CID 1
+% and CID 2 reach glyphs whose outlines take different numbers of
+% segments, so a CID that aliases one of them is visible as that glyph's
+% path rather than as a refusal.
+/tr.segs { % -  .  count of path elements
+    0 { pop pop 1 add } { pop pop 1 add }
+      { pop pop pop pop pop pop 1 add } { 1 add } pathforall
+} bind def
+/tr.path { % cid  .  segment count, or -1 when refused
+    tr.font
+    { initgraphics newpath 10 20 moveto setfont <00> false charpath tr.segs }
+    stopped { $error /newerror false put clear -1 } if
+} bind def
+/tr.p1 1 tr.path def
+/tr.p2 2 tr.path def
+tr.p1 0 gt (a CID inside the range gives its glyph an outline) check
+tr.p2 0 gt (and a different CID a different outline) check
+tr.p1 tr.p2 ne (the two are told apart by the shape of the path) check
+4294967297 tr.path -1 eq
+    (a CID past the glyph index has no outline either) check
+4294967298 tr.path -1 eq
+    (and neither has the next one) check
+
 % and the font the procedure runs under is the descendant the walk
 % selected. PLRM 8.2 has currentfont answer with "the current descendant
 % base font or CIDFont" while a cshow procedure runs, and rootfont with
