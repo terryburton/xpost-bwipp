@@ -3263,8 +3263,8 @@ test('callback-reentry',
 # one callback that reaches an operator's own gsave, so it is what each is
 # disturbed with.
 test('callback-bracket',
-  find_program('tests/run-ps-test.sh'),
-  args: [ xpost_exe, files('tests/callback_bracket_test.ps') ],
+  find_program('tests/run-device-ps-test.sh'),
+  args: [ xpost_exe, files('tests/callback_bracket_test.ps'), 'pgm' ],
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
@@ -3272,8 +3272,8 @@ test('callback-bracket',
 # itself. That path is reached only by painting somewhere that screens,
 # so this suite is painted on one rather than on the null device.
 test('screen-scope',
-  find_program('tests/run-screen-ps-test.sh'),
-  args: [ xpost_exe, files('tests/screen_scope_test.ps') ],
+  find_program('tests/run-device-ps-test.sh'),
+  args: [ xpost_exe, files('tests/screen_scope_test.ps'), 'pbm' ],
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
@@ -5686,7 +5686,8 @@ test('check-form-facts',
   find_program('tests/check-form-facts.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # PLRM 3.10.1 names three function types. A sampled function's samples
 # are a continuous bit stream with no padding at a byte boundary, as a
@@ -5735,7 +5736,8 @@ test('check-pattern-facts',
   find_program('tests/check-pattern-facts.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # PLRM 4.10.5 defines three image types. An image's samples are a bit
 # stream, as a sampled function's and a mesh shading's vertices are, and
@@ -5748,7 +5750,8 @@ test('check-image-facts',
   find_program('tests/check-image-facts.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # A raster image whose device-space row origin is driven past INT_MAX by a
 # large CTM scale must not spin its device-row loop across the int range:
@@ -5771,7 +5774,8 @@ test('check-font-facts',
   find_program('tests/check-font-facts.sh'),
   priority: guard_priority,
   suite: cost_fast,
-  args: [ meson.current_source_dir(), xpost_exe ])
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
 
 # Where the glyph render may be reached from. The cache keys a raster on
 # the transform and size _face_setup records for the face, and nothing on

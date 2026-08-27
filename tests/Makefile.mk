@@ -515,7 +515,7 @@ tests/run-raster-formats-test.sh \
 tests/run-refusing-target-test.sh \
 tests/run-reloc-stress-test.sh \
 tests/run-render-differ-test.sh \
-tests/run-screen-ps-test.sh \
+tests/run-device-ps-test.sh \
 tests/run-setpagedevice-failure-test.sh \
 tests/run-statementedit-test.sh \
 tests/run-strict-ps-test.sh \

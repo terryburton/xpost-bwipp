@@ -2057,6 +2057,20 @@ setglobal
                         fc /ek load undef
                     } if
                 } if
+
+                % The graphics state opened here is execform's own,
+                % and it holds the recorder standing in for the device.
+                % The grestore written after the capture is not reached
+                % when the paint procedure raises, and the state left
+                % open leaves the recorder current: the rest of the job
+                % paints into a drawing nobody will place, and the page
+                % it meant to make is lost. So the body goes through the
+                % callout bracket, which closes what it opened whichever
+                % way the body ends, and the recorder is given up when it
+                % does not end normally -- what a recorder holds is not
+                % virtual memory and nothing else would give it back.
+                {
+                {
                 gsave
 
                 % What the clip has cut so far: a shape the clip cuts is
@@ -2094,6 +2108,11 @@ setglobal
                 /cuts //.internaldict /.clipcuts get exec def
                 fd //.execformcapture exec
                 grestore
+                } null 0 //.xpostsys /.callout get exec
+                } stopped {
+                    { cap dup /Destroy get exec } stopped pop
+                    stop
+                } if
 
                 % Whether what it painted stays inside the box it
                 % declared. A drawing is placed whole and nothing cuts
