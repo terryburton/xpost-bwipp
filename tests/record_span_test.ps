@@ -221,8 +221,13 @@ gsave
     image
 grestore
 
-% a colour-key mask: samples inside the ranges leave the page alone
+% a colour-key mask: samples inside the ranges leave the page alone.
+% The Decode and MaskColor below name three components, so the space has
+% to hold three: the DeviceGray set for the first image was taken back
+% with its gsave, and an image whose Decode disagrees with the space it
+% is painted in is a rangecheck (PLRM 4.10.5).
 gsave
+    /DeviceRGB setcolorspace
     88 26 translate
     28 20 scale
     << /ImageType 4 /Width 4 /Height 4 /BitsPerComponent 8

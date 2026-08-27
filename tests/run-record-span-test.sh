@@ -205,6 +205,18 @@ for dev in png jpeg; do
 done
 
 if [ "$ran" -eq 0 ]; then
+    # A device that is absent from the build is a skip. A device that is
+    # PRESENT and could not complete the run is a failure, and the notes
+    # above say what it was -- so the skip is only reachable where nothing
+    # has been noted. Exiting 77 here regardless is how this suite came to
+    # report a page it could not paint as a capability the build lacks:
+    # neither red nor green, so nobody looked.
+    if [ "$fail" -ne 0 ]; then
+        echo "FAILURES: no device completed the run, and every device this" \
+             "suite asks for is in the build -- the notes above are the" \
+             "reason, not an absent capability"
+        exit 1
+    fi
     echo "SKIP no device keeping its raster in a buffer of its own is in" \
          "this build"
     exit 77
