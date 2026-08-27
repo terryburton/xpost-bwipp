@@ -87,6 +87,45 @@ static inline int xpost_op_ordered_comparable(Xpost_Object x, Xpost_Object y)
     return (xt == stringtype) && (yt == stringtype);
 }
 
+/**
+ * @brief the bit pattern int1 carries once shifted by count
+ *
+ * PLRM 8.2 has bitshift "shift the binary representation of int1": bits
+ * shifted out are lost and bits shifted in are 0. What moves is the
+ * operand's bit pattern and not its value, which settles the three cases
+ * the value-shaped reading leaves open -- a negative int1 shifts as its
+ * two's-complement pattern (PLRM says only that the result is then not
+ * arithmetically meaningful, not that it is disallowed), a right shift
+ * fills with 0 rather than with the sign, and a count that reaches the
+ * width has carried every bit out and leaves 0.
+ *
+ * The pattern is held unsigned for the shift, so none of it is C's
+ * undefined shifting: a left shift of a negative value, and a count at or
+ * past the type's width, are both undefined on a signed operand. The
+ * width is the integer's, so the answer follows the object width and
+ * nothing else.
+ *
+ * Stated here rather than inside the operator because the procedure
+ * walker reaches the same rule without going through the operator, and
+ * one rule spelt twice is two rules.
+ */
+static inline integer xpost_int_bitshift(integer x, integer count)
+{
+    const integer width = (integer)(sizeof(integer) * 8);
+    dword bits = (dword)x;
+    dword res;
+
+    if (count >= 0)
+        res = (count >= width) ? 0 : (dword)(bits << count);
+    else
+        /* the count is negated only once it is known to lie inside the
+           width, so the most negative count -- which has no positive
+           counterpart -- is answered by the zero above it */
+        res = (count <= -width) ? 0 : (dword)(bits >> -count);
+
+    return (integer)res;
+}
+
 int xpost_oper_init_bool_ops(Xpost_Context *ctx, Xpost_Object sd);
 
 #endif

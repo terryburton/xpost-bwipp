@@ -940,6 +940,55 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
                         goto next_element;
                     }
                 }
+                if (ot >= 2 &&
+                    (w == (unsigned int)XPOST_OP_CODE(ctx, opand) ||
+                     w == (unsigned int)XPOST_OP_CODE(ctx, opor) ||
+                     w == (unsigned int)XPOST_OP_CODE(ctx, opxor) ||
+                     w == (unsigned int)XPOST_OP_CODE(ctx, opbitshift) ||
+                     w == (unsigned int)XPOST_OP_CODE(ctx, opmod) ||
+                     w == (unsigned int)XPOST_OP_CODE(ctx, opidiv)))
+                {
+                    Xpost_Object x_ = os_top->data[ot - 2];
+                    Xpost_Object y_ = os_top->data[ot - 1];
+                    if (xpost_object_get_type(x_) == integertype &&
+                        xpost_object_get_type(y_) == integertype)
+                    {
+                        integer a_ = x_.int_.val;
+                        integer b_ = y_.int_.val;
+                        integer r_;
+                        int have_ = 1;
+
+                        /* the three bitwise operators are total over two
+                           integers, so what they answer is the answer;
+                           the two that divide are not, and the operands
+                           they refuse or answer with a real go back to
+                           the operator rather than being spelt again
+                           here (see xpost_op_math.c). bitshift asks the
+                           rule the operator asks, from where the two
+                           share it (see xpost_op_boolean.h). */
+                        if (w == (unsigned int)XPOST_OP_CODE(ctx, opand))
+                            r_ = a_ & b_;
+                        else if (w == (unsigned int)XPOST_OP_CODE(ctx, opor))
+                            r_ = a_ | b_;
+                        else if (w == (unsigned int)XPOST_OP_CODE(ctx, opxor))
+                            r_ = a_ ^ b_;
+                        else if (w == (unsigned int)XPOST_OP_CODE(ctx, opbitshift))
+                            r_ = xpost_int_bitshift(a_, b_);
+                        else if (b_ == 0 || b_ == -1)
+                            have_ = 0;
+                        else if (w == (unsigned int)XPOST_OP_CODE(ctx, opmod))
+                            r_ = a_ % b_;
+                        else
+                            r_ = a_ / b_;
+
+                        if (have_)
+                        {
+                            --os_top->top;
+                            os_top->data[ot - 2] = xpost_int_cons(r_);
+                            goto next_element;
+                        }
+                    }
+                }
                 if (w == (unsigned int)XPOST_OP_CODE(ctx, optype) && ot >= 1)
                 {
                     /* the operator's own naming, so a packed array is

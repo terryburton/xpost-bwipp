@@ -74,6 +74,12 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
     _(opadd,               "add") \
     _(opsub,               "sub") \
     _(opmul,               "mul") \
+    _(opand,               "and") \
+    _(opor,                "or") \
+    _(opxor,               "xor") \
+    _(opmod,               "mod") \
+    _(opidiv,              "idiv") \
+    _(opbitshift,          "bitshift") \
     _(opeq,                "eq") \
     _(opne,                "ne") \
     _(oplt,                "lt") \
