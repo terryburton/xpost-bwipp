@@ -240,9 +240,25 @@ clear
 /d0 countdictstack def
 /g0 0.75 def
 
+% The graphics state stack is asked by its depth and not only by what
+% the caller can read out of the current state. A callback that opens a
+% state and paints in it leaves the caller's values unchanged -- the
+% machinery's own grestore, or the bracket's, gives them back -- while
+% the state it opened is still on the stack, one slot nearer the
+% ceiling, for the rest of the job. A test that reads currentlinewidth
+% alone reports that as clean, which is exactly how a leak here lived
+% long enough to be found somewhere else.
+/gdepth { graphicsdict /gptr get } bind def
+/gp0 0 def
+
 /unwinds { % {what-to-run} (what)  .  -
     /uwhat exch def
     3 setlinewidth
+    % the state the case needs is opened here rather than in the case, so
+    % that what the depth says afterwards is the machinery's doing and not
+    % the case's own unreached grestore
+    gsave
+    gdepth /gp0 exch def
     stopped not { uwhat ( did not raise the error out of the machinery) join note } if
     clear
     countdictstack d0 ne
@@ -251,6 +267,11 @@ clear
         { uwhat ( left another dictionary current) join note } if
     currentlinewidth 3 ne
         { uwhat ( left a graphics state open) join note } if
+    gdepth gp0 ne
+        { uwhat ( left the graphics state stack deeper) join note } if
+    gdepth gp0 gt { gdepth gp0 sub { grestore } repeat } if
+    countdictstack d0 gt { countdictstack d0 sub { end } repeat } if
+    grestore
     3 setlinewidth
 } bind def
 
@@ -259,10 +280,8 @@ clear
     /BBox [0 0 8 8] /XStep 8 /YStep 8
     /PaintProc { pop gsave 9 setlinewidth 4 dict begin mumble }
 >> def
-{ gsave
-  erpat matrix makepattern setpattern
-  newpath 0 0 moveto 12 0 lineto 12 12 lineto closepath fill
-  grestore }
+{ erpat matrix makepattern setpattern
+  newpath 0 0 moveto 12 0 lineto 12 12 lineto closepath fill }
 (a pattern's paint procedure) unwinds
 
 /T3e 8 dict def
@@ -276,14 +295,12 @@ T3e begin
     /BuildChar { pop pop gsave 9 setlinewidth 4 dict begin mumble } def
 end
 T3e /CallbackErrFont exch definefont pop
-{ gsave /CallbackErrFont findfont 12 scalefont setfont
-  0 0 moveto (A) show grestore }
+{ /CallbackErrFont findfont 12 scalefont setfont
+  0 0 moveto (A) show }
 (a BuildChar procedure) unwinds
 
-{ gsave
-  newpath 0 0 moveto 8 0 lineto 8 8 lineto closepath clip
-  8 8 8 [8 0 0 -8 0 8] { gsave 9 setlinewidth 4 dict begin mumble } image
-  grestore }
+{ newpath 0 0 moveto 8 0 lineto 8 8 lineto closepath clip
+  8 8 8 [8 0 0 -8 0 8] { gsave 9 setlinewidth 4 dict begin mumble } image }
 (an image's data source) unwinds
 
 { [/Separation /Erring /DeviceGray { pop gsave 9 setlinewidth 4 dict begin mumble }]
