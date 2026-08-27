@@ -294,7 +294,7 @@ int grok(Xpost_Context *ctx,
 
     if (ns == NBUF)
     {
-        XPOST_LOG_ERR("buf maxxed");
+        XPOST_LOG_INFO("buf maxxed");
         return limitcheck;
     }
     s[ns] = '\0';  //fsm_check & xpost_name_cons  terminate on \0
@@ -356,7 +356,7 @@ int grok(Xpost_Context *ctx,
             goto not_a_number;
         if (rret != 0)
         {
-            XPOST_LOG_ERR("radixnumber exceeds integer width");
+            XPOST_LOG_INFO("radixnumber exceeds integer width");
             return rret;
         }
         *retval = xpost_int_cons(rnum);
@@ -369,7 +369,7 @@ int grok(Xpost_Context *ctx,
         num = strtod(s, NULL);
         if ((num == HUGE_VAL || num == -HUGE_VAL) && errno == ERANGE)
         {
-            XPOST_LOG_ERR("real out of range");
+            XPOST_LOG_INFO("real out of range");
             return limitcheck;
         }
         *retval = xpost_real_cons((real)num);
@@ -453,7 +453,7 @@ int grok(Xpost_Context *ctx,
                     if (!defer) break;
                     if (sp - s >= NBUF)
                     {
-                        XPOST_LOG_ERR("string exceeds buf");
+                        XPOST_LOG_INFO("string exceeds buf");
                         return limitcheck;
                     }
                     else *sp++ = c;
@@ -462,7 +462,7 @@ int grok(Xpost_Context *ctx,
                 {
                     /* the closing parenthesis never arrived: an
                        unterminated string literal is not a token */
-                    XPOST_LOG_ERR("end of input inside a string literal");
+                    XPOST_LOG_INFO("end of input inside a string literal");
                     return syntaxerror;
                 }
                 obj = xpost_string_cons(ctx, sp - s, s);
@@ -505,7 +505,7 @@ int grok(Xpost_Context *ctx,
                             c = next(ctx, src);
                             if (c != '>')
                             {
-                                XPOST_LOG_ERR("malformed base-85 terminator");
+                                XPOST_LOG_INFO("malformed base-85 terminator");
                                 return syntaxerror;
                             }
                             break;
@@ -514,7 +514,7 @@ int grok(Xpost_Context *ctx,
                         {
                             if (sp - s + 4 > NBUF)
                             {
-                                XPOST_LOG_ERR("base-85 string exceeds buf");
+                                XPOST_LOG_INFO("base-85 string exceeds buf");
                                 return limitcheck;
                             }
                             *sp++ = 0; *sp++ = 0; *sp++ = 0; *sp++ = 0;
@@ -522,7 +522,7 @@ int grok(Xpost_Context *ctx,
                         }
                         if (c < '!' || c > 'u')
                         {
-                            XPOST_LOG_ERR("character %d in base-85 string", c);
+                            XPOST_LOG_INFO("character %d in base-85 string", c);
                             return syntaxerror;
                         }
                         grp[n++] = c - '!';
@@ -533,7 +533,7 @@ int grok(Xpost_Context *ctx,
                             tuple = tuple * 85 + grp[k];
                         if (sp - s + 4 > NBUF)
                         {
-                            XPOST_LOG_ERR("base-85 string exceeds buf");
+                            XPOST_LOG_INFO("base-85 string exceeds buf");
                             return limitcheck;
                         }
                         *sp++ = (tuple >> 24) & 0xff;
@@ -544,7 +544,7 @@ int grok(Xpost_Context *ctx,
                     }
                     if (n == 1)
                     {
-                        XPOST_LOG_ERR("dangling base-85 character");
+                        XPOST_LOG_INFO("dangling base-85 character");
                         return syntaxerror;
                     }
                     if (n > 1)
@@ -556,7 +556,7 @@ int grok(Xpost_Context *ctx,
                             tuple = tuple * 85 + (k < n ? grp[k] : 84);
                         if (sp - s + nbytes > NBUF)
                         {
-                            XPOST_LOG_ERR("base-85 string exceeds buf");
+                            XPOST_LOG_INFO("base-85 string exceeds buf");
                             return limitcheck;
                         }
                         /* a partial group carries one byte fewer than
@@ -568,7 +568,7 @@ int grok(Xpost_Context *ctx,
                     if (c == EOF)
                     {
                         /* the ~> terminator never arrived */
-                        XPOST_LOG_ERR("end of input inside a base-85 string literal");
+                        XPOST_LOG_INFO("end of input inside a base-85 string literal");
                         return syntaxerror;
                     }
                     obj = xpost_string_cons(ctx, sp - s, s);
@@ -585,7 +585,7 @@ int grok(Xpost_Context *ctx,
                         c = strchr(x, toupper(c)) - x;
                     else
                     {
-                        XPOST_LOG_ERR("non-hex digit in hex string");
+                        XPOST_LOG_INFO("non-hex digit in hex string");
                         return syntaxerror;
                     }
                     d = c << 4; // hi nib
@@ -600,13 +600,13 @@ int grok(Xpost_Context *ctx,
                     }
                     else
                     {
-                        XPOST_LOG_ERR("non-hex digit in hex string");
+                        XPOST_LOG_INFO("non-hex digit in hex string");
                         return syntaxerror;
                     }
                     d |= c;
                     if (sp - s >= NBUF)
                     {
-                        XPOST_LOG_ERR("hexstring exceeds buf");
+                        XPOST_LOG_INFO("hexstring exceeds buf");
                         return limitcheck;
                     }
                     *sp++ = d;
@@ -614,7 +614,7 @@ int grok(Xpost_Context *ctx,
                 if (c == EOF)
                 {
                     /* the > terminator never arrived */
-                    XPOST_LOG_ERR("end of input inside a hex string literal");
+                    XPOST_LOG_INFO("end of input inside a hex string literal");
                     return syntaxerror;
                 }
                 obj = xpost_string_cons(ctx, sp - s, s);
@@ -634,7 +634,7 @@ int grok(Xpost_Context *ctx,
                 }
                 else
                 {
-                    XPOST_LOG_ERR("bare angle bracket");
+                    XPOST_LOG_INFO("bare angle bracket");
                     return syntaxerror;
                 }
             }
@@ -655,7 +655,7 @@ int grok(Xpost_Context *ctx,
                 if (++ctx->scan_proc_depth > PROC_NEST_MAX)
                 {
                     --ctx->scan_proc_depth;
-                    XPOST_LOG_ERR("procedure nesting too deep");
+                    XPOST_LOG_INFO("procedure nesting too deep");
                     return limitcheck;
                 }
                 tail = xpost_name_cons(ctx, "}");
@@ -672,7 +672,7 @@ int grok(Xpost_Context *ctx,
                        a literal null in the text being a name */
                     if (xpost_object_get_type(t) == nulltype)
                     {
-                        XPOST_LOG_ERR("end of input inside a procedure");
+                        XPOST_LOG_INFO("end of input inside a procedure");
                         ret = syntaxerror;
                         break;
                     }
@@ -711,7 +711,7 @@ int grok(Xpost_Context *ctx,
                     ns = puff(ctx, s, NBUF, src, next, back);
                     if (ns == NBUF)
                     {
-                        XPOST_LOG_ERR("immediate name exceeds buf");
+                        XPOST_LOG_INFO("immediate name exceeds buf");
                         return limitcheck;
                     }
                     s[ns] = '\0';
@@ -755,7 +755,7 @@ int grok(Xpost_Context *ctx,
                 }
                 if (ns == NBUF)
                 {
-                    XPOST_LOG_ERR("name exceeds buf");
+                    XPOST_LOG_INFO("name exceeds buf");
                     return limitcheck;
                 }
                 s[ns] = '\0';
@@ -1078,7 +1078,7 @@ int bt_seq_object(Xpost_Context *ctx,
             if (length == 0)
             {
                 /* no operator populates the user name table */
-                XPOST_LOG_ERR("user name index %d: no user name table", (int)value);
+                XPOST_LOG_INFO("user name index %d: no user name table", (int)value);
                 return undefined;
             }
             else
@@ -1149,7 +1149,7 @@ int bt_seq_object(Xpost_Context *ctx,
             obj = mark;
             break;
         default:
-            XPOST_LOG_ERR("unsupported type %u in binary object sequence", type);
+            XPOST_LOG_INFO("unsupported type %u in binary object sequence", type);
             return syntaxerror;
     }
     /* the record's high bit is the object's literal/executable
@@ -1276,7 +1276,7 @@ int binary_token(Xpost_Context *ctx,
         case 147: case 148:  /* user name table: nothing populates it */
             if (!bt_read(ctx, src, next, p, 1))
                 return syntaxerror;
-            XPOST_LOG_ERR("user name index %d: no user name table", p[0]);
+            XPOST_LOG_INFO("user name index %d: no user name table", p[0]);
             return undefined;
         case 149:  /* homogeneous number array */
             {
@@ -1414,7 +1414,7 @@ int binary_token(Xpost_Context *ctx,
                 return syntaxerror;
             if (_bin_sysname[p[0]] == NULL)
             {
-                XPOST_LOG_ERR("system name index %d unassigned", p[0]);
+                XPOST_LOG_INFO("system name index %d unassigned", p[0]);
                 return undefined;
             }
             {
@@ -1425,7 +1425,7 @@ int binary_token(Xpost_Context *ctx,
             }
             return 0;
         default:
-            XPOST_LOG_ERR("unsupported binary token type %u", t);
+            XPOST_LOG_INFO("unsupported binary token type %u", t);
             return syntaxerror;
     }
 }

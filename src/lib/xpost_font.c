@@ -842,13 +842,13 @@ xpost_font_face_new_from_name(const char *name)
     err = FT_New_Face(_xpost_font_ft_library, filename, idx, &face) ;
     if (err == FT_Err_Unknown_File_Format)
     {
-        XPOST_LOG_ERR("Font format unsupported");
+        XPOST_LOG_INFO("Font format unsupported");
         free(filename);
         return NULL;
     }
     else if (err)
     {
-        XPOST_LOG_ERR("Font file %s can not be opened or read or is broken", filename);
+        XPOST_LOG_INFO("Font file %s can not be opened or read or is broken", filename);
         free(filename);
         return NULL;
     }
@@ -878,7 +878,7 @@ xpost_font_face_new_from_memory(const unsigned char *data, size_t len)
     err = FT_New_Memory_Face(_xpost_font_ft_library, data, (FT_Long)len, 0, &face);
     if (err)
     {
-        XPOST_LOG_ERR("Font program can not be opened or read or is broken (error : %d)", err);
+        XPOST_LOG_INFO("Font program can not be opened or read or is broken (error : %d)", err);
         return NULL;
     }
 
@@ -1676,14 +1676,14 @@ xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_
     err = FT_Load_Glyph(face, glyph_index, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
     if (err)
     {
-        XPOST_LOG_ERR("Can not load glyph (error : %d)", err);
+        XPOST_LOG_INFO("Can not load glyph (error : %d)", err);
         return 0;
     }
     slot = ((FT_Face)face)->glyph;
     _glyph_linear_advance((FT_Face)face, advance_x, advance_y);
     if (slot->format != FT_GLYPH_FORMAT_OUTLINE)
     {
-        XPOST_LOG_ERR("glyph has no outline");
+        XPOST_LOG_INFO("glyph has no outline");
         return 0;
     }
     outline = &slot->outline;
@@ -1736,7 +1736,7 @@ xpost_font_face_glyph_extents(void *face, unsigned int glyph_index,
     err = FT_Load_Glyph(face, glyph_index, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
     if (err)
     {
-        XPOST_LOG_ERR("Can not load glyph (error : %d)", err);
+        XPOST_LOG_INFO("Can not load glyph (error : %d)", err);
         return 0;
     }
     slot = ((FT_Face)face)->glyph;
@@ -1894,7 +1894,7 @@ xpost_font_face_glyph_render(void *face, unsigned int glyph_index)
             err = FT_Render_Glyph(((FT_Face)face)->glyph, FT_RENDER_MODE_NORMAL);
             if (err)
             {
-                XPOST_LOG_ERR("Can not render  non bitmap glyph (error : %d)", err);
+                XPOST_LOG_INFO("Can not render  non bitmap glyph (error : %d)", err);
                 return 0;
             }
         }
@@ -1929,7 +1929,7 @@ xpost_font_face_glyph_render(void *face, unsigned int glyph_index)
     }
     else
     {
-        XPOST_LOG_ERR("Can not load glyph (error : %d)", err);
+        XPOST_LOG_INFO("Can not load glyph (error : %d)", err);
         return 0;
     }
 #else

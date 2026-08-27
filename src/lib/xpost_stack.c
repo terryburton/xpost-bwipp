@@ -278,7 +278,7 @@ Xpost_Object xpost_stack_topdown_fetch(Xpost_Memory_File *mem,
     while (i >= (signed)(s->top)){
         i -= s->top;
         if (s == xpost_stack_at(mem, stackent)){
-            XPOST_LOG_ERR("%d can't find stack segment for index -%d in stack of size %u",
+            XPOST_LOG_INFO("%d can't find stack segment for index -%d in stack of size %u",
                     unregistered, idx,
                     xpost_stack_count(mem, stackent));
             return invalid;
@@ -300,7 +300,7 @@ int xpost_stack_topdown_replace(Xpost_Memory_File *mem,
     while (i >= (signed)(s->top)){
         i -= s->top;
         if (s == xpost_stack_at(mem, stackent)){
-            XPOST_LOG_ERR("%d can't find stack segment for index -%d in stack of size %u",
+            XPOST_LOG_INFO("%d can't find stack segment for index -%d in stack of size %u",
                     unregistered, idx,
                     xpost_stack_count(mem, stackent));
             return 0;
@@ -383,7 +383,7 @@ Xpost_Object xpost_stack_bottomup_fetch(Xpost_Memory_File *mem,
         i -= XPOST_STACK_SEGMENT_SIZE;
         if (s->nextseg == 0)
         {
-            XPOST_LOG_ERR("%d can't find stack segment for index %d in stack of size %u",
+            XPOST_LOG_INFO("%d can't find stack segment for index %d in stack of size %u",
                     unregistered, idx,
                     xpost_stack_count(mem, stackent));
             return invalid;
@@ -411,7 +411,7 @@ int xpost_stack_bottomup_replace(Xpost_Memory_File *mem,
         i -= XPOST_STACK_SEGMENT_SIZE;
         if (s->nextseg == 0)
         {
-            XPOST_LOG_ERR("%d can't find stack segment for index %d in stack of size %u",
+            XPOST_LOG_INFO("%d can't find stack segment for index %d in stack of size %u",
                           unregistered, idx,
                           xpost_stack_count(mem, stackent));
             return 0;

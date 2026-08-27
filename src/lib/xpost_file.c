@@ -1488,7 +1488,7 @@ a85_readch(Xpost_File *f)
         }
         if (c < '!' || c > 'u')
         {
-            XPOST_LOG_ERR("character %d in ASCII85Decode stream", c);
+            XPOST_LOG_INFO("character %d in ASCII85Decode stream", c);
             ff->base.eod = 1;
             ff->base.methods.err = 1;
             break;
@@ -1528,7 +1528,7 @@ a85_readch(Xpost_File *f)
            'u' raises it by less than a base-85 place, never past the limit.) */
         if (n == 5 && tuple > 0xFFFFFFFFULL)
         {
-            XPOST_LOG_ERR("group value exceeds 2^32-1 in ASCII85Decode stream");
+            XPOST_LOG_INFO("group value exceeds 2^32-1 in ASCII85Decode stream");
             ff->base.eod = 1;
             ff->base.methods.err = 1;
             return EOF;
@@ -2329,7 +2329,7 @@ hex_readch(Xpost_File *f)
     hi = _hexval(c);
     if (hi < 0)
     {
-        XPOST_LOG_ERR("character %d in ASCIIHexDecode stream", c);
+        XPOST_LOG_INFO("character %d in ASCIIHexDecode stream", c);
         ff->base.eod = 1;
         ff->base.methods.err = 1;
         return EOF;
@@ -2348,7 +2348,7 @@ hex_readch(Xpost_File *f)
         lo = _hexval(c);
         if (lo < 0)
         {
-            XPOST_LOG_ERR("character %d in ASCIIHexDecode stream", c);
+            XPOST_LOG_INFO("character %d in ASCIIHexDecode stream", c);
             ff->base.eod = 1;
             ff->base.methods.err = 1;
             lo = 0;
@@ -2619,7 +2619,7 @@ flate_refill(Xpost_FlateFile *ff)
         }
         if (ret != Z_OK && ret != Z_BUF_ERROR)
         {
-            XPOST_LOG_ERR("FlateDecode error %d", ret);
+            XPOST_LOG_INFO("FlateDecode error %d", ret);
             ff->base.eod = 1;
             ff->base.methods.err = 1;
             break;
@@ -2663,7 +2663,7 @@ flate_refill(Xpost_FlateFile *ff)
             }
             if (ret != Z_OK && ret != Z_BUF_ERROR)
             {
-                XPOST_LOG_ERR("FlateDecode error %d", ret);
+                XPOST_LOG_INFO("FlateDecode error %d", ret);
                 ff->base.eod = 1;
                 ff->base.methods.err = 1;
                 break;
@@ -2756,7 +2756,7 @@ dct_error_exit(j_common_ptr cinfo)
     char msg[JMSG_LENGTH_MAX];
 
     (*cinfo->err->format_message)(cinfo, msg);
-    XPOST_LOG_ERR("DCTDecode: %s", msg);
+    XPOST_LOG_INFO("DCTDecode: %s", msg);
     longjmp(ff->jmp, 1);
 }
 
@@ -2766,7 +2766,7 @@ dct_output_message(j_common_ptr cinfo)
     char msg[JMSG_LENGTH_MAX];
 
     (*cinfo->err->format_message)(cinfo, msg);
-    XPOST_LOG_ERR("DCTDecode: %s", msg);
+    XPOST_LOG_INFO("DCTDecode: %s", msg);
 }
 
 static void
@@ -3395,7 +3395,7 @@ lzw_readch(Xpost_File *f)
     }
     else
     {
-        XPOST_LOG_ERR("LZWDecode: code out of range");
+        XPOST_LOG_INFO("LZWDecode: code out of range");
         ff->base.base.eod = 1;
         ff->base.base.methods.err = 1;
         return EOF;
@@ -3905,7 +3905,7 @@ fax_decoderow(Xpost_FaxFile *ff)
         if (fax_eateol(ff) < 0)
         {
             if (ff->k > 0)
-                XPOST_LOG_ERR("CCITTFaxDecode: no end-of-line marker "
+                XPOST_LOG_INFO("CCITTFaxDecode: no end-of-line marker "
                               "before row %d", ff->rowsdone);
             ff->base.base.eod = 1;
             return EOF;
@@ -3943,7 +3943,7 @@ fax_decoderow(Xpost_FaxFile *ff)
     }
     if (ret < 0)
     {
-        XPOST_LOG_ERR("CCITTFaxDecode: damaged row %d", ff->rowsdone);
+        XPOST_LOG_INFO("CCITTFaxDecode: damaged row %d", ff->rowsdone);
         ff->base.base.eod = 1;
         ff->base.base.methods.err = 1;
         return EOF;

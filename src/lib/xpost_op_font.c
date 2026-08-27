@@ -3547,7 +3547,7 @@ int _show(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -3644,7 +3644,7 @@ int _glyphshow_common(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -5004,7 +5004,7 @@ int _ashow(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -5107,7 +5107,7 @@ int _widthshow(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -5215,7 +5215,7 @@ int _awidthshow(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -5310,7 +5310,7 @@ int _stringwidth(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -5538,7 +5538,7 @@ int _stringoutline(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;
@@ -5628,7 +5628,7 @@ int _glyphoutline_common(Xpost_Context *ctx,
     fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
-        XPOST_LOG_ERR("face is NULL");
+        XPOST_LOG_INFO("face is NULL");
         return invalidfont;
     }
     data = *fd;

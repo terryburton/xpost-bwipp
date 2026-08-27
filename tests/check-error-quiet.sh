@@ -47,6 +47,22 @@ an index past the operand stack|1 2 9 index
 an interval outside an array|[1 2 3] 1 99 getinterval
 an interval that does not fit|[1 2 3] 1 [9 9 9 9] putinterval
 a file operation on a string|(x) closefile
+an empty stack for a typed operator|add
+an empty stack for a one-operand typed operator|sqrt
+an empty stack for a coordinate operator|moveto
+an empty stack for a sized operator|string
+a string literal that never closes|(abc
+a procedure that never closes|{ 1 2
+a hex string holding a character that is not one|<4z>
+a hex string that never closes|<41
+an angle bracket standing alone|< 1
+a base-85 string that never closes|<~87cURD]
+a radix number wider than an integer|16#FFFFFFFFFFFFFFFFFF
+a real outside the representable range|1e400
+an ASCII85 stream holding a character it cannot|(v) /ASCII85Decode filter 64 string readstring pop pop
+a hex stream holding a character it cannot|(zzz) /ASCIIHexDecode filter 64 string readstring pop pop
+a flate stream that is not flate|(abcdefgh) /FlateDecode filter 64 string readstring pop pop
+an LZW stream that is not LZW|(abcdefgh) /LZWDecode filter 64 string readstring pop pop
 EOF
 
 fail=0
