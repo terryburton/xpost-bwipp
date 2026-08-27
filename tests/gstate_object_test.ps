@@ -128,6 +128,31 @@ currentdash exch length 0 eq exch 0 eq and
     (initgraphics resets the dash pattern) assert
 currentgray 0 (initgraphics resets the colour) assertnear
 
+% ------------------------------- what the copy does to the value it holds
+% An entry holding a literal array is given an array of its own, because
+% a state writes some of them in place -- the matrix -- and two states
+% sharing one would each see the other's writes. A packed array is
+% read-only, so nothing writes it in place and there is nothing to hold
+% apart: it is carried across as the object the program supplied. An
+% array minted for it in its place would come back plain and writable,
+% which is a value of a type and an access the program never set, and
+% currentdash would answer differently either side of a gsave.
+initgraphics
+1 2 2 packedarray 0 setdash
+gsave grestore
+currentdash pop
+    dup type /packedarraytype eq
+    (a packed dash pattern is packed still after a grestore) assert
+    wcheck not (and read-only still) assert
+/GDP gstate def
+[ 5 5 ] 0 setdash
+GDP setgstate
+currentdash pop
+    dup type /packedarraytype eq
+    (and after a setgstate) assert
+    wcheck not (and read-only there too) assert
+initgraphics
+
 % ------------------------------------------------------------- the clip
 % A region is the parameter whose loss does not read as a wrong number.
 % The template's clip region is the empty path, and a region that admits

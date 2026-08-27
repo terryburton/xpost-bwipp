@@ -549,7 +549,17 @@ int _gstatecopy(Xpost_Context *ctx,
             k = xpost_dict_convert_extended_to_number(k);
         v = tp[cursor].value;
 
-        if (xpost_object_get_type(v) == arraytype && !xpost_object_is_exe(v))
+        /* A packed array is an array to this file's type test and a type
+           of its own to the language's: it is stored as a read-only array
+           carrying the packed flag. Read-only is what makes it not the
+           graphics state's to write, so it is shared rather than copied,
+           as an executable array is -- and copying one would hand the
+           state a plain writable array where the program supplied a
+           packed read-only one, which currentdash and currentcolorspace
+           would then report as a different type with a different
+           access. */
+        if (xpost_object_get_type(v) == arraytype && !xpost_object_is_exe(v)
+            && !xpost_object_is_packed(v))
         {
             Xpost_Object a;
             unsigned int i;
