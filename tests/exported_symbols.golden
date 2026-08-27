@@ -207,6 +207,7 @@ xpost_file_read_byte
 xpost_file_release_entity
 xpost_file_set_access
 xpost_file_stdio_stream_get
+xpost_file_stream_err
 xpost_file_underlying_entity
 xpost_file_write
 xpost_file_write_byte

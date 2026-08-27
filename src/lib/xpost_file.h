@@ -513,6 +513,17 @@ integer xpost_file_write(const char *buf, integer size, integer count, Xpost_Fil
 FILE *xpost_file_stdio_stream_get(Xpost_File *fp);
 
 /**
+ * @brief Whether any filter in a decode chain latched corrupt input.
+ *
+ * A chain is read through its outermost filter, but a coding that gives
+ * up answers its reader with the end of the data, so an inner filter's
+ * failure would reach a program reading the outermost as a clean end.
+ * The reading operators ask this rather than the outermost filter's own
+ * latch, so a corrupt inner stream is the ioerror PLRM 3.13 makes it.
+ */
+int xpost_file_stream_err(Xpost_File *fp);
+
+/**
  * @brief Read a byte from file object.
  */
 Xpost_Object xpost_file_read_byte(Xpost_Memory_File *mem, Xpost_Object f);

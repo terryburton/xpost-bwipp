@@ -752,9 +752,10 @@ int xpost_op_file_read(Xpost_Context *ctx,
         return ioblock;
     {
         /* as readstring: a filter that failed to decode is an ioerror,
-           not the end of the data (PLRM 3.13) */
+           not the end of the data (PLRM 3.13), and a chain is read
+           through its outermost, so any inner filter's latch counts */
         Xpost_File *fp = xpost_file_get_file_pointer(ctx->lo, f);
-        if (fp && fp->err)
+        if (fp && xpost_file_stream_err(fp))
             return ioerror;
     }
     if (xpost_object_get_type(b) == invalidtype)
@@ -950,8 +951,9 @@ int xpost_op_file_readstring (Xpost_Context *ctx,
     /* A decode filter that met data its coding cannot represent latched
        it. That is not a short read: PLRM 3.13 makes corrupt filter input
        an ioerror, so the program is told rather than handed a clean-
-       looking end of data. */
-    if (f->err)
+       looking end of data. A chain is read through its outermost, so a
+       corrupt inner filter's latch is the chain's. */
+    if (xpost_file_stream_err(f))
         return ioerror;
     /* the count read is compared against the string's own length in the
        wider signed type: a read that answered short answers short */

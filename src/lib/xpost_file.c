@@ -3623,6 +3623,18 @@ fax_runlength(Xpost_FaxFile *ff, int color, int atrowstart)
         if (run == FAX_RUN_ERR)
             return FAX_RUN_ERR;
         total += run;
+        /* A make-up code carries no verdict: only a terminating code
+           completes the run, and only then is the total weighed against
+           the width. So the accumulation runs on until a terminator or
+           the end of the input -- but a hostile string of make-up codes
+           would carry it off the far side of what an int holds, where the
+           overflow is undefined and the wrapped length would slip past
+           the width checks the callers make. No run reaches across the
+           row, so once the total is past the width the exact amount by
+           which no longer matters: it is held at one past the width,
+           which every caller reads as over and none as anything else. */
+        if (total > ff->columns)
+            total = ff->columns + 1;
         if (run < 64)
             return total;
     }
@@ -6373,6 +6385,25 @@ static Xpost_File *_filter_underlying_stream(Xpost_File *f)
             break;
     }
     return NULL;
+}
+
+/* The latch of any filter in a decode chain is the chain's. A chain is
+   read through its outermost filter, but a coding that gives up answers
+   its reader with the end of the data, so an inner filter's failure would
+   reach a program reading the outermost as a clean end unless the sources
+   are walked. Only a decode chain is walked -- err is a decoder's to set,
+   and an encode chain's underlying stream is its target, not a source. */
+int xpost_file_stream_err(Xpost_File *fp)
+{
+    while (fp)
+    {
+        if (fp->err)
+            return 1;
+        if (fp->wraps != XPOST_FILE_WRAPS_SOURCE)
+            break;
+        fp = ((Xpost_FilterBase *)fp)->source;
+    }
+    return 0;
 }
 
 /* Mark a stream the machinery made for the filter about to wrap it. */
