@@ -15,4 +15,17 @@ initgraphics mark0 save 7 3 scale restore (save/scale/restore) chk
 initgraphics mark0 gsave 45 rotate grestore (gsave/rotate/grestore) chk
 initgraphics mark0 save [2 0 0 2 5 5] concat restore (save/concat/restore) chk
 initgraphics mark0 save 4 4 scale save 2 2 scale restore restore (nested save/scale) chk
+
+% Each of the three above is asked of gsave as well as of save. The two
+% brackets revert the matrix by different machinery -- save by backing up
+% the write, gsave by holding a copy of the state -- so neither answers
+% for the other, and asking scale and concat only through save left the
+% gsave half resting on the single rotate case. A defect reaching one
+% operator and not another passes a suite that asks each bracket about a
+% different operator.
+initgraphics mark0 gsave 7 3 scale grestore (gsave/scale/grestore) chk
+initgraphics mark0 gsave [2 0 0 2 5 5] concat grestore (gsave/concat/grestore) chk
+initgraphics mark0 gsave 4 4 scale gsave 2 2 scale grestore grestore (nested gsave/scale) chk
+initgraphics mark0 gsave 5 5 translate grestore (gsave/translate/grestore) chk
+initgraphics mark0 save 5 5 translate restore (save/translate/restore) chk
 fail 0 eq { (SUCCESS) = }{ (FAILURES: ) print fail = } ifelse
