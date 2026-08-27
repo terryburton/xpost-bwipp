@@ -3439,6 +3439,28 @@ userdict /base.m0 undef userdict /base.room undef
 % and the placement are read on different routes: a width the pen honours
 % is no evidence that the ink went with it.
 systemdict /NOFACES known not {
+    % A Metrics value is stated in character space (PLRM 5.9.2), whose
+    % scale is a convention of the font's type and not a constant of the
+    % language: a Type 1 dictionary puts a thousand units in an em, a
+    % Type 42 puts one (PLRM 5.8.1). A platform that answers the standard
+    % name with a TrueType program therefore hands back a font in which a
+    % number written here would name a thousand times the distance the
+    % same number names elsewhere -- far enough to carry the probe off
+    % the square it is read in. So the move is named in device units, the
+    % space the assertions read, and the sidebearing that produces it is
+    % derived by asking the resolved FontMatrix how far one character-
+    % space unit reaches on the page at the size the probe paints at.
+    /sbunit                             % device x per character-space x
+        1 0
+        /Helvetica findfont /FontMatrix get
+        20 20 matrix scale matrix concatmatrix
+        dtransform                      % through the font's own matrix
+        dtransform                      % and through the CTM
+        pop
+    def
+    /sbmove 10 def                      % the move asked for, in device units
+    /sbsb sbmove sbunit div def         % the sidebearing that names it
+    /sbwid 8 sbunit div def             % and a width, stated the same way
     /sbleft {                           % metrics  .  int
         /Helvetica findfont dup length 1 add dict copy
         dup /Metrics 4 -1 roll put
@@ -3449,8 +3471,8 @@ systemdict /NOFACES known not {
         % Far enough in that neither probe can be clipped by an edge: the
         % glyph moves by the difference between the sidebearing named and
         % the one the face drew it with, so a face with a large left
-        % bearing puts the sb-0 probe LEFT of the pen, and the sb-500 one
-        % ten pixels right of that. Both have to land inside the square
+        % bearing puts the sb-0 probe LEFT of the pen, and the moved one
+        % sbmove pixels right of that. Both have to land inside the square
         % this reads, whichever face the platform substitutes.
         newpath 20 20 moveto (A) show
         grestore
@@ -3466,16 +3488,16 @@ systemdict /NOFACES known not {
         } for
         sbcol
     } bind def
-    << /A [ 0 400 ] >> sbleft /sb0col exch def
-    << /A [ 500 400 ] >> sbleft /sb500col exch def
+    << /A [ 0 sbwid ] >> sbleft /sb0col exch def
+    << /A [ sbsb sbwid ] >> sbleft /sbmovedcol exch def
     sb0col 64 lt (the probe glyph reached the page) assert
-    sb500col 64 lt (the moved probe glyph is still inside the square read) assert
+    sbmovedcol 64 lt (the moved probe glyph is still inside the square read) assert
     sb0col 0 gt (the probe glyph is not against the left edge, where a
                  clipped one would read as column zero) assert
-    sb500col sb0col sub 500 0.02 mul sub abs 1.5 lt
+    sbmovedcol sb0col sub sbmove sub abs 1.5 lt
         (a Metrics sidebearing moves the glyph show paints) assert
-    << /A [ 0 400 ] >> sbleft pop (A) stringwidth pop /sbw exch def
-    << /A [ 500 400 ] >> sbleft pop (A) stringwidth pop sbw sub abs 0.01 lt
+    << /A [ 0 sbwid ] >> sbleft pop (A) stringwidth pop /sbw exch def
+    << /A [ sbsb sbwid ] >> sbleft pop (A) stringwidth pop sbw sub abs 0.01 lt
         (and leaves the pen where the width put it) assert
 
     % charpath produces the same glyph as a path (PLRM 8.2), so the outline
@@ -3493,9 +3515,9 @@ systemdict /NOFACES known not {
         newpath 8 20 moveto (A) false charpath pathbbox pop pop pop
         grestore
     } bind def
-    << /A [ 0 400 ] >> sbpathleft /sb0llx exch def
-    << /A [ 500 400 ] >> sbpathleft /sb500llx exch def
-    sb500llx sb0llx sub  sb500col sb0col sub  sub abs 1.5 lt
+    << /A [ 0 sbwid ] >> sbpathleft /sb0llx exch def
+    << /A [ sbsb sbwid ] >> sbpathleft /sbmovedllx exch def
+    sbmovedllx sb0llx sub  sbmovedcol sb0col sub  sub abs 1.5 lt
         (charpath appends the outline where show puts the ink) assert
     erasepage
 } if
