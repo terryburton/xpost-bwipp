@@ -152,14 +152,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 
     .qsave
 
-    % a rectangular clip travels with the paint; the painting operators
-    % arrive pre-clipped and an image does not
-    //.internaldict /.cliprect get exec {
-        /dicy1 exch def /dicx1 exch def /dicy0 exch def /dicx0 exch def
-        dicx0 .pdfnum ( ) .put dicy0 .pdfnum ( ) .put
-        dicx1 dicx0 sub .pdfnum ( ) .put
-        dicy1 dicy0 sub .pdfnum ( re\nW n\n) .put
-    } if
+    % the clip travels with the paint; the painting operators arrive
+    % pre-clipped and an image does not. The writer is the one the class
+    % this device copies carries (.emitclip, pdfwrite.ps), and the prolog
+    % above defines every operator it writes.
+    .emitclip
 
     % image space to device space, so what follows draws in samples
     dim 0 get .pdfnum ( ) .put dim 1 get .pdfnum ( ) .put
@@ -239,13 +236,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dsnc 4 eq { dsg /colorcomp4 get } if
     .pdffillcolor
 
-    % a rectangular clip travels with the paint, as it does for an image
-    //.internaldict /.cliprect get exec {
-        /dscy1 exch def /dscx1 exch def /dscy0 exch def /dscx0 exch def
-        dscx0 .pdfnum ( ) .put dscy0 .pdfnum ( ) .put
-        dscx1 dscx0 sub .pdfnum ( ) .put
-        dscy1 dscy0 sub .pdfnum ( re\nW n\n) .put
-    } if
+    % the clip travels with the paint, as it does for an image
+    .emitclip
 
     % image space to device space, so what follows draws in samples
     dsm 0 get .pdfnum ( ) .put dsm 1 get .pdfnum ( ) .put

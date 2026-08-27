@@ -866,6 +866,44 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         .dpn
     } bind
 
+    % Write the clip in force into the content stream, so that a paint
+    % the interpreter could not cut down beforehand is cut down by the
+    % consumer instead.
+    %
+    % The painting operators arrive here already resolved against the
+    % region -- what reaches FillPoly is the part of the paint the clip
+    % admits, and nothing else. A whole image and a whole stencil do not:
+    % what goes over is the samples and the matrix that places them, and
+    % the region has to travel with them. PLRM 4.8.1 paints an image only
+    % where the current clipping path admits it, exactly as it paints a
+    % fill, so a paint written without the region is a paint the page
+    % never asked for.
+    %
+    % A region a single rectangle describes is written as that rectangle.
+    % Any other is written as the region's own outline, which is what the
+    % clip was resolved to: pixel-band rectangles, read under the nonzero
+    % rule they were built for. That costs a subpath per band, which is
+    % what a region no rectangle describes is worth here -- the paint is
+    % otherwise written with no clip at all and the consumer puts it over
+    % the whole page.
+    %
+    % The path walker reads the current path, so the region stands in for
+    % it across the walk and the working path goes back afterwards.
+    /.emitclip {  % -  .  -
+        //.internaldict /.cliprect get exec {
+            /ecy1 exch def /ecx1 exch def /ecy0 exch def /ecx0 exch def
+            ecx0 .pdfnum ( ) .put ecy0 .pdfnum ( ) .put
+            ecx1 ecx0 sub .pdfnum ( ) .put
+            ecy1 ecy0 sub .pdfnum ( re\nW n\n) .put
+        }{
+            graphicsdict /currgstate get /currpath get
+            //.xpostsys /.clipregionpath get exec
+            .emitdevpath pop
+            (W n\n) .put
+            graphicsdict /currgstate get exch /currpath exch put
+        } ifelse
+    } bind
+
     % Count the elements of the device path without emitting or collecting
     % them, so the stroke emitter can tell a path that marks nothing (and
     % must not commit the colour and line state) from one to draw, before
@@ -952,14 +990,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                /int piint >> ] def
         .qsave
 
-        % a rectangular clip region travels with the paint; the
-        % painting operators arrive pre-clipped, images cannot.
-        //.internaldict /.cliprect get exec {
-            /picy1 exch def /picx1 exch def /picy0 exch def /picx0 exch def
-            picx0 .pdfnum ( ) .put picy0 .pdfnum ( ) .put
-            picx1 picx0 sub .pdfnum ( ) .put
-            picy1 picy0 sub .pdfnum ( re\nW n\n) .put
-        } if
+        % the clip travels with the paint; the painting operators
+        % arrive pre-clipped, images cannot
+        .emitclip
         [ piw 0 0 pih neg 0 pih ] pim matrix concatmatrix
         dup 0 get .pdfnum ( ) .put
         dup 1 get .pdfnum ( ) .put
@@ -1026,14 +1059,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         psnc 4 eq { psg /colorcomp4 get } if
         .pdffillcolor
 
-        % a rectangular clip travels with the paint, as it does for an
-        % image: the painting operators arrive pre-clipped, these do not
-        //.internaldict /.cliprect get exec {
-            /pscy1 exch def /pscx1 exch def /pscy0 exch def /pscx0 exch def
-            pscx0 .pdfnum ( ) .put pscy0 .pdfnum ( ) .put
-            pscx1 pscx0 sub .pdfnum ( ) .put
-            pscy1 pscy0 sub .pdfnum ( re\nW n\n) .put
-        } if
+        % the clip travels with the paint, as it does for an image: the
+        % painting operators arrive pre-clipped, these do not
+        .emitclip
 
         % the unit square the XObject is drawn in, mapped to the samples
         % and then to the device, exactly as a sampled image is placed

@@ -960,6 +960,15 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % a device that consumes whole images -- the vector writers --
         % takes the sample rows and the image-to-device matrix and
         % paints nothing here; the masked forms keep the painting path.
+        %
+        % What such a device is handed is the samples and the matrix that
+        % places them, so what the clip admits is settled where the
+        % document is written and not here. A clip admitting nothing has
+        % nothing to write down that says so -- an outline with no
+        % elements in it is read by one consumer as a region enclosing
+        % nothing and by another as no clip at all -- so an image under
+        % one is not handed over: PLRM 4.8.1 paints an image only where
+        % the clipping path admits it, and none of this one is painted.
         DEVICE /PaintImage known
         mbits null eq and mranges null eq and {
             /m mat matrix invertmatrix matrix currentmatrix
@@ -988,9 +997,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                     allrows y buf dup length string copy put
                 } ifelse
             } for
-            width height ncomp m allrows decode interp
-            DEVICE dup /PaintImage get exec
-            true //.setpagemarked exec
+            //.clipvoid exec not {
+                width height ncomp m allrows decode interp
+                DEVICE dup /PaintImage get exec
+                true //.setpagemarked exec
+            } if
         }{
 
         % Per-component decode as base + sample x scale over 0..255
@@ -1934,14 +1945,22 @@ setglobal
         % device wants is the matrix as the caller gave it, not the
         % state this procedure is about to put the graphics state into.
         DEVICE /PaintStencil known {
-            % the same transform an image is handed: sample space to
-            % device space, which is the image matrix undone and the
-            % current one applied
-            width height polarity
-            mat matrix invertmatrix matrix currentmatrix matrix concatmatrix
-            buf interp
-            DEVICE dup /PaintStencil get exec
-            true //.setpagemarked exec
+            % A clip admitting nothing is not handed over, for the reason
+            % an image under one is not (see .imagepaintm): what the
+            % device is given is the bits and the matrix, and there is no
+            % clip to write beside them that every consumer reads as
+            % admitting nothing.
+            //.clipvoid exec not {
+                % the same transform an image is handed: sample space to
+                % device space, which is the image matrix undone and the
+                % current one applied
+                width height polarity
+                mat matrix invertmatrix matrix currentmatrix
+                    matrix concatmatrix
+                buf interp
+                DEVICE dup /PaintStencil get exec
+                true //.setpagemarked exec
+            } if
         }{
 
         % Invert into a fresh matrix: the operand matrix belongs to

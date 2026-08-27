@@ -593,6 +593,8 @@ disposition settled
 method .bandsink bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .bandwrite bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .begindoc dscwrite pdfwrite
+method .clipgroup svgwrite
+method .emitclip dscwrite pdfwrite
 method .emitdevpath dscwrite pdfwrite svgwrite
 method .pathelems dscwrite pdfwrite svgwrite
 method .patterntake pdfwrite svgwrite

@@ -119,6 +119,30 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } put
 
 %
+%  Whether the clip in force admits no pixel at all, so that nothing
+%  painted under it can reach the page.
+%
+%  A region is held as a path, and a region that admits nothing is held
+%  as a path with no elements in it -- what an intersection that met
+%  nothing leaves. Every painter already arrives at that answer by
+%  resolving what it was about to paint against the region and finding
+%  no span; this asks it outright, for the paints that cannot be
+%  resolved beforehand. A whole image and a whole stencil are those: what
+%  goes to a device that takes one is the samples and the matrix placing
+%  them, and a device handed those paints them.
+%
+%  The region stands in as the current path across the question and the
+%  caller's path goes back afterwards, since that is where a region is
+%  read from.
+%
+.xpostsys /.clipvoid {  % -  .  bool
+    graphicsdict /currgstate get /currpath get
+    //.clipregionpath exec
+    .pathempty
+    exch graphicsdict /currgstate get exch /currpath exch put
+} put
+
+%
 %  How deep a tile of the page reaches before anything is asked of it.
 %  A tile is halved until what it holds fits one array, so this settles
 %  where the halving starts and not where it ends.

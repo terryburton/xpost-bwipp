@@ -291,6 +291,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             sipr
         } for ]
         siw sih //.internaldict /.pngencode get exec
+        /.sicg .clipgroup def
         {
             /sipng exch def
             (<image transform="matrix\() .put
@@ -391,6 +392,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /sibp 0 def
         ("/>\n) .put
         } ifelse
+        .sicg { (</g>\n) .put } if
     } //.indict exec }
 
     % Take a stencil. SVG has no stencil of its own, so the bits go in
@@ -483,6 +485,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } if
 
         % the paint: a rectangle of the state's colour through the mask
+        /smcg .clipgroup def
         /smg graphicsdict /currgstate get def
         (<g transform="matrix\() .put
         smm 0 get .svgnum (,) .put smm 1 get .svgnum (,) .put
@@ -494,6 +497,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         smg /colorcomp1 get smg /colorcomp2 get smg /colorcomp3 get .svgrgb
         ( mask="url\(#xm) .put smid 20 string cvs .put
         (\)"/></g>\n) .put
+        smcg { (</g>\n) .put } if
     } //.indict exec }
 
     % A tiling pattern reaches a reader as the format's own construct: a
@@ -689,6 +693,68 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                 /.svgclipopen false def
             } if
         } //.indict exec
+    } bind
+
+    % The clip in force, as a group whatever is drawn next is inside of;
+    % the answer says whether a group was opened and so whether one has
+    % to be closed.
+    %
+    % The painting operators arrive here already resolved against the
+    % region -- what reaches FillPoly is the part of the paint the clip
+    % admits, and nothing else. A whole image and a whole stencil do not:
+    % what goes over is the samples and the matrix that places them, and
+    % the region has to travel with them. PLRM 4.8.1 paints an image only
+    % where the current clipping path admits it, exactly as it paints a
+    % fill, so a paint written without the region is a paint the page
+    % never asked for.
+    %
+    % What the element holds is the region's own outline, which is what
+    % the clip was resolved to, read under the nonzero rule it was built
+    % for. A region reduced to pixel-band spans costs a subpath per band,
+    % which is what it is worth here: the alternative is a paint written
+    % with no clip at all, which the consumer puts over the whole page.
+    %
+    % The region's identity comes from the clip itself, and the element
+    % written for one region is referred to again rather than written a
+    % second time -- the same cache the shape route above keeps, since
+    % the two describe the same region and either may have written it.
+    %
+    % The path walker reads the current path, so the region stands in for
+    % it across the walk and the working path goes back afterwards.
+    /.clipgroup {  % -  .  bool
+        % A region covering the whole page cuts nothing off any paint,
+        % and is written down nowhere: a page of bitmap glyphs under no
+        % clip would otherwise carry a group and a reference per glyph
+        % for a region that admits every one of them. The question is put
+        % to the region and not to .cliptrivial, which answers about the
+        % CURRENT PATH -- a paint that arrives whole has none, and an
+        % empty path lies inside every rectangle there is.
+        //.internaldict /.cliprect get exec {
+            /.cgy1 exch def /.cgx1 exch def
+            /.cgy0 exch def /.cgx0 exch def
+            .cgx0 0 le .cgy0 0 le and
+            .cgx1 width ge and .cgy1 height ge and
+        }{ false } ifelse
+        { false }{
+            /.cgser graphicsdict /currgstate get /clipcache get /serial get def
+            currentdict /.svgids get /clipser get .cgser eq {
+                /.cgid currentdict /.svgids get /clipfor get def
+            }{
+                currentdict /.svgids get /clipid 2 copy get 1 add put
+                /.cgid currentdict /.svgids get /clipid get def
+                currentdict /.svgids get /clipser .cgser put
+                currentdict /.svgids get /clipfor .cgid put
+                graphicsdict /currgstate get /currpath get
+                //.xpostsys /.clipregionpath get exec
+                (<clipPath id="xc) .put .cgid 20 string cvs .put
+                ("><path clip-rule="nonzero" d=") .put
+                .emitdevpath pop
+                ("/></clipPath>\n) .put
+                graphicsdict /currgstate get exch /currpath exch put
+            } ifelse
+            (<g clip-path="url\(#xc) .put .cgid 20 string cvs .put (\)">\n) .put
+            true
+        } ifelse
     } bind
 
     % clippath IMAGE . -  ; adopt a clip shape the interpreter could not

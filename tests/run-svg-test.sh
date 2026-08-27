@@ -331,5 +331,74 @@ verdict_run "$?" "$out" "the restoring svg run" || exit 1
 u=$(unresolved "$tmp/h2.svg" | tr '\n' ' ')
 [ -z "$u" ] || fail "after a restore over the end of a page, the next page refers to $u, which is written in no file it is read with"
 
+# --- a whole image or stencil carries the clip in force ----------------
+#
+# PLRM 4.8.1 paints an image only where the current clipping path admits
+# it, exactly as it paints a fill. A fill arrives at this device already
+# resolved against the region -- what reaches FillPoly is the part the
+# clip admits and nothing else -- but an image and a stencil do not: what
+# goes over is the samples and the matrix that places them, so the region
+# has to travel with them or the reader paints the lot.
+#
+# The region goes over as a clipPath the paint's group references, which
+# is the element this format has for it, and it is written for a region
+# that cuts something: one covering the whole page constrains no paint,
+# and a page of bitmap glyphs under no clip would otherwise carry a group
+# and a reference per glyph for nothing.
+f=$tmp/f.svg
+cat > "$tmp/f.ps" <<'FEOF'
+<< /PageSize [100 100] >> setpagedevice
+0 setgray
+gsave
+  newpath 50 50 25 0 360 arc clip
+  20 20 translate 60 60 scale
+  8 8 true [8 0 0 -8 0 8] <FFFFFFFFFFFFFFFF> imagemask
+grestore
+showpage
+FEOF
+"$xpost" -q -d svgwrite -o "$f" "$tmp/f.ps" </dev/null >/dev/null 2>&1
+[ -s "$f" ] || fail "the SVG writer emitted nothing for a clipped stencil"
+grep -q '<clipPath id="xc' "$f"     || fail "the stencil was written with no clip at all, so a reader paints it over the whole page (PLRM 4.8.1)"
+grep -q '<g clip-path="url(#xc[0-9]*)">' "$f"     || fail "the clip was written but nothing references it, so the stencil is still painted unclipped"
+
+# and the same stencil under no clip carries none: the region is the
+# whole page and constrains nothing
+g=$tmp/g.svg
+cat > "$tmp/g.ps" <<'GEOF'
+<< /PageSize [100 100] >> setpagedevice
+0 setgray
+gsave 20 20 translate 60 60 scale
+  8 8 true [8 0 0 -8 0 8] <FFFFFFFFFFFFFFFF> imagemask
+grestore
+showpage
+GEOF
+"$xpost" -q -d svgwrite -o "$g" "$tmp/g.ps" </dev/null >/dev/null 2>&1
+grep -q '<clipPath' "$g" && fail "a stencil under the whole page was written with a clip that cuts nothing"
+
+# The tiling walk paints a cell at a time under the region resolved to
+# spans, so a cell that draws a stencil is the same case reached without
+# the program ever setting such a clip itself. A cell larger than its
+# step is what keeps this off the pattern element and on the walk.
+h=$tmp/h.svg
+cat > "$tmp/h.ps" <<'HEOF'
+<< /PageSize [100 100] >> setpagedevice
+<< /PatternType 1 /PaintType 1 /TilingType 1
+   /BBox [0 0 20 20] /XStep 10 /YStep 10
+   /PaintProc { pop 0 setgray
+      gsave 20 20 scale
+      8 8 true [8 0 0 -8 0 8] <FFFFFFFFFFFFFFFF> imagemask
+      grestore } >>
+matrix makepattern /Pattern setcolorspace setpattern
+30 30 moveto 70 30 lineto 70 70 lineto 30 70 lineto closepath fill
+showpage
+HEOF
+"$xpost" -q -d svgwrite -o "$h" "$tmp/h.ps" </dev/null >/dev/null 2>&1
+[ -s "$h" ] || fail "the SVG writer emitted nothing for a pattern of stencils"
+grep -q '<pattern' "$h" && fail "the fill went out as a pattern element, so this measured the route it was written to keep off"
+ncell=$(grep -c 'mask="url(#xm' "$h")
+ngrp=$(grep -c '<g clip-path="url(#xc' "$h")
+[ "$ncell" -gt 0 ] || fail "the tiling drew no cell at all"
+[ "$ncell" = "$ngrp" ] || fail "$ncell cell stencil(s) drawn against $ngrp clip group(s) -- a cell written without the region it was painted under covers the whole page (PLRM 4.8.1)"
+
 echo SUCCESS
 exit 0

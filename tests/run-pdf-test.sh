@@ -557,6 +557,86 @@ grep -aq '/Decode \[1 0\]' "$maskpdf" || {
 rm -f "$maskpdf"
 echo "stencil emission and reuse OK"
 
+# --- a whole image or stencil carries the clip in force ----------------
+#
+# PLRM 4.8.1 paints an image only where the current clipping path admits
+# it, exactly as it paints a fill. A fill arrives at this device already
+# resolved against the region -- what reaches FillPoly is the part the
+# clip admits and nothing else -- but an image and a stencil do not: what
+# goes over is the samples and the matrix that places them, so the region
+# has to be written beside them or the consumer paints the lot.
+#
+# A region a rectangle describes went over as one; any other region went
+# over as nothing at all, and the paint then covered the whole page. Both
+# ways of reaching such a region are driven here: a program clipping to a
+# shape of its own, and the pattern tiling, which resolves the region
+# being painted to pixel-band spans and paints each cell under them.
+clipps=$(mktemp)
+clippdf=$(mktemp)
+trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf" "$statps" "$statpdf" "$clipps" "$clippdf"' EXIT INT TERM
+cat > "$clipps" <<'CEOF'
+<< /PageSize [100 100] >> setpagedevice
+<< /CompressPages false >> setdistillerparams
+0 setgray
+gsave
+  newpath 50 50 25 0 360 arc clip
+  20 20 translate 60 60 scale
+  8 8 true [8 0 0 -8 0 8] <FFFFFFFFFFFFFFFF> imagemask
+grestore
+showpage
+CEOF
+run_xpost "the clipped-stencil run" -d pdfwrite -o "$clippdf" "$clipps"
+sed -n '/^stream$/,/^endstream$/p' "$clippdf" > "$clipps"
+ndo=$(command grep -c 'Do$' "$clipps" || true)
+[ "$ndo" = 1 ] || {
+    echo "FAIL: expected the stencil to be drawn once, saw $ndo"; exit 1; }
+# the clip is the region's own outline and not a rectangle: the region
+# here is a circle, so the operator before W is a lineto rather than re
+awk '/^W n$/ { print prev; found = 1 } { prev = $0 }
+     END { exit found ? 0 : 1 }' "$clipps" > "$clippdf" || {
+    echo "FAIL: the stencil was written with no clip at all, so a consumer"
+    echo "      paints it over the whole page (PLRM 4.8.1)"
+    exit 1; }
+command grep -q ' l$' "$clippdf" || {
+    echo "FAIL: the clip written for the stencil is not the region in"
+    echo "      force -- the last operator before W is $(cat "$clippdf")"
+    exit 1; }
+echo "a stencil under a shaped clip carries that clip OK"
+
+# The tiling walk paints a cell at a time under the region resolved to
+# spans, so a cell that draws a stencil is the same case reached without
+# the program ever setting such a clip itself. The fill leaves the page,
+# which is what keeps this off the pattern-resource route and on the walk.
+cat > "$clipps" <<'CEOF'
+<< /PageSize [100 100] >> setpagedevice
+<< /CompressPages false >> setdistillerparams
+<< /PatternType 1 /PaintType 1 /TilingType 1
+   /BBox [0 0 20 20] /XStep 20 /YStep 20
+   /PaintProc { pop 0 setgray
+      gsave 20 20 scale
+      8 8 true [8 0 0 -8 0 8] <FFFFFFFFFFFFFFFF> imagemask
+      grestore } >>
+matrix makepattern /Pattern setcolorspace setpattern
+30 -5 moveto 70 -5 lineto 70 70 lineto 30 70 lineto closepath fill
+showpage
+CEOF
+run_xpost "the pattern-walk stencil run" -d pdfwrite -o "$clippdf" "$clipps"
+command grep -aq '/PatternType 1' "$clippdf" && {
+    echo "FAIL: the fill went out as a pattern resource, so this measured"
+    echo "      the route it was written to keep off"
+    exit 1; }
+sed -n '/^stream$/,/^endstream$/p' "$clippdf" > "$clipps"
+ndo=$(command grep -c 'Do$' "$clipps" || true)
+nclip=$(command grep -c '^W n$' "$clipps" || true)
+[ "$ndo" -gt 0 ] || { echo "FAIL: the tiling drew no cell at all"; exit 1; }
+[ "$ndo" = "$nclip" ] || {
+    echo "FAIL: $ndo cell stencil(s) drawn against $nclip clip(s) -- a cell"
+    echo "      written without the region it was painted under covers the"
+    echo "      whole page (PLRM 4.8.1)"
+    exit 1; }
+rm -f "$clipps" "$clippdf"
+echo "a stencil inside a pattern cell carries the fill's region OK ($ndo cells)"
+
 # --- a tiling pattern goes out as the pattern PDF has for it ---
 #
 # PDF 8.7.3.1 has the construct the language has (PLRM 4.9): a /Pattern
@@ -579,7 +659,7 @@ echo "stencil emission and reuse OK"
 patps=$(mktemp)
 patpdf=./pat-$$.pdf
 patbig=./patbig-$$.pdf
-trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf" "$statps" "$statpdf" "$patps" "$patpdf" "$patbig"' EXIT INT TERM
+trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf" "$statps" "$statpdf" "$clipps" "$clippdf" "$patps" "$patpdf" "$patbig"' EXIT INT TERM
 patprog() {   # $1 the half-width of the pattern fill
 cat <<PEOF
 << /PageSize [400 500] >> setpagedevice
