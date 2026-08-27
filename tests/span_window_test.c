@@ -37,6 +37,17 @@
  * Each shape is driven under both insideness rules and against several
  * windows, including windows that fall entirely outside the shape, one
  * band tall, and covering the whole page.
+ *
+ * AND THE CROSSING ITSELF, which is the number that equality is stated
+ * on. Two families of edges are converted for their crossings alone:
+ * ones passing through lattice points, whose crossings the conversion
+ * has to land on exactly rather than a fraction past, and ones far
+ * enough out that a single precision interpolation cannot land on them
+ * at all. The second is what says the conversion works in a double and
+ * not in the interpreter's own number, which is as wide as the object
+ * is -- a page does not depend on how wide this build's numbers are,
+ * and a suite running one width at a time holds that by writing the
+ * double's answer down.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -308,6 +319,119 @@ static void lattice_crossings(void)
            checked, off);
 }
 
+/* And a crossing single precision cannot reach.
+ *
+ * The lattice crossings above are whole numbers a single recovers as
+ * exactly as a double does, so they say nothing about which of the two
+ * the conversion works in: they hold the order of the multiply and the
+ * divide, and a conversion interpolating at the width of the
+ * interpreter's own number answers them just as well.
+ *
+ * The edges here separate the widths. Each runs from the origin to a
+ * lattice point far enough out that the interpolation's product passes
+ * what a single holds exactly -- around seventeen million, which a page
+ * of a few thousand device rows reaches on its own -- so the whole
+ * number the crossing is survives the divide in a double and not in a
+ * single. What a single answers is half a thousandth to one side of it,
+ * and the floor and the ceiling further on read that as a different
+ * column: the same page then carries different pixels along the edge on
+ * one build than on the other.
+ *
+ * Which is the whole of why these are here. A suite runs one width at a
+ * time and cannot compare two builds; what it can do is write down the
+ * number a double cannot help but produce and hold every build to it.
+ * A conversion that reads the interpreter's number fails this on the
+ * narrow build and passes it on the wide one, and the disagreement
+ * between the two becomes a failure inside one of them.
+ *
+ * The single-precision answers are computed here rather than assumed,
+ * through volatiles so that each step is rounded to a single whatever
+ * width the compiler evaluates in, and every edge in the table is
+ * required to be one a single gets wrong: a table that stopped
+ * separating the widths would otherwise go on passing while holding
+ * nothing.
+ */
+static double _single_crossing(long dx, long dy, long b)
+{
+    volatile float num = (float)dx * (float)b;
+    volatile float q = num / (float)dy;
+
+    return (double)q;
+}
+
+static void width_bearing_crossings(void)
+{
+    /* dx, dy, b: the edge (0,0)-(dx,dy) crosses y = b at the whole
+       number dx*b/dy, and dx*b is past what a single holds exactly */
+    static const long edge[][3] = {
+        { 6993, 2457, 2405 },   /* crosses at 6845 */
+        { 6955, 2461, 2415 },   /* crosses at 6825 */
+        { 6943, 2489, 2451 },   /* crosses at 6837 */
+        { 6847, 2505, 2475 },   /* crosses at 6765 */
+        { 6913, 2453, 2431 },   /* crosses at 6851 */
+        { 6875, 2475, 2457 }    /* crosses at 6825 */
+    };
+    int e, separating = 0, checked = 0, off = 0;
+
+    for (e = 0; e < (int)(sizeof edge / sizeof *edge); e++)
+    {
+        long dx = edge[e][0], dy = edge[e][1], b = edge[e][2];
+        long k = dx * b / dy;
+        Xpost_Span_Vertex p[4];
+        Collect got;
+        int i, found = 0;
+
+        if (dx * b % dy != 0)
+        {
+            check(0, "an edge in the table does not cross at a whole number");
+            continue;
+        }
+        if (_single_crossing(dx, dy, b) != (double)k)
+            separating++;
+
+        p[0].x = 0.0;        p[0].y = 0.0;
+        p[1].x = (double)dx; p[1].y = (double)dy;
+        p[2].x = 0.0;        p[2].y = (double)dy;
+        p[3].x = 0.0;        p[3].y = 0.0;
+
+        got.v = ubuf;
+        if (convert(p, 4, 0, NULL, &got))
+        {
+            check(0, "the width-bearing shape converted");
+            continue;
+        }
+        /* band b-1 is cut at y = b, and the edge is the far end of the
+           span the fill covers there */
+        for (i = 0; i < got.n; i++)
+        {
+            if (got.v[i].band != (int)(b - 1))
+                continue;
+            if (got.v[i].hi < (double)(k - 1) || got.v[i].hi > (double)(k + 1))
+                continue;
+            found = 1;
+            checked++;
+            if (got.v[i].hi != (double)k)
+            {
+                off++;
+                printf("span-window: edge (0,0)-(%ld,%ld) crosses y=%ld at"
+                       " %.9g, not %ld\n", dx, dy, b, got.v[i].hi, k);
+            }
+        }
+        if (!found)
+            check(0, "the width-bearing edge was cut at its lattice band");
+    }
+
+    check(separating == (int)(sizeof edge / sizeof *edge),
+          "every edge here is one a single precision crossing gets wrong");
+    check(checked == (int)(sizeof edge / sizeof *edge),
+          "every width-bearing edge was cut at its lattice band");
+    check(off == 0,
+          "every crossing past single precision landed on the whole number");
+    printf("span-window: %d crossing(s) past single precision, %d off the"
+           " whole number, %d that a single gets wrong\n",
+           checked, off, separating);
+}
+
 int main(void)
 {
     int grain, s;
@@ -362,6 +486,7 @@ int main(void)
     }
 
     lattice_crossings();
+    width_bearing_crossings();
 
     check(cases > 0, "the window was compared against the page at all");
     check(mismatches == 0, "every window kept what the page kept there");
