@@ -188,6 +188,14 @@ for spec in few:4 many:44; do
         i=0
         while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$holds"; i=$((i + 1)); done
         printf '/rss { %s } def (HANDLE %s ) print rss 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
+        # Beside the resident figure, what virtual memory itself says it is
+        # holding. The two answer different questions and a report of one
+        # without the other cannot be acted on: resident memory that grew
+        # while the arena did not is memory the interpreter gave up and the
+        # host did not take back, and an arena that grew is a job carrying
+        # something across the boundary. A host where this case fails will
+        # say which of the two it is.
+        printf '/rss { %s } def (HANDLEVM %s ) print vmstatus pop exch pop 20 string cvs print ( ) print globalvmstatus pop exch pop 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
     } > "$work/handle.$tag"
     "$xpost" -q --no-sandbox -d null --jobserver \
         < "$work/handle.$tag" > "$work/handle.$tag.out" 2>/dev/null
@@ -209,8 +217,12 @@ awk '
     /BETWEEN after/ { ba = $3 }
     /DEVICE few/    { df = $3 }
     /DEVICE many/   { dm = $3 }
-    /HANDLE few/    { hf = $3 }
-    /HANDLE many/   { hm = $3 }
+    # anchored, because the pair of lines the handle case prints share a
+    # prefix and an unanchored match would read the second into the first
+    /^HANDLE few/    { hf = $3 }
+    /^HANDLE many/   { hm = $3 }
+    /^HANDLEVM few/  { vlf = $3; vgf = $4 }
+    /^HANDLEVM many/ { vml = $3; vmg = $4 }
     END {
         want = 5000     # pages, ~20MB, well under the ~39MB grown
         grew = 2000     # pages, ~8MB; 40 leaked 500x500x3 buffers is ~7300
@@ -243,12 +255,16 @@ awk '
         else if (hm - hf > held) {
             printf "the job boundary did not give up the handle records of the\n"
             printf "entities it dropped: resident grew %d pages over 40 extra jobs\n", hm - hf
+            printf "      virtual memory over the same forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
+            printf "      (a resident figure that grew while these did not is memory\n"
+            printf "      the interpreter gave up and the host did not take back)\n"
             bad = 1
         }
         if (bad) exit 1
         printf "within a job vmreclaim returned %d pages; between jobs the boundary\n", wp - wa
         printf "returned %d, held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
-        printf "and the handle records flat (%d pages over 40 jobs)\n", hm - hf
+        printf "and the handle records flat (%d pages over 40 jobs, virtual memory\n", hm - hf
+        printf "over the same forty: local %d bytes, global %d)\n", vml - vlf, vmg - vgf
     }
 ' "$work/out" > "$work/problems" 2>&1
 rc=$?
