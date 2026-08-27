@@ -3904,7 +3904,15 @@ int _glyphshowidx(Xpost_Context *ctx,
                   Xpost_Object cid,
                   Xpost_Object gidx)
 {
+    /* The index is carried on to the face as an unsigned int, so one
+       that does not fit is refused rather than narrowed. A wide build's
+       integer is wider than that field: narrowed, an index past the top
+       lands back inside the range and names some other glyph, which is
+       a glyph painted for a character that does not have one and no
+       error to say so. */
     if (gidx.int_.val < 0)
+        return rangecheck;
+    if ((integer)(unsigned int)gidx.int_.val != gidx.int_.val)
         return rangecheck;
     return _glyphshow_common(ctx, null, 0,
                              (unsigned int)gidx.int_.val, cid);

@@ -424,6 +424,47 @@ WC WL differs 0 gt (rather than the glyph its last byte would select) check
 { pop pop pop () show } cs.err /rangecheck eq
     (a string with no byte at all is refused) check
 
+% A CID the glyph index cannot hold is refused, not narrowed.
+%
+% The walk hands the descendant's glyph index on as an unsigned field.
+% A CID past what that field holds, narrowed to fit, lands back inside
+% the range and names some other glyph -- a glyph painted for a
+% character that has none, with no error to say so. The two ends of the
+% range are told apart by what gets painted: CID 1 and CID 2 reach
+% glyphs of different ink, so a CID that aliases one of them is visible
+% as that glyph's ink rather than as a refusal.
+%
+% Which error it is depends on the width the build carries: an integer
+% literal past the type's range is a real (PLRM 3.3.2), so the same
+% source text is a wrong type at one width and an out-of-range integer
+% at the other. Either way it must not paint.
+/tr.cid null def
+/tr.font { % cid  .  font
+    /tr.cid exch def
+    8 dict begin
+        /FontType 0 def /FMapType 9 def /FontMatrix matrix def
+        /Encoding [0] def /WMode 0 def
+        /CMap << /.codespaces [ <00> <FF> ]
+                 /.cidranges [ <00> <00> tr.cid ] >> def
+        /FDepVector [ /CIDWideTest /CIDFont findresource
+                      dup length 8 add dict copy dup /CIDMap undef ] def
+    currentdict end 20 scalefont
+} bind def
+/tr.ink { % cid  .  ink or -1 when refused
+    tr.font
+    { initgraphics erasepage 0 setgray newpath 10 20 moveto setfont <00> show }
+    stopped { $error /newerror false put clear -1 }{ snap inkof } ifelse
+} bind def
+/tr.one 1 tr.ink def
+/tr.two 2 tr.ink def
+tr.one 0 gt (a CID inside the range paints its glyph) check
+tr.two 0 gt (and a different CID paints a different one) check
+tr.one tr.two ne (the two are told apart by their ink) check
+4294967297 tr.ink -1 eq
+    (a CID past the glyph index is refused) check
+4294967298 tr.ink -1 eq
+    (and so is the next one) check
+
 % and the font the procedure runs under is the descendant the walk
 % selected. PLRM 8.2 has currentfont answer with "the current descendant
 % base font or CIDFont" while a cshow procedure runs, and rootfont with
