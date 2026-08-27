@@ -14,6 +14,15 @@
  *     so a later job in the same stream does see them (persistence);
  *   - a job that errors does not stop the stream: the job after it still runs
  *     (a poisoned job cannot take the server down).
+ *
+ * And one thing about the interpreter parameters that do not live in virtual
+ * memory. The glyph cache's byte parameters are the MaxFontCache system
+ * parameter and the MaxFontItem user parameter (PLRM 8.2 setcacheparams),
+ * held with the cache outside the arena; PLRM C.1.1 has an encapsulated
+ * job's change to a user parameter leave the value the jobs after it begin
+ * from alone. A job that set the per-glyph ceiling to nothing would
+ * otherwise leave every later job in the server rendering every glyph from
+ * its description.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -231,6 +240,45 @@ static void param_reverts(Xpost_Showpage_Semantics semantics, const char *what)
     xpost_destroy(ctx);
 }
 
+/* The font cache parameters a job sets are the job's own. Job 1 clamps the
+ * store to a byte and the per-glyph ceiling to nothing, which would leave a
+ * server caching no glyph ever again; job 2 reports what it begins from. */
+static void stream_cache_params(Xpost_Showpage_Semantics semantics,
+                                const char *what)
+{
+    Xpost_Context *ctx;
+    static const char prog[] =
+        "mark 1 0 0 setcacheparams\004"
+        "mark currentcacheparams 4 array astore == flush";
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
+                       XPOST_OUTPUT_MESSAGE_QUIET, XPOST_USE_SIZE, 100, 100);
+    if (!ctx)
+    {
+        report_failure("%s: xpost_create", what);
+        return;
+    }
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_jobserver_set(ctx, 1);
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+
+    outlen = 0;
+    (void) xpost_run(ctx, XPOST_INPUT_STRING, prog, sizeof prog - 1);
+    outbuf[outlen < sizeof outbuf ? outlen : sizeof outbuf - 1] = '\0';
+
+    /* the clamped values, whichever way they are spelled, are what must not
+       be there: a store of one byte and a ceiling of none */
+    if (strstr(outbuf, "-mark- 1 ") || strstr(outbuf, " 0]"))
+        report_failure("%s: a job's font cache parameters reached the next "
+                       "job: %s", what, outbuf);
+    if (!strstr(outbuf, "-mark-"))
+        report_failure("%s: the job after the first did not report the cache "
+                       "parameters: %s", what, outbuf);
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     if (!xpost_init())
@@ -243,6 +291,8 @@ int main(void)
     stream(XPOST_SHOWPAGE_RETURN, "returning");
     stream_reclaim(XPOST_SHOWPAGE_NOPAUSE, "reclaim-nopause");
     stream_reclaim(XPOST_SHOWPAGE_RETURN, "reclaim-returning");
+    stream_cache_params(XPOST_SHOWPAGE_NOPAUSE, "cacheparams-nopause");
+    stream_cache_params(XPOST_SHOWPAGE_RETURN, "cacheparams-returning");
     stream_file_leak(XPOST_SHOWPAGE_NOPAUSE, "fileleak-nopause");
     stream_file_leak(XPOST_SHOWPAGE_RETURN, "fileleak-returning");
     stream_quit(XPOST_SHOWPAGE_NOPAUSE, "quit-nopause");

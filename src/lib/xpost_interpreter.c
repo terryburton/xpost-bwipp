@@ -4233,6 +4233,14 @@ static int _job_capture_baseline(Xpost_Context *ctx)
     ctx->job_saved_pagedevice_depth = ctx->pagedevice_depth;
     ctx->job_idiomrecognition = ctx->idiomrecognition;
     ctx->job_vmthreshold = ctx->vmthreshold;
+    ctx->job_namewrapsave = ctx->namewrapsave;
+    memcpy(ctx->job_typenames, ctx->typenames, sizeof ctx->job_typenames);
+    {
+        long bsize, msize, csize, mmax, cmax;
+
+        xpost_font_cache_status(&bsize, &ctx->job_gcache_bmax, &msize, &mmax,
+                                &csize, &cmax, &ctx->job_gcache_blimit);
+    }
     XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_SAVE_ROOT)
     return 1;
 }
@@ -4317,6 +4325,16 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     _job_close_born_files(ctx->gl, ctx->job_baseline_gl);
     xpost_memory_image_restore(ctx->lo, ctx->job_baseline_lo);
     xpost_memory_image_restore(ctx->gl, ctx->job_baseline_gl);
+    /* The blocks the revert has just stopped naming. A handle is given up
+       where the entity carrying it is taken away, and every other way an
+       entity goes -- a free, a collection, the end of the memory file --
+       does that as it goes; the revert takes the whole arena back without
+       walking an entity, so the sweep is what stands in for it here. A job
+       that ended with a font dictionary, or a device it made, still
+       reachable would otherwise leave the block behind for the life of the
+       server, one per handle per job. */
+    xpost_handle_release_orphans(ctx->lo);
+    xpost_handle_release_orphans(ctx->gl);
     if (!xpost_operator_table_restore(ctx->gl, ctx->job_baseline_optab,
                                       ctx->job_baseline_optab_len))
     {
@@ -4337,6 +4355,19 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     ctx->packing = ctx->job_packing;
     ctx->idiomrecognition = ctx->job_idiomrecognition;
     ctx->vmthreshold = ctx->job_vmthreshold;
+    /* The caches of interned names the context holds beside the roots: a
+       name is an index into a name stack the revert has just wound back,
+       so an index a job's own interning produced names nothing there now
+       (PLRM 3.7.7). */
+    ctx->namewrapsave = ctx->job_namewrapsave;
+    memcpy(ctx->typenames, ctx->job_typenames, sizeof ctx->typenames);
+    /* The glyph cache's byte parameters, which are the MaxFontCache system
+       parameter and the MaxFontItem user parameter (PLRM 8.2
+       setcacheparams). They are held with the cache, outside the arena,
+       and PLRM C.1.1 has an encapsulated job's change to a user parameter
+       leave the default for the jobs after it alone. */
+    xpost_font_cache_setparams(ctx->job_gcache_bmax, 0,
+                               ctx->job_gcache_blimit);
     ++ctx->namebind_gen;
     ctx->es_over = ctx->os_over = ctx->ds_over = 0;
     ctx->onerr_run = 0;

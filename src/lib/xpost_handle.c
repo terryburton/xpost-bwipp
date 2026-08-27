@@ -343,6 +343,44 @@ void xpost_handle_release_entity(Xpost_Memory_File *mem,
     memset(slot, 0, sizeof(*slot));
 }
 
+/* The blocks the arena no longer names. Read the number out of each
+   recorded entity and give the slot up where the entity does not carry
+   it any more -- the entity was dropped, or the bytes that held the
+   number were written over by whatever the revert put back there. The
+   read is bounded here rather than by the memory layer's own check,
+   which reports a rangecheck for an entity outside the table; an entity
+   the revert un-counted is the ordinary case here and not a fault to
+   report. */
+void xpost_handle_release_orphans(Xpost_Memory_File *mem)
+{
+    unsigned int i;
+
+    for (i = 1; i < _nslots; i++)
+    {
+        unsigned int index;
+        unsigned int ent = _slots[i].ent;
+
+        if ((ent == 0) || (_slots[i].mem != mem))
+            continue;
+        if (xpost_ent_valid(mem, ent) &&
+            (mem->table.tab[ent].sz >= sizeof(index)))
+        {
+            memcpy(&index, (unsigned char *)xpost_ent_ptr(mem, ent),
+                   sizeof(index));
+            if (index == i)
+                continue;
+        }
+        /* what the block names goes with the block, as it does at a
+           reclamation: the device whose Destroy the job never reached
+           gets its last word here */
+        if (_slots[i].reclaim && _slots[i].block)
+            _slots[i].reclaim(_slots[i].block);
+        if (!_slots[i].held)
+            free(_slots[i].block);
+        memset(&_slots[i], 0, sizeof(_slots[i]));
+    }
+}
+
 void xpost_handle_release_memory_file(Xpost_Memory_File *mem)
 {
     unsigned int i;

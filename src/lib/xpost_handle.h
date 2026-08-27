@@ -228,4 +228,22 @@ void xpost_handle_release_entity(Xpost_Memory_File *mem,
  */
 void xpost_handle_release_memory_file(Xpost_Memory_File *mem);
 
+/**
+ * @brief Give up every block a memory file no longer names.
+ *
+ * A slot is reached from the entity that carries its number, and the
+ * number is stored in that entity's own bytes. Everything that takes an
+ * entity away gives its slot up in the same breath -- a free, a
+ * collection, the end of the memory file -- but a job-boundary revert
+ * takes the whole arena back at once, without walking an entity, so the
+ * blocks a job left named by entities the revert has dropped are still
+ * recorded and still allocated. This is that sweep: run after the arena
+ * has been put back, it gives up every slot whose entity no longer
+ * carries its number.
+ *
+ * A block the baseline named is kept: the revert restores its entity
+ * byte for byte, number and all.
+ */
+void xpost_handle_release_orphans(Xpost_Memory_File *mem);
+
 #endif

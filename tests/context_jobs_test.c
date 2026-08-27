@@ -42,6 +42,15 @@
  * finishes it. The boundary reverts to the baseline when the job
  * completes, not when a call returns, so the returning shape is
  * isolated to the same degree as the others.
+ *
+ * Last, the caches of interned names the context keeps beside its
+ * object roots. A name object is an index into a name stack that lives
+ * in virtual memory, so a name a job interned is dropped by the revert
+ * while a field caching it -- being no part of the arena -- keeps the
+ * index; the next job reading that index back is answered whatever the
+ * stack holds there now. The fields are poisoned here rather than
+ * driven to it through a program, so the check has a state to detect
+ * before the job runs rather than an absence to report.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -55,6 +64,7 @@
 #include "xpost_memory.h"
 #include "xpost_object.h"
 #include "xpost_stack.h"
+#include "xpost_name.h"
 #include "xpost_context.h"
 
 #include "xpost_test.h"
@@ -205,6 +215,73 @@ static void jobs_in_one_context(const char *what,
     xpost_destroy(ctx);
 }
 
+/* The interned-name caches the context holds outside the arena, which the
+   boundary must put back with the banks they index into: a name object
+   carries an index into a name stack that lives in virtual memory, and a
+   name a job interns is dropped by the revert while the field caching it
+   is not. Poisoned after the baseline is captured, so what the job
+   boundary has to undo is there to be seen; a poison equal to the
+   baseline would make the check pass without the boundary doing
+   anything, so that it differs is asserted first. */
+static void interned_name_caches_revert(void)
+{
+    Xpost_Context *ctx;
+    Xpost_Object base_wrapsave;
+    Xpost_Object base_typename;
+    Xpost_Object poison;
+    const unsigned int slot = nulltype;
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL,
+                       XPOST_SHOWPAGE_DEFAULT, XPOST_OUTPUT_MESSAGE_QUIET,
+                       XPOST_USE_SIZE, 100, 100);
+    if (!ctx)
+    {
+        report_failure("interned name caches: xpost_create");
+        return;
+    }
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+
+    /* the first run establishes the baseline the caches are put back to */
+    (void)run_job(ctx, "0 0 moveto 5 5 lineto stroke");
+
+    base_wrapsave = ctx->namewrapsave;
+    base_typename = ctx->typenames[slot];
+    poison = xpost_object_cvx(xpost_name_cons(ctx, "-job-boundary-poison-"));
+
+    if (xpost_object_get_type(poison) != nametype)
+    {
+        report_failure("interned name caches: the poison name would not intern");
+    }
+    else if (poison.mark_.padw == base_wrapsave.mark_.padw ||
+             poison.mark_.padw == base_typename.mark_.padw)
+    {
+        report_failure("interned name caches: the poison is the baseline, so "
+                       "the check could pass without the boundary running");
+    }
+    else
+    {
+        ctx->namewrapsave = poison;
+        ctx->typenames[slot] = poison;
+
+        (void)run_job(ctx, "1 1 add pop");
+
+        check(ctx->namewrapsave.mark_.padw == base_wrapsave.mark_.padw &&
+              xpost_object_get_type(ctx->namewrapsave)
+                  == xpost_object_get_type(base_wrapsave),
+              "the job boundary puts the wrapped-call name back to the "
+              "baseline");
+        check(ctx->typenames[slot].mark_.padw == base_typename.mark_.padw &&
+              xpost_object_get_type(ctx->typenames[slot])
+                  == xpost_object_get_type(base_typename),
+              "the job boundary puts the type-name cache back to the "
+              "baseline");
+    }
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     int snapshots;
@@ -228,6 +305,8 @@ int main(void)
         jobs_in_one_context("returning semantics, page boundary in the job",
                             XPOST_SHOWPAGE_RETURN, snapshots, probe_page);
     }
+
+    interned_name_caches_revert();
 
     xpost_quit();
 

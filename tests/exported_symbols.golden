@@ -269,6 +269,7 @@ xpost_handle_drop
 xpost_handle_hold
 xpost_handle_release_entity
 xpost_handle_release_memory_file
+xpost_handle_release_orphans
 xpost_init
 xpost_int_cons
 xpost_interpreter_cid_get_context

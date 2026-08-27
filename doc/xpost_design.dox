@@ -881,7 +881,92 @@
  * object. So these are put back to the baseline with the banks, from
  * the one list that declares them as the collector's roots; only the
  * held job-stream channel is exempt, because it lives in C and the
- * job layer opens and closes it around the boundary itself.
+ * job layer opens and closes it around the boundary itself. The same
+ * reasoning reaches two caches of interned names the context keeps
+ * beside those roots -- the name a wrapped call's saved operands are
+ * kept under, and the executable name the @c type operator answers for
+ * each type. A name object is an index into a name stack that lives in
+ * virtual memory, so a name a job interned is dropped by the revert
+ * while the field caching it, being no part of the arena, keeps the
+ * index; both are put back with the banks they index into.
+ *
+ * @subsection design_jobs_contract What a job may and may not rely on
+ *
+ * The isolation contract is what an embedder serving untrusted jobs
+ * from one context is buying, so it is worth stating in full. With
+ * encapsulation on -- the default -- a job may rely on beginning from
+ * the baseline in every one of these:
+ *
+ * - Both virtual memory banks, whole. Every dictionary, every string,
+ *   every array, every save level, the operand, dictionary, execution
+ *   and graphics state stacks, and so the graphics state itself: the
+ *   current transformation, colour space, colour, clip, font,
+ *   halftone, transfer function, flatness and line parameters. The
+ *   resource categories and everything defined into one, the font
+ *   directories, @c $error and @c errordict, @c statusdict and
+ *   @c serverdict, and any redefinition of a standard operator a job
+ *   made anywhere it could reach. PLRM 3.7.7 asks for an empty operand
+ *   stack, the standard dictionary stack, and stacks with no vestiges
+ *   of previous jobs, and the image restore gives all of it at once.
+ * - The operator table, and the count of operators issued, so an
+ *   operator a job defined is neither callable nor counted in the next.
+ * - The interpreter parameters that live outside the arena: the
+ *   allocation mode, the array-packing mode, the random number
+ *   generator's state, @c VMThreshold, @c IdiomRecognition, and the
+ *   glyph cache's two byte parameters -- the @c MaxFontCache system
+ *   parameter and the @c MaxFontItem user parameter of PLRM 8.2
+ *   @c setcacheparams. PLRM C.1.1 has an encapsulated job's change to a
+ *   user parameter leave the value later jobs begin from alone, and
+ *   these are the ones the arena revert does not reach.
+ * - The error latches the interpreter holds outside the arena: the
+ *   flag per stack that says its overflow has been reported, and the
+ *   count of errors handled without the run reaching @c stop, which is
+ *   what bounds a cascade. The name and detail of the error a job ended
+ *   on are the run's verdict rather than interpreter state -- the
+ *   embedder reads them after the call -- and are cleared as the next
+ *   job is primed.
+ * - The files and filters the job opened, which are closed, and the
+ *   page device it installed, which is retired -- its @c Destroy run
+ *   while virtual memory is intact, as PLRM 6.1 has it, since only the
+ *   @c Destroy frees the raster the device holds outside the arena.
+ * - The blocks a job's entities named outside the arena. A handle is a
+ *   record kept beside virtual memory, given up wherever the entity
+ *   carrying it goes; the revert takes the whole arena back without
+ *   walking an entity, so the boundary sweeps for the records the
+ *   revert has stopped naming.
+ * - The committed pages the job's growth cost, which go back to the
+ *   operating system.
+ *
+ * What a job may @b not rely on, and what it therefore cannot use to
+ * reach the job after it:
+ *
+ * - The counters that name cached work -- the serials a font, a form
+ *   and a device region are keyed by. These are the interpreter's own
+ *   and only ever move forward, deliberately: they key caches that are
+ *   not virtual memory and are not wound back with it, so a counter
+ *   that wound back would hand a later job a number an earlier job's
+ *   cached work is still filed under. A job cannot make the interpreter
+ *   reissue one.
+ * - The glyph cache's contents and the faces the font library holds
+ *   open. These are a cache in the strict sense: what they hold is
+ *   keyed by the full rendering inputs, so a hit is the bytes a fresh
+ *   rendering would produce and no job can be answered another job's
+ *   work. Keeping them across the boundary is what a font cache is for,
+ *   and PLRM 8.2 @c cachestatus reports figures a program cannot
+ *   control directly.
+ * - The path permits. The sandbox is the process's and is one-way by
+ *   contract (@c xpost.h): a job neither widens it nor narrows it.
+ *
+ * And what persists on purpose: @c exitserver and @c true @c password
+ * @c startjob make a run unencapsulated, and at its end the boundary
+ * folds its state into the baseline instead of reverting to it, so its
+ * definitions are part of the initial VM every later job begins from
+ * (PLRM 3.7.7). @c false @c password @c startjob folds what has been
+ * done so far and returns to encapsulation, which is the prolog and
+ * script idiom. The door is a password: empty, the factory default,
+ * lets a trusted prolog through, and a host serving untrusted jobs
+ * closes it with @c xpost_startjob_password_set, since a program cannot
+ * set it.
  *
  * A run's input may itself be a job-server channel carrying more than
  * one job, framed by the Control-D end-of-file the serial protocol

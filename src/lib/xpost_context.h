@@ -491,6 +491,27 @@ struct _Xpost_Context {
     int job_packing;
     int job_idiomrecognition;   /**< IdiomRecognition at baseline capture */
     integer job_vmthreshold;    /**< VMThreshold at baseline capture */
+    /** The two name caches at the baseline. A name object is an index
+        into the name stack, which is virtual memory of whichever bank
+        was current when the name was first interned -- so a name a job
+        interns is dropped by the revert while the field caching it,
+        which is no part of the arena, keeps the index. The next job's
+        type reads that index back and is answered a name the stack no
+        longer holds there: another job's name, or nothing. Put back with
+        the arena they index into, for the reason the object roots are
+        (PLRM 3.7.7). */
+    Xpost_Object job_namewrapsave;
+    Xpost_Object job_typenames[XPOST_OBJECT_NTYPES + 1];
+    /** The glyph cache's two byte parameters at the baseline: the store's
+        ceiling (the MaxFontCache system parameter) and the largest glyph
+        it will keep (the MaxFontItem user parameter). They live outside
+        virtual memory with the cache they govern, so the revert does not
+        reach them, and PLRM C.1.1 has an encapsulated job's change to a
+        user parameter not reach the jobs after it -- a job that sets the
+        per-glyph ceiling to nothing would otherwise leave every later job
+        rendering every glyph afresh. */
+    long job_gcache_bmax;
+    long job_gcache_blimit;
     unsigned int job_saved_pagedevice_depth; /**< pagedevice_depth at
                                        baseline capture, to retire a
                                        job-installed device at the boundary */
