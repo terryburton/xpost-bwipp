@@ -5696,6 +5696,8 @@ int _stringoutline(Xpost_Context *ctx,
     fontdata *fd;
     Xpost_Object encoding;
     Xpost_Object charstrings;
+    textstate mts;
+    double penx = 0.0, peny = 0.0;
     char *cstr;
     char *ch;
     outlinecollect oc;
@@ -5717,6 +5719,15 @@ int _stringoutline(Xpost_Context *ctx,
     _face_setup(ctx, gs, fontdict, data.face);
     encoding = xpost_dict_get(ctx, fontdict, name_Encoding);
     charstrings = xpost_dict_get(ctx, fontdict, name_CharStrings);
+    /* only the /Metrics fields matter here: the glyphs are placed and
+       advanced by the overrides show places and advances them by, and
+       nothing is painted, so the device and the colour answer for
+       nothing */
+    memset(&mts, 0, sizeof mts);
+    mts.encoding = encoding;
+    mts.metrics = xpost_dict_get(ctx, fontdict, name_Metrics);
+    mts.cdmat_ok = xpost_object_get_type(mts.metrics) == dicttype
+                && _char_device_matrix(ctx, gs, fontdict, mts.cdmat);
 
     cstr = xpost_string_allocate_cstring(ctx, str);
     if (!cstr)
@@ -5733,10 +5744,23 @@ int _stringoutline(Xpost_Context *ctx,
     {
         unsigned int glyph_index;
         long advance_x, advance_y;
+        long sbx = 0, sby = 0;
+        Xpost_Object gname;
         Xpost_Font_Outline_Sink sink;
 
+        gname = _encoded_name(ctx, encoding, (unsigned char)*ch);
         glyph_index = _glyph_index_for_char(ctx, encoding, charstrings,
                                             data.face, (unsigned char)*ch);
+        /* a /Metrics entry may put this glyph somewhere other than where
+           the face draws it, as it does on the routes that paint one.
+           Read before the outline is walked, since reading it loads the
+           glyph. The shift belongs to this glyph alone, so the collector
+           starts it from the shifted origin and the pen the next glyph
+           starts from keeps none of it. */
+        _metrics_sidebearing(ctx, &mts, gname, data.face, glyph_index,
+                             &sbx, &sby);
+        oc.px = penx + sbx / 65536.0;
+        oc.py = peny + sby / 65536.0;
         sink.moveto = _oc_moveto;
         sink.lineto = _oc_lineto;
         sink.curveto = _oc_curveto;
@@ -5755,8 +5779,11 @@ int _stringoutline(Xpost_Context *ctx,
             free(cstr);
             return oc.err;
         }
-        oc.px += advance_x / 65536.0;
-        oc.py += advance_y / 65536.0;
+        /* and a /Metrics entry for it overrides the face's advance, so
+           the glyph after it starts where show would start it */
+        _metrics_advance(ctx, &mts, gname, &advance_x, &advance_y);
+        penx += advance_x / 65536.0;
+        peny += advance_y / 65536.0;
     }
     free(cstr);
 

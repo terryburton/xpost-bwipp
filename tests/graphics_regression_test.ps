@@ -3477,6 +3477,26 @@ systemdict /NOFACES known not {
     << /A [ 0 400 ] >> sbleft pop (A) stringwidth pop /sbw exch def
     << /A [ 500 400 ] >> sbleft pop (A) stringwidth pop sbw sub abs 0.01 lt
         (and leaves the pen where the width put it) assert
+
+    % charpath produces the same glyph as a path (PLRM 8.2), so the outline
+    % it appends has to stand where the ink above stands. The two are read
+    % on different routes -- one paints a raster, the other appends an
+    % outline -- and are held to each other here by how far each of them
+    % moves when the sidebearing changes, which is a comparison neither the
+    % substituted face nor the antialiasing of an edge can shift.
+    /sbpathleft {                       % metrics  .  real
+        /Helvetica findfont dup length 1 add dict copy
+        dup /Metrics 4 -1 roll put
+        /SbProbe exch definefont pop
+        gsave
+        /SbProbe findfont 20 scalefont setfont
+        newpath 8 20 moveto (A) false charpath pathbbox pop pop pop
+        grestore
+    } bind def
+    << /A [ 0 400 ] >> sbpathleft /sb0llx exch def
+    << /A [ 500 400 ] >> sbpathleft /sb500llx exch def
+    sb500llx sb0llx sub  sb500col sb0col sub  sub abs 1.5 lt
+        (charpath appends the outline where show puts the ink) assert
     erasepage
 } if
 

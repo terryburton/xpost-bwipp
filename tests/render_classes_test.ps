@@ -187,6 +187,34 @@ fy300 fy0 sub 300 sfm mul sub abs 0.01 lt
 << /A 400 >> sbfont firstpt pop natx sub abs 0.01 lt
     (a number Metrics entry leaves the glyph where the face drew it) assert
 
+% --- charpath produces the same glyph as a path that show paints on the page,
+%     so it reads the same Metrics dictionary (PLRM 5.9.2, PLRM 8.2 charpath):
+%     the outline it appends stands where the overriding sidebearing puts the
+%     glyph, and the glyph after one starts where the overriding width ends.
+%     Asked of the appended path's bounding box, and of the difference between
+%     two Metrics dictionaries rather than of either alone, so that neither the
+%     face the platform substitutes nor its units per em is being asserted. ---
+/cpbox {                                % metrics str  .  llx lly urx ury
+    exch sbfont
+    gsave newpath 40 650 moveto false charpath pathbbox grestore
+} bind def
+
+<< /A [ 0 400 ] >>   (A) cpbox pop pop pop /cx0 exch def
+<< /A [ 300 400 ] >> (A) cpbox pop pop pop /cx300 exch def
+cx300 cx0 sub 300 sfm mul sub abs 0.01 lt
+    (charpath puts the outline where the Metrics sidebearing puts the glyph) assert
+
+<< /A 300 >> (AA) cpbox pop exch pop exch pop /cw300 exch def
+<< /A 600 >> (AA) cpbox pop exch pop exch pop /cw600 exch def
+cw600 cw300 sub 300 sfm mul sub abs 0.01 lt
+    (and starts the glyph after one where the Metrics width ends) assert
+
+% the path and the pen agree about how far the text reached
+<< /A 300 >> sbfont
+gsave newpath 40 650 moveto (AA) false charpath currentpoint grestore
+pop 40 sub 600 sfm mul sub abs 0.01 lt
+    (the charpath pen advances by the Metrics widths) assert
+
 % --- tiling pattern and shading pattern (PatternType 2) ---
 {
     /Pattern setcolorspace
