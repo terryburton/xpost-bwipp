@@ -1222,14 +1222,24 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } .defop
 
 %
-%  Paint the glyph the name selects, independent of the character
-%  encoding, and advance the current point by the glyph's width. A
-%  Type 3 font renders through its BuildGlyph procedure; one defining
-%  only BuildChar is served through the first code its Encoding
-%  assigns the name. Other font types resolve the name against the
-%  font program.
+%  Paint the glyph a single selector picks out, independent of the
+%  character encoding, and advance the current point by the glyph's
+%  width. A Type 3 font renders through its BuildGlyph procedure; one
+%  defining only BuildChar is served through the first code its
+%  Encoding assigns the name. Other font types resolve the name
+%  against the font program.
 %
-/glyphshow [ /nametype ] {  % name  .  -
+%  Which selector it takes is the current font's to say: PLRM 8.2 has
+%  "the character is identified by name if a base font or by CID if a
+%  CIDFont", and PLRM 5.11.3 states the second half again as one of the
+%  limitations on a CIDFont that is the current font -- glyphshow "can
+%  be used, but it accepts only an integer operand specifying a CID as
+%  the character selector". So each kind of font takes the one selector
+%  that names a glyph in it and refuses the other, and what tells the
+%  two kinds apart is the CIDFontType entry every CIDFont carries and no
+%  base font does (PLRM 5.11.3).
+%
+/glyphshow [ /anytype ] {  % name | cid  .  -
     /glyphshow //.needfont exec
     /glyphshow //.needpoint exec
     //.showclip exec
@@ -1243,6 +1253,25 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % was missing is the one that would have refused it.
     dup //.fontroute exec /composite eq {
         /glyphshow cvx /invalidfont signalerror
+    } if
+
+    dup /CIDFontType known {
+        % A CIDFont: the selector is a CID, and PLRM 8.2 gives the
+        % operator a rangecheck for one outside the range of CIDs, which
+        % PLRM Appendix B ends at 65535. A CID inside the range that the
+        % font has no glyph for is not out of range; it is a glyph the
+        % font does not define, and the font answers for it.
+        exch
+        dup type /integertype ne {
+            /glyphshow cvx /typecheck signalerror
+        } if
+        dup 0 lt 1 index 65535 gt or {
+            /glyphshow cvx /rangecheck signalerror
+        } if
+        //.xpostsys /.cidglyphshow get exec
+    }{
+    1 index type /nametype ne {
+        /glyphshow cvx /typecheck signalerror
     } if
     dup //.fontroute exec /face eq {
         pop
@@ -1282,7 +1311,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         grestore
         itransform moveto
         end
-    } ifelse
+    } ifelse } ifelse
 } .defop
 
 %

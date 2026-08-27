@@ -799,6 +799,50 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
+%  Paint the one glyph a CID names in a CIDFont that is itself the
+%  current font. PLRM 8.2 says glyphshow then "proceeds as show would
+%  for a CID-keyed font whose mapping algorithm yields this CIDFont
+%  with cid as the character selector", so that is the route it takes:
+%  a mapping that yields this CID and no other, over the single code
+%  that reaches it, walked by the walk above. Assembling the
+%  descendant's face, resolving the CID through the CIDMap, reading
+%  the metrics the CID names and settling the route the colour and the
+%  font ask for are then each done in the one place that does them for
+%  a string, rather than a second time here.
+%
+%  The walk keeps the assembled face in the descendant dictionary, so a
+%  CIDFont a program set straight from its resource -- read-only, as
+%  defineresource leaves what it registers -- is walked through a
+%  working copy, as composefont walks its descendants through the
+%  copies it takes of them.
+%
+%  The walk leaves the font it walked current, and the font a glyph was
+%  painted from is not the caller's to lose: the caller's font goes
+%  back.
+%
+/.cidglyphshow {  % cidfont cid  .  -
+    3 dict begin
+    /cid exch def
+    dup wcheck not { dup length 4 add dict copy } if
+    /desc exch def
+    /prev graphicsdict /currgstate get /currfont get def
+    <<
+        /FontType 0
+        /FMapType 9
+        /FontMatrix matrix
+        /Encoding [ 0 ]
+        /WMode 0
+        /FDepVector [ desc ]
+        /CMap << /.codespaces [ <00> <FF> ]
+                 /.cidranges [ <00> <00> cid ] >>
+    >>
+    <00>
+    //.showtype0 exec
+    graphicsdict /currgstate get /currfont prev put
+    end
+} def
+
+%
 %  A one-byte identity CMap: cshow's procedure sees the descendant
 %  under byte codes, the idiom drivers use to repaint one glyph at a
 %  time from inside the procedure.

@@ -140,6 +140,29 @@ end
 /CIDShowT0 /CIDShowTestCMap [/CIDShowTest] composefont pop
 /CIDShowT0Outline /CIDShowTestCMap [/CIDShowTestOutline] composefont pop
 
+% A descendant whose CIDMap is long enough to carry CIDs above 255, and
+% which sends such a CID and its low byte to different glyphs: CID 257
+% to the square and CID 1 to the triangle. The two are then told apart
+% by what gets painted, so any route that keeps only the low byte of a
+% CID says so by painting the other glyph.
+/CIDInit /ProcSet findresource begin
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDWideTest def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [1 0 0 1 0 0] def
+    /FontType 42 def
+    /CIDCount 258 def
+    /GDBytes 1 def
+    /CIDMap 258 string dup 1 2 put dup 257 1 put def
+    /GlyphDirectory 0 dict def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
+end
+/CIDWideT0 /CIDShowTestCMap [/CIDWideTest] composefont pop
+/WIDECODE <0101> def    % this CMap decodes it to CID 257
+/LOWCODE  <0001> def    % and this one to CID 1, the low byte of 257
+
 % A descendant whose glyph directory carries one entry at a huge index.
 % The assembled face holds a glyph per index up to the largest, so its
 % arrays are sized by the index, not by the one glyph present; a glyph is
@@ -332,6 +355,89 @@ cs.n 2 eq (the procedure ran once per decoded character) check
      { pop pop 1 string dup 0 4 -1 roll put show } CODES cshow } greysnap def
 C inkof 0 gt (the glyph the procedure showed marks the page) check
 C S differs 0 eq (and is the glyph the walk paints) check
+
+% --- a CIDFont as the current font -------------------------------------
+%
+% PLRM 5.11.3 lets a CIDFont dictionary "be treated as if it were a font
+% dictionary by the makefont, scalefont, selectfont, and setfont
+% operators", and then limits what may be shown with it: "the glyphshow
+% operator can be used, but it accepts only an integer operand
+% specifying a CID as the character selector", while "the show operator,
+% any show variant except glyphshow, and the stringwidth and charpath
+% operators cannot be used".
+%
+% PLRM 8.2 says what glyphshow does with that CID: it "proceeds as show
+% would for a CID-keyed font whose mapping algorithm yields this CIDFont
+% with cid as the character selector". So the oracle is the composite --
+% the same CID reached the long way round, by a CMap decoding a code to
+% it -- and the two must paint the same glyph in the same place.
+/p.name (cid glyphshow:) def
+/widefnt { /CIDWideT0 findfont 20 scalefont setfont } bind def
+/ciddirect { /CIDWideTest /CIDFont findresource 20 scalefont setfont } bind def
+/G { ciddirect newpath 10 20 moveto 257 glyphshow } greysnap def
+/W { widefnt newpath 10 20 moveto WIDECODE show } greysnap def
+/L { widefnt newpath 10 20 moveto LOWCODE show } greysnap def
+G inkof 0 gt (the glyph a CID selects marks the page) check
+G W differs 0 eq (and is the glyph that CID reaches through a CMap) check
+L inkof 0 gt (the low byte of that CID reaches a glyph of its own) check
+G L differs 0 gt (which a CID above 255 is not) check
+{ ciddirect newpath 10 20 moveto 257 glyphshow } pen
+{ widefnt newpath 10 20 moveto WIDECODE show } pen
+3 -1 roll near exch 3 -1 roll near and
+(glyphshow leaves the pen where the composite show leaves it) check
+ciddirect currentfont
+newpath 10 20 moveto 257 glyphshow
+currentfont eq (and leaves the current font as it found it) check
+
+% A CIDFont registered but never scaled is read-only, as defineresource
+% leaves what it registers; the glyph still paints.
+{ /CIDWideTest /CIDFont findresource setfont
+  newpath 10 20 moveto 257 glyphshow } stopped not
+/gs.raw exch def clear
+gs.raw (a CIDFont taken straight from its resource paints) check
+
+% Each kind of font takes the one selector that names a glyph in it and
+% refuses the other.
+{ ciddirect newpath 10 20 moveto /sq glyphshow } stopped
+    { $error /errorname get /typecheck eq }{ false } ifelse
+/gs.name exch def clear
+gs.name (a CIDFont refuses a glyph name) check
+{ oraclefnt newpath 10 20 moveto 65 glyphshow } stopped
+    { $error /errorname get /typecheck eq }{ false } ifelse
+/gs.int exch def clear
+gs.int (a base font refuses a CID) check
+
+% PLRM 8.2: "a rangecheck error occurs if cid is outside the valid range
+% of CIDs", which PLRM Appendix B ends at 65535.
+{ ciddirect newpath 10 20 moveto 65536 glyphshow } stopped
+    { $error /errorname get /rangecheck eq }{ false } ifelse
+/gs.hi exch def clear
+gs.hi (a CID past the largest there is is out of range) check
+{ ciddirect newpath 10 20 moveto -1 glyphshow } stopped
+    { $error /errorname get /rangecheck eq }{ false } ifelse
+/gs.lo exch def clear
+gs.lo (and so is a negative one) check
+
+% A CID inside that range which the font has no glyph for is not out of
+% range: it is a character the font does not define, and PLRM 5.11.2 has
+% those "treated as undefined glyphs".
+{ ciddirect newpath 10 20 moveto 60000 glyphshow } stopped not
+/gs.undef exch def clear
+gs.undef (a CID the font does not define is not a range error) check
+
+% the rest of the limitation: what a CIDFont current will not do
+/gs.refuses {  % proc  .  -   -- leaves a boolean under the label
+    stopped { $error /errorname get /invalidfont eq }{ false } ifelse
+} bind def
+{ ciddirect newpath 10 20 moveto (\001) show } gs.refuses
+/gs.show exch def clear
+gs.show (show refuses a CIDFont) check
+{ ciddirect (\001) stringwidth } gs.refuses
+/gs.sw exch def clear
+gs.sw (stringwidth refuses a CIDFont) check
+{ ciddirect newpath 10 20 moveto (\001) true charpath } gs.refuses
+/gs.cp exch def clear
+gs.cp (charpath refuses a CIDFont) check
 
 % --- a descendant's Metrics dictionary, keyed by CID --------------------
 %
