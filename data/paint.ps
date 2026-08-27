@@ -639,8 +639,8 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dup mul exch dup mul exch add sqrt
     0 eq
     .cliprect { 4 array astore }{ null } ifelse
-    .privatedict /.hairrect 3 -1 roll put
-    .privatedict /.hairrect get null ne and {
+    .gscratch /.hairrect 3 -1 roll put
+    .gscratch /.hairrect get null ne and {
         flattenpath
         //.dashpath exec
         mark
@@ -651,7 +651,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         }
         {          % ... xN-1 yN-1 xN yN
             4 copy  % ... xN-1 yN-1 xN yN xN-1 yN-1 xN yN
-            .privatedict /.hairrect get //.hairsegclip exec {
+            .gscratch /.hairrect get //.hairsegclip exec {
                 [ //CurrentColorDict DEVICE /nativecolorspace get get exec
                 //.applytransfer exec
                 counttomark 5 add -4 roll
@@ -667,7 +667,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         {}
         {            % x0 y0 xN yN
             4 2 roll  % XN yN x0 y0
-            .privatedict /.hairrect get //.hairsegclip exec {
+            .gscratch /.hairrect get //.hairsegclip exec {
                 [ //CurrentColorDict DEVICE /nativecolorspace get get exec
                 //.applytransfer exec
                 counttomark 5 add -4 roll
@@ -924,10 +924,10 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } if
 
         % The dictionary image form leaves its Interpolate request in
-        % the local private dict for this one painting, out of a
-        % program's sight; anything else paints stepped.
-        /interp .privatedict /.imginterp 2 copy known { get }{ pop pop false } ifelse def
-        .privatedict /.imginterp false put
+        % the graphics scratch for this one painting; anything else
+        % paints stepped.
+        /interp .gscratch /.imginterp 2 copy known { get }{ pop pop false } ifelse def
+        .gscratch /.imginterp false put
 
         % a literal array of sources delivers each component from its
         % own plane; a single source interleaves them. The source is
@@ -1430,7 +1430,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     8 dict begin
     /d exch def
     d /Interpolate 2 copy known { get }{ pop pop false } ifelse
-    dup type /booleantype eq { .privatedict /.imginterp 3 -1 roll put }{ pop } ifelse
+    dup type /booleantype eq { .gscratch /.imginterp 3 -1 roll put }{ pop } ifelse
     /itbits d /BitsPerComponent get def
     /itn //.ncomponents exec def
 
@@ -1550,7 +1550,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /md d /MaskDict get def
     /dd d /DataDict get def
     dd /Interpolate 2 copy known { get }{ pop pop false } ifelse
-    dup type /booleantype eq { .privatedict /.imginterp 3 -1 roll put }{ pop } ifelse
+    dup type /booleantype eq { .gscratch /.imginterp 3 -1 roll put }{ pop } ifelse
     /il d /InterleaveType get def
     /w dd /Width get def
     /h dd /Height get def
@@ -1721,7 +1721,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             1 dict begin
             /d exch def
             d /Interpolate 2 copy known { get }{ pop pop false } ifelse
-            dup type /booleantype eq { .privatedict /.imginterp 3 -1 roll put }{ pop } ifelse
+            dup type /booleantype eq { .gscratch /.imginterp 3 -1 roll put }{ pop } ifelse
             d /Width get d /Height get
             d /BitsPerComponent get d /ImageMatrix get
             d /image //.imgdatasource exec

@@ -174,6 +174,16 @@ int xpost_op_fork (Xpost_Context *ctx, Xpost_Object proc)
             xpost_stack_push(newctx->lo, newctx->es, proc);
         if (xpost_object_get_type(fc) == arraytype)
             xpost_stack_push(newctx->lo, newctx->es, fc);
+        else if (xpost_object_get_type(newctx->privatedict) == dicttype)
+            /* The child's machinery dictionary is sealed as the parent's
+               is, so that what the machinery reaches by name there is
+               what the interpreter put there. .forkcontext takes the
+               seal itself, after it has put the child's own graphics
+               state in; where there is no graphics there is no
+               .forkcontext and nothing more to write, and the seal is
+               taken here. */
+            (void)xpost_dict_set_access(newctx, newctx->privatedict,
+                                        XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
     }
     newctx->state = C_RUN;
     {

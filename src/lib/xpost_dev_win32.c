@@ -1130,14 +1130,14 @@ int loadwin32devicecont(Xpost_Context *ctx,
        the page-device request, and the machinery reaches the class by
        name here. Nothing of the driver's is defined where a program
        could shadow it. */
-    ret = xpost_dict_put(ctx, ctx->privatedict,
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict,
                          xpost_name_cons(ctx, ".xpost_WIN32DEVICE"), classdic);
     if (ret)
         return ret;
 
     op = xpost_operator_cons(ctx, "newwin32device", (Xpost_Op_Func)newwin32device, 2,
                              integertype, integertype);
-    ret = xpost_dict_put(ctx, ctx->privatedict, xpost_name_cons(ctx, "newwin32device"), op);
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict, xpost_name_cons(ctx, "newwin32device"), op);
     if (ret)
         return ret;
 

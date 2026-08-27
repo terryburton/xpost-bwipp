@@ -1019,13 +1019,13 @@ int loadjpegdevicecont(Xpost_Context *ctx,
        here, and a record asked to be played into this device is
        specialised from the class it finds here. Nothing of the driver's
        is defined where a program could shadow it. */
-    ret = xpost_dict_put(ctx, ctx->privatedict,
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict,
                          xpost_name_cons(ctx, ".xpost_JPEGDEVICE"), classdic);
     if (ret)
         return ret;
 
     op = xpost_operator_cons(ctx, "newjpegdevice", (Xpost_Op_Func)newjpegdevice, 2, integertype, integertype);
-    ret = xpost_dict_put(ctx, ctx->privatedict, xpost_name_cons(ctx, "newjpegdevice"), op);
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict, xpost_name_cons(ctx, "newjpegdevice"), op);
     if (ret)
         return ret;
 

@@ -38,6 +38,38 @@ currentglobal true setglobal /gd 64 dict def setglobal
 .gscratch type /dicttype eq
   (the graphics scratch dictionary still answers) assert
 
+% --- and what it holds is not a program's to replace ---
+% A page-device request runs the maker it finds in there under the
+% device's name, and that maker runs the class it finds under the
+% class's name. A name here a program could write is a name that
+% decides what runs as the device, so the dictionary takes no write
+% from a program: not over a name the interpreter put there, not under
+% a name of the program's own, and not away.
+{ .privatedict /newPGMIMAGEdevice { } put }
+  /invalidaccess (a device maker is not replaced) raises
+{ .privatedict /.xpost_PGMIMAGE 3 dict put }
+  /invalidaccess (nor the class the maker builds from) raises
+{ .privatedict /newpngdevice { } put }
+  /invalidaccess (nor is a driver's maker pre-empted before it loads) raises
+{ .privatedict /.graphicsdict 3 dict put }
+  /invalidaccess (nor the dictionary the graphics state lives in) raises
+{ .privatedict /.a-name-of-my-own 1 put }
+  /invalidaccess (nor may a name of a program's own arrive) raises
+{ .privatedict /.graphicsdict undef }
+  /invalidaccess (nor may a name be taken away) raises
+
+% --- the values it holds are still the machinery's to write ---
+% The device classes take the page geometry a job asks for and the
+% machinery's tables are written as a page is painted, so what is
+% sealed is which object each name answers with, not the objects.
+.privatedict /.xpost_PGMIMAGE get wcheck
+  (a device class dictionary is still writable) assert
+.gscratch wcheck (and the scratch a render mutates) assert
+
+% --- and a device is still built from it ---
+{ << /OutputDevice /pgm /PageSize [ 40 40 ] >> setpagedevice }
+  (a page-device request still builds the device it names) works
+
 % --- and the machinery it roots still renders ---
 { newpath 100 100 moveto 200 100 lineto 200 200 lineto closepath
   0.5 setgray fill } (a page still paints through the recorded dictionary) works

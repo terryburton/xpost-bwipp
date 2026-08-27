@@ -213,7 +213,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
                         % (PLRM 3.7.2). Hold the file in the local dictionary
                         % the collector roots as well, so a collection
                         % between two pieces of output still reaches it.
-                        dup .privatedict exch /.vecoutfile exch put
+                        dup .gscratch exch /.vecoutfile exch put
                         //.vecout dup /F 4 -1 roll put
                         dup /bytepos 0 put
                         dup /single true put
@@ -1199,7 +1199,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % But a file lives in local memory whatever dictionary names it, and
         % a global dictionary is no root for local memory (PLRM 3.7.2), so it
         % is named from the local dictionary the collector roots as well.
-        dup .privatedict exch /.vecoutfile exch put
+        dup .gscratch exch /.vecoutfile exch put
         //.vecout dup /F 4 -1 roll put
         dup /bytepos 0 put
         dup /nextobj 3 put
@@ -1431,7 +1431,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 
         % Close the file unless it is stdout, and give up the local hold
         //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
-        .privatedict /.vecoutfile undef
+        .gscratch /.vecoutfile undef
     } //.indict exec } bind
 >> def
 

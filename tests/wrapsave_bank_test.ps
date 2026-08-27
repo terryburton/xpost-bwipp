@@ -1,26 +1,30 @@
 %!
 % The interpreter copies a wrapped operator's operands aside before its
 % procedure runs, into an array it keeps in privatedict under .wrapsave.
-% That array is machinery, but privatedict is reachable -- a program
-% stores under any key there with a plain put -- so what stands under
-% .wrapsave is the program's to replace.
 %
 % The array is dereferenced against local memory and its declared size
 % is the bound the copy is held to. Both hold only while the array is
-% local. A global array stored there is read at the local entity of the
-% same number -- a different object, of a different size -- and the copy,
-% bounded by the global array's declared size rather than that object's,
-% is written past its end into whatever local memory lies beyond.
+% local: a global array read at the local entity of the same number is a
+% different object, of a different size, and a copy bounded by the
+% global array's declared size rather than that object's would be
+% written past its end into whatever local memory lies beyond.
+%
+% privatedict is sealed, so the array under .wrapsave is the local one
+% the interpreter made and a global array cannot be put there. This
+% installs one where the copy would read it, and requires the refusal;
+% then it reads back markers laid through local memory, which a copy
+% held to the array it was given leaves alone.
 %
 % A program-allocated global array takes a high entity number, so the
-% collision needs the local table grown past it first. This grows it
-% with small arrays of a known marker, installs a large global array
-% where the copy writes, runs one wrapped operator with operands live,
-% and then reads the markers back: a copy that stayed within the array
-% it was given leaves every one of them alone.
+% collision the refusal forestalls needs the local table grown past it
+% first. The fillers below do that, so the local memory a mis-bounded
+% copy would reach is laid out and readable.
 
-% a large global array: large so the copy's bound check, which reads the
-% array's declared size, admits the write
+/note { print (\n) print } def
+/fails 0 def
+
+% a large global array: large so that a copy's bound check, which reads
+% the array's declared size, would admit the write
 currentglobal true setglobal
 /g 500 array def
 setglobal
@@ -33,17 +37,22 @@ g 0 1 put
 /fillers N array def
 0 1 N 1 sub { /i exch def fillers i [ 1 1 1 1 ] put } for
 
-% distinctive operands, then the global array installed where the copy
-% writes, then one wrapped operator to run the copy
+% distinctive operands, then the global array where the copy would read
+% it, then one wrapped operator to run the copy
 /S 88801 def
 S S 1 add S 2 add S 3 add S 4 add S 5 add S 6 add S 7 add
-.privatedict /.wrapsave g put
+count /depth0 exch def
+{ .privatedict /.wrapsave g put } stopped
+{ $error /errorname get /invalidaccess eq
+  { (ok   a global save array is refused) note }
+  { /fails fails 1 add def
+    (FAIL: the refusal was ) print
+    $error /errorname get 128 string cvs note } ifelse }
+{ /fails fails 1 add def
+  (FAIL: a global save array was installed) note } ifelse
+count depth0 gt { count depth0 sub { pop } repeat } if
 ==
 clear
-
-% a copy the wrapped operator above ran finds the global array under
-% .wrapsave and, being asked for a local one, rebuilds a local array in
-% its place, so the wrapped operators the scan below runs are sound
 
 % the markers: none is touched by a copy held to the array it was given
 /bad 0 def
@@ -52,9 +61,9 @@ clear
   fillers i get { 1 ne { /bad bad 1 add def } if } forall
 } for
 
-bad 0 eq
+bad 0 eq fails 0 eq and
   { (SUCCESS) = }
-  { (FAILURE: a global .wrapsave array wrote past a local object; )
-    print bad 32 string cvs print ( markers overwritten) = }
+  { (FAILURE: ) print bad 32 string cvs print ( markers overwritten, ) print
+    fails 32 string cvs print ( refusals wrong) = }
 ifelse
 quit

@@ -3,10 +3,14 @@
 % into one array, .wrapsave, held in the interpreter's private
 % dictionary; element zero of that array is the mark the next call
 % saves above, and releasing a call clears the array back down to the
-% mark its own run began at. Both the array and the mark are ordinary
-% PostScript objects a program can reach, so the clear is bounded by
-% what the array actually holds: a shorter array, or a mark past its
-% end, clears no further than the array itself.
+% mark its own run began at.
+%
+% The dictionary is sealed, so what stands under .wrapsave is the array
+% the interpreter made and a program cannot put another there. The
+% array itself is an ordinary local object a program reaches through
+% the dictionary and writes, so the mark is the program's to set: the
+% clear is bounded by what the array actually holds, and a mark past
+% its end clears no further than the array itself.
 %
 % The canaries below are ordinary definitions made before the call. A
 % clear that ran past the array would take them with it, so requiring
@@ -18,19 +22,28 @@
 /id 1183615869 internaldict def
 /wrap id /.wrapop get def
 
-% substitute a save array far shorter than the one the interpreter
-% builds; the canaries are made straight after it, so they are what a
-% clear running past its end reaches first
-.privatedict /.wrapsave 8 array put
+% a save array of a program's own is refused where it would be
+% installed: the private dictionary does not take a program's write
+count /depth0 exch def
+{ .privatedict /.wrapsave 8 array put } stopped
+{ $error /errorname get /invalidaccess eq
+  { (ok   a save array of a program's own is refused) note }
+  { /fails fails 1 add def
+    (FAIL: the refusal was ) print
+    $error /errorname get 128 string cvs note } ifelse }
+{ /fails fails 1 add def
+  (FAIL: a save array of a program's own was installed) note } ifelse
+count depth0 gt { count depth0 sub { pop } repeat } if
 
 /canary1 [ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 ] def
 /canary2 [ 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 ] def
 /canary3 (a string that must still read back whole) def
 
 % and a mark that names an element well past the array's end
+/save0 .privatedict /.wrapsave get 0 get def
 .privatedict /.wrapsave get 0 1 put
 
-/shortop dup { .privatedict /.wrapsave get 0 512 put } wrap def
+/shortop dup { .privatedict /.wrapsave get 0 65535 put } wrap def
 1 2 3 shortop
 pop pop pop
 
@@ -60,7 +73,7 @@ userdict /canary3 known
 
 % the wrapping still works: an operator made this way runs its
 % procedure on the operands the call was given, and leaves its result
-.privatedict /.wrapsave undef
+.privatedict /.wrapsave get 0 save0 put
 /addop dup { add } wrap def
 { 20 22 addop } stopped
 { /fails fails 1 add def

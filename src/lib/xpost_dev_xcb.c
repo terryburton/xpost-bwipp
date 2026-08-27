@@ -1005,13 +1005,13 @@ int loadxcbdevicecont(Xpost_Context *ctx,
        the page-device request, and the machinery reaches the class by
        name here. Nothing of the driver's is defined where a program
        could shadow it. */
-    ret = xpost_dict_put(ctx, ctx->privatedict,
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict,
                          xpost_name_cons(ctx, ".xpost_XCBDEVICE"), classdic);
     if (ret)
         return ret;
 
     op = xpost_operator_cons(ctx, "newxcbdevice", (Xpost_Op_Func)newxcbdevice, 2, integertype, integertype);
-    ret = xpost_dict_put(ctx, ctx->privatedict, xpost_name_cons(ctx, "newxcbdevice"), op);
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict, xpost_name_cons(ctx, "newxcbdevice"), op);
     if (ret)
         return ret;
 

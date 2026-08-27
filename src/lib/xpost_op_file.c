@@ -1701,7 +1701,7 @@ int xpost_op_int_setobjectformat(Xpost_Context *ctx,
         return rangecheck;
     if (xpost_object_get_type(ctx->privatedict) != dicttype)
         return undefined;
-    return xpost_dict_put(ctx, ctx->privatedict,
+    return xpost_dict_put_internal(ctx, ctx->privatedict,
         xpost_name_cons(ctx, ".objectformat"), n);
 }
 

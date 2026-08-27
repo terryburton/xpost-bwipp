@@ -978,7 +978,7 @@ void _xpost_operator_push_args_to_hold(Xpost_Context *ctx,
    copies them first.
 
    The copies go into one array per context, kept in privatedict, where
-   the collector roots it and a program cannot name it: a composite
+   the collector roots it and a program cannot write it: a composite
    operand stays reachable for as long as it is saved. Slot zero counts
    the slots in use; each live call owns a run above that, and the run is
    named by an array object in the call's frame -- its offset and size
@@ -1026,12 +1026,10 @@ Xpost_Object _wrapped_save_array(Xpost_Context *ctx)
        below and its declared size is the bound the copy is held to, so
        both hold only for a local array: a copy read out of a local
        array is read out of the array it was written for, and bounded by
-       that array's own size. privatedict is reachable and a program
-       stores under any key there, so what stands here is the program's
-       to replace; a value that is not a local array -- a global array
-       among them, whose entity number names a different object of a
-       different size in the local table -- is treated as none and
-       rebuilt, which is the same rebuild an absent one gets.
+       that array's own size. A value that is not a local array -- a
+       global array among them, whose entity number names a different
+       object of a different size in the local table -- is treated as
+       none and rebuilt, which is the same rebuild an absent one gets.
 
        That it must be local is also what it is for: what it holds are
        the operands of calls being made, which may be local objects, and
@@ -1044,7 +1042,7 @@ Xpost_Object _wrapped_save_array(Xpost_Context *ctx)
         return null;
     if (xpost_array_put_memory(ctx->lo, arr, 0, xpost_int_cons(1)) != 0)
         return null;
-    if (xpost_dict_put(ctx, ctx->privatedict, ctx->namewrapsave, arr) != 0)
+    if (xpost_dict_put_internal(ctx, ctx->privatedict, ctx->namewrapsave, arr) != 0)
         return null;
     return arr;
 }

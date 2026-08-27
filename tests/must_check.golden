@@ -19,7 +19,7 @@
 # shrank says so with a number that went down -- a diff dropping a name
 # and its mark together otherwise reads as a tidy-up.
 
-entries 28
+entries 29
 
 xpost_array_put
 xpost_array_put_memory
@@ -29,6 +29,7 @@ xpost_dev_class_rowcost
 xpost_dev_pdf_append
 xpost_dev_private_put
 xpost_dict_put
+xpost_dict_put_internal
 xpost_dict_put_memory
 xpost_free_memory_ent
 xpost_garbage_collect

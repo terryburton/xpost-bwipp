@@ -38,6 +38,8 @@ entries 429
 # the device class dictionaries, one per PostScript-implemented device
 .gscratch /.lresources
 .gscratch /.cshmeas
+.gscratch /.hairrect
+.gscratch /.imginterp
 .gscratch /.pfdict
 .gscratch /.stencilcache
 .gscratch /.t4nopaint
@@ -62,8 +64,6 @@ entries 429
 .privatedict /.gscratchdict
 .privatedict /.gscratchproc
 .privatedict /.gstatetemplate
-.privatedict /.hairrect
-.privatedict /.imginterp
 .privatedict /.pagestate
 .privatedict /.wrappedprocs
 .privatedict /.xpost_BBOX

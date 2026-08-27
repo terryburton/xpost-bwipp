@@ -105,10 +105,11 @@ priv.leaked 0 eq (no member of internaldict is also in systemdict) assert
 % ================================================== 3. the machinery
 % privatedict holds the interpreter's own local objects. It is never on
 % the dictionary stack, so a program can neither name its members nor
-% enumerate them; it is writable because the machinery writes to it.
+% enumerate them, and it is sealed, so a program cannot put one of its
+% own under a name the machinery reads.
 
 .privatedict gcheck not (privatedict is in local VM) assert
-.privatedict wcheck (privatedict is writable by the machinery) assert
+.privatedict wcheck not (privatedict is sealed against a program) assert
 .privatedict length 0 gt (privatedict has members to check) assert
 
 /mach.leaked 0 def

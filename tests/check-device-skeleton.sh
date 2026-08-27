@@ -707,7 +707,7 @@ for f in $fleet xpost_dev_win32.c; do
     # names it puts there, read joined because the puts wrap lines, and
     # a ternary carries both names of a body that makes two classes.
     tr '\n' ' ' < "$libdir/$f" \
-        | grep -oE 'xpost_dict_put[(]ctx, ctx->privatedict,[^;]*' \
+        | grep -oE 'xpost_dict_put_internal[(]ctx, ctx->privatedict,[^;]*' \
         | grep -oE '"\.xpost_[A-Za-z0-9_]*"' | tr -d '"' \
         | LC_ALL=C sort -u > "$work/skel.installs"
     # The class this device specialises, and whether that class says its

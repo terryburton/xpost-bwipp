@@ -789,12 +789,20 @@ void note_capacity(dichead *dp)
    if key is null, check if the dict is full,
        increase nused,
        set key,
-       update value. */
-int xpost_dict_put_memory(Xpost_Context *ctx,
+       update value.
+
+   hold_to_access says whether the dictionary's access attribute stands
+   against this write. It does for every write a program's operators
+   carry, and it does not for the interpreter writing its own store:
+   privatedict is sealed against a program while the interpreter goes on
+   writing it (xpost_dict_put_internal). */
+static
+int _dict_put_memory(Xpost_Context *ctx,
         Xpost_Memory_File *mem,
         Xpost_Object d,
         Xpost_Object k,
-        Xpost_Object v)
+        Xpost_Object v,
+        int hold_to_access)
 {
     dicrec *r;
     dichead *dp;
@@ -805,7 +813,7 @@ int xpost_dict_put_memory(Xpost_Context *ctx,
     if (xpost_object_get_type(k) == nulltype)
         return typecheck;
 
-    if (!ctx->gl->interpreter_get_initializing())
+    if (hold_to_access && !ctx->gl->interpreter_get_initializing())
         if (!xpost_object_is_writeable(ctx, d))
             return invalidaccess;
 
@@ -867,15 +875,26 @@ int xpost_dict_put_memory(Xpost_Context *ctx,
     return 0;
 }
 
+int xpost_dict_put_memory(Xpost_Context *ctx,
+        Xpost_Memory_File *mem,
+        Xpost_Object d,
+        Xpost_Object k,
+        Xpost_Object v)
+{
+    return _dict_put_memory(ctx, mem, d, k, v, 1);
+}
+
 /*
    Put key+value in dict.
 
    select the memory file according to BANK field,
-   call xpost_dict_put_memory. */
-int xpost_dict_put(Xpost_Context *ctx,
+   call _dict_put_memory. */
+static
+int _dict_put(Xpost_Context *ctx,
         Xpost_Object d,
         Xpost_Object k,
-        Xpost_Object v)
+        Xpost_Object v,
+        int hold_to_access)
 {
     Xpost_Memory_File *mem = xpost_context_select_memory(ctx, d);
     if (!ctx->ignoreinvalidaccess)
@@ -902,7 +921,42 @@ int xpost_dict_put(Xpost_Context *ctx,
 
     ++ctx->namebind_gen; /* a binding may change: invalidate name cache */
 
-    return xpost_dict_put_memory(ctx, xpost_context_select_memory(ctx, d), d, k, v);
+    return _dict_put_memory(ctx, xpost_context_select_memory(ctx, d), d, k, v,
+                            hold_to_access);
+}
+
+int xpost_dict_put(Xpost_Context *ctx,
+        Xpost_Object d,
+        Xpost_Object k,
+        Xpost_Object v)
+{
+    return _dict_put(ctx, d, k, v, 1);
+}
+
+/* The interpreter's own put: it writes the dictionary whatever access
+   attribute the dictionary carries.
+
+   An access attribute states what a program may do with a value
+   (PLRM 3.3.2). A program's writes reach a dictionary through
+   xpost_dict_put -- put, def, store and the operators that write a
+   dictionary for it -- which refuses one the program may not write, and
+   undef is refused by the operator itself. This one is the other side
+   of that: the interpreter's private dictionary is sealed, so that what
+   the machinery reaches by name there is what the interpreter put
+   there, and the interpreter goes on writing it -- a driver loaded on
+   first use installs its class and its maker, a wrapped call makes the
+   array its operands are copied into, setobjectformat records the
+   parameter it is given.
+
+   It is reachable only from C. Nothing in PostScript names it, and
+   every caller hands it the running context's own private dictionary
+   rather than a dictionary a program chose. */
+int xpost_dict_put_internal(Xpost_Context *ctx,
+        Xpost_Object d,
+        Xpost_Object k,
+        Xpost_Object v)
+{
+    return _dict_put(ctx, d, k, v, 0);
 }
 
 /* undefine key from dict.

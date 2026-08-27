@@ -144,6 +144,7 @@ xpost_dict_known_key
 xpost_dict_length_memory
 xpost_dict_max_length_memory
 xpost_dict_put
+xpost_dict_put_internal
 xpost_dict_put_memory
 xpost_dict_set_access
 xpost_dict_undef

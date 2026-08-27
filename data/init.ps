@@ -2751,7 +2751,10 @@ currentglobal true setglobal
             % and the ones a C driver registers alike. A driver's is not there
             % until its loader has run -- the driver is brought in on first use
             % rather than at startup -- so those makers look first and load on
-            % a miss, the load leaving the maker where the look looked.
+            % a miss, the load leaving the maker where the look looked. The
+            % dictionary is sealed at the lockdown and the loader writes it
+            % through the interpreter's own store, so what a name here answers
+            % with is what the interpreter put there.
             %
             % Each entry arms the request: the features a page-device request
             % left pending are moved into the slot the class-to-instance copy
@@ -3758,16 +3761,21 @@ currentglobal true setglobal
             % These are the machinery the interpreter reaches by name while a
             % program is running -- the device makers a page-device request
             % executes to build the device it asked for, and the start
-            % procedures each job is primed with -- and a program reaches the
-            % dictionary itself through the .privatedict operator, which is
-            % public so that a driver prolog can name it. A restore does not
-            % reach global virtual memory (PLRM 3.7.2), so a body written into
-            % there decides what the machinery runs for the rest of the job.
+            % procedures each job is primed with. A program reads the
+            % dictionary through the .privatedict operator, which is public so
+            % that a driver prolog can name it, and an array read out of a
+            % dictionary carries the access of the reference that was stored
+            % rather than the dictionary's: sealing the dictionary below holds
+            % which body each name answers with, and this holds the body
+            % itself. A restore does not reach global virtual memory
+            % (PLRM 3.7.2), so a body written into there decides what the
+            % machinery runs for the rest of the job.
             %
-            % The local members are left writable, and the bank is the whole of
-            % the reason: the device classes take a job's page geometry and the
-            % scratch is rewritten at every render, and a write to either is
-            % reverted by the restore that ends the save level it was made in.
+            % The local members are left as they are, and the bank is the whole
+            % of the reason: the device classes take a job's page geometry and
+            % the scratch is rewritten at every render, and a write to either
+            % is reverted by the restore that ends the save level it was made
+            % in.
             %
             % Which bodies these are is read off the dictionary rather than
             % listed here, so a body added later is held to the same rule
@@ -3784,6 +3792,35 @@ currentglobal true setglobal
                 { pop pop } ifelse
             } forall
             setglobal
+
+            % Sealed, so that what the machinery reaches by name in
+            % privatedict is what the interpreter put there. What lives here
+            % is the device class dictionaries and the procedures that make a
+            % device from one, the graphics dictionary and the template a new
+            % graphics state is copied from, the wrapped-operator register and
+            % the error handler: a page-device request executes the maker it
+            % finds under the device's name, and that maker executes the class
+            % it finds under the class's name, so a slot a program could write
+            % is a slot that decides what runs as the device. The dictionary
+            % is local, so the restore that ends a job would reach a write
+            % made in it -- but a device is built and a page is painted inside
+            % that job, which is where a substituted body would run, so the
+            % bank is no protection here.
+            %
+            % The values are not sealed with it, and that is the point of
+            % sealing the dictionary rather than them: a device class takes
+            % the page geometry a job asks for and the machinery's own tables
+            % are written as a page is painted. What may not change is which
+            % object each name answers with.
+            %
+            % The interpreter goes on writing it, through its own store rather
+            % than through the language (xpost_dict_put_internal): a driver
+            % brought in on first use installs its class and its maker here, a
+            % wrapped call makes the array its operands are copied into, and
+            % setobjectformat records the parameter it is given. The scratch
+            % a render mutates is .gscratch, a dictionary held under a name in
+            % here rather than this dictionary, and it is written as before.
+            .privatedict readonly pop
 
             % The interpreter is locked down. Recorded last, so that a lockdown
             % which stopped anywhere above records instead what stopped it.

@@ -230,6 +230,24 @@ XPOST_MUST_CHECK int xpost_dict_put_memory(Xpost_Context *ctx, /*@dependent@*/ X
 XPOST_MUST_CHECK XPOST_TEST_VISIBLE int xpost_dict_put(Xpost_Context *ctx, Xpost_Object d, Xpost_Object k, Xpost_Object v);
 
 /**
+ * @brief Put key and value in dict, whatever access attribute the dict carries.
+ *
+ * @param[in,out] ctx The context.
+ * @param[in,out] d The dictionary.
+ * @param[in] k The key.
+ * @param[in] v The value.
+ * @return 0 on success, an error code otherwise.
+ *
+ * The interpreter's own write. An access attribute states what a
+ * program may do with a value (PLRM 3.3.2), so it is xpost_dict_put --
+ * the one a program's writes reach a dictionary through -- that holds a
+ * dictionary to it. This one writes the interpreter's private
+ * dictionary, which is sealed against a program and written by the
+ * interpreter for as long as the run lasts.
+ */
+XPOST_MUST_CHECK int xpost_dict_put_internal(Xpost_Context *ctx, Xpost_Object d, Xpost_Object k, Xpost_Object v);
+
+/**
    undefine key in dictionary, re-slotting any later entry whose probe
    chain ran through the vacated slot (Knuth 6.4R deletion)
 */

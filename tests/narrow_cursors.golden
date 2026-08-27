@@ -48,7 +48,7 @@ elsewhere src/lib/xpost_object.c xpost_object_get_interval a.comp_.off
 # table: a growth that would answer with a dictionary no larger than the
 # one it is growing reports limitcheck, so the count stops below a size
 # the field carries.
-elsewhere src/lib/xpost_dict.c xpost_dict_put_memory dp->nused
+elsewhere src/lib/xpost_dict.c _dict_put_memory dp->nused
 
 # The string token reader walks one string as a shrinking interval: the
 # two fields move together and their sum does not change, so each stays

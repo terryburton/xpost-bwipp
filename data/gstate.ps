@@ -252,6 +252,12 @@ setglobal
             /gptr gp
         >> def
         //.privatedict /.graphicsdict newgd put
+
+        % The child's copy of the machinery dictionary is sealed as the
+        % parent's is, now that the graphics state this fork gives it is
+        % in there: what the machinery reaches by name in that
+        % dictionary is what the interpreter put there.
+        //.privatedict readonly pop
     end
     setglobal   % Restore the VM mode the caller had
 } put
