@@ -326,6 +326,12 @@ if peak_rss_reads "$xpost"; then
                  </dev/null 2>&1 )
         p_st=$?
         if ! verdict_run "$p_st" "$p_out" "the $1 run at $2 rows" ||
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$p_out" "the suite"
            ! verdict_ok "$p_out" "the $1 run at $2 rows"; then
             note "the $1 run at $2 rows did not put out its page, so what" \
                  "it took is not what putting one out takes"

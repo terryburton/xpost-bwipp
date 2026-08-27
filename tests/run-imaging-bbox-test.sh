@@ -259,6 +259,12 @@ one_device() {
     esac
     printf '%s\n' "$out" | grep -E '^FAIL' | sed "s/^/$dev: /"
     verdict_run "$st" "$out" "the imaging-bbox job on $dev" || d_fail=1
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$out" "the suite"
     verdict_ok "$out" "the imaging-bbox check on $dev" || d_fail=1
 
     # Whether this device's run reached the half of the script that reads

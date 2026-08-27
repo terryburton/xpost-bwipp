@@ -77,6 +77,12 @@ out=$(XPOST_DATA_DIR="$src/data" "$xpost" -q -d null -o /dev/null --no-sandbox \
       "-DFAMPAT=(Helvetica:file=$staged)" \
       "$testlib_run" </dev/null 2>&1)
 st=$?
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$out" "the suite"
 verdict_ok "$out" "the font-name steering test" ||
     { printf '%s\n' "$out" | sed 's/^/      /'; exit 1; }
 if [ "$st" -ne 0 ]; then

@@ -34,6 +34,7 @@ tests/check-clip-writer.sh \
 tests/check-device-destroy.sh \
 tests/check-library-lifetime.sh \
 tests/check-serial-caches.sh \
+tests/check-skip-verdict.sh \
 tests/serial-caches \
 tests/check-counter-register.sh \
 tests/check-vm-growth.sh \

@@ -30,6 +30,12 @@ exe=${1:?usage: run-vm-page-return-test.sh <vm_page_return_test executable>}
 # the mechanism first: a pair that disagreed would have nothing to say if
 # the return did not work at all
 out=$("$exe" 2>&1); st=$?
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$out" "the suite"
 verdict_ok "$out" "the return itself" || exit 1
 
 # What the mechanism says about this host is what the pair is asked in the

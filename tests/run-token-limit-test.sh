@@ -49,5 +49,11 @@ EOF
 # stderr, which is not the run's answer and is kept out of the judgement.
 out=$(cd "$work" && "$xpost" -q -d null "$prog" </dev/null 2>/dev/null)
 st=$?
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$out" "the suite"
 verdict_ok "$out" "the over-long token run" || exit 1
 [ "$st" -eq 0 ] || { echo "FAILURES: the over-long token run exited with status $st"; exit 1; }

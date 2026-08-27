@@ -85,6 +85,12 @@ for dev in $devices; do
     if printf '%s\n' "$out" | grep -q '^READBACK$'; then
         readback_seen=yes
     fi
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$out" "the suite"
     if verdict_ok "$out" "$dev"; then
         echo "OK   $dev"
     else

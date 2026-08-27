@@ -1027,6 +1027,12 @@ weigh() {
     # judged is a reading a broken run could forge.
     w_out=$(cat "$w_dir/run.log")
     verdict_run "$w_st" "$w_out" "the $1 weighing" || return 1
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$w_out" "the suite"
     verdict_ok "$w_out" "the $1 weighing" || return 1
     memvm=$(sed -n 's/^MEM //p' "$w_dir/run.log" | awk '{print $NF}' | tail -1)
     memrss=$(tail -1 "$w_dir/rss.txt" 2>/dev/null)

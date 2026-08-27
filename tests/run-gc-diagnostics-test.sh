@@ -34,6 +34,12 @@ fi
 
 # the workload must have run to its end: a job that died early would
 # report no gaps simply by never collecting
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$out" "the suite"
 verdict_ok "$out" "the workload" || exit 1
 
 # the census runs alongside the verifier, so its line is the evidence that

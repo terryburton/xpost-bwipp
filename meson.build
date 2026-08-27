@@ -6010,6 +6010,19 @@ test('check-serial-caches',
   suite: cost_fast,
   timeout: 120)
 
+# A suite that cannot ask its question in the build it was started in says so
+# and stops. Whether a suite can do that belongs to the suite; which runner
+# starts it does not, and the two are paired by what this file says -- so a
+# suite that learns to skip is one whose runner may never have been asked to
+# expect a skip, and reads it as a failure. This holds every runner to asking
+# for the skip before it asks for the pass.
+test('check-skip-verdict',
+  find_program('tests/check-skip-verdict.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir() ],
+  suite: cost_fast,
+  timeout: 120)
+
 # The guards read data/ and tests/ under a source root they are given, and
 # the interpreter finds the working tree by other routes when that root is
 # wrong -- so a misdirected guard reports a true result about a tree nobody

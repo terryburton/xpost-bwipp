@@ -61,4 +61,10 @@ if printf '%s\n' "$result" | grep -q '^INCONCLUSIVE'; then
     echo "SKIP: the limit never bit on this platform"
     exit 77
 fi
+# A suite that cannot ask its question in this build -- one whose text a
+# face answers, under a build carrying no face library -- says so and is a
+# skip, not a pass and not a failure. Asked before the success verdict in
+# every runner here, because which suites can skip is a property of the
+# suites and not of the runner that happens to start them.
+verdict_skipped "$result" "the suite"
 verdict_ok "$result" "the check" '^PASS'
