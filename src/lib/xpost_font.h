@@ -382,6 +382,19 @@ int xpost_font_face_glyph_extents(void *face, unsigned int glyph_index,
                                   long *xmin, long *ymin, long *xmax, long *ymax,
                                   long *advance_x, long *advance_y);
 
+/**
+ * @brief Report a glyph's own left sidebearing under the face's current
+ * transform, in 16.16 (y-up around the pen).
+ *
+ * @return 1 on success, 0 when the glyph cannot be loaded.
+ *
+ * The left sidebearing point is where the face draws the glyph relative
+ * to its origin (PLRM 5.4); a font dictionary's /Metrics entry may name
+ * another, and the difference is how far the glyph moves.
+ */
+int xpost_font_face_glyph_sidebearing(void *face, unsigned int glyph_index,
+                                      long *sbx, long *sby);
+
 /* the glyph cache behind the rendering pair: status and limits for
    the cache operators, and keyed raster entry points for glyphs
    painted by procedure rather than by face */

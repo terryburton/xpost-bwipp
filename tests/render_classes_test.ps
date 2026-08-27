@@ -132,6 +132,61 @@ sub abs 0.01 lt (a glyph without a Metrics entry keeps its own width) assert
 40 650 moveto (A) show currentpoint pop 40 sub 500 mfm mul sub abs 0.01 lt
     (the show pen advances by the Metrics width) assert
 
+% --- a font's Metrics dictionary also overrides where the glyph sits against
+%     its origin (PLRM 5.9.2): the two-element form gives the x component of a
+%     new left sidebearing first, the four-element form the x and y components
+%     of one. The sidebearing is a position and not a displacement (PLRM 5.4),
+%     so what moves the glyph is the difference between the one named and the
+%     one the face drew it with -- which makes the difference between two named
+%     sidebearings the whole of the move, and that is what is asked here: it
+%     does not depend on the face the platform substitutes or on where that
+%     face puts the glyph. The number form names no sidebearing, and a glyph
+%     under one stands where the face put it.
+%
+%     Where the glyph sits is read from its outline, which the interpreter
+%     hands back through a private operator: fetched deliberately through
+%     the password, as the other suites that reach into internaldict do. ---
+/.glyphoutline 1183615869 internaldict /.glyphoutline get def
+/sbfont {                               % metrics  .  -
+    /Helvetica findfont dup length 1 add dict copy
+    dup /Metrics 4 -1 roll put
+    /SbFont exch definefont pop
+    /SbFont findfont 20 scalefont setfont
+} bind def
+/firstpt {                              % -  .  x y
+    /A .glyphoutline pop pop            % the outline alone
+    dup 0 get exch 1 get
+} bind def
+
+<< /A [ 0 400 ] >> sbfont
+currentfont /FontMatrix get 0 get /sfm exch def
+firstpt pop /sbx0 exch def
+<< /A [ 300 400 ] >> sbfont
+firstpt pop /sbx300 exch def
+sbx300 sbx0 sub 300 sfm mul sub abs 0.01 lt
+    (a two-element Metrics entry moves the glyph by the sidebearing it names) assert
+
+<< /A [ 0 0 400 0 ] >> sbfont
+firstpt /fy0 exch def /fx0 exch def
+<< /A [ 300 0 400 0 ] >> sbfont
+firstpt pop /fx300 exch def
+fx300 fx0 sub 300 sfm mul sub abs 0.01 lt
+    (a four-element Metrics entry moves the glyph by its x sidebearing) assert
+<< /A [ 0 300 400 0 ] >> sbfont
+firstpt exch pop /fy300 exch def
+fy300 fy0 sub 300 sfm mul sub abs 0.01 lt
+    (and by its y sidebearing) assert
+
+% the sidebearing moves the glyph and leaves the width alone
+<< /A [ 0 400 ] >> sbfont (A) stringwidth pop /w0 exch def
+<< /A [ 300 400 ] >> sbfont (A) stringwidth pop w0 sub abs 0.01 lt
+    (a sidebearing does not move the pen) assert
+
+% a number names a width and no sidebearing, so the glyph stays put
+/Helvetica findfont 20 scalefont setfont firstpt pop /natx exch def
+<< /A 400 >> sbfont firstpt pop natx sub abs 0.01 lt
+    (a number Metrics entry leaves the glyph where the face drew it) assert
+
 % --- tiling pattern and shading pattern (PatternType 2) ---
 {
     /Pattern setcolorspace

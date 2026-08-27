@@ -2052,6 +2052,47 @@ xpost_font_face_glyph_extents(void *face, unsigned int glyph_index,
 #endif
 }
 
+/* The glyph's own left sidebearing -- the position of its left
+   sidebearing point in glyph space (PLRM 5.4), which is where the face
+   draws it relative to the origin -- under the face's current
+   transform, in 16.16 y-up, the form and convention the advances arrive
+   in.
+
+   The slot's metrics are scaled but never transformed: FreeType puts
+   the transform through the outline and the advance alone. So the
+   bearing goes through it here, the way the linear advance does, and a
+   rotated or skewed font asks the same question of both. */
+int
+xpost_font_face_glyph_sidebearing(void *face, unsigned int glyph_index,
+                                  long *sbx, long *sby)
+{
+#ifdef HAVE_FREETYPE2
+    FT_Face f = face;
+    FT_Matrix m;
+    FT_Fixed lsb;
+
+    if (FT_Load_Glyph(f, glyph_index, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING))
+    {
+        XPOST_LOG_INFO("Can not load glyph (error : %d)", glyph_index);
+        return 0;
+    }
+    /* 26.6 -> 16.16, by multiplication: the bearing of a glyph that
+       reaches left of its origin is negative, and shifting one of those
+       is not arithmetic C defines */
+    lsb = (FT_Fixed)f->glyph->metrics.horiBearingX * 1024;
+    FT_Get_Transform(f, &m, NULL);
+    *sbx = FT_MulFix(m.xx, lsb);
+    *sby = FT_MulFix(m.yx, lsb);
+    return 1;
+#else
+    (void)face;
+    (void)glyph_index;
+    (void)sbx;
+    (void)sby;
+    return 0;
+#endif
+}
+
 #ifdef HAVE_FREETYPE2
 /* a fixed-size face's strike raster, resampled by the residual ratio
    the face transform carries (FreeType applies that transform to

@@ -441,12 +441,29 @@ _fixed16(double v, long *out)
     return 1;
 }
 
+/* One element of a /Metrics array, where it is a number. A form whose
+   elements are not all numbers is no override at all: the face's own
+   metrics stand rather than half of the entry being taken. */
+static
+int _metrics_number(Xpost_Context *ctx, Xpost_Object arr, int i, real *out)
+{
+    Xpost_Object el = xpost_array_get(ctx, arr, i);
+
+    if (xpost_object_get_type(el) == realtype)
+        *out = el.real_.val;
+    else if (xpost_object_get_type(el) == integertype)
+        *out = (real)el.int_.val;
+    else
+        return 0;
+    return 1;
+}
+
 /* A /Metrics entry for this glyph name overrides its width (PLRM 5.9.2):
    a number is a new x width, a two-element array carries the width in its
    second element, a four-element array carries the width vector in its
    last two. The values are in character space; deliver the device-space
    advance in 16.16, y-up, the convention the face's advances arrive in.
-   (The sidebearing the array forms also carry is not applied.) */
+   (The sidebearing the array forms also carry is _metrics_sidebearing's.) */
 static
 int _metrics_advance(Xpost_Context *ctx,
                      const textstate *ts,
@@ -469,23 +486,10 @@ int _metrics_advance(Xpost_Context *ctx,
     else if (xpost_object_get_type(v) == arraytype
           && (v.comp_.sz == 2 || v.comp_.sz == 4))
     {
-        Xpost_Object el = xpost_array_get(ctx, v, v.comp_.sz == 2 ? 1 : 2);
-        if (xpost_object_get_type(el) == realtype)
-            wx = el.real_.val;
-        else if (xpost_object_get_type(el) == integertype)
-            wx = (real)el.int_.val;
-        else
+        if (!_metrics_number(ctx, v, v.comp_.sz == 2 ? 1 : 2, &wx))
             return 0;
-        if (v.comp_.sz == 4)
-        {
-            el = xpost_array_get(ctx, v, 3);
-            if (xpost_object_get_type(el) == realtype)
-                wy = el.real_.val;
-            else if (xpost_object_get_type(el) == integertype)
-                wy = (real)el.int_.val;
-            else
-                return 0;
-        }
+        if (v.comp_.sz == 4 && !_metrics_number(ctx, v, 3, &wy))
+            return 0;
     }
     else
         return 0;
@@ -493,6 +497,59 @@ int _metrics_advance(Xpost_Context *ctx,
        face's own advance stands rather than a value the form substitutes */
     if (!_fixed16(ts->cdmat[0] * wx + ts->cdmat[2] * wy, ax)
      || !_fixed16(-(ts->cdmat[1] * wx + ts->cdmat[3] * wy), ay))
+        return 0;
+    return 1;
+}
+
+/* A /Metrics entry for this glyph name may also override where the glyph
+   sits against its origin (PLRM 5.9.2): the two-element array's first
+   element is the x component of a new left sidebearing, and the
+   four-element array's first two are the x and y components of one. A
+   number gives a width alone, and a glyph named by one keeps the
+   sidebearing the face drew it with.
+
+   The sidebearing is a position, not a displacement (PLRM 5.4), so what
+   moves the glyph is the difference between the one asked for and the
+   one the face has -- which is what this answers, in 16.16 device units,
+   y-up, the convention the advances arrive in. Answers 0 where this
+   glyph is not given a sidebearing, and the glyph then stands where the
+   face puts it.
+
+   Called before the glyph is rendered: it loads the glyph to read the
+   face's own bearing, and the rendering path hands back a raster that a
+   later load would replace. */
+static
+int _metrics_sidebearing(Xpost_Context *ctx,
+                         const textstate *ts,
+                         Xpost_Object glyphname,
+                         void *face,
+                         unsigned int glyph_index,
+                         long *dx,
+                         long *dy)
+{
+    Xpost_Object v;
+    real sx = 0.0, sy = 0.0;
+    long nx, ny;
+
+    if (!ts->cdmat_ok
+     || xpost_object_get_type(ts->metrics) != dicttype
+     || xpost_object_get_type(glyphname) != nametype)
+        return 0;
+    v = xpost_dict_get(ctx, ts->metrics, glyphname);
+    if (xpost_object_get_type(v) != arraytype
+     || (v.comp_.sz != 2 && v.comp_.sz != 4))
+        return 0;
+    if (!_metrics_number(ctx, v, 0, &sx))
+        return 0;
+    if (v.comp_.sz == 4 && !_metrics_number(ctx, v, 1, &sy))
+        return 0;
+    if (!xpost_font_face_glyph_sidebearing(face, glyph_index, &nx, &ny))
+        return 0;
+    /* the face's own bearing comes back already in device units, so the
+       two meet there: the requested one crosses from character space
+       through the same matrix the requested width does */
+    if (!_fixed16(ts->cdmat[0] * sx + ts->cdmat[2] * sy - nx / 65536.0, dx)
+     || !_fixed16(-(ts->cdmat[1] * sx + ts->cdmat[3] * sy) - ny / 65536.0, dy))
         return 0;
     return 1;
 }
@@ -3365,11 +3422,22 @@ int _show_glyph(Xpost_Context *ctx,
     long advance_x;
     long advance_y;
     long bx0, by0, bx1, by1;
+    /* A /Metrics entry may put this glyph somewhere other than where the
+       face draws it (PLRM 5.9.2). Read before the glyph is served: it
+       loads the glyph to find the face's own sidebearing, and each of
+       the three routes below hands back something a later load replaces.
+       Zero where no entry names one, and the glyph then stands where the
+       face puts it. */
+    long sbx = 0, sby = 0;
+
+    _metrics_sidebearing(ctx, ts, glyphname, data.face, glyph_index,
+                         &sbx, &sby);
 
     if (ts->vector)
     {
         if (!_show_char_outline(ctx, devdic, ts, data.face, glyph_index,
-                                *xpos, *ypos, ncomp, comp1, comp2, comp3, comp4,
+                                *xpos + sbx / 65536.0, *ypos - sby / 65536.0,
+                                ncomp, comp1, comp2, comp3, comp4,
                                 &advance_x, &advance_y, inked))
             return 0;
     }
@@ -3387,11 +3455,14 @@ int _show_glyph(Xpost_Context *ctx,
            what a fill of its outline would leave there, which is
            nothing. A glyph with no outline takes the rendering path
            below instead. */
+        double sdx = sbx / 65536.0;
+        double sdy = sby / 65536.0;
+
         if (bx1 > bx0 && by1 > by0
-         && _clip_meets(ts, _clip_floor(*xpos + bx0 / 64.0),
-                            _clip_floor(*ypos - by1 / 64.0),
-                            _clip_ceil(*xpos + bx1 / 64.0),
-                            _clip_ceil(*ypos - by0 / 64.0)))
+         && _clip_meets(ts, _clip_floor(*xpos + sdx + bx0 / 64.0),
+                            _clip_floor(*ypos - sdy - by1 / 64.0),
+                            _clip_ceil(*xpos + sdx + bx1 / 64.0),
+                            _clip_ceil(*ypos - sdy - by0 / 64.0)))
         {
             *inked = 1;
             switch (ncomp)
@@ -3411,8 +3482,8 @@ int _show_glyph(Xpost_Context *ctx,
                     xpost_stack_push(ctx->lo, ctx->os, comp1);
                     break;
             }
-            xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons((real)(*xpos + bx0 / 64.0)));
-            xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons((real)(*ypos - by1 / 64.0)));
+            xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons((real)(*xpos + sdx + bx0 / 64.0)));
+            xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons((real)(*ypos - sdy - by1 / 64.0)));
             xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons((real)((bx1 - bx0) / 64.0)));
             xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons((real)((by1 - by0) / 64.0)));
             xpost_stack_push(ctx->lo, ctx->os, devdic);
@@ -3439,8 +3510,8 @@ int _show_glyph(Xpost_Context *ctx,
            boundary (the linear advance's 16.16 quantization) lands
            where exact arithmetic would put it */
         {
-            double px = floor(*xpos + left + 0.5);
-            double py = floor(*ypos - top + 0.5);
+            double px = floor(*xpos + sbx / 65536.0 + left + 0.5);
+            double py = floor(*ypos - sby / 65536.0 - top + 0.5);
             /* The pen can be driven far off the page, or to a non-finite
                position by an overflowing advance. Converting a double past
                int range is undefined, and _draw_bitmap's clip arithmetic
@@ -5744,10 +5815,22 @@ int _glyphoutline_common(Xpost_Context *ctx,
     {
         Xpost_Font_Outline_Sink sink;
         unsigned int glyph_index;
+        long sbx = 0, sby = 0;
 
         glyph_index = byname
             ? _glyph_index_for_name(ctx, ts.charstrings, data.face, gname)
             : gid;
+        /* a /Metrics entry may put the glyph somewhere other than where
+           the face draws it, as it does on the raster route. The
+           collector's origin carries the shift, so every point the walk
+           reports arrives already moved; the outline's points are y-up,
+           which is the convention the shift comes back in. */
+        if (_metrics_sidebearing(ctx, &ts, byname ? gname : invalid,
+                                 data.face, glyph_index, &sbx, &sby))
+        {
+            oc.px = sbx / 65536.0;
+            oc.py = sby / 65536.0;
+        }
         sink.moveto = _oc_moveto;
         sink.lineto = _oc_lineto;
         sink.curveto = _oc_curveto;

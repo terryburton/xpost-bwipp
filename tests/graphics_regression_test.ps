@@ -3423,6 +3423,54 @@ clear
 grestore
 userdict /base.m0 undef userdict /base.room undef
 
+% --- a /Metrics sidebearing moves the glyph the show operator paints ---
+%
+% PLRM 5.9.2: a font's Metrics dictionary may override a glyph's left
+% sidebearing as well as its width -- the two-element form gives the x
+% component of one, the four-element form the x and y components. The
+% sidebearing is a position and not a displacement (PLRM 5.4), so the
+% glyph moves by the difference between the one named and the one the
+% face drew it with. The difference between two named sidebearings is
+% therefore the whole of the move, and that is what is asked here: it
+% holds whichever face the platform substitutes and wherever that face
+% puts the glyph. The pen is not moved by any of it.
+%
+% Asked of the painted page and not of the metrics, because the widths
+% and the placement are read on different routes: a width the pen honours
+% is no evidence that the ink went with it.
+systemdict /NOFACES known not {
+    /sbleft {                           % metrics  .  int
+        /Helvetica findfont dup length 1 add dict copy
+        dup /Metrics 4 -1 roll put
+        /SbProbe exch definefont pop
+        erasepage
+        gsave
+        /SbProbe findfont 20 scalefont setfont
+        newpath 8 20 moveto (A) show
+        grestore
+        /sbcol 64 def
+        0 1 63 {
+            DEV /ImgData get exch get   % row
+            0 1 63 {                    % row col
+                2 copy get 128 lt
+                { dup sbcol lt { dup /sbcol exch def } if } if
+                pop
+            } for
+            pop
+        } for
+        sbcol
+    } bind def
+    << /A [ 0 400 ] >> sbleft /sb0col exch def
+    << /A [ 500 400 ] >> sbleft /sb500col exch def
+    sb0col 64 lt (the probe glyph reached the page) assert
+    sb500col sb0col sub 500 0.02 mul sub abs 1.5 lt
+        (a Metrics sidebearing moves the glyph show paints) assert
+    << /A [ 0 400 ] >> sbleft pop (A) stringwidth pop /sbw exch def
+    << /A [ 500 400 ] >> sbleft pop (A) stringwidth pop sbw sub abs 0.01 lt
+        (and leaves the pen where the width put it) assert
+    erasepage
+} if
+
 count 0 eq (operand stack is balanced) assert
 faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse
 flush
