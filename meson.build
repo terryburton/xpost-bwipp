@@ -3258,6 +3258,16 @@ test('callback-reentry',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# Every operator that paints, asked to survive a callback that raises from
+# inside whatever it had open. A tiling pattern's paint procedure is the
+# one callback that reaches an operator's own gsave, so it is what each is
+# disturbed with.
+test('callback-bracket',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/callback_bracket_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Every text-showing operator against both kinds of font. Each operator
 # walks its string its own way, so one positioning a glyph correctly says
 # nothing about the next.

@@ -2368,8 +2368,17 @@ currentglobal true setglobal
 } put
 setglobal
 
-/ufill [ /arraytype ] { gsave newpath uappend fill grestore } .defop  % userpath  .  -
-/ueofill [ /arraytype ] { gsave newpath uappend eofill grestore } .defop  % userpath  .  -
+%  Each paints on a graphics state of its own so the caller's path is
+%  left alone, and each goes through the callout bracket for the same
+%  reason rectfill does: a pattern's paint procedure may raise from
+%  inside that state, and the grestore written after the paint is not
+%  reached then.
+/ufill [ /arraytype ] {  % userpath  .  -
+    { gsave newpath uappend fill grestore }
+    null 0 //.xpostsys /.callout get exec } .defop
+/ueofill [ /arraytype ] {  % userpath  .  -
+    { gsave newpath uappend eofill grestore }
+    null 0 //.xpostsys /.callout get exec } .defop
 
 %
 %       userpath  .  -
@@ -2381,11 +2390,13 @@ setglobal
 %  is how a program strokes a shape at one scale with a pen at another.
 %
 /ustroke [ /arraytype ] {
+    {
     //.isupmat exec {
         gsave newpath exch uappend concat stroke grestore
     }{
         gsave newpath uappend stroke grestore
     } ifelse
+    } null 0 //.xpostsys /.callout get exec
 } .defop
 
 %
@@ -2563,15 +2574,24 @@ setglobal
 %  rectfill fills them, rectstroke strokes them, and rectclip clips to
 %  them.
 %
+%  The pair that paints works on a graphics state of its own, so the
+%  caller's path is left alone. That state is the operator's and not the
+%  program's: a callback the fill reaches -- a pattern's paint procedure
+%  is the one that escapes -- may raise from inside it, and the grestore
+%  written after the fill is not reached then. So the whole body goes
+%  through the callout bracket, which closes what the body opened
+%  whichever way the body ends.
 /rectfill [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]
     {  % x y w h | numarray | numstring  .  -
-      gsave newpath //.rect exec fill grestore }
+      { gsave newpath //.rect exec fill grestore }
+      null 0 //.xpostsys /.callout get exec }
     .defop
 /rectstroke [ [ /numbertype /numbertype /numbertype /numbertype /arraytype ]
               [ /numbertype /numbertype /numbertype /numbertype ]
               [ /arraytype /arraytype ] [ /stringtype /arraytype ]
               [ /arraytype ] [ /stringtype ] ] {  % x y w h [matrix] | numarray [matrix] | numstring [matrix]  .  -
+    {
     gsave newpath
 
     % A trailing matrix is a six-element array; a numarray always holds 4n
@@ -2581,6 +2601,7 @@ setglobal
         { //.rect exec }
     ifelse
     stroke grestore
+    } null 0 //.xpostsys /.callout get exec
 } .defop
 /rectclip [ [ /numbertype /numbertype /numbertype /numbertype ]
             [ /arraytype ] [ /stringtype ] ]

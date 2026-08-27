@@ -416,6 +416,7 @@ language test access
 language test array-swap-range
 language test bind-packed
 language test callback-reentry
+language test callback-bracket
 language test callout-bracket
 language test check-error-names
 language test check-fused-ops

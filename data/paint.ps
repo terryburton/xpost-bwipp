@@ -1702,6 +1702,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 /image [ [ /integertype /integertype /integertype /arraytype /anytype ]
          [ /dicttype ] ] {
+    {
     dup type /dicttype eq {
         dup /ImageType get
         dup 1 eq {
@@ -1740,6 +1741,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         //.imgsource exec [ 0 1 ] 1 //.imagepaint exec
         grestore
     } ifelse
+    } null 0 //.callout exec
 } .defop
 
 %
@@ -1762,6 +1764,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  many there are is the body's to check.
 %
 /colorimage [ /booleantype /integertype ] {  % width height bits matrix datasrc... multi ncomp  .  -
+    {
     4 dict begin
     /nc exch def
     /msrc exch def
@@ -1787,6 +1790,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     end
     null 0 0 null /colorimage //.imagepaintm exec
     grestore
+    } null 0 //.callout exec
 } .defop
 
 %

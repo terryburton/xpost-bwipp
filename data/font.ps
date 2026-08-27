@@ -844,6 +844,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  stroking that would draw the outline of the line.
 %
 .xpostsys /.showoutline {  % subject hook stroked  .  -
+    {
     4 dict begin
     /pstroke exch def
 
@@ -877,6 +878,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     grestore
     moveto
     end
+    } null 0 //.callout exec
 } put
 
 %
@@ -941,6 +943,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         pop
         null { //show } //.showroute exec
     }{
+    {
     gsave
         currentpoint translate
         newpath
@@ -959,6 +962,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         pop
         0 0 transform  % Use device-space coordinates to save location past grestore
     grestore
+    } null 0 //.callout exec
     itransform moveto
 
     } ifelse } ifelse
@@ -977,22 +981,23 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dup //.fontroute exec /composite eq {
         % A composite font: add the delta after the character whose full
         % (multi-byte) code matches, as the ordinary composite show walks it.
-        7 dict begin
+        7 dict {
         /fnt exch def /str exch def /mchar exch def /cdy exch def /cdx exch def
         /.showhook { mchar eq { cdx cdy rmoveto } if } def  % char  .  -
         fnt str /widthshow //.xpostsys /.showtype0 get exec
-        end
+        } //.indict exec
     }{
     dup //.fontroute exec /face eq {
         pop
-        4 dict begin
+        4 dict {
         /wstr exch def /wchar exch def /wcy exch def /wcx exch def
         wstr { wchar eq { wcx wcy rmoveto } if }
         { pop wcx wcy dtransform wchar wstr //widthshow }
         //.showroute exec
-        end
+        } //.indict exec
     }{
     5 2 roll
+    {
     3 dict begin
     {charcode cy cx}{exch def}forall
     gsave
@@ -1020,6 +1025,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         0 0 transform
     grestore
     end
+    } null 0 //.callout exec
     itransform moveto
 
     } ifelse } ifelse
@@ -1037,22 +1043,23 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dup //.fontroute exec /composite eq {
         % A composite font decodes to descendant glyphs; walk it with the
         % ordinary composite show and add the delta after each character.
-        6 dict begin
+        6 dict {
         /fnt exch def /str exch def /ady exch def /adx exch def
         /.showhook { pop adx ady rmoveto } def  % char  .  -
         fnt str /ashow //.xpostsys /.showtype0 get exec
-        end
+        } //.indict exec
     }{
     dup //.fontroute exec /face eq {
         pop
-        3 dict begin
+        3 dict {
         /astr exch def /aady exch def /aadx exch def
         astr { pop aadx aady rmoveto }
         { pop aadx aady dtransform astr //ashow }
         //.showroute exec
-        end
+        } //.indict exec
     }{
     4 2 roll
+    {
     2 dict begin
     {dy dx}{exch def}forall
     gsave
@@ -1077,6 +1084,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         0 0 transform
     grestore
     end
+    } null 0 //.callout exec
     itransform moveto
 
     } ifelse } ifelse
@@ -1094,12 +1102,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     dup //.fontroute exec /composite eq {
         % A composite font: the ashow delta after every character, plus the
         % widthshow delta after the character whose full code matches.
-        9 dict begin
+        9 dict {
         /fnt exch def /str exch def /ady exch def /adx exch def
         /mchar exch def /cdy exch def /cdx exch def
         /.showhook { adx ady rmoveto mchar eq { cdx cdy rmoveto } if } def  % char  .  -
         fnt str /awidthshow //.xpostsys /.showtype0 get exec
-        end
+        } //.indict exec
     }{
     dup //.fontroute exec /face eq {
         pop
@@ -1107,17 +1115,18 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % The binding takes both deltas in device space; the outline
         % route moves the pen in user space, which is where the
         % operands arrive.
-        6 dict begin
+        6 dict {
         /vstr exch def /vady exch def /vadx exch def
         /vchar exch def /vcy exch def /vcx exch def
         vstr { vadx vady rmoveto vchar eq { vcx vcy rmoveto } if }
         { pop vcx vcy dtransform vchar vadx vady dtransform vstr //awidthshow }
         //.showroute exec
-        end
+        } //.indict exec
     }{
         % Bring the operands (cx cy char ax ay string font) into the order the
         % binding expects: string font ax ay cx cy char, top-down char cy cx ay ax.
         7 2 roll 5 2 roll
+        {
         5 dict begin
         {charcode cy cx dy dx}{exch def}forall
         gsave
@@ -1147,6 +1156,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             0 0 transform
         grestore
         end
+        } null 0 //.callout exec
         itransform moveto
 
     } ifelse } ifelse
@@ -1197,7 +1207,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % kerning procedure reaches the same frame and abandons the rest of
     % the walk, and the dictionary is already ended by then, so there is
     % nothing of kshow's own left for the exit to strand.
-    8 dict begin
+    8 dict {
         /str exch def /proc exch def
         /exe /exec load def
         /n str length def
@@ -1217,7 +1227,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             } for
         } if
         ] cvx
-    end
+    } //.indict exec
     { exec exit } loop
 } .defop
 
@@ -1277,6 +1287,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         pop
         null { .glyphshow } //.showroute exec
     }{
+        {
         3 dict begin
         /fnt exch def
         /gname exch def
@@ -1311,6 +1322,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         grestore
         itransform moveto
         end
+        } null 0 //.callout exec
     } ifelse } ifelse
 } .defop
 
@@ -1351,7 +1363,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 /xshow [ /stringtype /anytype ] {  % string numarray  .  -
     /xshow //.needfont exec
     dup type /stringtype eq { .numstring2array } if
-    5 dict begin
+    5 dict {
     /nums exch def /str exch def
     /p 0 def /i 0 def
     {
@@ -1363,7 +1375,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /p p w add def
         /i i 1 add def
     } loop
-    end
+    } //.indict exec
 } .defop
 
 %
@@ -1373,7 +1385,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 /yshow [ /stringtype /anytype ] {  % string numarray  .  -
     /yshow //.needfont exec
     dup type /stringtype eq { .numstring2array } if
-    5 dict begin
+    5 dict {
     /nums exch def /str exch def
     /p 0 def /i 0 def
     {
@@ -1385,7 +1397,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /p p w add def
         /i i 1 add def
     } loop
-    end
+    } //.indict exec
 } .defop
 
 %
@@ -1395,7 +1407,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 /xyshow [ /stringtype /anytype ] {  % string numarray  .  -
     /xyshow //.needfont exec
     dup type /stringtype eq { .numstring2array } if
-    5 dict begin
+    5 dict {
     /nums exch def /str exch def
     /p 0 def /i 0 def
     {
@@ -1409,7 +1421,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         /p p w add def
         /i i 1 add def
     } loop
-    end
+    } //.indict exec
 } .defop
 
 %

@@ -1,0 +1,104 @@
+%!testlib
+% What every operator that paints owes a callback that raises, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% An operator that paints on a graphics state of its own -- to keep the
+% caller's path, or to set the space its samples are in, or to clip to a
+% shading's box -- writes the grestore after the paint. A callback the
+% paint reaches may raise, and the grestore is not reached then: the
+% state stays open, the caller goes on painting in the machinery's, and
+% the depth is one further from the ceiling for the rest of the job. The
+% same is true of a dictionary the operator opened to hold its own
+% working names.
+%
+% Which callback is asked matters, and only one of them tells. A
+% transfer function, a spot function and a tint transform are each run
+% inside a bracket of their own further in, so an error in one never
+% reaches the operator's gsave and every operator looks clean. A tiling
+% pattern's paint procedure is not: it is the program's own procedure
+% run at the moment the paint happens, and an error in it walks out
+% through whatever the operator had open. So that is the disturbance
+% every operator here is asked to survive.
+%
+% Both directions are asked of each. The failing pass holds that the
+% graphics state depth, the dictionary stack depth and the error the
+% program's own procedure raised all come back to the caller unchanged
+% and unreplaced. The passing pass holds the same depths over a
+% procedure that returns normally, so an operator that leaves the depth
+% wrong every time is not read as one that unwinds correctly.
+
+% a face answers for the text operators here: a build without a face
+% library cannot ask their half and says so rather than failing it
+systemdict /NOFACES known
+    { (SKIPPED: this suite paints text through a face, and this build carries no face library) = flush quit } if
+
+/raiser << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 8 8]
+           /XStep 8 /YStep 8 /PaintProc { pop gsave 1 0 div } >> def
+/quiet  << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 8 8]
+           /XStep 8 /YStep 8 /PaintProc { pop 0 setgray 0 0 4 4 rectfill } >> def
+
+/font { /Courier findfont 12 scalefont setfont } bind def
+/tri { newpath 0 0 moveto 10 0 lineto 10 10 lineto closepath } bind def
+
+% every operator that paints under the current colour, each given the
+% operands its own signature wants
+/CASES [
+    [ (fill)        { tri fill } ]
+    [ (eofill)      { tri eofill } ]
+    [ (stroke)      { tri stroke } ]
+    [ (rectfill)    { 0 0 10 10 rectfill } ]
+    [ (rectstroke)  { 0 0 10 10 rectstroke } ]
+    [ (ufill)       { { 0 0 moveto 10 0 lineto 10 10 lineto closepath } ufill } ]
+    [ (ueofill)     { { 0 0 moveto 10 0 lineto 10 10 lineto closepath } ueofill } ]
+    [ (ustroke)     { { 0 0 moveto 10 0 lineto 10 10 lineto closepath } ustroke } ]
+    [ (uappend)     { newpath { 0 0 moveto 10 0 lineto 10 10 lineto closepath } uappend fill } ]
+    [ (show)        { font 0 0 moveto (A) show } ]
+    [ (ashow)       { font 0 0 moveto 1 0 (A) ashow } ]
+    [ (widthshow)   { font 0 0 moveto 1 0 32 (A) widthshow } ]
+    [ (awidthshow)  { font 0 0 moveto 1 0 32 1 0 (A) awidthshow } ]
+    [ (kshow)       { font 0 0 moveto { pop pop } (AB) kshow } ]
+    [ (xshow)       { font 0 0 moveto (A) [1] xshow } ]
+    [ (yshow)       { font 0 0 moveto (A) [1] yshow } ]
+    [ (xyshow)      { font 0 0 moveto (A) [1 1] xyshow } ]
+    [ (glyphshow)   { font 0 0 moveto /A glyphshow } ]
+    [ (charpath)    { font newpath 0 0 moveto (A) true charpath fill } ]
+    [ (imagemask)   { 4 4 true [4 0 0 -4 0 4] <a05000f0> imagemask } ]
+] def
+
+/nm () def  /body {} def  /g0 0 def  /d0 0 def  /er /none def
+
+/run { % {paintproc-pattern} bool(expect-raise)  .  -
+    /wantraise exch def /usepat exch def
+    CASES {
+        aload pop /body exch def /nm exch def
+        initgraphics
+        usepat matrix makepattern setpattern
+        /g0 graphicsdict /gptr get def
+        /d0 countdictstack def
+        { body } stopped
+            { /er $error /errorname get def $error /newerror false put }
+            { /er /none def } ifelse
+        clear
+        graphicsdict /gptr get g0 eq
+            nm (gave the caller its graphics state back) assert2
+        countdictstack d0 eq
+            nm (gave the caller its dictionary stack back) assert2
+        wantraise {
+            er /undefinedresult eq
+                nm (reported the error the procedure raised) assert2
+        }{
+            er /none eq
+                nm (raised nothing of its own) assert2
+        } ifelse
+        % put the caller back on its feet whatever this case did, so one
+        % failing case cannot report every case after it as failing too
+        graphicsdict /gptr get g0 gt
+            { graphicsdict /gptr get g0 sub { grestore } repeat } if
+        countdictstack d0 gt { countdictstack d0 sub { end } repeat } if
+    } forall
+} bind def
+
+raiser true run
+quiet false run
+
+verdict

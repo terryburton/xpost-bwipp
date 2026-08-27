@@ -1175,6 +1175,7 @@ systemdict /shfill [ /dicttype ] {  % dict  .  -
         { pop pop /shfill cvx /rangecheck signalerror } if
     //.shadepainters exch get exch          % Proc shdict
 
+    {
     gsave
     dup /ColorSpace get setcolorspace
     dup /BBox 2 copy known {
@@ -1188,6 +1189,7 @@ systemdict /shfill [ /dicttype ] {  % dict  .  -
     }{ pop pop } ifelse
     exch exec
     grestore
+    } null 0 //.xpostsys /.callout get exec
 } .defopin
 end
 
