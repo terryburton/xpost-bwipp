@@ -840,7 +840,11 @@ _cff_index(const unsigned char *d, size_t len, size_t off,
     *count = c;
     *offsz = osz;
     *dataoff = off + 3 + (c + 1) * osz - 1;
-    if (*dataoff + last > len)
+    /* keep the data area within the buffer, without a *dataoff+last wrap
+       where the size type is as wide as the four bytes last was read
+       from: the check above holds *dataoff inside len, so the length is
+       weighed against what is left */
+    if (last > len - *dataoff)
         return 0;
     return *dataoff + last;
 }
