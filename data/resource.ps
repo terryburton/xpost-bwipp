@@ -205,6 +205,19 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } forall
 
 %
+%  The implementation dictionaries are complete now, so seal them. PLRM
+%  8.2 has defineresource make an instance read-only, and a category is
+%  an instance of /Category like any other: findresource hands one to
+%  whoever asks, and what a category says -- the type it holds its
+%  instances to, the file name it would be found under -- is not the
+%  asker's to change. These were written straight into the table rather
+%  than defined through defineresource, so the seal is taken here
+%  instead. They are in global virtual memory, where a restore does not
+%  reach, so a write would stand for the rest of the job.
+%
+//.resources /Category get { exch pop dup wcheck { readonly } if pop } forall
+
+%
 %  The type a category holds its instances to, or null where it holds them
 %  to none.
 %

@@ -693,7 +693,11 @@ setglobal
 %  not see it; .wrapop freezes the procedure into the =string operator, and
 %  internaldict keeps it alive thereafter.
 %
-.internaldict /.=stringproc [ //=string ] cvx put
+%  Read-only: it is what the operator runs, and the string it hands back
+%  is the one = and == format through. It lives in global virtual memory,
+%  which a restore does not reach, so a body a program could write into
+%  is one whose replacement would stand for the rest of the job.
+.internaldict /.=stringproc [ //=string ] cvx readonly put
 /=string dup .internaldict /.=stringproc get .wrapop def
 
 %
@@ -2826,6 +2830,17 @@ currentglobal true setglobal
             >> {
                 where { pop pop }{ .xpostsys /.devicemakers get exch undef } ifelse
             } forall
+
+            % Sealed now the roster is settled. Each entry is a procedure a
+            % page-device request runs to build the device it names, so a
+            % roster a program could write into is one that decides what runs
+            % as the device: an entry of the program's own would be executed
+            % by the next setpagedevice. The roster is in global virtual
+            % memory, where a restore does not reach, so a write would stand
+            % for the rest of the job. It is complete here -- the entries are
+            % stated above and the drivers this build left out have just been
+            % dropped -- and nothing writes it afterwards.
+            .xpostsys /.devicemakers get readonly pop
             setglobal
 
             systemdict begin

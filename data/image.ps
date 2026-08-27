@@ -879,7 +879,13 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             .writepage
         } ifelse } ifelse
     } //.indict exec } bind
->> put
+
+%  Read-only. This is the method suite every raster class is copied
+%  from, so a suite that could be written into is one whose methods a
+%  later class would carry: the copy is what a device paints through.
+%  Nothing writes it -- a method is added by editing it here, and the
+%  overlay a class asks for goes onto the copy, never onto this.
+>> readonly put
 
 %
 %  Build a raster device class: the shared suite copied from

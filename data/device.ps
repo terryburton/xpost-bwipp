@@ -1130,7 +1130,13 @@ end } bind put
     /SeparationColorNames null    /SeparationOrder null
     /Separations null             /Trapping null
     /TrappingDetails null         /UseCIEColor null
->> put
+
+%  Read-only, as the list of parameters beside it is. This one decides
+%  which requests cannot be satisfied and so go to a policy, and a list
+%  a program could empty is one that would let those requests through
+%  unanswered. Nothing writes it: it states what this interpreter has no
+%  behaviour for, and a name is added by editing it here.
+>> readonly put
 
 %
 %  What a Policies dictionary offered to setpagedevice may say, refused
