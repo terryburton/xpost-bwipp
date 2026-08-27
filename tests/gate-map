@@ -543,6 +543,14 @@ corpus width witness
 # file's own name where the registration names it through a variable.
 # What is named here is the other thing such a change can break, which
 # is the rule its registration has to satisfy.
+# The golden pages and the manifests that record them. A manifest is
+# only ever edited beside the change that moved the bytes it records, and
+# that change selects its own area; what the manifest itself needs is the
+# test that reads it. Left to the catch-all a one-line manifest edit
+# gates on all four hundred and thirty-nine tests at both widths, which
+# is the selection this table exists to avoid.
+device path tests/golden/**
+
 suite path tests/**
 suite test check-test-cost
 suite test check-test-quality
