@@ -1515,6 +1515,17 @@ currentglobal true setglobal
     dup (Nimbus Sans L)
 
     /Palatino-Roman (URW Palladio L)
+
+    % The compressed spellings of the standard 35 that a host is unlikely
+    % to know under those names: it holds the family spelled out, and
+    % nothing maps one onto the other, so the name reaches the default
+    % face of its kind instead of the face meant for it.
+    /NewCenturySchlbk-Roman (New Century Schoolbook)
+    dup (Century Schoolbook L)
+    dup (C059)
+    /NewCenturySchlbk-Italic (New Century Schoolbook)
+    /NewCenturySchlbk-Bold (New Century Schoolbook)
+    /NewCenturySchlbk-BoldItalic (New Century Schoolbook)
 >> put
 setglobal
 
@@ -1655,7 +1666,28 @@ setglobal
     }{
         {   % Try the operator, which states FontType, FontMatrix
             % and FontBBox for the face behind the name
-            //findfont
+            dup //findfont              % name font
+
+            % A name the host has nothing for reaches the default face of
+            % its kind, and the font answers by that face's name rather
+            % than the one asked for -- a name the host does resolve keeps
+            % its own. So the two differing says this build was handed a
+            % substitute, and where the table names a family that stands
+            % in for the name, that family is asked for instead. The name
+            % asked for is then stamped back on: the table is this build's
+            % own aliasing, and a name it aliases is a name this build
+            % has, exactly as a name the host aliases is one the host has.
+            % Asked once. The answer to the second question stands
+            % whatever it is, so a family the host also lacks cannot send
+            % this round again.
+            dup /FontName get 2 index ne {
+                //.fontsubstitutions 2 index known {
+                    pop                                  % name
+                    dup //.fontsubstitutions exch get    % name family
+                    //findfont                           % name font
+                    dup 3 -1 roll /FontName exch put     % font
+                }{ exch pop } ifelse                     % font
+            }{ exch pop } ifelse                         % font
 
             % The encoding the face itself supplies (PLRM 5.2): the
             % name it gives each character code, which is what a
