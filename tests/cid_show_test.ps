@@ -158,8 +158,25 @@ end
     /GlyphDirectory 0 dict def
     /sfnts FontDirectory /CIDOracleFont get /sfnts get def
 CIDFontName currentdict end /CIDFont defineresource pop
+% and the same descendant again, carrying a width for the CID above 255
+% and none for its low byte, so a route that keeps only the low byte
+% reports a width from the face where this one names its own
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDWideMet def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [1 0 0 1 0 0] def
+    /FontType 42 def
+    /CIDCount 258 def
+    /GDBytes 1 def
+    /CIDMap 258 string dup 1 2 put dup 257 1 put def
+    /GlyphDirectory 0 dict def
+    /Metrics << 257 [ 0.2 0.6 ] >> def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
 end
 /CIDWideT0 /CIDShowTestCMap [/CIDWideTest] composefont pop
+/CIDWideMetT0 /CIDShowTestCMap [/CIDWideMet] composefont pop
 /WIDECODE <0101> def    % this CMap decodes it to CID 257
 /LOWCODE  <0001> def    % and this one to CID 1, the low byte of 257
 
@@ -198,6 +215,9 @@ end
 /cidfnt { /CIDShowT0 findfont 20 scalefont setfont } bind def
 /cidoutfnt { /CIDShowT0Outline findfont 20 scalefont setfont } bind def
 /oraclefnt { /CIDOracleFont findfont 20 scalefont setfont } bind def
+/widefnt { /CIDWideT0 findfont 20 scalefont setfont } bind def
+/widemetfnt { /CIDWideMetT0 findfont 20 scalefont setfont } bind def
+/ciddirect { /CIDWideTest /CIDFont findresource 20 scalefont setfont } bind def
 
 /cell { << /PatternType 1 /PaintType 1 /TilingType 1
            /BBox [0 0 6 6] /XStep 6 /YStep 6
@@ -356,6 +376,38 @@ cs.n 2 eq (the procedure ran once per decoded character) check
 C inkof 0 gt (the glyph the procedure showed marks the page) check
 C S differs 0 eq (and is the glyph the walk paints) check
 
+% The special measure PLRM 8.2 describes, asked where the code and the
+% CID part company. A CIDFont's glyphs are reached by CID and a string
+% reaches none of them, so cshow hands the procedure "the character code
+% from string (or its last byte, if the code is more than 1 byte long)"
+% and arranges that a show of that byte paints "the one identified by the
+% originally selected CID". A byte holds 255 and CIDs run past it, so the
+% two are only the same number while the CIDs are small: this code's last
+% byte is 1 and the CID it decodes to is 257, and the descendant sends
+% those two to different glyphs.
+/W  { widefnt newpath 10 20 moveto WIDECODE show } greysnap def
+/WL { widefnt newpath 10 20 moveto LOWCODE show } greysnap def
+/WC { widefnt newpath 10 20 moveto
+      { pop pop 1 string dup 0 4 -1 roll put show } WIDECODE cshow } greysnap def
+/cs.code null def
+widefnt initgraphics newpath 10 20 moveto
+{ pop pop /cs.code exch store } WIDECODE cshow
+cs.code 1 eq (the procedure is given the code's last byte) check
+W WL differs 0 gt (the CID and its last byte reach different glyphs) check
+WC inkof 0 gt (the byte shown back from the procedure marks the page) check
+WC W differs 0 eq (and marks the glyph the CID selected) check
+WC WL differs 0 gt (rather than the glyph its last byte would select) check
+
+% and the width the procedure is handed is that CID's as well: it is
+% measured through the same mapping the show goes through, so a Metrics
+% entry keyed by the CID the CMap resolved (PLRM 5.11.3) governs it.
+/cs.w null def
+widemetfnt initgraphics newpath 10 20 moveto
+{ pop /cs.w exch store pop } WIDECODE cshow
+cs.w 12 near (the width is the one the CID names) check
+widemetfnt WIDECODE stringwidth pop cs.w near
+    (which is the width the same text is shown at) check
+
 % --- a CIDFont as the current font -------------------------------------
 %
 % PLRM 5.11.3 lets a CIDFont dictionary "be treated as if it were a font
@@ -372,8 +424,6 @@ C S differs 0 eq (and is the glyph the walk paints) check
 % the same CID reached the long way round, by a CMap decoding a code to
 % it -- and the two must paint the same glyph in the same place.
 /p.name (cid glyphshow:) def
-/widefnt { /CIDWideT0 findfont 20 scalefont setfont } bind def
-/ciddirect { /CIDWideTest /CIDFont findresource 20 scalefont setfont } bind def
 /G { ciddirect newpath 10 20 moveto 257 glyphshow } greysnap def
 /W { widefnt newpath 10 20 moveto WIDECODE show } greysnap def
 /L { widefnt newpath 10 20 moveto LOWCODE show } greysnap def

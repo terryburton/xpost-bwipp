@@ -179,10 +179,17 @@ Level 3 operators
      and FMapType 9 through composefont with CIDFont descendants of
      CIDFontType 2, incremental GlyphDirectory delivery, and
      CIDFontType 0, charstrings through StartData; escapes select
-     within one modal level; cshow rebinds a CMap composite to
-     one-byte codes. The CIDInit procedure set is complete: notdef
-     mappings and usematrix are taken, though a single-descendant job
-     applies neither)
+     within one modal level. The CIDInit procedure set is complete:
+     notdef mappings and usematrix are taken, though a single-descendant
+     job applies neither)
+ [X] cshow through a CID-keyed composite (PLRM 8.2). Two things it says
+     of the procedure are not held to here. The string the procedure
+     passes to show "must consist of a single byte equal to the code
+     given to proc, or a rangecheck error occurs"; any other string is
+     taken rather than refused, and reaches the undefined glyph, one per
+     byte. And currentfont, which PLRM 8.2 has returning "the current
+     descendant base font or CIDFont" while the procedure runs, returns
+     the composite instead, as does rootfont
  [ ] Metrics2, CDevProc (PLRM 5.9.2). Writing mode 1 is not rendered,
      so the second set of metrics Metrics2 holds has nothing here to
      govern. CDevProc is not called in either writing mode, so a font

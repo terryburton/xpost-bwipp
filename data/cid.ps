@@ -843,14 +843,28 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
-%  A one-byte identity CMap: cshow's procedure sees the descendant
-%  under byte codes, the idiom drivers use to repaint one glyph at a
-%  time from inside the procedure.
+%  The mapping cshow rebinds a CID-keyed composite to for the duration
+%  of one call of its procedure: a single byte -- the last byte of the
+%  code the walk decoded, which is the code cshow puts on the stack --
+%  standing for the CID that walk resolved, and no other code carrying
+%  a glyph at all.
 %
-/.bytecmap <<
-    /.codespaces [ <00> <FF> ]
-    /.cidranges [ <00> <FF> 0 ]
->> def
+%  One mapping per character, because the correspondence it states is
+%  one character's. A byte cannot name a CID above 255 and most CIDs in
+%  a real font are above 255, so a mapping that sent each byte to the
+%  CID of the same number would be a mapping the CID could not be
+%  reached through; what makes the byte enough is that it has only one
+%  CID to stand for.
+%
+/.cshbytecmap {  % code cid  .  cmap
+    2 dict begin
+    /cid exch def
+    /cs 1 string def
+    cs 0 3 -1 roll put
+    << /.codespaces [ <00> <FF> ]
+       /.cidranges [ cs cs cid ] >>
+    end
+} def
 
 end
 
@@ -886,13 +900,14 @@ end
 } .defop
 
 %
-%  Call the procedure for each character with its code and width,
-%  painting nothing itself. Through a composite font the codes decode
-%  by the CMap first, and while the procedure runs the current font
-%  is the composite rebound to one-byte codes, so a show of the
-%  code's byte inside the procedure paints the glyph the code named.
-%  the character's advance in the font, measured without marking;
-%  stack-pure, so a compiled program can run it with a caller's
+%  The character's advance, which is the width cshow reports for it,
+%  measured without marking. It is read off a show of the glyph rather
+%  than added up, so the font the show goes through is the font that
+%  answers for the width -- through a CID-keyed composite, the mapping
+%  in force when the measurement is taken decides which glyph is
+%  measured and whose metrics govern it.
+%
+%  Stack-pure, so a compiled program can run it with a caller's
 %  leavings below its operands.
 %
 .xpostsys /.cshmeasure {  % font charstring  .  wx wy
@@ -928,6 +943,19 @@ end
 %  frame and abandons the rest of the walk, and the private dict is
 %  already ended by then, so there is nothing of cshow's own left for the
 %  exit to strand.
+%
+%  Through a CID-keyed composite the operator makes the special measure
+%  PLRM 8.2 describes, so that a procedure may show what the walk chose
+%  even though a CIDFont is what the mapping selected and a string
+%  reaches no glyph in one. What the procedure is given is "the
+%  character code from string (or its last byte, if the code is more
+%  than 1 byte long)", and a show of that one byte, with the font the
+%  operator leaves current, paints "the one identified by the originally
+%  selected CID". Both halves are the rebinding below: the composite is
+%  rebound, for the length of one call, to a mapping under which that
+%  byte and nothing else stands for that CID. The byte is a byte and the
+%  CID is whatever the CMap resolved, so a CID above 255 is shown, and
+%  measured, as the CID it is.
 %
 /cshow [ /proctype /stringtype ] {  % proc string  .  -
     /cshow //.needfont exec
@@ -972,16 +1000,23 @@ end
         /ppexec //.pexec def
         /cm fnt /CMap get def
         /bw fnt dup length 1 add dict copy def
-        bw /CMap //.bytecmap put
+        % the rebinding is one character's, so it is done a character at
+        % a time, which puts it in the compiled program rather than
+        % here; the operator that does it is embedded the way exec is
+        /putin /put load def
         /p 0 def
         [
         {
             p str length ge { exit } if
             str p cm //.cmapnext exec
             /w exch def /cid exch def
-            cid
+            /code str p w add 1 sub get def
+            currentdict /bw get /CMap
+                code cid //.cshbytecmap exec
+                currentdict /putin get
+            code
             currentdict /bw get
-            1 string dup 0 cid 255 and put
+            1 string dup 0 code put
             //.cshmeasure currentdict /exe get
             currentdict /bw get //.cshsetfont currentdict /exe get
             currentdict /proc get currentdict /ppexec get currentdict /exe get

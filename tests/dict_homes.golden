@@ -100,7 +100,7 @@ entries 417
 .xpostsys /.bindwrap
 .xpostsys /.boundatdef
 .xpostsys /.buildkeys
-.xpostsys /.bytecmap
+.xpostsys /.cshbytecmap
 .xpostsys /.c01
 .xpostsys /.c255
 .xpostsys /.callout
