@@ -49,6 +49,7 @@
 #include "xpost_file.h"
 #include "xpost_font.h" /* the glyph cache the MaxFontItem parameter governs */
 #include "xpost_handle.h"
+#include "xpost_operator.h" /* releasing a wrapped operator's frame */
 
 /* What this run settled under name, or a null where it settled nothing.
    The settings live in .hostdict, a member of the private global
@@ -106,6 +107,90 @@ int xpost_context_append_ctxlist(Xpost_Memory_File *mem,
         }
     }
     return 0;
+}
+
+/* Take a context ID out of the context list in mfile.
+
+   The list is what the collector reads to find the contexts a memory
+   file serves, and it holds MAXCONTEXT entries. It has room for every
+   context that exists at once and no more, so an entry belongs to a
+   context for exactly as long as the context does: an entry left behind
+   by one that has ended spends a place that a later one then cannot
+   have, and spends it against a bound that counts contexts alive rather
+   than contexts ever created.
+
+   The entries after the one taken move down, so the list stays a run of
+   identifiers followed by zeroes -- which is how every reader of it
+   stops. */
+void xpost_context_remove_ctxlist(Xpost_Memory_File *mem,
+                                  unsigned int cid)
+{
+    int i, j;
+    unsigned int *ctxlist;
+
+    ctxlist = xpost_vm_ptr(mem, xpost_memory_context_list_adr(mem));
+    for (i = 0; i < MAXCONTEXT; i++)
+    {
+        if (ctxlist[i] != cid)
+            continue;
+        for (j = i; j < MAXCONTEXT - 1; j++)
+            ctxlist[j] = ctxlist[j + 1];
+        ctxlist[MAXCONTEXT - 1] = 0;
+        return;
+    }
+}
+
+/* Unwind an execution stack to a depth, releasing the side state its
+   frames hold outside virtual memory.
+
+   A frame on that stack may name something the arena does not carry: a
+   filenameforall enumeration holds the paths it matched, and a wrapped
+   operator's frame holds the operands it was called with. Dropping the
+   entry does not give either of them up, so an unwind that only popped
+   would leave them behind -- once per unwind, for the life of the
+   process. */
+void xpost_context_unwind_exec(Xpost_Context *ctx, unsigned int base)
+{
+    while (xpost_stack_count(ctx->lo, ctx->es) > (int)base)
+    {
+        Xpost_Object x = xpost_stack_pop(ctx->lo, ctx->es);
+
+        if (xpost_object_get_type(x) == globtype)
+            xpost_context_glob_release(ctx, (unsigned int)x.glob_.id);
+
+        if (xpost_object_get_type(x) == operatortype &&
+            (x.mark_.padw == (unsigned int)XPOST_OP_CODE(ctx, wrapdone) ||
+             x.mark_.padw == (unsigned int)XPOST_OP_CODE(ctx, wrapsealed)))
+            xpost_operator_wrapped_release(ctx,
+                    xpost_stack_pop(ctx->lo, ctx->es));
+    }
+}
+
+/* End a context: it is no longer one, and holds nothing.
+
+   A context's stacks and object roots are entities of the virtual memory
+   it shares with the contexts it was forked from. Nothing else names
+   them, so an ended context that kept them would keep everything it was
+   holding when it ended alive for the rest of the run -- and, where the
+   bank it named has since been wound back to an image that predates
+   them, would name storage that is not there at all. Both are answered
+   the same way: what it holds goes when it does.
+
+   The identifier goes back too, so that the table slot and the place in
+   the context list a later fork needs are given up together. */
+void xpost_context_release(Xpost_Context *ctx)
+{
+    if (!ctx || ctx->state == C_FREE)
+        return;
+    ctx->state = C_FREE;
+    if (ctx->lo)
+        xpost_context_remove_ctxlist(ctx->lo, ctx->id);
+    if (ctx->gl)
+        xpost_context_remove_ctxlist(ctx->gl, ctx->id);
+    ctx->os = ctx->es = ctx->ds = ctx->hold = 0;
+#define XPOST_CONTEXT_DROP_ROOT(f) ctx->f = null;
+    XPOST_CONTEXT_OBJECT_ROOTS(XPOST_CONTEXT_DROP_ROOT)
+#undef XPOST_CONTEXT_DROP_ROOT
 }
 
 
@@ -621,13 +706,13 @@ unsigned int xpost_context_fork3(Xpost_Context *ctx,
     newctx->job_baseline_ds = 0;
     newctx->lo = ctx->lo;
     /* The list is what the collector walks to find the contexts a memory
-       file serves, and it holds MAXCONTEXT entries. One entry is added
-       per context and none is ever taken out, so the list is full only
-       when MAXCONTEXT contexts exist -- and the cid allocation above,
-       whose refusal is answered, is the same bound taken from the other
-       side: it hands out a cid only for a context table slot that is
-       free. A context that reached here has its slot, so the list has
-       its entry. */
+       file serves, and it holds MAXCONTEXT entries. One entry is spent
+       per context alive -- a context that ends takes its entry back out
+       (xpost_context_release) -- so the list is full only when MAXCONTEXT
+       contexts exist, and the cid allocation above, whose refusal is
+       answered, is the same bound taken from the other side: it hands out
+       a cid only for a context table slot that is free. A context that
+       reached here has its slot, so the list has room for its entry. */
     XPOST_REFUSAL_IMPOSSIBLE(xpost_context_append_ctxlist(newctx->lo, newcid));
     newctx->gl = ctx->gl;
     XPOST_REFUSAL_IMPOSSIBLE(xpost_context_append_ctxlist(newctx->gl, newcid));

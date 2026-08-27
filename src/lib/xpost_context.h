@@ -581,6 +581,23 @@ int xpost_context_init_ctxlist(Xpost_Memory_File *mem);
 int xpost_context_append_ctxlist(Xpost_Memory_File *mem, unsigned cid);
 
 /**
+ * @brief Take a context identifier out of a memory file's context list.
+ */
+void xpost_context_remove_ctxlist(Xpost_Memory_File *mem, unsigned cid);
+
+/**
+ * @brief Pop a context's execution stack down to a depth, giving up the
+ * out-of-VM side state the frames dropped were holding.
+ */
+void xpost_context_unwind_exec(Xpost_Context *ctx, unsigned int base);
+
+/**
+ * @brief End a context: its state becomes C_FREE, its identifier comes
+ * out of the context lists, and it holds no stack and no object.
+ */
+void xpost_context_release(Xpost_Context *ctx);
+
+/**
  * @brief initialize the context structure
  */
 int xpost_context_init(Xpost_Context *ctx,

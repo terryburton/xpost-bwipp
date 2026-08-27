@@ -66,7 +66,7 @@ awk -F'\t' '
 f != pf { pf = f; depth = 0; acc = "" }
 {
     if (acc == "") {
-        if (depth == 0 && c ~ /^[ \t]*static[ \t]/) { acc = c; aln = ln }
+        if (depth == 0 && c ~ /^[ \t]*static([ \t]|$)/) { acc = c; aln = ln }
     } else acc = acc " " c
 
     if (acc != "") {
@@ -217,7 +217,7 @@ while IFS="$guard_tab" read -r file name line; do
     detail=$(printf '%s\n' "$row" | cut -d' ' -f4-)
 
     case $disp in
-    mints|mints-signalled)
+    mints|mints-signalled|refuses)
         # the function that advances it must notice that it has run out
         adv=$(awk -F'\t' -v F="$file" -v N="$name" '
             $1 == F && ($3 ~ ("[^A-Za-z0-9_]" N "[ \t]*(\\+\\+|--|\\+=|-=)") \
@@ -271,7 +271,7 @@ while IFS="$guard_tab" read -r file name line; do
             fi
         fi
         ;;
-    mints-signalled|decides|counts)
+    mints-signalled|refuses|decides|counts)
         if [ -z "$detail" ]; then
             printf '%s  %s  is registered as %s with no reason written down\n' \
                 "$file" "$name" "$disp" >> "$work/problems"

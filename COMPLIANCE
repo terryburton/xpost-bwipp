@@ -231,7 +231,9 @@ Display Postscript
      the flag leaves the names undefined. PLRM 2nd ed 7.1; the 3rd edition
      moved them to the Display PostScript System manuals. A forked context
      shares VM and keeps its own stacks and graphics state, cooperatively
-     scheduled -- concurrency, not preemption)
+     scheduled -- concurrency, not preemption. Its stacks are entities of
+     the virtual memory the job boundary winds back, so it does not outlive
+     the job that forked it)
  [X] context synchronisation (lock, condition, monitor, wait, notify; the
      mutual exclusion they provide is inherent in the non-preemptive schedule
      -- a monitor's procedure runs atomically unless it yields or waits -- and
@@ -272,6 +274,19 @@ Typical output devices
 Known behavioural deviations
 ----------------------------
 
+ [X] restore  a save object is not invalidated by the restore that uses it,
+     where a snapshot is defined to be usable once: restore is defined to
+     invalidate its operand and every save object made after it, so a second
+     use of either is an invalidrestore. Here a second use is accepted. The
+     virtual memory is already at that level so nothing is wound back, but
+     the per-context parameters the level recorded -- the array packing and
+     allocation modes, and the user parameters -- are put back from it.
+ [X] quit  under a job server the systemdict operator is not masked in
+     userdict and is not refused to an encapsulated job, where the operator
+     is defined to be executable only by an unencapsulated one and to raise
+     invalidaccess otherwise, with userdict carrying a definition equivalent
+     to stop. Here the operator ends the job it is executed by, and the job
+     server reads the next job from the stream.
  [X] filter  a procedure that is the data target of a filter may not write to
      that same filter: the string the waiting call must give back is the one
      this call would have to return first, so the write is an ioerror. A data

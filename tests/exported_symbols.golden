@@ -90,7 +90,10 @@ xpost_context_host_setting
 xpost_context_init
 xpost_context_init_ctxlist
 xpost_context_install_event_handler
+xpost_context_release
+xpost_context_remove_ctxlist
 xpost_context_select_memory
+xpost_context_unwind_exec
 xpost_create
 xpost_data_dir_get
 xpost_destroy
@@ -155,6 +158,7 @@ xpost_diskfile_readable
 xpost_diskfile_remove
 xpost_diskfile_rename
 xpost_diskfile_stat
+xpost_dps_context_is_forked
 xpost_dps_enabled
 xpost_dps_set
 xpost_dsc_file_base_get
@@ -187,6 +191,7 @@ xpost_file_cons_filter_predictor
 xpost_file_cons_filter_rle
 xpost_file_cons_filter_rsd
 xpost_file_cons_filter_subfile
+xpost_file_cons_invalid
 xpost_file_cons_procsource
 xpost_file_cons_proctarget
 xpost_file_cons_readstring

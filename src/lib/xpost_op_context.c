@@ -245,6 +245,36 @@ Xpost_Context *_context_checked(Xpost_Context *ctx, unsigned int cid)
    the collector to trace across a context's life. */
 static int _join_opcode = -1;
 
+/* the opcodes of the two markers a forked context carries at the bottom of
+   its execution stack, captured the same way and for the same reason: what
+   detach may replace is read by opcode rather than by a name a program
+   could redefine. */
+static int _zombie_opcode = -1;
+static int _free_opcode = -1;
+
+/* Whether this context was started by fork.
+
+   A forked context is given one of the two markers above at the bottom of
+   its execution stack, and that marker is what ends it: everything the
+   context runs sits above it, and reaching it leaves the context for a
+   join or frees it outright. The interpreter's own context is not started
+   by fork and carries neither -- the bottom of its execution stack is the
+   quit that ends the run -- so the marker is what tells the two apart.
+   Read by opcode, not by name, so a program redefining a name cannot make
+   its context answer either way. */
+int xpost_dps_context_is_forked(Xpost_Context *ctx)
+{
+    Xpost_Object bottom;
+
+    if (!ctx || !ctx->es)
+        return 0;
+    bottom = xpost_stack_bottomup_fetch(ctx->lo, ctx->es, 0);
+    if (xpost_object_get_type(bottom) != operatortype)
+        return 0;
+    return bottom.mark_.padw == (unsigned int)_zombie_opcode
+        || bottom.mark_.padw == (unsigned int)_free_opcode;
+}
+
 static
 int xpost_op_join (Xpost_Context *ctx, Xpost_Object context)
 {
@@ -266,8 +296,10 @@ int xpost_op_join (Xpost_Context *ctx, Xpost_Object context)
         for (i = 0; i < n; i++)
             xpost_stack_push(ctx->lo, ctx->os,
                     xpost_stack_bottomup_fetch(child->lo, child->os, i));
-        // Cleanup child
-        child->state = C_FREE;
+        /* The child is over: its results are this context's now and it
+           holds nothing. The operands were copied above, so what it gives
+           up here is only what nothing else names. */
+        xpost_context_release(child);
         return 0;
     }
 
@@ -314,14 +346,22 @@ int xpost_op_detach (Xpost_Context *ctx, Xpost_Object context)
        results). */
     if (child->state == C_ZOMB)
     {
-        child->state = C_FREE;
+        xpost_context_release(child);
         return 0;
     }
 
     /* Still running: the zombie marker its start-up left at the bottom of
        its exec stack is what runs when its top-level procedure returns.
        Replace it so the context frees itself there instead of waiting.
-       detach does not block, so the caller then continues. */
+       detach does not block, so the caller then continues.
+
+       Only a forked context carries that marker. The interpreter's own
+       context is not started by fork and the bottom of its execution
+       stack is the quit that ends the run, so detach of it writes over
+       the end of the run rather than over a marker: it is refused
+       instead, there being no context of its own for it to end. */
+    if (!xpost_dps_context_is_forked(child))
+        return invalidcontext;
     if (!xpost_stack_bottomup_replace(child->lo, child->es, 0,
                                       xpost_operator_cons(child, "_i_am_free_",
                                                           NULL, 0)))
@@ -410,8 +450,10 @@ int xpost_oper_init_context_ops (Xpost_Context *ctx,
     INSTALL;
     op = xpost_operator_cons(ctx, "_i_am_zombie_", (Xpost_Op_Func)_i_am_zombie_, 0);
     INSTALL;
+    _zombie_opcode = op.mark_.padw;
     op = xpost_operator_cons(ctx, "_i_am_free_", (Xpost_Op_Func)_i_am_free_, 0);
     INSTALL;
+    _free_opcode = op.mark_.padw;
     op = xpost_operator_cons(ctx, "join", (Xpost_Op_Func)xpost_op_join, 1, contexttype);
     INSTALL;
     _join_opcode = op.mark_.padw;   /* opcode, for the wait-reschedule inside join */

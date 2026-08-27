@@ -70,5 +70,30 @@ for want in FORK-INSTALLED SELFJOIN-INVALIDCONTEXT CC-YIELDS-CONTEXT DETACH-OK F
 done
 echo "context operators install and validate the context identifier under --enable-dps"
 
+# A job's execution contexts do not outlive the job.
+#
+# The job boundary winds both banks back to a fixed image (PLRM 3.7.7). A
+# context the job forked holds stacks and object roots that are entities of
+# that virtual memory, so one left standing over the revert would be handed
+# the next job's run and would execute an execution stack that is no longer
+# there. The second job of the stream below is what says whether it was:
+# with the contexts of the first job ended at the boundary the second job
+# runs and reports; with one still runnable the scheduler gives the run to
+# it instead and the second job never happens.
+job1=$(printf '(JOB1\n) print flush\nmark { 1 1 1000000 { pop yield } for } fork pop\n(JOB1-FORKED\n) print flush\n')
+job2=$(printf '(JOB2\n) print flush\n/a 100 dict def 0 1 50 { a exch 200 string put } for\n(JOB2-DONE\n) print flush\n')
+{ printf '%s\n\004' "$job1"; printf '%s\n\004' "$job2"; } > "$work/stream.ps"
+out=$(run_limited 20 "$xpost" -q --no-sandbox --enable-dps --jobserver -d null \
+        < "$work/stream.ps" 2>&1)
+st=$?
+verdict_run "$st" "$out" "the job stream with a context left running" || exit 1
+for want in JOB1 JOB1-FORKED JOB2 JOB2-DONE; do
+    case $out in
+        *"$want"*) ;;
+        *) echo "FAIL: the job stream did not report $want; got: $out"; exit 1 ;;
+    esac
+done
+echo "a job's contexts do not outlive the job"
+
 echo "run-dps-test: ok"
 exit 0

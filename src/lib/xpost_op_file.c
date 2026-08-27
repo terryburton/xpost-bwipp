@@ -1370,7 +1370,13 @@ int xpost_op_string_status (Xpost_Context *ctx,
 /* -  currentfile  file
    return topmost file from the exec stack. The result carries the
    literal attribute (PLRM): programs stash it under a name and a
-   later lookup must push the stashed file, not resume executing it. */
+   later lookup must push the stashed file, not resume executing it.
+
+   Where the execution stack carries no file at all the answer is the
+   file object that corresponds to no file (PLRM 8.2 currentfile). An
+   execution context forked by fork is the reachable case: the child's
+   execution stack is built from the procedure it was given, so the file
+   the run is reading is on the parent's stack and not on the child's. */
 static
 int xpost_op_currentfile (Xpost_Context *ctx)
 {
@@ -1382,7 +1388,7 @@ int xpost_op_currentfile (Xpost_Context *ctx)
         xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(o));
         return 0;
     }
-    o = xpost_file_cons(ctx->lo, NULL, 1);
+    o = xpost_file_cons_invalid(ctx->lo, 1);
     if (xpost_object_get_type(o) == invalidtype)
         return VMerror;
     xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(o));

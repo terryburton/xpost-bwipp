@@ -39,6 +39,16 @@
 #                         that advances the counter tests it for
 #                         exhaustion.
 #
+#   refuses <why>         The values become part of a key, and what they
+#                         name is not this module's to give up -- an object
+#                         a program holds, a cache in another file. There
+#                         is no more range to hand out, so whoever asked
+#                         for a number is refused rather than answered
+#                         with one that means something else. The reason
+#                         must say what holds the numbers. Checked: the
+#                         function that advances the counter tests it for
+#                         exhaustion.
+#
 #   decides <why>         The value is not part of any key, but a cache
 #                         reads it to decide whether what it holds is
 #                         still usable. A cache that declines to hold is
@@ -69,6 +79,14 @@ src/lib/xpost_op_path.c      _form_serial_next    mints-signalled  the form cach
   graphicsdict beside .formlast, the last serial it was given; a serial no greater than
   that one is the counter having restarted, and .formcachedrop gives the cache up
 
+src/lib/xpost_interpreter.c  nextid               refuses  a context identifier is what a
+  context-typed object a program holds names its context by, and what the resolved
+  graphics state is cached against, and neither is this module's to give up: the object
+  is the program's and the cache is another file's. It restarts with the interpreter
+  instance, which is where both of those go too, so the numbers of one instance name
+  nothing of another; inside an instance a second use of a number would make a stale
+  object name a live context, so the end of the range refuses the fork instead
+
 src/lib/xpost_op_path.c      _clipcuts            decides  the count of clips applied,
   read before a form's drawing is captured and again after, so a capture made under a clip
   that changed part way through is not offered to a later placement
@@ -90,6 +108,9 @@ src/lib/xpost_op_font.c      face_cache_clock     counts  the order the face cac
   wrap costs a poor choice of victim, never a wrong face
 src/lib/xpost_garbage.c      _xpost_garbage_work_n  counts  the entries on the collector's
   work list
+src/lib/xpost_operator.c     _xpost_noops         counts  the rows the operator table holds,
+  which is an extent: it is bounded by the table's own size where it is advanced, and reset
+  with the table each context allocates, so the opcodes taken from it do not outlive it
 src/lib/xpost_interpreter.c  _contexts_created    counts  how many contexts this process
   has built, read only to tell the first from the rest
 src/lib/xpost_main.c         _xpost_at_quit_n     counts  the functions registered to be

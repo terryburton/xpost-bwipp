@@ -44,6 +44,7 @@
 #include "xpost_interpreter.h" /* the unwinding an error raised in PostScript needs */
 #include "xpost_operator.h"
 #include "xpost_op_type.h"
+#include "xpost_op_context.h"
 #include "xpost_op_control.h"
 
 /* any  exec  -
@@ -808,6 +809,19 @@ int xpost_op_array_execstack(Xpost_Context *ctx,
 static
 int xpost_op_quit(Xpost_Context *ctx)
 {
+    /* In an interpreter that supports multiple execution contexts, quit
+       terminates the current context only (PLRM 8.2 quit). A context
+       started by fork therefore ends where returning from its top-level
+       procedure would have ended it: everything above the marker at the
+       bottom of its execution stack is discarded, and the marker -- which
+       frees the context, or leaves it holding its results for a join -- is
+       what runs next. The interpreter's own context is the run, so quit
+       there is the end of the run. */
+    if (xpost_dps_context_is_forked(ctx))
+    {
+        xpost_context_unwind_exec(ctx, 1);
+        return 0;
+    }
     ctx->quit = 1;
     return 0;
 }

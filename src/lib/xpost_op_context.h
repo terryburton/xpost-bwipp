@@ -24,4 +24,9 @@ int xpost_oper_init_context_ops(Xpost_Context *ctx, Xpost_Object sd);
    (--enable-dps / xpost_dps_set); read by the mainloop's context switcher */
 int xpost_dps_enabled(void);
 
+/* nonzero when this context was started by fork, which is what says the
+   marker at the bottom of its execution stack is the end of the context
+   and not the end of the run */
+int xpost_dps_context_is_forked(Xpost_Context *ctx);
+
 #endif

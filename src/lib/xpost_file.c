@@ -1746,9 +1746,49 @@ _file_forget_entity(Xpost_Memory_File *mem, Xpost_File *fp)
         XPOST_LOG_ERR("cannot clear the handle of a released stream");
 }
 
+/* A file object that corresponds to no file: the entity carries the tag
+   of a file and holds no stream at all. Every file operator asks
+   xpost_file_get_status before it reads or writes, and that answers by
+   whether a stream is there, so this object takes the path a closed file
+   takes -- ioerror from the operators that move bytes, false from status
+   -- rather than any path of its own.
+
+   It is what currentfile answers where the execution stack carries no
+   file (PLRM 8.2 currentfile: an invalid file object that does not
+   correspond to any file). The entity is left outside the birth census
+   as a refused binding leaves one, so restore's sweep of files opened
+   since a save passes over it.
+
+   It carries the access of the direction it stands in for, so a program
+   holding it meets the answers a closed stream of that direction gives
+   rather than an access refusal it has no way to interpret. */
+Xpost_Object xpost_file_cons_invalid(Xpost_Memory_File *mem, int input)
+{
+    Xpost_Object f = { 0 };
+    unsigned int ent;
+
+    if (!xpost_memory_table_alloc(mem, XPOST_HANDLE_ENTITY_SIZE, filetype,
+                                  &ent))
+    {
+        XPOST_LOG_ERR("cannot allocate file record");
+        return invalid;
+    }
+    f.tag = filetype;
+    f.tag |= (input ? XPOST_OBJECT_TAG_ACCESS_FILE_READ
+                    : XPOST_OBJECT_TAG_ACCESS_FILE_WRITE)
+             << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
+    f.mark_.padw = ent;
+    return f;
+}
+
 /* A stream object over an open host file. The object holds an entity,
    and the entity holds the handle, which is what lets the collector
-   close a stream nothing refers to any more. */
+   close a stream nothing refers to any more.
+
+   Without a stream to hold there is nothing for the object to be but the
+   file that corresponds to no file, which is built above: a stream
+   structure over a null host file would be one every read and write
+   dereferenced. */
 Xpost_Object xpost_file_cons(Xpost_Memory_File *mem,
                              /*@NULL@*/ const FILE *fp,
                              int input)
@@ -1760,6 +1800,8 @@ Xpost_Object xpost_file_cons(Xpost_Memory_File *mem,
 #ifdef DEBUG_FILE
     printf("xpost_file_cons %p\n", fp);
 #endif
+    if (!fp)
+        return xpost_file_cons_invalid(mem, input);
     f.tag = filetype /*| (XPOST_OBJECT_TAG_ACCESS_UNLIMITED << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET)*/;
     df = xpost_diskfile_open(fp, input);
     if (!df)

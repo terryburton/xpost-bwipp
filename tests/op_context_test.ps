@@ -203,6 +203,46 @@ mcons join counttomark 1 eq { 55 eq }{ false } ifelse
 cleartomark
 mprod join cleartomark
 
+% currentfile in a forked context. Nothing put a file on the child's
+% execution stack -- the file the run is reading is on the parent's -- so
+% the answer is the file object that corresponds to no file (PLRM 8.2
+% currentfile). It is a file object, status reports it closed, and the
+% operators that read it answer as they do for any closed stream rather
+% than reaching for a stream that is not there.
+mark { currentfile } fork join
+counttomark 1 eq { dup type /filetype eq }{ false } ifelse
+    (currentfile in a forked context yields a file object) assert
+dup status not
+    (the file a forked context's currentfile yields is not open) assert
+20 string readstring not exch pop
+    (reading it yields no bytes) assert
+cleartomark
+% the parent's own currentfile is still the file it is reading
+currentfile status (the parent's currentfile is open) assert
+clear
+
+% quit terminates the current context only (PLRM 8.2 quit), so a forked
+% context that quits ends where returning from its procedure would have
+% ended it: the operands it had made are its results, and the contexts
+% around it carry on.
+mark { 1 2 quit 3 } fork join
+counttomark 2 eq { 2 eq exch 1 eq and }{ false } ifelse
+    (quit in a forked context returns the results it had) assert
+cleartomark
+mark { quit } fork detach
+yield yield
+1 2 add 3 eq (a forked context's quit leaves the parent running) assert
+clear
+
+% detach ends a forked context. The context this run is made of is not
+% one -- it is the run -- so detach of it is invalidcontext rather than a
+% write over the end of the run.
+{ currentcontext detach } /invalidcontext
+    (detach of the interpreter's own context is invalidcontext) raises
+clear
+1 2 add 3 eq (execution continues after that refusal) assert
+clear
+
 % the interpreter runs normally afterwards
 1 2 add 3 eq (execution continues after the context operators) assert
 

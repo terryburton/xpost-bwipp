@@ -1269,6 +1269,15 @@ int xpost_garbage_collect(Xpost_Memory_File *mem, int dosweep, int markall)
         {
             ctx = mem->interpreter_cid_get_context(cid[i]);
 
+            /* A slot that holds no context holds the stack addresses and
+               roots of the one that ended there, and nothing is entitled
+               to keep what an ended context was holding: marking from
+               those would keep a whole context's worth of storage alive
+               for the rest of the run. Where the bank has since been
+               wound back they name storage that is not there at all. */
+            if (ctx->state == 0)
+                continue;
+
 #ifdef DEBUG_GC
             printf("marking os\n");
 #endif

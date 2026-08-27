@@ -286,10 +286,18 @@ int xpost_file_seek(Xpost_File *f, long long offset)
 
 /**
  * @brief Construct a file object given a FILE* and the direction it was
- * opened in (non-zero for a stream that is only read).
+ * opened in (non-zero for a stream that is only read). A null stream
+ * yields the file object that corresponds to no file.
  */
 Xpost_Object xpost_file_cons(Xpost_Memory_File *mem, /*@NULL@*/ const FILE *fp,
                              int input);
+
+/**
+ * @brief Construct the file object that corresponds to no file: it holds
+ * no stream, so status answers false and the operators that move bytes
+ * answer ioerror.
+ */
+Xpost_Object xpost_file_cons_invalid(Xpost_Memory_File *mem, int input);
 
 /**
  * @brief Construct a readable file object over a private copy of a

@@ -177,6 +177,25 @@ unsigned int nextid = 0;
 static int xpost_interpreter_cid_init(unsigned int *cid)
 {
     unsigned int startid = nextid;
+
+    /* Within an instance the counter only moves forward, and what is
+       filed under a context identifier depends on that: a context object
+       a program holds is valid exactly while the slot it names still
+       holds the context that claimed the identifier, and the resolved
+       graphics state cached against an identifier is served to whichever
+       context presents it again. Both read a number this counter has
+       handed out once. It restarts where the instance does -- both of
+       those go with the instance, the object into its virtual memory and
+       the cache into the operator table's set-up -- but reaching the end
+       of the range inside one instance and starting over there would
+       hand the same numbers out beside what they already name. There is
+       no more range to give, so the fork is refused rather than answered
+       with a number that means something else. */
+    if (nextid > (unsigned int)-1 - MAXCONTEXT)
+    {
+        XPOST_LOG_ERR("context identifiers exhausted; cannot create new process");
+        return 0;
+    }
     /*printf("cid_init\n"); */
     while ( xpost_interpreter_cid_get_context(++nextid)->state != 0 )
     {
@@ -2148,7 +2167,17 @@ Xpost_Context *_switch_context(Xpost_Context *ctx)
         if (c->state == C_WAIT || c->state == C_IOBLOCK)
             c->state = C_RUN;
         if (c->state == C_RUN || c->state == C_IDLE)
+        {
+            /* A context that freed itself did so while it was the one
+               running, so what it was holding could not go with it then:
+               the loop below it still had its execution stack to unwind.
+               Here it has handed control to another context and will not
+               be chosen again, which is where what it held goes and where
+               its place in the context list comes free. */
+            if (c != ctx && ctx->state == C_FREE)
+                xpost_context_release(ctx);
             return c;
+        }
     }
 
     /* Nothing runnable was found -- not even the caller, which has finished
@@ -4466,6 +4495,37 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     xpost_font_mask_cache_flush();
 }
 
+/* A job's execution contexts do not outlive the job.
+
+   A context forked by the job holds stacks and object roots that are
+   entities of the virtual memory the boundary is about to wind back to an
+   image taken before they existed. Left in the table it would still be
+   runnable, and the scheduler would give the next job's run to it: it
+   would execute an execution stack that is no longer there, and the
+   collector would walk roots that name nothing. So every context but the
+   one the boundary is being taken on is ended here, in C, after the job's
+   execution is over and before anything is wound back.
+
+   This runs whether the boundary reverts or captures. A run left
+   unencapsulated folds its virtual memory into the baseline rather than
+   discarding it, and a context of the job captured into that image would
+   be handed to every job that reverts to it afterwards. */
+static void _job_end_other_contexts(Xpost_Context *ctx)
+{
+    unsigned int i;
+
+    if (!itpdata)
+        return;
+    for (i = 0; i < MAXCONTEXT; i++)
+    {
+        Xpost_Context *c = &itpdata->ctab[i];
+
+        if (c == ctx || c->state == C_FREE)
+            continue;
+        xpost_context_release(c);
+    }
+}
+
 /* The job boundary as xpost_run reaches it: release the out-of-VM side state
    any frame the run left on the exec stack holds -- a wrapped-operator frame's
    saved operands and a filenameforall enumeration's matched paths (the image
@@ -4474,19 +4534,8 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
    establish the baseline the later jobs revert to. */
 static void _job_boundary(Xpost_Context *ctx)
 {
-    while (xpost_stack_count(ctx->lo, ctx->es) > (int)ctx->es_run_base)
-    {
-        Xpost_Object x = xpost_stack_pop(ctx->lo, ctx->es);
-
-        if (xpost_object_get_type(x) == globtype)
-            xpost_context_glob_release(ctx, (unsigned int)x.glob_.id);
-
-        if (xpost_object_get_type(x) == operatortype &&
-            (x.mark_.padw == (unsigned int)XPOST_OP_CODE(ctx, wrapdone) ||
-             x.mark_.padw == (unsigned int)XPOST_OP_CODE(ctx, wrapsealed)))
-            xpost_operator_wrapped_release(ctx,
-                    xpost_stack_pop(ctx->lo, ctx->es));
-    }
+    _job_end_other_contexts(ctx);
+    xpost_context_unwind_exec(ctx, ctx->es_run_base);
 
     if (!ctx->job_snapshots)
         return;
@@ -4972,6 +5021,9 @@ XPAPI int xpost_new_job(Xpost_Context *ctx)
 {
     if (!ctx)
         return 0;
+    /* the job whose end this is takes its contexts with it, whether what
+       follows is a revert or the capture of a first baseline */
+    _job_end_other_contexts(ctx);
     if (ctx->job_baseline_lo && ctx->job_baseline_lo->valid)
     {
         _job_revert_to_baseline(ctx);
