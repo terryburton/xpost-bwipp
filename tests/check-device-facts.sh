@@ -887,6 +887,40 @@ while read -r k; do
     fi
 done < "$work/keys.seen"
 
+# ---- and no page-device parameter may name one of those methods.
+#
+# A device's painting procedures live in the same dictionary as the
+# page-device parameters, so a request key carried onto the device could
+# name one of them and replace it -- which is what a request naming
+# /Flush or /Destroy used to do. setpagedevice now carries only the keys
+# in .pagedeviceparams (data/device.ps) and drops the rest, which closes
+# that only while the two lists stay disjoint: a parameter added under a
+# name a device already uses for a method reopens it, and nothing about
+# either list on its own would say so.
+#
+# The method names come from the register above rather than from a
+# second hand list, so a method renamed is a method this still knows.
+awk '/^method/ { print $2 }' "$src/tests/device-facts" | sort -u > "$work/methodnames"
+sed -n '/\.pagedeviceparams <</,/^>> put/p' "$src/data/device.ps" \
+    | tr ' ' '\n' | sed -n 's|^/\([A-Za-z_][A-Za-z0-9_]*\)$|\1|p' | sort -u > "$work/paramnames"
+if [ ! -s "$work/paramnames" ]; then
+    echo "FAIL: no page-device parameters were read from data/device.ps, so"
+    echo "      the parameters and the device methods were never compared"
+    fail=1
+elif [ ! -s "$work/methodnames" ]; then
+    echo "FAIL: no device methods were read from the register, so the"
+    echo "      parameters and the device methods were never compared"
+    fail=1
+else
+    both=$(grep -xF -f "$work/paramnames" "$work/methodnames" || true)
+    if [ -n "$both" ]; then
+        echo "FAIL: these are both a device method and a page-device parameter,"
+        echo "      so a request naming one reaches the method:"
+        printf '        %s\n' $both
+        fail=1
+    fi
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the device facts and their register disagree"
     exit 1
