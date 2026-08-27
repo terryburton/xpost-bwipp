@@ -106,15 +106,52 @@ else
     }
 fi
 
-# the skip register: the first field of each non-comment line is a workload
-# left out of the stream; the rest of the line is why.
-skips=$(grep -vE '^[[:space:]]*(#|$)' "$skipfile" | awk '{ print $1 }')
+# The workloads left out of the stream: the first field of each non-comment
+# line that does not carry a disposition this file understands otherwise.
+# (The administrator lines below name workloads that DO run; they are read
+# further down.)
+#
+# Flattened to one space-separated line, because the membership test below is
+# a case pattern with a space either side of the name: a set held as separate
+# lines matches only its last member, and every other workload in it is
+# silently streamed. That is not a failure the stream reports -- a workload
+# registered because it cannot terminate simply stalls it.
+skips=$(grep -vE '^[[:space:]]*(#|$)' "$skipfile" \
+        | awk '$2 != "administrator" { print $1 }' | tr '\n' ' ')
 
 # The probe, split around the workload name. vmstatus and globalvmstatus are
 # read onto the stack before the name string is parsed, so the two used
 # figures are the job's baseline and carry none of the probe's own cost.
 probe_head='vmstatus pop exch pop globalvmstatus pop exch pop (XG '
 probe_tail=' )print exch 20 string cvs print ( )print 20 string cvs print (\n)print flush'
+
+# The workloads that end their own encapsulation.
+#
+# exitserver makes the job unencapsulated (PLRM 3.7.7): what it does to
+# virtual memory afterwards is permanent by definition, and is meant to be --
+# that is the whole of what an administrator job is for. A reading taken after
+# such a job is therefore a new baseline and not a leak, and holding it to the
+# first reading would report the feature as the defect.
+#
+# Which workloads those are is DERIVED from the source rather than trusted to
+# the register: a test that names exitserver outside a comment is one, and the
+# register is held to the derivation in both directions below, so a test that
+# stops being an administrator job stops being excused the same day.
+: > "$work/admin-src"
+for f in "$src"/tests/*.ps; do
+    if sed 's/%.*$//' "$f" | grep -q '[^A-Za-z.]exitserver\|^exitserver'; then
+        basename "$f" >> "$work/admin-src"
+    fi
+done
+awk '$2 == "administrator" { print $1 }' "$skipfile" | LC_ALL=C sort -u > "$work/admin-reg"
+LC_ALL=C sort -u "$work/admin-src" -o "$work/admin-src"
+guard_held=0
+guard_hold "$work/admin-reg" "$work/admin-src" \
+    "tests/vm_growth.golden calls this workload an administrator job and it does not run exitserver. A line excusing a job that no longer ends its encapsulation excuses a real leak:" \
+    "this workload runs exitserver and tests/vm_growth.golden does not say so. Its virtual memory is permanent by definition, so the reading after it is a new baseline and every job after it would be reported:"
+if [ "$guard_held" -ne 0 ]; then
+    exit 1
+fi
 
 # Build the stream: each workload a Control-D-framed job behind its probe, a
 # suite asking for the shared framework getting it as its own harness would
@@ -171,9 +208,11 @@ fi
 # are never seen, and what is reported is about the part of the stream that
 # was read. Bytes are what the probe lines are made of too, so nothing is
 # lost by reading the whole of it as bytes.
-LC_ALL=C awk '
+LC_ALL=C awk -v ADMIN="$(tr '\n' ' ' < "$work/admin-reg")" '
+    BEGIN { split(ADMIN, a, " "); for (i in a) if (a[i] != "") admin[a[i]] = 1 }
     /^XG / {
         if (base == "") { base = $3 " " $4; bl = $3 + 0; bg = $4 + 0 }
+        else if (prev in admin) { base = $3 " " $4; bl = $3 + 0; bg = $4 + 0 }
         else if ($3 " " $4 != base) {
             printf "%s left %d bytes of local and %d of global virtual memory\n", prev, $3 - bl, $4 - bg
             printf "        past its job boundary; a server would carry it from that job on\n"

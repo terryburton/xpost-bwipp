@@ -9,3 +9,22 @@
 #   <workload>  <why it cannot be a job in a stream>
 
 interrupt_test.ps   an infinite loop with no exit: it never reaches its Control-D, so it would stall the stream. Its own harness (run-interrupt-test.sh) breaks the loop with an external interrupt this guard does not send.
+
+# ---- workloads that end their own encapsulation ----
+#
+# exitserver makes the job unencapsulated (PLRM 3.7.7), and what such a job
+# does to virtual memory afterwards is permanent by definition: that is the
+# whole of what an administrator job is for. The reading taken after one is
+# therefore a new baseline rather than a leak, and every job after it would be
+# reported against the first reading if it were not.
+#
+# These lines are held to the source in both directions: the check derives the
+# set by reading each workload for exitserver outside a comment, so a test that
+# stops ending its encapsulation stops being excused on the same day, and a
+# test that starts is reported until it is named here.
+#
+#   <workload>  administrator  <what it is an administrator job for>
+
+cacheparams_range_test.ps  administrator  the font cache size may be stated only in an administrator job (PLRM 8.2, setcacheparams), so the cases that state one run past exitserver
+op_fontcache_test.ps       administrator  likewise: the refusal an ordinary job meets is measured first, then the same request is made again as an administrator
+semantics_test.ps          administrator  it asks what exitserver itself does -- that the job continues, that the operand stack is cleared and that the begun serverdict is unwound
