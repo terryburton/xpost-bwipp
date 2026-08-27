@@ -754,6 +754,105 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 
 %
+%  What a mesh's flat fills paint through, or a null conversion where its
+%  triangles take the general route instead.
+%
+%  A mesh paints one flat fill per subdivided cell, and every one of them
+%  asks the same questions of the graphics state before it paints
+%  anything: which route the colour takes, whether the device takes whole
+%  paths, which of the device's native spaces the colour is delivered in,
+%  which device it is, and which methods that device fills and flushes
+%  with. None of them can move while a mesh paints. The colour route
+%  reads the space a colour was set in and the space it is recorded in,
+%  and both are settled for the whole mesh before its first triangle: a
+%  tint mesh restores them at every triangle, and every other kind never
+%  leaves them. The rest are the device's, and a mesh already resolves
+%  the device once, above, to decide what its triangles can mark. So the
+%  answers are taken here, once, and the triangles below paint through
+%  them.
+%
+%  A null conversion where any of it says the general route: a pattern or
+%  a colour that marks nothing is a fill of its own, a device that takes
+%  whole paths writes the triangle rather than scan-converting it, and a
+%  device with no polygon fill to call, or none this can call, has
+%  nothing here to call it through.
+%
+/.gflatplan {  % -  .  conv dev fillpoly flushes
+    DEVICE /FillPath known
+    DEVICE /FillPoly known not or
+    DEVICE /FillPoly 2 copy known { get xcheck not }{ pop pop true } ifelse or
+    //.xpostsys /.colorroute get exec /direct ne or
+    { null null null false }{
+        //CurrentColorDict DEVICE /nativecolorspace get
+        2 copy known { get }{ pop pop null } ifelse
+
+        % The conversion is registered as the name of the operator that
+        % reads the colour back, and the name is resolved here rather
+        % than at every triangle. It resolves to what it resolves to now:
+        % nothing a mesh does between here and its last triangle reaches
+        % the dictionaries the lookup would walk.
+        dup type /nametype eq { load } if
+
+        DEVICE
+        DEVICE /FillPoly get
+        DEVICE /Flush known
+    } ifelse
+} def
+
+%
+%  Fill the triangle va vb vc, flat, in the colour already set. One of
+%  these is bound to /gflat for the whole of a mesh, and the triangles
+%  below reach it by that name; both read the triangle out of the
+%  dictionary the caller holds it in rather than taking it as operands,
+%  so the caller hands the painter nothing and the choice between them
+%  costs a name.
+%
+%  The general painter is the path and the fill operator, which is what
+%  every other painting in this file does and what a mesh does where the
+%  plan above found any reason not to shorten it.
+%
+/.gflatgeneral {  % -  .  -
+    newpath
+    va 0 get va 1 get moveto
+    vb 0 get vb 1 get lineto
+    vc 0 get vc 1 get lineto
+    closepath fill
+} def
+
+%
+%  The short painter is that fill with the questions taken out of it:
+%  the three points become the polygon the device fills, the colour goes
+%  through the conversion the plan resolved, and the device and its
+%  methods are the ones the plan holds. What is left is what the fill
+%  does that a triangle cannot settle in advance -- the colour of this
+%  triangle, and the polygon of these three points.
+%
+%  A triangle the clip region can cut is not shortened: the polygon step
+%  answers false for one, and it is painted by the general painter,
+%  which cuts it.
+%
+/.gflatfast {  % -  .  -
+    va vb vc gtripoly {
+        % as .fillparts paints a part: the components go under the
+        % polygon, and a part too small to enclose area is nothing to
+        % paint.
+        dup length 2 gt {
+            [ gconv
+            //.applytransfer exec
+            counttomark 2 add -1 roll
+            gdev gfpoly
+            true //.setpagemarked exec
+            pop
+        }{
+            pop
+        } ifelse
+        gflush { gdev dup /Flush get exec } if
+    }{
+        //.gflatgeneral exec
+    } ifelse
+} def
+
+%
 %  Paint one triangle, subdividing it dpt times: at depth zero the
 %  triangle is filled in the colour of its corners, and above zero it is
 %  cut into four on its edge midpoints and each painted a level down.
@@ -790,11 +889,10 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         [ 2 1 va length 1 sub { /i exch def
             va i get vb i get add vc i get add 3 div
         } for ] //.gsetcolor exec
-        newpath
-        va 0 get va 1 get moveto
-        vb 0 get vb 1 get lineto
-        vc 0 get vc 1 get lineto
-        closepath fill
+
+        % The fill of a flat triangle, through whichever painter the
+        % plan bound for this mesh.
+        gflat
     }{
         /mab va vb //.gmid exec def
         /mbc vb vc //.gmid exec def
@@ -813,8 +911,16 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  per-vertex colours.
 %
 /.meshsh {  % shdict  .  -
-    24 dict begin
+    29 dict begin
     /gclipbox //.gtriclip exec def
+    //.gflatplan exec
+    /gflush exch def /gfpoly exch def /gdev exch def
+
+    % The conversion is executable, so it is read here while it is still
+    % on the operand stack: naming it would run it.
+    dup null eq { //.gflatgeneral }{ //.gflatfast } ifelse /gflat exch def
+    /gconv exch def
+    /gtripoly //.internaldict /.tripoly get def
     /gtint //.gtintspace exec def
 
     % a lattice (type 5) mesh carries no per-vertex flag, so BitsPerFlag
@@ -915,8 +1021,16 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  colours blended bilinearly.
 %
 /.patchpaint {  % -  .  -
-    10 dict begin
+    15 dict begin
     /gclipbox //.gtriclip exec def
+    //.gflatplan exec
+    /gflush exch def /gfpoly exch def /gdev exch def
+
+    % The conversion is executable, so it is read here while it is still
+    % on the operand stack: naming it would run it.
+    dup null eq { //.gflatgeneral }{ //.gflatfast } ifelse /gflat exch def
+    /gconv exch def
+    /gtripoly //.internaldict /.tripoly get def
 
     % Subdivision from the device size of the boundary points
     /mnx 9e99 def /mny 9e99 def /mxx -9e99 def /mxy -9e99 def

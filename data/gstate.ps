@@ -746,14 +746,25 @@ end
         { graphicsdict /.ctop get exch
           //.sampletransfer exec pop } ifelse
 } put
+
+%
+%  The transfer function a marked component passes through: the halftone's
+%  own where it carries one and the device screens through it, and
+%  otherwise the component's own from the graphics state.
+%
+%  Which of the two it is turns on the graphics state slot, so that is
+%  what is read first. A state with no halftone transfer in it -- every
+%  state until a halftone puts one there -- settles the question without
+%  asking the device anything, and every marked component asks this.
+%
 .xpostsys /.marktransfer {  % name  .  proc
-    DEVICE /ScreenPaint known {
-        graphicsdict /currgstate get /halftonetransfer 2 copy known
-            { get }{ pop pop null } ifelse
-    }{ null } ifelse
+    graphicsdict /currgstate get
+    dup /halftonetransfer 2 copy known { get }{ pop pop null } ifelse
     dup null eq
-        { pop graphicsdict /currgstate get exch get }
-        { exch pop } ifelse
+        { pop exch get }
+        { DEVICE /ScreenPaint known
+              { exch pop exch pop }
+              { pop exch get } ifelse } ifelse
 } put
 /setstrokeadjust [ /booleantype ] {  % flag  .  -   (recorded only)
     graphicsdict /currgstate get exch /strokeadjust exch put

@@ -46,6 +46,17 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 .xpostsys /.applytransfer {  % mark c1..cn  .  mark c1'..cn'
     //.refreshscreencell exec
+
+    % One component is a case of the walk below and is written out
+    % rather than walked, for the same reason three and four are: it is
+    % what a device whose native space is a grey takes at every mark it
+    % is given, and the walk over one component is the walk's whole
+    % apparatus -- the count, the rotation that brings the next one up,
+    % and the second pass over the same one component -- around a single
+    % transfer and a single fold.
+    counttomark 1 eq {
+        /transfer //.marktransfer exec exec //.cunit exec
+    }{
     counttomark 3 eq {
         /bluetransfer //.marktransfer exec exec
         3 1 roll
@@ -66,6 +77,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } repeat
     } ifelse } ifelse
     counttomark { //.cunit exec counttomark 1 roll } repeat
+    } ifelse
 } put
 
 %

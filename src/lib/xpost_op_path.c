@@ -1252,13 +1252,14 @@ int _clipcutsop(Xpost_Context *ctx)
     return 0;
 }
 
-/* clip trivial-accept test.
-   Push true when the clip region is an axis-aligned rectangle and the
-   current path lies entirely inside it: clipping the path against such
-   a region passes every point through unchanged, so the caller can skip
-   the polygon-clipping machinery. Push false in every uncertain case. */
+/* The trivial-accept question, answered without recording it. The count
+   above is the record of a painting that may have been cut, so it is
+   moved by the operator below and not by this: a caller that asks in
+   order to decide whether to paint at all has cut nothing by asking,
+   and one that hands the painting back to the general route leaves that
+   route to ask again and to count once, as it does for every fill. */
 static
-int _cliptrivial(Xpost_Context *ctx)
+int _cliptrivial_accept(Xpost_Context *ctx, int *acceptp)
 {
     Xpost_Object gstate, path, clipregion;
     real cminx, cminy, cmaxx, cmaxy;
@@ -1294,6 +1295,24 @@ int _cliptrivial(Xpost_Context *ctx)
                   pminy >= cminy && pmaxy <= cmaxy);
     }
 
+    *acceptp = accept;
+    return 0;
+}
+
+/* clip trivial-accept test.
+   Push true when the clip region is an axis-aligned rectangle and the
+   current path lies entirely inside it: clipping the path against such
+   a region passes every point through unchanged, so the caller can skip
+   the polygon-clipping machinery. Push false in every uncertain case. */
+static
+int _cliptrivial(Xpost_Context *ctx)
+{
+    int accept;
+    int ret;
+
+    ret = _cliptrivial_accept(ctx, &accept);
+    if (ret)
+        return ret;
     if (!accept)
         _clipcuts++;
     xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(accept));
@@ -1595,6 +1614,161 @@ int _closepath(Xpost_Context *ctx)
         return 0;
     _path_get_coords(p, sps, co, 2);
     return _path_append(ctx, gstate, &path, PATH_CMD_CLOSE, co, 2);
+}
+
+/* va vb vc  .tripoly  polygon true
+   va vb vc  .tripoly  false
+
+   The polygon argument the device polygon fill takes for a triangle,
+   from three mesh vertices, where the clip region cannot cut it. A
+   vertex is the array a mesh reads one into -- its coordinates in user
+   space and then its colour -- and only the coordinates are read here.
+
+   This is the flat fill of a smooth shading and nothing else. A shading
+   resolves to flat-coloured triangles and paints one per subdivided
+   cell, so three points become a fill tens of thousands of times over
+   for one gradient, and what lies between the points and the device is
+   the same every time: a path holding three points and a close, the
+   question of whether the clip can cut it, and the polygon its points
+   read back as. None of it outlives the fill. So the polygon is built
+   from the points, and the path in the middle -- allocated, written,
+   read once and thrown away -- is not built at all.
+
+   What it answers is what that path would have answered. The points
+   cross the transform the constructors apply, in the width a path
+   stores a coordinate in, so each is the coordinate the path would have
+   held. The polygon is the one the reader builds from four points and
+   one subpath: three points, the subpath's first repeated where it
+   closes, and the separator. The clip question is the one the
+   trivial-accept test asks, over the box those points span, which is
+   the box the path's header would have carried -- the close repeats a
+   point already in it and cannot widen it.
+
+   False rather than a cut polygon: a triangle the region can cut goes
+   back to the general route, which cuts it, asks the trivial-accept
+   question itself, and counts it.
+
+   A polygon built leaves the current path empty, as a fill leaves it.
+   A triangle answered false leaves it alone: the general route it goes
+   to opens a path of its own. */
+static
+int _tripoly(Xpost_Context *ctx,
+             Xpost_Object va, Xpost_Object vb, Xpost_Object vc)
+{
+    Xpost_Object gstate, clipregion, backing, result;
+    Xpost_Object vert[3];
+    Xpost_Object *bk, *rs;
+    real m[6];
+    real uv[6];
+    real pt[6];
+    real cminx, cminy, cmaxx, cmaxy;
+    real bminx, bminy, bmaxx, bmaxy;
+    int rect, i, ret;
+
+    gstate = _gstate(ctx);
+    if (xpost_object_get_type(gstate) == invalidtype)
+        return undefined;
+    ret = _path_ctm(ctx, gstate, m);
+    if (ret)
+        return ret;
+
+    /* a vertex carries its x and y first and its colour after them; a
+       shorter one is not a vertex */
+    vert[0] = va; vert[1] = vb; vert[2] = vc;
+    for (i = 0; i < 3; i++)
+    {
+        Xpost_Object c;
+
+        if (vert[i].comp_.sz < 2)
+            return rangecheck;
+        c = xpost_array_get(ctx, vert[i], 0);
+        if (xpost_object_get_type(c) != realtype &&
+            xpost_object_get_type(c) != integertype)
+            return typecheck;
+        uv[2 * i] = NUM(c);
+        c = xpost_array_get(ctx, vert[i], 1);
+        if (xpost_object_get_type(c) != realtype &&
+            xpost_object_get_type(c) != integertype)
+            return typecheck;
+        uv[2 * i + 1] = NUM(c);
+    }
+
+    for (i = 0; i < 3; i++)
+    {
+        pt[2 * i]     = m[0] * uv[2 * i] + m[2] * uv[2 * i + 1] + m[4];
+        pt[2 * i + 1] = m[1] * uv[2 * i] + m[3] * uv[2 * i + 1] + m[5];
+    }
+
+    clipregion = xpost_dict_get(ctx, gstate, nameclipregion);
+    rect = _path_is_rect(ctx, clipregion, &cminx, &cminy, &cmaxx, &cmaxy);
+    if (rect < 0)
+        return rangecheck;
+    if (rect)
+    {
+        bminx = bmaxx = pt[0];
+        bminy = bmaxy = pt[1];
+        for (i = 2; i < 6; i += 2)
+        {
+            if (pt[i] < bminx) bminx = pt[i];
+            if (pt[i] > bmaxx) bmaxx = pt[i];
+            if (pt[i + 1] < bminy) bminy = pt[i + 1];
+            if (pt[i + 1] > bmaxy) bmaxy = pt[i + 1];
+        }
+        rect = bminx >= cminx && bmaxx <= cmaxx &&
+               bminy >= cminy && bmaxy <= cmaxy;
+    }
+    if (!rect)
+    {
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+
+    /* four points -- the three and the close's repeat of the first --
+       viewed in pairs out of one backing array, and the subpath
+       separator after them */
+    backing = _rawarray_cons(ctx, 8, &bk);
+    if (xpost_object_get_type(backing) == invalidtype)
+        return VMerror;
+    xpost_stack_push(ctx->lo, ctx->hold, backing);
+    result = _rawarray_cons(ctx, 5, &rs);
+    if (xpost_object_get_type(result) == invalidtype)
+        return VMerror;
+    xpost_stack_push(ctx->lo, ctx->hold, result);
+    /* the allocation above can move the memory file */
+    {
+        unsigned int adr;
+        /* backing's entity was allocated in this same memory file two
+           statements above and the allocation was checked; an entity
+           number stays within the table once the table has reached it */
+        XPOST_REFUSAL_IMPOSSIBLE(
+            xpost_memory_table_get_addr(ctx->lo,
+                                        xpost_object_get_ent(backing), &adr));
+        bk = (Xpost_Object *)xpost_vm_ptr(ctx->lo, adr);
+    }
+
+    for (i = 0; i < 6; i++)
+        bk[i] = xpost_real_cons(pt[i]);
+    bk[6] = bk[0];
+    bk[7] = bk[1];
+    for (i = 0; i < 4; i++)
+    {
+        Xpost_Object v = backing;
+        /* the close repeats the subpath's first point, and is that
+           point's pair rather than the copy written above it */
+        v.comp_.off = i == 3 ? 0 : (unsigned int)(2 * i);
+        v.comp_.sz = 2;
+        rs[i] = v;
+    }
+    rs[4] = null;
+
+    xpost_stack_push(ctx->lo, ctx->os, result);
+    /* the polygon stays on the operand stack while the empty path is
+       allocated, so the collector reaching over that allocation sees it */
+    ret = _newpath(ctx);
+    if (ret)
+        return ret;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
+    return 0;
 }
 
 /* -  .pathempty  bool
@@ -2502,6 +2676,10 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
     INSTALL;
 
     op = xpost_operator_cons(ctx, ".fillpolyargs", (Xpost_Op_Func)_fillpolyargs, 0);
+    INSTALL;
+
+    op = xpost_operator_cons(ctx, ".tripoly", (Xpost_Op_Func)_tripoly, 3,
+                             arraytype, arraytype, arraytype);
     INSTALL;
 
     op = xpost_operator_cons(ctx, ".newpathstr", (Xpost_Op_Func)_newpathstr, 0);

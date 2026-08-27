@@ -713,6 +713,119 @@ grestore
 6 4 inkat (a mesh within the clip paints) assert
 erasepage
 
+% A mesh's flat triangles are painted through the fill, and which fill
+% they take is settled once for the whole mesh rather than at every
+% triangle: what the colour, the device and the clip region say about a
+% mesh cannot move while it paints. A triangle the region can cut is
+% still cut, by the general fill, which is what the pair below holds.
+
+% The clipping fill counts the paintings it may have cut, so a mesh a
+% rectangular region cuts is one whose count moves: the triangles along
+% the region's edge reach the fill that cuts them, and what the region
+% does not hold is not painted.
+erasepage
+gsave
+newpath 8 8 moveto 32 8 lineto 32 32 lineto 8 32 lineto closepath clip
+/cuts .clipcuts def
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <00 0000 0000 00
+                00 FFFF 0000 00
+                00 FFFF FFFF 00
+                01 0000 FFFF 00>
+>> shfill
+.clipcuts cuts gt
+(a mesh the clip cuts reaches the fill that cuts it) assert
+grestore
+20 20 inkat (a cut mesh paints what the clip holds) assert
+40 40 inkat not (a cut mesh marks nothing beyond the clip) assert
+36 20 inkat not (a cut mesh marks nothing past the clip's edge) assert
+erasepage
+
+% and a mesh the same kind of region holds whole reaches no cutting fill
+% at all: the count stands still. That is what says the two are told
+% apart by the region and not by the mesh, and it is the negative
+% control on the check above -- a mesh that took the cutting fill for
+% every triangle would pass that one and fail this.
+erasepage
+gsave
+newpath 4 4 moveto 60 4 lineto 60 60 lineto 4 60 lineto closepath clip
+/cuts .clipcuts def
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <00 2000 2000 00
+                00 8000 2000 00
+                00 8000 8000 00
+                01 2000 8000 00>
+>> shfill
+.clipcuts cuts eq
+(a mesh the clip holds whole reaches no cutting fill) assert
+grestore
+20 20 inkat (a mesh the clip holds whole paints) assert
+4 4 inkat not (a mesh paints no further than its own triangles) assert
+erasepage
+
+% A region that is not a rectangle is no window to test a triangle
+% against, so a mesh under one is painted through the general fill
+% throughout. It paints what the region holds and nothing outside it.
+erasepage
+gsave
+newpath 8 8 moveto 56 8 lineto 8 56 lineto closepath clip
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <00 0000 0000 00
+                00 FFFF 0000 00
+                00 FFFF FFFF 00
+                01 0000 FFFF 00>
+>> shfill
+grestore
+16 16 inkat (a mesh under a triangular clip paints inside it) assert
+50 50 inkat not (a mesh under a triangular clip marks nothing outside it) assert
+erasepage
+
+% A mesh's colours reach the device through the transfer function, as
+% every other painting's do. The same mesh under a transfer that returns
+% what it was not given paints the other way round, and the pair is each
+% other's control: a mesh painting past the transfer would leave the two
+% alike.
+erasepage
+gsave
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <00 0000 0000 00
+                00 FFFF 0000 00
+                00 FFFF FFFF 00
+                01 0000 FFFF 00>
+>> shfill
+grestore
+/meshplain 20 20 pixval def
+erasepage
+gsave
+{ 1 exch sub } settransfer
+<< /ShadingType 4
+   /ColorSpace /DeviceGray
+   /BitsPerCoordinate 16 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [ 0 64 0 64 0 1 ]
+   /DataSource <00 0000 0000 00
+                00 FFFF 0000 00
+                00 FFFF FFFF 00
+                01 0000 FFFF 00>
+>> shfill
+grestore
+/meshtransferred 20 20 pixval def
+meshplain 128 lt (a mesh paints the colour its vertices carry) assert
+meshtransferred 128 gt
+(a mesh's colour reaches the device through the transfer function) assert
+erasepage
+
 % a shading pattern (PatternType 2) paints its gradient over the
 % region the operator would have painted
 erasepage
