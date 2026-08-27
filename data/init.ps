@@ -341,6 +341,16 @@ userdict /DATA_DIR known {
 %  collector reclaims. A bound reference to the operator resists shadowing.
 %  Defined before any module loads.
 %
+%  The operator is public, so what this dictionary holds is what a program
+%  may write: state and caches, and no procedure the machinery goes on to
+%  execute. A procedure kept here would be the program's to replace, and
+%  replacing it would put the program's own body inside a standard
+%  operator. The machinery's procedures live in .xpostsys, which is sealed
+%  and unnamed once the interpreter is locked down; the stroke switch is
+%  there for that reason. What is written here is data, and it is written
+%  in local virtual memory, so a restore and the end of the job take a
+%  program's writes back.
+%
 currentglobal false setglobal
 
 %
@@ -3619,13 +3629,16 @@ currentglobal true setglobal
 
             % The private helper namespace too, so a helper's own operator references
             % (the get and exec of //.xpostsys /.h get exec, and everything else) freeze
-            % and survive a program shadowing an operator name
+            % and survive a program shadowing an operator name. The stroke switch
+            % is in here, so this is the sweep that binds it.
             .xpostsys //.bindscope exec
 
-            % The mutable scratch holds procedure tables too (the stroke switch
-            % handlers live inside strokedict); bind them so they survive a program
-            % shadowing the operator names they call
-            .gscratch //.bindscope exec
+            % The scratch dictionary is not swept, and has nothing to sweep: what
+            % it holds is the state of the render in hand and the caches and
+            % resources a job builds, and no procedure of the machinery's. A
+            % procedure the interpreter runs and a program may name is a procedure
+            % the program may replace, and the scratch is named by a public
+            % operator. tests/gscratch_procedures_test.ps holds it to that.
 
             % privatedict holds machinery procedures too -- the gstate-template accessor,
             % the device class methods -- so bind them against a shadowed operator name

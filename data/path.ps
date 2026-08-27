@@ -500,9 +500,6 @@ end
     } ifelse
 } put
 
-currentglobal false setglobal
-
-%
 %
 %  Replace lineto segments . with
 %                          |              L LL
@@ -523,37 +520,40 @@ currentglobal false setglobal
 %  receive user coordinates and append the outline with the user-space
 %  construction operators, so the live CTM maps the circular pen to the
 %  device as the correct (possibly elliptical) shape
-%  strokedict holds the stroke switch tables and their per-render running
-%  state, so it stays in local VM.
 %
-.gscratch /strokedict <<
-    /ang 0
-    /oldcp 2 array
-    /cp 2 array
-    /firstpt 2 array
-    /oldpointR 2 array
-    /oldpointL 2 array
-    /pointR 2 array
-    /pointRR 2 array
-    /pointL 2 array
-    /pointLL 2 array
-    /needcap false
+%  The handlers and the caps procedure below are the machinery's own and
+%  are written once, so they live in the private helper namespace: a
+%  global dictionary that is sealed and taken off the dictionary stack at
+%  lockdown, under no name a program can reach. What each of them reads
+%  and writes is the running state of the stroke in hand, and that is the
+%  render's rather than the machinery's: it lives in the local scratch
+%  dictionary below, which a program may name, so that a restore and the
+%  end of a job take it back with everything else the job wrote.
+%
 
-    % The previous subpath ended without a closepath: only now is it
-    % known to be open, so it takes its caps here -- the trailing end
-    % at the first point facing away from the first segment's travel,
-    % the leading end at the last point facing along the last one's.
-    /docaps {  % -  .  -
-        .gscratch /strokedict get /needcap get {
-            .gscratch /strokedict get /firstpt get aload pop
-            .gscratch /strokedict get /firstang get 180 add
-            //.docap exec
-            .gscratch /strokedict get /cp get aload pop .gscratch /strokedict get /ang get //.docap exec
-        } if
-        .gscratch /strokedict get /needcap false put
-    }
+%
+%  The previous subpath ended without a closepath: only now is it known
+%  to be open, so it takes its caps here -- the trailing end at the first
+%  point facing away from the first segment's travel, the leading end at
+%  the last point facing along the last one's.
+%
+.xpostsys /.strokecaps {  % -  .  -
+    .gscratch /strokedict get /needcap get {
+        .gscratch /strokedict get /firstpt get aload pop
+        .gscratch /strokedict get /firstang get 180 add
+        //.docap exec
+        .gscratch /strokedict get /cp get aload pop .gscratch /strokedict get /ang get //.docap exec
+    } if
+    .gscratch /strokedict get /needcap false put
+} put
+
+%
+%  The switch itself: one handler per path element, reached by the
+%  element's command code.
+%
+.xpostsys /.strokeswitch <<
     0 {  % move: x y
-        .gscratch /strokedict get /docaps get exec
+        //.strokecaps exec
         2 copy .gscratch /strokedict get /firstpt get astore pop
         2 copy .gscratch /strokedict get /cp get astore pop
         moveto
@@ -743,6 +743,31 @@ currentglobal false setglobal
     }
     2 { }  %Curve: s.b. eliminated by flattenpath
 >> put
+
+currentglobal false setglobal
+
+%
+%  The running state of the stroke being walked: where the pen is and
+%  where the subpath began, which way the last segment ran and which way
+%  the one before it did, the four corners of the segment just laid down
+%  and of the first one, and whether the subpath still owes a cap. Every
+%  stroke rewrites the whole of it, so it is the render's scratch and is
+%  kept in local virtual memory: a restore, and the boundary that ends a
+%  job, put it back.
+%
+.gscratch /strokedict <<
+    /ang 0
+    /oldcp 2 array
+    /cp 2 array
+    /firstpt 2 array
+    /oldpointR 2 array
+    /oldpointL 2 array
+    /pointR 2 array
+    /pointRR 2 array
+    /pointL 2 array
+    /pointLL 2 array
+    /needcap false
+>> put
 setglobal
 
 %
@@ -772,11 +797,11 @@ setglobal
             % in user space, so a move or line's point is carried back
             % through the CTM before the handler sees it.
             dup 2 lt { 3 1 roll itransform 3 -1 roll } if
-            .gscratch /strokedict get exch get exec
+            //.strokeswitch exch get exec
         } loop
 
         % The path ran out with a subpath still open: its caps are owed
-        .gscratch /strokedict get /docaps get exec
+        //.strokecaps exec
         end
     } if
 } .defop

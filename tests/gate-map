@@ -291,6 +291,7 @@ graphics test empty-clip
 graphics test fillpoly-arity
 graphics test fill-span
 graphics test gc-clip-region
+graphics test gscratch-procedures
 graphics test golden-render
 graphics test graphics-load-stop
 graphics test graphics-regression
@@ -431,6 +432,7 @@ language test dict-*
 language test error-*
 language test free-*
 language test fused-equivalence
+language test gscratch-procedures
 language test idiom
 language test internal-debug-ops
 language test interpreter

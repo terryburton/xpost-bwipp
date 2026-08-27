@@ -4040,6 +4040,19 @@ test('tamper-dispatch',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The scratch dictionary a public operator hands over holds the state of a
+# render and no procedure the machinery goes on to execute: a procedure kept
+# where a program can name it is a procedure the program can replace, and the
+# replacement runs inside a standard operator with the operator's operands
+# beneath it. Walked rather than listed, so a procedure arriving in a table
+# added later is caught; and asked of the stroke machinery by planting one
+# everywhere it would have looked, then stroking and measuring the outline.
+test('gscratch-procedures',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/gscratch_procedures_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Startup namespace cleanliness: after startup userdict and globaldict are empty
 # and systemdict exposes precisely the golden key set, so no internal operator or
 # procedure can leak into a userland-visible dictionary unnoticed. A deliberate

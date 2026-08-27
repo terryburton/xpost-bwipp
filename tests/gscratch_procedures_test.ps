@@ -1,0 +1,183 @@
+%!testlib
+%!
+% What a program may name, a program may replace.
+%
+% systemdict carries an operator that hands over the machinery's scratch
+% dictionary, so every slot in it, and every slot in the tables it holds,
+% is a program's to write. That is what the scratch is for: it holds the
+% state of the render in hand, in local virtual memory, and a program's
+% write to it goes back with the restore that ends the save level the
+% write was made in. What may not be kept there is a procedure the
+% machinery goes on to execute. Replacing one of those puts a program's
+% own body inside a standard operator, with the operator's operands
+% beneath it and none of the program's own error handling around it, and
+% no restore undoes it before it has run.
+%
+% Two questions, then. Whether the scratch holds a procedure at all,
+% walked rather than listed, so that one arriving in a table added later
+% is caught without a list beside it having to be remembered. And whether
+% the stroke machinery -- the one part that read a procedure out of the
+% scratch and executed it -- can be made to run one, asked by planting a
+% procedure everywhere it would have looked and then stroking.
+%
+% The second question is judged by the outline the stroke produced as well
+% as by whether the planted procedure ran. A planted procedure that never
+% runs and an outline that came out different are different failures, and
+% a suite watching only for the first would report the second clean.
+
+/marker false def
+/evil { /marker true store } def
+
+% ---- the planted procedure can be seen to run at all
+%
+% Everything below reports an absence, so the thing whose absence is
+% reported is made to happen first: a suite that has stopped being able to
+% see it says so here instead of passing every case that follows.
+//evil exec
+marker (a planted procedure sets the marker when it runs) assert
+/marker false store
+
+% ---- what the scratch holds
+%
+% Walked to a depth, counting the executable arrays reached and naming
+% each, so a failure says which member arrived carrying a procedure rather
+% than only that one did. The depth bounds the walk: a dictionary graph
+% may be cyclic, and an unbounded walk would not come back.
+%
+% Values are taken cvlit before they are looked at, because a walked
+% element may be an executable name and a bare reference to one would
+% execute it. What the element WAS is recorded first: cvlit is what the
+% question is about.
+/found 0 def
+/visited 0 def
+/walk {                                 % dict depth (label)  .  -
+    7 dict begin
+        /label exch def
+        /depth exch def
+        /dct exch cvlit def
+        dct {
+            exch cvlit /k exch def
+            dup xcheck /vx exch def
+            cvlit /v exch def
+            /visited visited 1 add store
+            /ks k 32 string cvs def
+            /kn label length ks length add 1 add string def
+            kn 0 label putinterval
+            kn label length (/) putinterval
+            kn label length 1 add ks putinterval
+            v type /arraytype eq vx and {
+                (  a procedure in the scratch: ) print kn print (\n) print flush
+                /found found 1 add store
+            }{
+                v type /dicttype eq depth 0 gt and {
+                    v depth 1 sub kn walk
+                } if
+            } ifelse
+        } forall
+    end
+} def
+
+.gscratch 6 (.gscratch) walk
+visited 0 gt (the walk reaches what the scratch holds) assert
+/before found def
+before 0 eq (the scratch holds no procedure) assert
+
+% The walk finds one that is there. Without this the case above passes on
+% a walk that has stopped descending, or stopped recognising a procedure,
+% which is the one failure it could not otherwise tell from success. The
+% answer is one MORE than the walk just counted, so the control stands
+% whatever that count was.
+/found 0 store
+.gscratch /.pfdict get /.plantedhere //evil put
+.gscratch 6 (.gscratch) walk
+found before 1 add eq
+    (the walk sees a procedure planted in a table the scratch holds) assert
+.gscratch /.pfdict get /.plantedhere undef
+/found 0 store
+.gscratch 6 (.gscratch) walk
+found before eq
+    (the scratch is as it was once the planted procedure is taken away) assert
+
+% ---- the outline a stroke produces
+%
+% Built with a cap and a join in it, so that both the per-element handlers
+% and the procedure that closes an open subpath have work to do. The
+% answer is the bounding box of the outline, which changes if a handler
+% did something other than what it does.
+/box {                                  % width  .  [llx lly urx ury]
+    newpath
+    setlinewidth 1 setlinecap 0 setlinejoin
+    100 100 moveto 200 180 lineto 260 100 lineto
+    strokepath
+    pathbbox 4 array astore
+} def
+/samebox {                              % [a] [b]  .  bool
+    2 dict begin
+        /b exch def
+        /a exch def
+        true 0 1 3 {                    % bool i
+            a 1 index get               % bool i a_i
+            b 3 -1 roll get             % bool a_i b_i
+            eq and
+        } for
+    end
+} def
+
+/clean 10 box def
+
+% The box tells one outline from another. Without this the cases below
+% pass on a measurement that has stopped discriminating, and a handler
+% that really had been replaced would go unreported.
+clean 30 box samebox not
+    (a stroke of a different width has a different outline) assert
+
+% ---- planted where the machinery used to look
+%
+% The scratch is writable, so each of these puts is accepted; that is the
+% point of the scratch and this suite does not ask for it to be refused.
+% What it asks is that nothing reads them.
+/sd .gscratch /strokedict get def
+sd /docaps //evil put
+sd 0 //evil put
+sd 1 //evil put
+sd 2 //evil put
+sd 3 //evil put
+clean 10 box samebox
+    (a stroke is unchanged by procedures planted in the stroke state) assert
+marker not
+    (no procedure planted in the stroke state is executed) assert
+/marker false store
+
+% ---- and planted in a wholesale replacement of the state itself
+%
+% Sealing the value would not answer for the slot: the scratch is
+% writable, so a program may put a dictionary of its own under the name
+% the machinery reads the stroke's state from. It carries the state on --
+% a copy of the real one, since the machinery reads its own notes back out
+% of whatever is there -- and the planted procedures with it.
+/mine .gscratch /strokedict get dup length 8 add dict copy def
+mine /docaps //evil put
+mine 0 //evil put
+mine 1 //evil put
+mine 2 //evil put
+mine 3 //evil put
+.gscratch /strokedict mine put
+clean 10 box samebox
+    (a stroke is unchanged by a replacement of the stroke state) assert
+marker not
+    (no procedure in a replaced stroke state is executed) assert
+/marker false store
+
+% ---- and the switch is not reachable under a name either
+%
+% The handlers are in the private helper namespace, which the lockdown
+% seals and drops from the dictionary stack, so neither the name nor a
+% lookup finds them.
+/.strokeswitch where { pop false }{ true } ifelse
+    (the stroke switch is under no name a program can find) assert
+/.strokecaps where { pop false }{ true } ifelse
+    (the caps procedure is under no name a program can find) assert
+.privatedict /.strokeswitch known not
+    (the stroke switch is not in the private dictionary either) assert
+
+verdict
