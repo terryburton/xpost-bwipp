@@ -632,6 +632,10 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
     Xpost_Stack *os_top;
     unsigned char *seen_lo_base = ctx->lo->base;
     unsigned char *seen_gl_base = ctx->gl->base;
+    /* the two banks: a context's for the life of a run, so the safe-point
+       question below reads them rather than the context */
+    Xpost_Memory_File *lo_mem = ctx->lo;
+    Xpost_Memory_File *gl_mem = ctx->gl;
     unsigned int off = a.comp_.off;
     unsigned int remaining = a.comp_.sz;
     int have_tail = 0;      /* a slot for the interval exists on es */
@@ -794,8 +798,17 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
 
         /* between elements is a safe point just like the interpreter
            loop: a requested collection must not starve while a fused
-           procedure runs through a long allocation-heavy stretch */
-        if (_collection_wanted(ctx))
+           procedure runs through a long allocation-heavy stretch.
+
+           The question is asked of the two banks directly here, through
+           pointers taken once above: they are the context's for the life
+           of a run, so re-reading them from the context at every element
+           of every procedure is a load per bank that answers the same
+           thing each time. What clears the flags, and decides whether a
+           collection is taken, is still the one function below. */
+        if ((lo_mem->garbage_collect_pending
+             || gl_mem->garbage_collect_pending)
+            && _collection_wanted(ctx))
         {
             /* anchor the current element (not just the tail) so an unrooted
                anonymous procedure is not swept while its last element runs */
@@ -809,10 +822,11 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
         /* likewise a push the stack would not take: a fused procedure
            runs its elements without returning to the interpreter loop,
            so the refusal is read here too rather than waiting for the
-           procedure to finish */
-        if (ctx->lo->push_refused)
+           procedure to finish. Read through the bank taken once above,
+           for the reason the safe point above it is. */
+        if (lo_mem->push_refused)
         {
-            ctx->lo->push_refused = 0;
+            lo_mem->push_refused = 0;
             XPOST_LOG_ERR("a stack would not take a pushed object");
             return VMerror;
         }
