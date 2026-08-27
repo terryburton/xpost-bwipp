@@ -102,12 +102,13 @@ guard_hold "$work/reg.bracketed" "$work/keyed" \
 # path.ps hands each path element to one of pathforall's four
 # procedures, dropping the enumerator's dictionary scope around the
 # call and taking it back after; the call itself goes through the
-# boundary, so both spellings are counted here and the one site is the
-# only one left.
-escapes=$(grep -cE 'end +(//\.xpostsys +/\.pexec +get +)?exec' "$work/lines")
+# boundary, so every spelling of it is counted here and the one site is
+# the only one left.
+esc='end +(//\.pexec +|//\.xpostsys +/\.pexec +get +)?exec'
+escapes=$(grep -cE "$esc" "$work/lines")
 if [ "$escapes" -gt 1 ]; then
     echo "FAIL: the dictionary-scope escape is spelled by hand at $escapes sites, not 1:"
-    grep -nE 'end +exec' "$src"/data/*.ps | sed 's|^|      |'
+    grep -nE "$esc" "$src"/data/*.ps | sed 's|^|      |'
     echo "      run the procedure through .callout instead"
     fail=1
 fi

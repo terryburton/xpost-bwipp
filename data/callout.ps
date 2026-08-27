@@ -132,6 +132,25 @@ systemdict begin
 /.conothing 0 array def
 
 %
+%  The operators a bracket's unwinding program is made of, held as
+%  values. That program is built at run time and so is never bound, and
+%  it runs under the dictionary stack the caller had: a name written into
+%  it would be read out of whatever the program running has current, and
+%  a job may define stopped, exec or if over the standard one. Reading
+%  them out of this table reaches no dictionary of the job's at all --
+%  and not systemdict by name either, which is a dictionary rather than
+%  an operator and so is a name binding cannot freeze.
+%
+%  A value, not a procedure. .callout below is its only reader and bakes
+%  it in by immediate evaluation, so it stands above .callout here.
+%
+/.coops <<
+    /stopped /stopped load
+    /exec /exec load
+    /if /if load
+>> def
+
+%
 %  The re-raise, held as a program rather than a name so that a
 %  redefinition of stop cannot reach the tail of a bracket.
 %
@@ -253,7 +272,7 @@ systemdict begin
 %  fetch it out of .xpostsys by name, and .pcallout below bakes it in,
 %  so it runs under the dictionary stack its caller had rather than
 %  under .xpostsys. That is why every part of the bracket is baked in by
-%  immediate evaluation rather than named: .conothing, .cosave,
+%  immediate evaluation rather than named: .conothing, .coops, .cosave,
 %  .gsunwind, .dsunwind, .cobeginall, .corestore and .costop all stand
 %  above it here for that reason, and it must stay below them.
 %
@@ -310,15 +329,21 @@ systemdict begin
     graphicsdict /gptr get
     countdictstack
 
+    % The three operators the program is made of are read out of the
+    % table baked in above rather than looked up: the program is built
+    % here and so is never bound, and it runs under the dictionary stack
+    % the caller had, where a program may have defined any of those names
+    % over the standard one.
+    %
     % pr ks nd ov ds gp dd
     [
-        counttomark 7 add index /stopped load
-        counttomark 2 add index //.gsunwind /exec load
-        counttomark 1 add index //.dsunwind /exec load
-        counttomark 3 add index //.cobeginall /exec load
+        counttomark 7 add index //.coops /stopped get
+        counttomark 2 add index //.gsunwind //.coops /exec get
+        counttomark 1 add index //.dsunwind //.coops /exec get
+        counttomark 3 add index //.cobeginall //.coops /exec get
         counttomark 6 add index counttomark 4 add index graphicsdict
-            //.corestore /exec load
-        //.costop /if load
+            //.corestore //.coops /exec get
+        //.costop //.coops /if get
     ] cvx
     7 { exch pop } repeat
     exec

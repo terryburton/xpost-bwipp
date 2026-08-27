@@ -2772,7 +2772,13 @@ currentglobal true setglobal
                 % one left to be read then would be found missing at the one
                 % moment a program most needs the answer.
                 dup //.xpostsys /.checkpagepolicies get exec pop
-                28 dict begin
+
+                % The working dictionary is opened through the bracket that
+                % takes it off again however the body ends, error included
+                % (.indict, callout.ps): a program that catches a refused
+                % request, or the failure of a device that could not be made,
+                % is left the dictionary stack it called with.
+                28 dict {
                 /pd exch def
 
                 % PLRM 6.2.6: an operator that deactivates the page device calls
@@ -2832,11 +2838,11 @@ currentglobal true setglobal
                 % which PLRM 6.2.7 gives as what a device without one does.
                 % Both name the entry in $error first (PLRM 8.2).
                 %
-                % The working dictionary closes before the error is raised, so
-                % a program that catches the refusal is not left standing in
-                % it.
+                % The bracket around the body closes the working dictionary
+                % as the error leaves it, so a program that catches the
+                % refusal is not left standing in it.
                 /refuse {  % key value  .  -
-                    end //.xpostsys /.setpageinfo get exec
+                    //.xpostsys /.setpageinfo get exec
                     /setpagedevice cvx /configurationerror signalerror
                 } def
 
@@ -2925,7 +2931,7 @@ currentglobal true setglobal
                 % distinct keys is refused rather than a run made to copy an
                 % ever-larger dictionary onto every page it prints.
                 merged length 512 gt {
-                    end /setpagedevice cvx /limitcheck signalerror
+                    /setpagedevice cvx /limitcheck signalerror
                 } if
                 /dev merged /OutputDevice 2 copy known { get }{ pop pop
                     graphicsdict /.outputdevice 2 copy known
@@ -2935,7 +2941,7 @@ currentglobal true setglobal
                 % This holds the one the run itself settled on, which a request
                 % naming no device inherits.
                 //.xpostsys /.devicemakers get dev known not {
-                    end /setpagedevice cvx /rangecheck signalerror
+                    /setpagedevice cvx /rangecheck signalerror
                 } if
                 /res merged /HWResolution 2 copy known { get }{ pop pop [72 72] } ifelse def
                 /size merged /PageSize 2 copy known { get }{ pop pop [612 792] } ifelse def
@@ -3117,31 +3123,24 @@ currentglobal true setglobal
                 % already in force; and it runs before the page begins,
                 % which is where BeginPage is run.
                 %
-                % The working dictionary comes off the dictionary stack
-                % while it runs. The procedure is the program's, so a
-                % definition it makes is the program's to keep, and one made
-                % into this operator's scratch dictionary would go when the
-                % operator returned; and the names kept there are neither in
-                % the procedure's way nor there for it to read.
+                % It goes through the callout bracket (.callout,
+                % callout.ps), which names the working dictionary as the one
+                % to take off while the procedure runs. The procedure is the
+                % program's, so a definition it makes is the program's to
+                % keep, and one made into this operator's scratch dictionary
+                % would go when the operator returned; and the names kept
+                % there are neither in the procedure's way nor there for it
+                % to read.
                 %
-                % The dictionary comes back on from the procedure that runs
-                % it -- which is on the execution stack throughout -- and not
-                % from the operand stack: the procedure is the program's and
-                % may leave that stack any way it likes, empty included, and
-                % the operator is not finished with the dictionary. A
-                % procedure that raises never reaches the step that puts it
-                % back, and the operator's own unwinding closes what the
-                % request opened.
-                %
-                % That procedure is built here and never bound, so the two
-                % operators it runs are taken from systemdict as values
-                % rather than written as names it would look up: a program
-                % may define either name over the standard one.
+                % The bracket holds nothing on the operand stack while the
+                % procedure runs, so the procedure is free to leave that
+                % stack any way it likes, empty included, and the operator is
+                % not finished with the dictionary: the bracket puts it back
+                % however the procedure returned, and the bracket around this
+                % body closes it where the procedure raised.
                 /Install //.xpostsys /.pagehandler get exec
                 dup null eq { pop }{
-                    [ exch systemdict /exec get
-                      currentdict systemdict /begin get ] cvx
-                    end exec
+                    null 1 //.xpostsys /.callout get exec
 
                     % PLRM 6.2.6: the transformation matrix is the one
                     % device-independent parameter the procedure can
@@ -3184,30 +3183,29 @@ currentglobal true setglobal
                 % It runs after the page device is installed and its BeginPage
                 % has run, so a report may read the device it is reporting on.
                 %
-                % Both are the program's procedures, and both run with the
-                % working dictionary already off the dictionary stack: a
-                % definition either makes is the program's to keep, and the
-                % names kept here are neither in their way nor there for them
-                % to read.
+                % Both are the program's procedures, and each of them goes
+                % through the callout bracket (.callout, callout.ps) naming
+                % the working dictionary as the one to take off while it
+                % runs: a definition either makes is the program's to keep,
+                % and the names kept here are neither in their way nor there
+                % for them to read.
                 %
-                % Where a report is due, the dictionary it reports and the
-                % procedure that reads it travel in the procedure that runs
-                % BeginPage -- on the execution stack -- rather than on the
-                % operand stack, which BeginPage is free to leave any way it
-                % likes, empty included. That procedure is built here and
-                % never bound, so the exec it runs is taken from systemdict as
-                % a value rather than written as a name it would look up: a
-                % program may define that name over the standard one. A
-                % request that has nothing to report needs none of this, and
-                % builds nothing.
+                % Neither bracket holds anything on the operand stack while
+                % the procedure runs, so a procedure is free to leave that
+                % stack any way it likes, empty included, and the report
+                % still runs after a BeginPage that emptied it. Each bracket
+                % puts the working dictionary back however its procedure
+                % returned, and the bracket around this body closes it where
+                % one raised.
+                //.xpostsys /.beginpage get null 1
+                //.xpostsys /.callout get exec
+
                 report length 0 gt
-                policies /PolicyReport known and
-                { [ //.xpostsys /.beginpage get systemdict /exec get
-                    report policies /PolicyReport get systemdict /exec get
-                  ] cvx
-                  end exec }
-                { end //.xpostsys /.beginpage get exec }
-                ifelse
+                policies /PolicyReport known and {
+                    report policies /PolicyReport get null 1
+                    //.xpostsys /.callout get exec
+                } if
+                } //.xpostsys /.indict get exec
             } //.defop exec
 
             % PLRM 6.1.1: what a device reports carries an entry for every
