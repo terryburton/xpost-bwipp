@@ -25,7 +25,7 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  Evaluate a PostScript function dictionary at t: exponential
@@ -63,7 +63,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  DataSource is a continuous bit stream with no padding at a byte
 %  boundary, so these are read by counting bits, the way a mesh stream is.
 %
-/.fnsamplebits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> def
+/.fnsamplebits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> readonly def
 
 %
 %  What a sampled function needs, defined in the CALLER's dictionary from
@@ -420,9 +420,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  rather than a range because the reader must be able to say which
 %  widths it takes, and a program's data is unreadable if it guesses.
 %
-/.mrdcoordbits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> def
-/.mrdcompbits << 1 true 2 true 4 true 8 true 12 true 16 true >> def
-/.mrdflagbits << 2 true 4 true 8 true >> def
+/.mrdcoordbits << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> readonly def
+/.mrdcompbits << 1 true 2 true 4 true 8 true 12 true 16 true >> readonly def
+/.mrdflagbits << 2 true 4 true 8 true >> readonly def
 
 %
 %  Step over the padding at the end of a vertex or a patch: what follows
@@ -994,7 +994,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  counterclockwise from the first corner, then the four interior
 %  points.
 %
-/.pgridmap [ 0 1 2 3 7 11 15 14 13 12 8 4 5 6 10 9 ] def
+/.pgridmap [ 0 1 2 3 7 11 15 14 13 12 8 4 5 6 10 9 ] readonly def
 
 %
 %  a weighted combination of grid points, divided by 9: the Coons
@@ -1193,7 +1193,7 @@ systemdict /shfill [ /dicttype ] {  % dict  .  -
 } .defopin
 end
 
-end end
+end end end
 
 %
 %  What this file can be asked for, as PLRM Table 3.8 has a program ask it.

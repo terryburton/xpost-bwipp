@@ -30,7 +30,6 @@
 #   thorn    the site stands and the reason is a known irritation
 #   heading  the site is expected to move where machinery installs
 
-settled  xpost_context.c       xpost_context_host_setting   .hostdict              reads a host setting through the dictionary the interpreter anchors at world build; the anchor's spelling is interned before any program runs
 settled  xpost_dev_bgr.c       loadbgrdevice                .xpost_PPMIMAGE        the load operator's entry half: reaches the base class by the anchor the world build published (data/ppmimage.ps), and runs once as the device class loads
 settled  xpost_dev_bgr.c       newbgrdevice                 Create                 runs where a device instance is made, before any reading a job takes across pages; the class's name and its Create slot were interned as the class installed
 settled  xpost_dev_bgr.c       newbgrdevice                 .xpost_BGRDEVICE       runs where a device instance is made, before any reading a job takes across pages; the class's name and its Create slot were interned as the class installed
@@ -97,7 +96,6 @@ settled  xpost_dev_xcb.c       loadxcbdevice                .xpost_PPMIMAGE     
 settled  xpost_dev_xcb.c       newxcbdevice                 Create                 runs where a device instance is made, before any reading a job takes across pages; the class's name and its Create slot were interned as the class installed
 settled  xpost_dev_xcb.c       newxcbdevice                 .xpost_XCBDEVICE       runs where a device instance is made, before any reading a job takes across pages; the class's name and its Create slot were interned as the class installed
 settled  xpost_handle.c        xpost_handle_cons            Destroy                a handle's teardown slot: the spelling is a method slot name interned as the device classes installed
-settled  xpost_interpreter.c   _host_dict                   .hostdict              reads the host dictionary by the anchor the interpreter publishes at world build; interned before any program runs
 settled  xpost_interpreter.c   _nested_error                $error                 the error machinery's own names, spelt throughout data/init.ps and interned as the world is built
 settled  xpost_interpreter.c   _nested_error                errorname              the error machinery's own names, spelt throughout data/init.ps and interned as the world is built
 settled  xpost_interpreter.c   _onerror                     signalerror            the error machinery's own names, spelt throughout data/init.ps and interned as the world is built

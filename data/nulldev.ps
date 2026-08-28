@@ -11,7 +11,7 @@
 
 //.internaldict /QUIET known { }{ (loading nulldev.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  Install the null device (PLRM 8.2). Its default transformation matrix
@@ -53,7 +53,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 
     /.copydict //.classcopydict
     /Create {  % width height IMAGE  .  IMAGE'
-        begin {/height /width}{exch def}forall
+        begin //.rasterwh {exch def}forall
         currentdict end
         dup /.copydict get exec
     }
@@ -91,6 +91,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 >> def
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof nulldev.ps\n)print } ifelse

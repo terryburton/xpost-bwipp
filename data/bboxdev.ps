@@ -11,7 +11,15 @@
 
 //.internaldict /QUIET known { }{ (loading bboxdev.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.bboxdevbind0 [ /h /w /y /x /val ] readonly put
+.xpostsys /.bboxdevbind1 [ /y2 /x2 /y1 /x1 /val ] readonly put
 
 %
 %  Make an instance of the bounding-box device, which marks no pixels
@@ -53,7 +61,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
-        { {/height /width}{exch def}forall
+        { //.rasterwh {exch def}forall
         currentdict } //.indict exec
         dup /.copydict get exec
         {
@@ -99,7 +107,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 
     /DrawLine {  % val x1 y1 x2 y2 IMAGE  .  -
-        { {y2 x2 y1 x1 val}{exch def}forall
+        { //.bboxdevbind1 {exch def} forall
             val .opaque {
                 x1 y1 .maxmin
                 x2 y2 .maxmin
@@ -108,7 +116,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 
     /DrawRect {  % val x y w h IMAGE  .  -
-        { {h w y x val}{exch def}forall
+        { //.bboxdevbind0 {exch def} forall
             val .opaque {
                 x y .maxmin
                 x w add  y h add  .maxmin
@@ -167,7 +175,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 
     /FillRect {  % val x y w h IMAGE  .  -
-        { {h w y x val}{exch def}forall
+        { //.bboxdevbind0 {exch def} forall
             val .opaque {
                 x y .maxmin
                 x w add  y h add  .maxmin
@@ -220,6 +228,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 >> def
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof bboxdev.ps\n)print } ifelse

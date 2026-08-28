@@ -1134,7 +1134,7 @@ Xpost_Object _face_entry(Xpost_Context *ctx, const char *facename, int create)
     if (xpost_object_get_type(ctx->globalprivatedict) != dicttype)
         return null;
 
-    faces = xpost_dict_get(ctx, ctx->globalprivatedict, name_dotfacecache);
+    faces = xpost_context_job_member(ctx, ".facecache");
     if (xpost_object_get_type(faces) != dicttype)
         return null;
 
@@ -1193,7 +1193,7 @@ void _face_drop(Xpost_Context *ctx, const char *facename)
 
     if (xpost_object_get_type(ctx->globalprivatedict) != dicttype)
         return;
-    faces = xpost_dict_get(ctx, ctx->globalprivatedict, name_dotfacecache);
+    faces = xpost_context_job_member(ctx, ".facecache");
     if (xpost_object_get_type(faces) != dicttype)
         return;
     (void)xpost_dict_undef(ctx, faces, _face_key(ctx, facename));

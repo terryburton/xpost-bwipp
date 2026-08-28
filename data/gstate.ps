@@ -27,7 +27,7 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  .gstatetemplate yields a freshly-initialized dictionary
@@ -633,7 +633,7 @@ end
     graphicsdict /currgstate get /bluetransfer get
     graphicsdict /currgstate get /transfer get
 } .defop
-.xpostsys /.tskeys [ /.tsproc /.tsop /.tsd ] put
+.xpostsys /.tskeys [ /.tsproc /.tsop /.tsd ] readonly put
 
 %
 %  Sample a transfer function across [0,1] into the 256-entry table the
@@ -692,7 +692,7 @@ end
 %  sampled again -- object for object, two procedures that merely read
 %  alike being two functions.
 %
-.xpostsys /.ctkeys [ /.ctrec /.ctop ] put
+.xpostsys /.ctkeys [ /.ctrec /.ctop ] readonly put
 
 %
 %  The same for setcolortransfer's four functions, sampled one at a time
@@ -966,7 +966,7 @@ end
     graphicsdict /currgstate get /flat get
 } .defop
 
-end end
+end end end
 
 %
 %  The halftone and colour-rendering types this file implements, as PLRM

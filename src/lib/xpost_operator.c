@@ -1037,7 +1037,13 @@ Xpost_Object _wrapped_save_array(Xpost_Context *ctx)
     if (xpost_object_get_type(arr) == arraytype &&
         xpost_context_select_memory(ctx, arr) == ctx->lo)
         return arr;
-    arr = xpost_array_cons_memory(ctx->lo, XPOST_WRAPPED_SAVE_SLOTS);
+    /* Literal. What this holds is operands, and the tag's flag is LIT, so an
+       array built here without saying so is executable -- which would make a
+       buffer of saved operands run as a procedure the moment anything named
+       it, and makes it answer to a body everywhere bodies are treated apart
+       from data. */
+    arr = xpost_object_cvlit(xpost_array_cons_memory(ctx->lo,
+                                                    XPOST_WRAPPED_SAVE_SLOTS));
     if (xpost_object_get_type(arr) != arraytype)
         return null;
     if (xpost_array_put_memory(ctx->lo, arr, 0, xpost_int_cons(1)) != 0)

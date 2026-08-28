@@ -143,7 +143,7 @@ fi
 # register, which would stop being read for a dictionary whose entries
 # all went at once. A home the register names and this does not is
 # refused below instead.
-homes=".xpostsys .privatedict .internaldict .gscratch"
+homes=".xpostsys .privatedict .internaldict .gscratch .jobstore"
 awk -v homes="$homes" '
     BEGIN { nh = split(homes, h, " "); for (k = 1; k <= nh; k++) ishome[h[k]] = 1 }
 
@@ -195,8 +195,12 @@ awk -v homes="$homes" '
 
     END {
         for (i = 1; i <= n; i++) {
-            if (!(tok[i] in ishome)) continue
             d = tok[i]
+            # a home named for immediate evaluation is the same home: the
+            # scanner substitutes the dictionary, and what follows is a
+            # definition into it exactly as the plain name would be
+            sub(/^\/\//, "", d)
+            if (!(d in ishome)) continue
             if (tok[i + 1] == "begin") {
                 # the block: names defined at its top level are members
                 # of d. A begin inside a procedure body runs later and

@@ -27,9 +27,9 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
-.xpostsys /.resources 32 dict put
+.jobstore /.resources 32 dict put
 
 %
 %  The font machinery caches, beside them and for the same reason: a face
@@ -43,7 +43,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  all. A face's entries share a dictionary of their own, so that a face
 %  name is never a name in the namespace.
 %
-.xpostsys /.facecache 32 dict put
+.jobstore /.facecache 32 dict put
 //.resources /Category 32 dict put
 
 %
@@ -318,7 +318,7 @@ setglobal
 %  caller consults first, so this holds only negatives; a name defined later is
 %  found there and never reaches this.
 %
-.xpostsys /.resourcemissing 16 dict put
+.jobstore /.resourcemissing 16 dict put
 
 %
 %  The instance is identified by name; a key given as a string interns to the
@@ -812,6 +812,6 @@ setglobal
 %
 %  ------------------------------------------------------------------------
 %
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof resource.ps\n)print } ifelse

@@ -4040,6 +4040,12 @@ test('tamper-dispatch',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+test('xpostsys-sealed',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/xpostsys_sealed_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The scratch dictionary a public operator hands over holds the state of a
 # render and no procedure the machinery goes on to execute: a procedure kept
 # where a program can name it is a procedure the program can replace, and the
@@ -4061,6 +4067,16 @@ test('gscratch-procedures',
 test('namespace',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/namespace_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
+# What a program must not be handed. The machinery's namespace and the job
+# store are nameable by nothing a program can read; a list of the sweep's
+# roots kept where a test could read it put both one get away, which is the
+# accident this holds against.
+test('unreachable',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/unreachable_test.ps') ],
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
@@ -4417,6 +4433,26 @@ test('check-vm-address-fields',
 # is that stands in the way.
 test('check-raw-allocations',
   find_program('tests/check-raw-allocations.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir() ],
+  suite: cost_fast,
+  timeout: 120)
+
+# And what a context runs is what that context roots. A file-scope object
+# belongs to whichever context was starting when it was last written, so
+# running one runs an object the running context does not root.
+# Nothing the machinery runs may come out of the job store: the sweep passes
+# over the store because it holds state, and that is safe only while it holds
+# no procedure the machinery fetches and runs.
+test('check-store-not-run',
+  find_program('tests/check-store-not-run.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir() ],
+  suite: cost_fast,
+  timeout: 120)
+
+test('check-context-executes-own',
+  find_program('tests/check-context-executes-own.sh'),
   priority: guard_priority,
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
@@ -6035,6 +6071,19 @@ test('check-skip-verdict',
   args: [ meson.current_source_dir() ],
   suite: cost_fast,
   timeout: 120)
+
+# Reachable, in global virtual memory, and writable: a program can rewrite the
+# object and the machinery will then run or read what it wrote, and a restore
+# will not put it back (PLRM 3.7.2). The population is being driven down rather
+# than fixed in one change, so the register is a ratchet -- it may shrink and
+# may not grow. Held here because a security claim that rests on a reader
+# having checked a corner does not survive the reader's attention lapsing.
+test('check-vm-forbidden',
+  find_program('tests/check-vm-forbidden.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
 
 # The guards read data/ and tests/ under a source root they are given, and
 # the interpreter finds the working tree by other routes when that root is

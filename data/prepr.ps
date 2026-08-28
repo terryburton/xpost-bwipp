@@ -29,6 +29,14 @@
 %  //ti frozen into prompt.
 %
 currentglobal true setglobal
+
+%
+%  The one character a small integer is written into. In the job store:
+%  a buffer cvs writes through is state, and state kept beside the
+%  procedures cannot be sealed with them.
+%
+.jobstore /.promptdigit 1 string put
+
 1 dict begin
 
 %
@@ -47,7 +55,7 @@ currentglobal true setglobal
     /nametype        { xcheck { (\\) } { (/) } ifelse print }  % name  .  -
     /integertype     {  % int  .  -
                        dup 0 lt  { pop (-) print }{
-                       dup 10 lt { ( ) cvs print }
+                       dup 10 lt { //.promptdigit cvs print }
                                  { pop (+) print }
                      ifelse } ifelse }
     /realtype        { pop (r) print }  % real  .  -
@@ -55,7 +63,7 @@ currentglobal true setglobal
     /fonttype        { pop ($) print }  % font  .  -
 
     % Composite
-    /arraytype       { xcheck { ( ) dup 0 16#7D put }{ (]) } ifelse print }  % array  .  -
+    /arraytype       { xcheck { (}) }{ (]) } ifelse print }  % array  .  -
     /stringtype      { pop (S) print }  % string  .  -
     /packedarraytype { pop (A) print }  % packedarray  .  -
     /dicttype        { pop (D) print }  % dict  .  -

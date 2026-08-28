@@ -535,7 +535,7 @@ esac
 # about which types the entry may hold. Nothing here READS either value,
 # which is exactly why the typing needs holding -- a check nothing
 # depends on is one that can be dropped without any test noticing.
-awk '/\.xpostsys \/\.htoptypes </, /^>> put/' "$src/data/halftone.ps" \
+awk '/\.xpostsys \/\.htoptypes </, /^>> (readonly )?put/' "$src/data/halftone.ps" \
     | sed -n 's|^[[:space:]]*/\([A-Za-z0-9]*\)[[:space:]]*\[\([^]]*\)\].*|\1 \2|p' \
     | while read -r nm types; do
           printf '%s %s\n' "$nm" \

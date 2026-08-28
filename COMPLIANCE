@@ -149,7 +149,12 @@ Level 2 operators
      may ask for a smaller stack, and is answered with the capacity it
      will actually get. VMThreshold is recorded and reported back but
      does not change how often collection runs)
- [X] startjob (job boundaries accepted; no VM encapsulation)
+ [X] startjob (a prolog opened by `true password startjob` and closed
+     by `false password startjob` within one run does not reach
+     initial VM: the run ends encapsulated and reverts whole. PLRM
+     3.7.7 gives that pairing as the prolog and script idiom. A
+     prolog that must outlive its run is left unencapsulated to the
+     end of it)
  [ ] start (the specification's top-level entry point. This interpreter
      keeps its start procedures in the private dictionary the machinery
      lives in, so no program can name one; a run reaches them through

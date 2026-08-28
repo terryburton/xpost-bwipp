@@ -961,9 +961,19 @@
  * @c startjob make a run unencapsulated, and at its end the boundary
  * folds its state into the baseline instead of reverting to it, so its
  * definitions are part of the initial VM every later job begins from
- * (PLRM 3.7.7). @c false @c password @c startjob folds what has been
- * done so far and returns to encapsulation, which is the prolog and
- * script idiom. The door is a password: empty, the factory default,
+ * (PLRM 3.7.7). @c false @c password @c startjob returns the run to
+ * encapsulation, and the fold it would need is not taken where it
+ * stands, because the boundary is the run's own end: a prolog opened by
+ * @c true @c password @c startjob and closed by @c false @c password
+ * @c startjob within one run does not reach the baseline, the run
+ * ending encapsulated and reverting whole. PLRM 3.7.7 gives that very
+ * pairing as the prolog and script idiom, so this is a deviation, and
+ * it is the price of the boundary being an image restore: folding where
+ * @c startjob stands would capture the execution stack in mid-flight,
+ * and a later revert to that image would resume a stale continuation. A
+ * prolog that must outlive its run is left unencapsulated to the end of
+ * it, or installed through @c xpost_job_baseline_set.
+ * The door is a password: empty, the factory default,
  * lets a trusted prolog through, and a host serving untrusted jobs
  * closes it with @c xpost_startjob_password_set, since a program cannot
  * set it.

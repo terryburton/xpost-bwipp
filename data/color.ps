@@ -12,11 +12,21 @@
 //.internaldict /QUIET known { }{ (loading color.ps...)print } ifelse
 
 %
+%  The names currenthsbcolor binds the components it reads back to.
+%
+.xpostsys /.rgbnames [ /b /g /r ] readonly put
+
+%
 %  Everything here defines into global VM.
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names sethsbcolor binds its three components to.
+%
+.xpostsys /.hsbnames [ /b /s /h ] readonly put
 
 %
 %  --- CIE-based colour spaces ---------------------------------------
@@ -564,7 +574,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /CIEBasedABC  [ /RangeABC  [0 1 0 1 0 1] ]
     /CIEBasedDEF  [ /RangeDEF  [0 1 0 1 0 1] ]
     /CIEBasedDEFG [ /RangeDEFG [0 1 0 1 0 1 0 1] ]
->> def
+>> readonly def
 
 %
 %  The range a CIE space states for its own inputs, or the default the
@@ -617,7 +627,7 @@ end
 %  there. The conversion may set a colour of its own, in a space of the
 %  same kind, which comes through here against the same pair.
 %
-.xpostsys /.cskeys [ /.csspace /.csstash /.convdepth ] put
+.xpostsys /.cskeys [ /.csspace /.csstash /.convdepth ] readonly put
 
 %
 %  comps is the components as the program gave them.
@@ -937,7 +947,7 @@ end
     /Separation   /tint
     /DeviceN      /tint
     /Pattern      /pattern
->> put
+>> readonly put
 
 %
 %  The kind of a colour space, given as a bare family name or as an array
@@ -957,14 +967,14 @@ end
     /DeviceGray 1
     /DeviceRGB 3
     /DeviceCMYK 4
->> put
+>> readonly put
 
 .xpostsys /.ciecomps <<
     /CIEBasedA 1
     /CIEBasedABC 3
     /CIEBasedDEF 3
     /CIEBasedDEFG 4
->> put
+>> readonly put
 
 %
 %  How many components the current colour space takes. Read wherever a
@@ -1040,7 +1050,7 @@ end
     /indexed  [ 1 /indexed /pattern ]
     /tint     [ 2 /indexed /tint /pattern ]
     /pattern  [ 1 /pattern ]
->> put
+>> readonly put
 
 %
 %  The colour space a composing space is built over, or null where it
@@ -1193,7 +1203,7 @@ end
 .xpostsys /.colorantsat <<
     /Separation [ 1 /one ]
     /DeviceN    [ 1 /many ]
->> put
+>> readonly put
 
 %
 %  Every colorant a tint space names is a colorant name, and a space that
@@ -1299,7 +1309,7 @@ end
     /CIEBasedABC  [ /DecodeABC 3 /DecodeLMN 3 ]
     /CIEBasedDEF  [ /DecodeDEF 3 /DecodeABC 3 /DecodeLMN 3 ]
     /CIEBasedDEFG [ /DecodeDEFG 4 /DecodeABC 3 /DecodeLMN 3 ]
->> put
+>> readonly put
 
 %
 %  Every decode entry a CIE-based space carries is a procedure, and an
@@ -1781,7 +1791,7 @@ end
 /sethsbcolor [ /numbertype /numbertype /numbertype ] {  % hue saturation brightness  .  -
     3 { //.c01 exec 3 1 roll } repeat
     7 dict begin
-    {/b /s /h}{exch def}forall
+    //.hsbnames {exch def}forall
     /h h h truncate sub 6 mul def       % Scale hue to sector 0-5 (1 maps to 0)
     /i h truncate cvi def
     /f h i sub def
@@ -1806,7 +1816,7 @@ end
 /currenthsbcolor [ ] {  % -  .  h s b
     currentrgbcolor
     3 dict begin
-    {/b /g /r}{exch def}forall
+    //.rgbnames {exch def}forall
     /v r g 2 copy lt {exch} if pop b 2 copy lt {exch} if pop def
     /d v r g 2 copy gt {exch} if pop b 2 copy gt {exch} if pop sub def
     d 0 eq {
@@ -1996,7 +2006,7 @@ end
     graphicsdict /currgstate get /colorspace get get exec
 } bind put
 
-end end
+end end end
 
 %
 %  The colour space families this file implements, as PLRM Table 3.8 has a

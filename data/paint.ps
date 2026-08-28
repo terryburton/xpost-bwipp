@@ -17,7 +17,15 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.paintbind0 [ /interp /datasrc /mat /polarity /height /width ] readonly put
+.xpostsys /.paintbind1 [ /operator /mranges /mh /mw /mbits /ncomp /decode /datasrc /mat /bits /height /width ] readonly put
 
 %
 %  A colour component folded into the unit range, the nearest valid value
@@ -745,7 +753,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  the list reached that branch and was read at the wrong stride, which
 %  does not fail -- it paints a page from samples that were never there.
 %
-.xpostsys /.imgbits << 1 true 2 true 4 true 8 true 12 true >> put
+.xpostsys /.imgbits << 1 true 2 true 4 true 8 true 12 true >> readonly put
 
 %
 %  Unpack one raw row of image samples into one byte a sample, whatever
@@ -911,7 +919,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         newpath
         32 dict begin
         //.refreshscreencell exec
-        {operator mranges mh mw mbits ncomp decode datasrc mat bits height width}{exch def}forall
+        //.paintbind1 {exch def} forall
 
         % The width is refused here, where it is first known and before
         % any row is read, because every route into this painter -- the
@@ -1756,7 +1764,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     1 [ 0 1 ]
     3 [ 0 1 0 1 0 1 ]
     4 [ 0 1 0 1 0 1 0 1 ]
->> put
+>> readonly put
 
 %
 %  The source count varies with multi and ncomp, so the effect states the
@@ -1919,7 +1927,7 @@ setglobal
     gsave
         newpath
         10 dict begin
-        {interp datasrc mat polarity height width}{exch def}forall
+        //.paintbind0 {exch def} forall
         /rowbytes width 7 add 8 idiv def
         /buf rowbytes height mul string def
         /bp 0 def
@@ -2098,7 +2106,7 @@ setglobal
     //.stencilmask exec
 } .defop
 
-end end
+end end end
 
 %
 %  The image types this file implements, as PLRM Table 3.8 has a program ask

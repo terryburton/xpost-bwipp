@@ -11,7 +11,21 @@
 
 //.internaldict /QUIET known { }{ (loading svgwrite.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.svgwritebind0 [ /h /w /y /x /b /g /r ] readonly put
+.xpostsys /.svgwritebind1 [ /siint /sidec /sirows /sim /sinc /sih /siw ] readonly put
+.xpostsys /.svgwritebind2 [ /smint /smdata /smm /smpol /smh /smw ] readonly put
+.xpostsys /.svgwritebind3 [ /spb /spg /spr ] readonly put
+.xpostsys /.pdfwritebind3 [ /spy3 /spx3 /spy2 /spx2 /spy1 /spx1 ] readonly put
+.xpostsys /.svgwritebind4 [ /svchunks /svmat /svtt /svys /svxs /svbb ] readonly put
+.xpostsys /.svgwritebind5 [ /y /x /b /g /r ] readonly put
+.xpostsys /.svgwritebind6 [ /y2 /x2 /y1 /x1 /b /g /r ] readonly put
 
 %
 %  Make an instance of the SVG writer: the class copied, with the extent
@@ -60,7 +74,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
-    { {/height /width}{exch def}forall
+    { //.rasterwh {exch def}forall
 
     % The page dimensions are points and need not be integral; adopt the
     % exact values when the page device machinery published them.
@@ -138,7 +152,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } bind
 
     /PutPix {  % r g b x y IMAGE  .  -
-    { {y x b g r}{exch def}forall
+    { //.svgwritebind5 {exch def} forall
         (<rect fill=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width="1" height="1"/>\n) .put
@@ -149,14 +163,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 
     /DrawLine {  % r g b x1 y1 x2 y2 IMAGE  .  -
-    { {y2 x2 y1 x1 b g r}{exch def}forall
+    { //.svgwritebind6 {exch def} forall
         (<path fill="none" stroke=) .put r g b .svgrgb
         ( d="M) .put x1 .svgnum ( ) .put y1 .svgnum
         (L) .put x2 .svgnum ( ) .put y2 .svgnum ("/>\n) .put
     } //.indict exec }
 
     /DrawRect {  % r g b x y w h IMAGE  .  -
-    { {h w y x b g r}{exch def}forall
+    { //.svgwritebind0 {exch def} forall
         (<rect fill="none" stroke=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width=") .put w .svgnum (" height=") .put h .svgnum ("/>\n) .put
@@ -169,7 +183,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % device painting a rect a pixel short in each direction of every
     % other device's.
     /FillRect {  % r g b x y w h IMAGE  .  -
-    { {h w y x b g r}{exch def}forall
+    { //.svgwritebind0 {exch def} forall
         w 0 lt { /x x w add def /w w neg def } if
         h 0 lt { /y y h add def /h h neg def } if
         (<rect fill=) .put r g b .svgrgb
@@ -204,7 +218,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             /.dpoff exch def
             dup 2 eq {
                 pop
-                {spy3 spx3 spy2 spx2 spy1 spx1}{exch def}forall
+                //.pdfwritebind3 {exch def} forall
                 (C) .put
                 spx1 .svgnum ( ) .put spy1 .svgnum ( ) .put
                 spx2 .svgnum ( ) .put spy2 .svgnum ( ) .put
@@ -244,7 +258,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % decode to rgb, pack as a bottom-up 24-bit BMP, and ride a base64
     % data URI under the image-to-device matrix.
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
-    { {siint sidec sirows sim sinc sih siw}{exch def}forall
+    { //.svgwritebind1 {exch def} forall
 
         % Per-component decode tables to bytes
         /siluts [ 0 1 sinc 1 sub { /c exch def
@@ -408,7 +422,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % from under its own matrix with the stencil at the same place in
     % it, so one mask serves every placement of the same bits.
     /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
-    { {smint smdata smm smpol smh smw}{exch def}forall
+    { //.svgwritebind2 {exch def} forall
 
         % keyed by a sum over the bits, held inside sixteen bits so the
         % running total cannot leave the integers, and the candidate
@@ -566,7 +580,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % 4.9.2) and the tile is not that rectangle.
     /PatternCell {  % bbox xstep ystep tilingtype matrix chunks IMAGE  .  n
     {
-        {svchunks svmat svtt svys svxs svbb}{exch def}forall
+        //.svgwritebind4 {exch def} forall
 
         % The spacing PLRM Table 4.9 names as TilingType is taken and
         % not written: it says how far a reader may move a cell to keep
@@ -819,7 +833,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % first (the walker runs in its own dictionary, away from this
     % device's methods) and emitted afterwards.
     /StrokePath {  % r g b IMAGE  .  -
-    { {spb spg spr}{exch def}forall
+    { //.svgwritebind3 {exch def} forall
         .pathelems 0 gt {
             (<path fill="none" stroke=) .put spr spg spb .svgrgb
             ( stroke-width=") .put
@@ -916,6 +930,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } //.indict exec }
 >> def
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof svgwrite.ps\n)print } ifelse

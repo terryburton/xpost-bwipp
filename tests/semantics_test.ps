@@ -469,6 +469,37 @@ $error /errorname get /undefined eq
     (an immediate name with no definition raises undefined) assert
 clear
 
+% The scanner substitutes the value, so what it substitutes carries the
+% value's access with it (PLRM 3.12.2 with 3.3.2). For an array access
+% belongs to the reference, so a constant sealed BEFORE the body that names
+% it is scanned is sealed inside that body too, and one sealed afterwards
+% is not: the reference the body holds was taken while it was still open.
+% For a dictionary access belongs to the value, so the order does not
+% arise. Machinery that seals a table where it is defined depends on the
+% first of these, and on knowing the second is not the same.
+/imm.sealed [ 1 2 3 ] readonly def
+/imm.usesealed { //imm.sealed } def
+/imm.usesealed load 0 get wcheck not
+    (an immediate name of a sealed array carries the seal into the body) assert
+
+/imm.late [ 1 2 3 ] def
+/imm.uselate { //imm.late } def
+/imm.late imm.late readonly def
+/imm.uselate load 0 get wcheck
+    (an array sealed after a body named it leaves that body's copy open) assert
+
+/imm.dict 3 dict def
+/imm.usedict { //imm.dict } def
+imm.dict readonly pop
+/imm.usedict load 0 get wcheck not
+    (a dictionary sealed after is sealed in the body, access being the value's) assert
+
+{ /imm.usesealed load 0 get 0 99 put } stopped
+    (writing through a sealed immediate reference raises) assert
+$error /errorname get /invalidaccess eq
+    (writing through a sealed immediate reference raises invalidaccess) assert
+clear
+
 % --- clipsave and cliprestore stack the clip region alone ---
 gsave
 newpath 10 10 moveto 50 10 lineto 50 50 lineto 10 50 lineto closepath clip

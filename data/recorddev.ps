@@ -11,7 +11,7 @@
 
 //.internaldict /QUIET known { }{ (loading recorddev.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  .xpost_RECORD writes down what it was asked to paint instead of
@@ -955,6 +955,6 @@ setglobal
     } //.indict exec } bind
 >> def
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof recorddev.ps\n)print } ifelse

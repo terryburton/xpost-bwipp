@@ -30,7 +30,7 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  copy the grey screen to the colour channels: setscreen installs one
@@ -89,7 +89,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  same graphics state slots, so the record is kept in a slot the bracket
 %  holds and written again when the sampling is done.
 %
-.xpostsys /.ssreckeys [ /.ssrec ] put
+.xpostsys /.ssreckeys [ /.ssrec ] readonly put
 
 %
 %  Install a halftone screen: build its cell and record the frequency,
@@ -141,7 +141,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  sampling so a spot function reads the screen being installed, and
 %  written again after it so this call's screen is the one that stands.
 %
-.xpostsys /.csreckeys [ /.csrec ] put
+.xpostsys /.csreckeys [ /.csrec ] readonly put
 
 %
 %  The same for setcolorscreen's four screens, one per component, each
@@ -219,7 +219,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  compiled into the program below depends on -- and which is also why a
 %  spot function may leave entries there for the caller to harvest.
 %
-.xpostsys /.sskeys [ /.ssd0 ] put
+.xpostsys /.sskeys [ /.ssd0 ] readonly put
 
 %
 %  Sample a spot function across its screen cell, which is what turns a
@@ -420,7 +420,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } for
     buf 0 m getinterval
     end
-} exec put
+} exec readonly put
 
 %
 %  The rotated integer lattice the screen tiles the device plane with:
@@ -952,7 +952,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 .xpostsys /.htextentnames
     [ (Frequency) (Width) (Height) (Xsquare) (Ysquare) (Width2) (Height2) ]
-put
+readonly put
 
 %
 %  and the entries whose names end in one of those without stating one.
@@ -967,7 +967,7 @@ put
 %  A type 5's colorants cannot need one -- their values are dictionaries
 %  and nothing here looks at a value that is not a number.
 %
-.xpostsys /.htextentexempt [ (ActualFrequency) ] put
+.xpostsys /.htextentexempt [ (ActualFrequency) ] readonly put
 
 %
 %  Every entry stating an extent must state a positive one. A side of
@@ -1024,7 +1024,7 @@ put
 .xpostsys /.htoptypes <<
     /AccurateScreens [ /booleantype ]
     /HalftoneName [ /nametype /stringtype ]
->> put
+>> readonly put
 
 %
 %  Hold every optional entry the dictionary carries to the type PLRM gives
@@ -1395,7 +1395,7 @@ put
 %  Recorded and not acted on here; currentstrokeadjust reads it back.
 %
 
-end end
+end end end
 
 %
 %  The halftone types this file implements, as PLRM Table 3.8 has a

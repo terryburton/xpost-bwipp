@@ -745,6 +745,37 @@ false setglobal
 save svg1 readonly pop restore
 svg1 wcheck not (a global dict sealed inside a bracket is still sealed after the restore) bchk
 
+% --- readonly seals a dictionary's VALUE and an array's REFERENCE ---------
+%
+% PLRM 8.2 readonly: "For an array, packed array, file, or string object,
+% readonly affects the access attribute only of the object that it returns.
+% If there are other objects that share the same value, their access
+% attributes are unaffected. However, in the case of a dictionary, readonly
+% affects the value of the object, so all dictionary objects sharing the
+% same value have the same access attribute." PLRM 3.3.2 states the
+% attribute the same way, calling the dictionary the exception.
+%
+% The two are spelt identically, so `X readonly pop` seals a dictionary and
+% seals nothing whatever for an array -- and which it does is decided by a
+% type the call site cannot see. Both halves are asserted here together,
+% because the half that works is the one a reader meets first and it is
+% what makes the other half read as sound.
+
+/aa [1 2 3] def
+/ab aa def                                  % a second object, same value
+ab readonly pop                             % the sealed reference is discarded
+aa wcheck (an array is not sealed by sealing another reference to it) bchk
+/ac ab readonly def
+ac wcheck not (the reference readonly returns is the one it seals) bchk
+aa wcheck (and the other references to that value are untouched) bchk
+{ aa 0 9 put } /ok (a write through an unsealed reference is taken) chk
+
+/da 3 dict def
+/db da def                                  % a second object, same value
+db readonly pop                             % the sealed reference is discarded
+da wcheck not (a dictionary IS sealed by sealing another object of it) bchk
+{ da /k 1 put } /invalidaccess (a write through any object of it is refused) chk
+
 mark { afscratch deletefile } stopped pop cleartomark
 
 count 0 eq { (operand stack balanced) }{ (FAIL: operand stack unbalanced\n) print

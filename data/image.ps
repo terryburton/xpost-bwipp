@@ -12,11 +12,42 @@
 //.internaldict /QUIET known { }{ (loading image.ps...\n)print } ifelse
 
 %
+%  The names .writepage binds its file and its bands to.
+%
+.xpostsys /.writepagenames [ /f /a ] readonly put
+
+%
 %  Everything here defines into global VM.
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.imagebind1 [ /Dy /Dx /Cy /Cx /By /Bx /Ay /Ax ] readonly put
+.xpostsys /.imagebind2 [ /h /w /y /x ] readonly put
+.xpostsys /.imagebind3 [ /y2 /x2 /y1 /x1 ] readonly put
+
+%
+%  The names a raster device binds its two dimensions to. A literal array:
+%  it is a list the Create procedures walk, not something to run, and a
+%  list written in braces is an executable array that a body may not read
+%  once the machinery is closed.
+%
+.xpostsys /.rasterwh [ /height /width ] readonly put
+
+%
+%  The dictionary the segment intersection works in. Preallocated once so
+%  the scanline sweep allocates nothing, and held in the job store because
+%  that is what it is -- state the machinery writes, which may not live
+%  among the procedures that write it. Named through // below, so the body
+%  holds the dictionary itself and the sweep still costs no lookup.
+%
+.jobstore /.isectscratch 20 dict put
 
 %
 %  A raster class is one method suite --
@@ -50,7 +81,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
-    { {/height /width}{exch def}forall
+    { //.rasterwh {exch def}forall
     currentdict } //.indict exec
     dup /.copydict get exec
     {
@@ -370,7 +401,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % them through PutPix; the window devices walk the same list through
     % their own plot. Neither states the rule.
     /DrawLine {  % c1..cN x1 y1 x2 y2 IMAGE  .  -
-    { {y2 x2 y1 x1}{exch def}forall .takecolor
+    { //.imagebind3 {exch def} forall .takecolor
         /lp x1 y1 x2 y2 width height //.internaldict /.linepix get exec def
         0 2 lp length 2 sub {
             /li exch def
@@ -383,7 +414,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     %  |    |
     %  |-----
     /DrawRect {  % c1..cN x y w h IMAGE  .  -
-    { {h w y x}{exch def}forall .takecolor
+    { //.imagebind2 {exch def} forall .takecolor
         0 1 h 1 sub {
             x 2 copy  % H x h x
             exch y add .pushcolor .ncomp 2 add .ncomp roll currentdict PutPix
@@ -406,7 +437,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % devices' own, take the same span from the same place. Nothing here
     % restates it, and nothing here has to agree with it by accident.
     /FillRect {  % c1..cN x y w h IMAGE  .  -
-    { {h w y x}{exch def}forall .takecolor
+    { //.imagebind2 {exch def} forall .takecolor
         x y w h width height //.internaldict /.rectspan get exec {
             /ry1 exch def /rx1 exch def /ry0 exch def /rx0 exch def
             .pushcolor
@@ -438,9 +469,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % AB onto the x axis; the scratch dictionary is preallocated once
     % for the whole suite, so the scanline sweep allocates nothing
     /.intersect {
-		DICT
+		//.isectscratch
 		{
-        {Dy Dx Cy Cx By Bx Ay Ax}{exch def}forall
+        //.imagebind1 {exch def} forall
 
         {  %stopped
             % Reject degenerate line
@@ -481,7 +512,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         } stopped not
 
     } //.indict exec }
-	dup 0 16 dict put
 	bind
 
     %nb. this implementation is overridden as a device is finished
@@ -704,7 +734,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % anywhere it could be seen.
     /.writepage {  % img file  .  -
         3 dict {
-        {/f /a}{exch def}forall
+        //.writepagenames {exch def}forall
         f .writehead
         /snk f .bandsink def
         a snk .writeband
@@ -932,6 +962,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 (/ppmimage.ps) .loadmodule
 (/tiffimage.ps) .loadmodule
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof image.ps\n)print } ifelse

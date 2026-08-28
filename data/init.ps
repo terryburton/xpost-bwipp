@@ -89,7 +89,26 @@ currentglobal true setglobal
 userdict /.xpostsys 400 dict put
 setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys below
+%
+%  The job store: the machinery's writable state, all of it, in one place.
+%
+%  Two lifetimes are enforced and only two. Local virtual memory is taken
+%  back by a restore and again at the job boundary; global memory only at
+%  the boundary. So state a restore must NOT take back -- the page a job
+%  has reached, the advance a glyph declared -- is global, and lives here.
+%  State a restore SHOULD take back is a render's, and lives in .gscratch.
+%
+%  Keeping it together is what makes the rest sayable: the namespaces the
+%  machinery's procedures and constants live in hold nothing writable, and
+%  the lockdown is told about this one dictionary instead of about each
+%  thing inside it. A writable object anywhere else is then a mistake
+%  rather than a decision, which is a question a test can ask.
+%
+currentglobal true setglobal
+16 dict .setjobstore
+setglobal
+
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys below
 
 systemdict begin  % Make these definitions in systemdict
 true setglobal   % Systemdict is global, so these allocations must be global
@@ -175,7 +194,7 @@ userdict /.xpostsys get .setglobalprivatedict
 %  outlive the restores that end a job; local memory would revert it with
 %  whichever job happened to be running.
 %
-.xpostsys /.hostdict 16 dict put
+.jobstore /.hostdict 16 dict put
 
 %
 %  What the host settled for this run under key. Every setting a run has
@@ -197,7 +216,7 @@ userdict /.xpostsys get .setglobalprivatedict
 %  .defop, so the statement sits beside the body it describes; lockdown
 %  reads it when it wraps them.
 %
-.xpostsys /.opsigs 200 dict put
+.jobstore /.opsigs 200 dict put
 
 %
 %  A forked context runs its top-level procedure through this, so an error the
@@ -228,7 +247,7 @@ userdict /.xpostsys get .setglobalprivatedict
 %  the window before the error machinery is loaded. .finalize holds this
 %  register to empty.
 %
-.xpostsys /.boundatdef 32 dict put
+.jobstore /.boundatdef 32 dict put
 
 %
 %  Define an operator into a named dictionary and record the operands it
@@ -331,7 +350,7 @@ setglobal
 %  is in place; the copy is global because the settings are.
 %
 userdict /DATA_DIR known {
-    .xpostsys /.hostdict get /DATA_DIR userdict /DATA_DIR get dup length string copy put
+    //.hostdict /DATA_DIR userdict /DATA_DIR get dup length string copy put
     userdict /DATA_DIR undef
 } if
 
@@ -487,7 +506,8 @@ serverdict /exitserver {  % password  .  -
     true exch startjob not
     { /exitserver errordict /invalidaccess get exec }
     if
-    (%%[ exitserver: permanent state may be changed ]%%\n) print flush
+    $error /binary 2 copy known { get not }{ pop pop true } ifelse
+    { (%%[ exitserver: permanent state may be changed ]%%\n) print flush } if
 } put
 setglobal
 
@@ -693,7 +713,9 @@ setglobal
 %
 % (2\n)print
 %
-/=string 128 string def
+.jobstore /.=string 128 string put
+.jobstore /.es1 1 string put
+.jobstore /.es3 3 string put
 
 %
 %  The scratch string serves every cvs in the machinery: as an operator
@@ -707,7 +729,7 @@ setglobal
 %  is the one = and == format through. It lives in global virtual memory,
 %  which a restore does not reach, so a body a program could write into
 %  is one whose replacement would stand for the rest of the job.
-.internaldict /.=stringproc [ //=string ] cvx readonly put
+.internaldict /.=stringproc [ //.=string ] cvx readonly put
 /=string dup .internaldict /.=stringproc get .wrapop def
 
 %
@@ -716,7 +738,7 @@ setglobal
 %
 /=print {  % obj  .  -
     dup type /stringtype ne {
-        //=string cvs
+        //.=string cvs
     } if
     print
 } bind def
@@ -763,6 +785,19 @@ systemdict begin
 %
 %  ==
 %
+%
+%  The counters a print is bounded by live apart from the procedures that
+%  read them. A dictionary the machinery writes as it runs cannot be
+%  sealed, and one holding what the machinery executes must be: a program
+%  reaching an unsealed table could put its own procedure where == looks
+%  one up. So ==dict holds procedures and nothing else, and the three
+%  counters a single == spends are written here.
+%
+.jobstore /.==state 4 dict put
+//.==state /cp 0 put
+//.==state /depth 0 put
+//.==state /spent 0 put
+
 24 dict begin
 /==dict currentdict def
     /rmargin 72 def
@@ -772,15 +807,15 @@ systemdict begin
         =string cvs tprint
     } def
     /tprint {  % string  .  -
-        dup length cp add rmargin gt {
+        dup length //.==state /cp get add rmargin gt {
             NL print
-            /cp 0 def
+            //.==state /cp 0 put
         } if
-        dup length cp add /cp exch def
+        dup length //.==state /cp get add //.==state exch /cp exch put
         print
     } def
     /typeprint {  % obj  .  -
-        /spent spent 1 add store
+        //.==state /spent 2 copy get 1 add put
         dup type exec
     } def
 
@@ -804,23 +839,23 @@ systemdict begin
     /budget 65536 def
     /arraytype {  % array  .  -
         dup rcheck {
-            depth maxdepth ge spent budget gt or {
+            //.==state /depth get maxdepth ge //.==state /spent get budget gt or {
                 pop (-array-) tprint
             }{
-                /depth depth 1 add store
+                //.==state /depth 2 copy get 1 add put
                 1 dict begin
                 /first true def
                 dup xcheck /isproc exch def
                 isproc { ({) }{ ([) } ifelse tprint
                 {
-                    spent budget gt {
+                    //.==state /spent get budget gt {
                         pop first not { ( ) tprint } if (...) tprint exit
                     } if
                     first { /first false def }{ ( ) tprint } ifelse typeprint
                 } forall
                 isproc { (}) }{ (]) } ifelse tprint
                 end
-                /depth depth 1 sub store
+                //.==state /depth 2 copy get 1 sub put
             } ifelse
         }{ pop (-array-) tprint } ifelse
     } def
@@ -862,8 +897,9 @@ systemdict begin
     % those three, a named escape for the five control characters that
     % have one, its own character when printable, and \ddd octal
     % otherwise -- so the output scans back to the same string
-    /.es1 1 string def
-    /.es3 3 string def
+    % The two the escaping writes a byte into, in the job store with the
+    % rest of the machinery's writable state: a buffer kept beside the
+    % procedures is a buffer that cannot be sealed with them.
     /.escbyte {  % byte  .  -
         dup 92 eq { pop (\\\\) print }{
         dup 40 eq { pop (\\\() print }{
@@ -874,20 +910,20 @@ systemdict begin
         dup  8 eq { pop (\\b) print }{
         dup 12 eq { pop (\\f) print }{
         dup 32 ge 1 index 127 lt and {
-            .es1 exch 0 exch put .es1 print
+            //.es1 exch 0 exch put //.es1 print
         }{
             (\\) print
-            dup 64 idiv 48 add .es3 exch 0 exch put
-            dup  8 idiv 8 mod 48 add .es3 exch 1 exch put
-            8 mod 48 add .es3 exch 2 exch put
-            .es3 print
+            dup 64 idiv 48 add //.es3 exch 0 exch put
+            dup  8 idiv 8 mod 48 add //.es3 exch 1 exch put
+            8 mod 48 add //.es3 exch 2 exch put
+            //.es3 print
         } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse } ifelse
     } def
 
     /stringtype {  % string  .  -
         dup rcheck {
             (\() tprint
-            dup length spent add /spent exch store
+            dup length //.==state /spent get add //.==state exch /spent exch put
             { .escbyte } forall
             (\)) print
         }{
@@ -915,9 +951,9 @@ systemdict begin
 /==only {  % obj  .  -
     %traceon
     //==dict begin
-        /cp 0 def
-        /depth 0 def
-        /spent 0 def
+        //.==state /cp 0 put
+        //.==state /depth 0 put
+        //.==state /spent 0 put
         { typeprint } stopped
     end            % Pop ==dict whether typeprint succeeded or errored,
     { stop } if    % So an error inside == does not strand it on the
@@ -936,15 +972,31 @@ systemdict begin
 /pstack [ ] { count dup 1 add copy //== repeat pop } .defop  % -  .  -
 end  % Back to systemdict
 
-/execdict 6 dict def
-execdict begin
+%
+%  The executive's state, and the one procedure that reads it.
+%
+%  .execstate is a state dictionary: the executive opens it and writes
+%  the flag that ends the loop, the depth it has recursed to, and the
+%  file a statement is being read from. A dictionary the machinery
+%  writes as it runs cannot be sealed, so nothing the machinery
+%  EXECUTES may live in it -- a program reaching it could put its own
+%  procedure where the executive looks one up. The procedure lives in
+%  the private namespace with the rest of the machinery, where the
+%  lockdown seals it, and reads the state through a frozen reference
+%  the way every other helper does. The state itself lives in the job
+%  store, which is where a dictionary written as the machinery runs
+%  belongs: writable, global, and given back at the job boundary.
+%
+.jobstore /.execstate 6 dict put
+.jobstore /.execstate get begin
     /quitflag false def
-    /checkquit {  % -  .  -
-        //execdict /quitflag get
-        { exit } if
-    } def
     /execdepth 0 def
 end
+
+.xpostsys /.checkquit {  % -  .  -
+    //.execstate /quitflag get
+    { exit } if
+} put
 
 %
 %  Report a start-up that never reached a program: the graphics language
@@ -1025,7 +1077,7 @@ end
     % depth of 'executive' nesting.
     userdict /quit {
         %exit
-        //execdict /quitflag true put
+        //.execstate /quitflag true put
         $error /newerror false put
         stop
     } put
@@ -1310,7 +1362,7 @@ end
 /prompt [ ] {  % -  .  -
     (PS) print
     count dup 0 eq { pop } { (<) print //=print exec } ifelse
-    //execdict /execdepth get {
+    //.execstate /execdepth get {
         (>) print
     } repeat
     flush
@@ -1339,7 +1391,7 @@ end
 %  what a parameter set corresponds to (PLRM C.4). Everything else a
 %  program may name is an ordinary path.
 %
-/.devparamsets [ (%stdin) (%stdout) (%stderr) (%lineedit) (%statementedit) ] def
+/.devparamsets [ (%stdin) (%stdout) (%stderr) (%lineedit) (%statementedit) ] readonly def
 
 .xpostsys /.knowndevparam {  % string /op  .  -
     3 dict begin
@@ -1550,7 +1602,7 @@ currentglobal true setglobal
     /NewCenturySchlbk-Italic (New Century Schoolbook)
     /NewCenturySchlbk-Bold (New Century Schoolbook)
     /NewCenturySchlbk-BoldItalic (New Century Schoolbook)
->> put
+>> readonly put
 setglobal
 
 %
@@ -1593,7 +1645,7 @@ currentglobal true setglobal
 %  in local VM, and a global procedure may not freeze a local object.
 %
 /executive [ ] {  % -  .  -
-    //execdict begin
+    //.execstate begin
 
     /execdepth execdepth 1 add def
     //.internaldict /QUIET known { }{
@@ -1628,15 +1680,15 @@ currentglobal true setglobal
             pop stmtfile end
             {
                 cvx exec
-            } stopped //execdict begin {
+            } stopped //.execstate begin {
                 handleerror
                 stmtfile closefile
             } if
         } ifelse
-        checkquit
+        //.checkquit exec
     } loop
     /quitflag false def
-    //execdict /execdepth 2 copy get 1 sub put
+    //.execstate /execdepth 2 copy get 1 sub put
 
     end
     $error /doclose false put
@@ -2246,10 +2298,10 @@ setglobal
 
 currentglobal true setglobal
 .xpostsys /.upathops [ /setbbox /moveto /rmoveto /lineto /rlineto /curveto
-             /rcurveto /arc /arcn /arct /closepath /ucache ] put
+             /rcurveto /arc /arcn /arct /closepath /ucache ] readonly put
 setglobal
 currentglobal true setglobal
-.xpostsys /.upathargs [ 4 2 2 2 2 6 6 5 5 5 0 0 ] put
+.xpostsys /.upathargs [ 4 2 2 2 2 6 6 5 5 5 0 0 ] readonly put
 
 %
 %  A spec names an object type, or one of two families: numbertype for
@@ -2308,7 +2360,7 @@ currentglobal true setglobal
 .xpostsys /.upathopset <<
     /setbbox 4 /moveto 2 /rmoveto 2 /lineto 2 /rlineto 2 /curveto 6
     /rcurveto 6 /arc 5 /arcn 5 /arct 5 /closepath 0 /ucache 0
->> put
+>> readonly put
 setglobal
 
 currentglobal true setglobal
@@ -2516,7 +2568,7 @@ setglobal
 %  set against further change. Any other parameter a program sets is still
 %  accepted and read back.
 %
-.xpostsys /.distillerparams <<
+.jobstore /.distillerparams <<
     /CompressPages true
     /PreserveOverprintSettings true
     /LockDistillerParams false
@@ -3717,6 +3769,20 @@ currentglobal true setglobal
                   dup type /operatortype eq
                       { .internaldict }{ .xpostsys } ifelse
                   3 1 roll put } forall
+
+            % ...except the job store's accessor, which goes nowhere. The
+            % store is the machinery's own writable state, and .internaldict
+            % is reachable by any program that knows the password -- so
+            % relocating it there published a door onto everything the
+            % machinery writes: MEASURED, a plain program reached the store
+            % and wrote the page counter through it. Nothing needs the name
+            % after this point: the data files use it while they load, and
+            % the C side reaches the store through the context. What the
+            % registers need of it -- the names it holds, whether a member
+            % is still writable, what the host said -- they ask for by name
+            % and are answered with names and values, never the dictionary.
+            .internaldict /.jobstore known
+              { .internaldict /.jobstore undef } if
             { systemdict exch undef } forall
 
             % The internal draw-line flag is interpreter state a program has no use
@@ -3835,9 +3901,86 @@ currentglobal true setglobal
             % here rather than this dictionary, and it is written as before.
             .privatedict readonly pop
 
+            % Nothing the machinery executes is left writable.
+            %
+            % A restore does not reach global virtual memory (PLRM 3.7.2), so
+            % an executable array living there that a program can write is one
+            % whose replacement decides what the interpreter runs for the rest
+            % of the job -- and these namespaces are not out of reach, because
+            % bind freezes the dictionary a helper names into the helper's own
+            % body and a program can read a body.
+            %
+            % Sealing the dictionaries above does not answer it: an array's
+            % access belongs to the reference and not to the value (PLRM 3.3.2,
+            % and PLRM 8.2 readonly says so of the operator), so what a name
+            % answers with is settled there and the body is not. Nor can the
+            % language answer it, because storing a sealed reference back is a
+            % write, and by this point most of the containers refuse one.
+            %
+            % So the interpreter reduces the access of each stored reference
+            % itself, over everything the four roots reach. There is no list to
+            % be forgotten from and no depth to be short: the population is
+            % whatever the walk finds, and tests/check-vm-forbidden.sh holds
+            % the count of what is left.
+            %
+            % Data is not touched, and the distinction is what a program could
+            % make the machinery DO. A table the machinery reads is written as
+            % a page is painted -- the record a page is counted in has to
+            % outlive a restore, so it is global and writable on purpose -- and
+            % no program can make the interpreter run a number.
+            %
+            % Last, after every bind sweep: bind ignores a read-only array
+            % (PLRM 8.2), so a body sealed while a sweep is still to come is a
+            % body that sweep stops reaching, and binding is what keeps a
+            % program's redefinition away from what the machinery calls.
+            %
+            % The exception is storage the language hands programs to write.
+            % The resource registry and its per-category instance stores are
+            % written by defineresource (PLRM 3.9), and they hold procedure
+            % sets, so a rule reading only "leads to something executable"
+            % would take them. They are declared instead of sealed, derived
+            % from the registry rather than named, so a category added later
+            % is covered without this list being revisited. The walk still
+            % descends through them: what a resource holds is held to the rule.
+            % The roots of the walk, named once and kept, because the seal
+            % here and the census in tests/vm_forbidden_test.ps have to ask
+            % over the SAME graph. Two lists drift, and when they did, the
+            % difference read as objects becoming reachable rather than as
+            % the two walks disagreeing about where to start. The job store
+            % is among them so that what the machinery writes is walked too:
+            % it is exempt from the rule about constants, not from the rule
+            % about what can be made to run.
+            % No roots are named here. The walk takes them from the
+            % context, so the seal and the census cannot start from
+            % different places, and no list of them exists for a program
+            % to read: one kept in .privatedict put the machinery's own
+            % namespaces and the job store within reach of anything that
+            % could read that dictionary.
+            % No exemption is passed either. The sweep derives it -- the job
+            % store and what it holds, and the resource registry's
+            % per-category instance stores, which defineresource writes
+            % (PLRM 3.9) -- because a list has to be kept where whoever
+            % passes it can reach it, and .vmdeclaredcount is how its size
+            % is asked for without holding it.
+            % Recorded BEFORE the sweep. The sweep reaches .internaldict
+            % through the body of the procedure that answers the password
+            % and seals it like any other namespace, so a put here
+            % afterwards is refused.
+            .internaldict /LOCKDOWN_DONE true put
+
+            0 16#7FFFFFFF .vmseal pop
+
+            % And ask, once, how much of the arena the sweep just walked:
+            % the collector marks from the roots the INTERPRETER has -- the
+            % stacks, the save stack, the name stack -- and what it reaches
+            % that the sweep did not is a root the sweep has not been given.
+            % Asked here, where no program has run, because the mark covers
+            % whatever is on the stacks at the moment it is taken, and a
+            % program measuring it would be counting itself.
+            .vmblind
+
             % The interpreter is locked down. Recorded last, so that a lockdown
             % which stopped anywhere above records instead what stopped it.
-            .internaldict /LOCKDOWN_DONE true put
 
             % Seal the private namespaces, as the last act of all. They are fully
             % populated now -- init and the graphics modules have defined every helper,
@@ -3950,6 +4093,6 @@ setglobal
 
 end  % systemdict
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof init.ps\n)print } ifelse

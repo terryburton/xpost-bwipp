@@ -2829,8 +2829,7 @@ int xpost_dev_option_default(Xpost_Context *ctx,
         return undefined;
     if (xpost_object_get_type(ctx->globalprivatedict) != dicttype)
         return undefined;
-    h = xpost_dict_get(ctx, ctx->globalprivatedict,
-                       xpost_name_cons(ctx, ".hostdict"));
+    h = xpost_context_job_member(ctx, ".hostdict");
     if (xpost_object_get_type(h) != dicttype)
         return undefined;
     ret = xpost_dict_put(ctx, h, xpost_name_cons(ctx, key), v);

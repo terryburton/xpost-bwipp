@@ -52,4 +52,4 @@ garbage_collect
 garbage_collect_function
 
 # Sites consuming an answer because the refusal cannot arise there.
-refusal-impossible 16
+refusal-impossible 18

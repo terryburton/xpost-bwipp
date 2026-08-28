@@ -84,7 +84,7 @@ awk 'NF >= 3 && $2 ~ /^(settled|thorn|heading)$/ { print $1 }' "$work/reg" \
 #      tables, so the two guards cannot disagree about who the family is.
 awk '
     /^\.xpostsys \/\.spacekinds <</ { inside = 1; next }
-    inside && /^>> put/             { inside = 0 }
+    inside && /^>> (readonly )?put/             { inside = 0 }
     inside && /^[ \t]*\/[A-Za-z]/ {
         gsub(/^[ \t]*\//, ""); v = $2; sub(/^\//, "", v); print $1 " " v
     }' "$src/data/color.ps" | sort > "$work/roster"

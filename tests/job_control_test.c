@@ -168,6 +168,36 @@ int main(void)
             report_failure("exitserver left serverdict on the dict stack: '%s'", msg);
     }
 
+    /* PLRM 3.7.7 suppresses the announcement when binary is true in $error,
+       so a job that asked for the quiet form is not sent a line it did not
+       ask for. */
+    {
+        const char *msg = run_job(ctx,
+            "$error /binary true put serverdict begin () exitserver "
+            "(QUIET) print flush");
+        if (strstr(msg, "permanent state may be changed"))
+            report_failure("exitserver announced although binary is true: '%s'",
+                           msg);
+        if (!strstr(msg, "QUIET"))
+            report_failure("exitserver did not run with binary true: '%s'", msg);
+    }
+
+    /* $error is a program's own dictionary, so the condition is asked of a
+       dictionary that need not hold the key at all: exitserver still runs,
+       and announces, when a job has taken it out. Last, because the job that
+       removes it is unencapsulated and the removal stands. */
+    {
+        const char *msg = run_job(ctx,
+            "$error /binary undef serverdict begin () exitserver "
+            "(NOKEY) print flush");
+        if (!strstr(msg, "NOKEY"))
+            report_failure("exitserver failed with binary absent from $error:"
+                           " '%s'", msg);
+        if (!strstr(msg, "permanent state may be changed"))
+            report_failure("exitserver did not announce with binary absent:"
+                           " '%s'", msg);
+    }
+
     xpost_stdout_handler_set(ctx, NULL, NULL);
     xpost_destroy(ctx);
     xpost_quit();

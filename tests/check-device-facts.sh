@@ -901,7 +901,7 @@ done < "$work/keys.seen"
 # The method names come from the register above rather than from a
 # second hand list, so a method renamed is a method this still knows.
 awk '/^method/ { print $2 }' "$src/tests/device-facts" | sort -u > "$work/methodnames"
-sed -n '/\.pagedeviceparams <</,/^>> put/p' "$src/data/device.ps" \
+sed -n '/\.pagedeviceparams <</,/^>> \(readonly \)\?put/p' "$src/data/device.ps" \
     | tr ' ' '\n' | sed -n 's|^/\([A-Za-z_][A-Za-z0-9_]*\)$|\1|p' | sort -u > "$work/paramnames"
 # The list is what keeps a request from reaching those methods, so a list
 # a program could add to is a list that could be made to let one through.

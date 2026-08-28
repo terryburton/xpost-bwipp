@@ -16,7 +16,7 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  makepattern instantiates, setpattern
@@ -189,7 +189,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  simply not the cell's. So the capture is dropped and the cells are
 %  walked, which places every one of them against the page.
 %
-.xpostsys /.cellstate << /incell false /spoiled false >> put
+.jobstore /.cellstate << /incell false /spoiled false >> put
 
 %
 %  Tile the current pattern colour over the current clip region: every
@@ -604,7 +604,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 } def
 end
 
-end end
+end end end
 
 %
 %  The pattern types this file implements, as PLRM Table 3.8 has a program

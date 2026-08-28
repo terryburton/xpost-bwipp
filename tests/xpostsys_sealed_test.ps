@@ -1,0 +1,66 @@
+% Nothing in the private global namespace may be written.
+%
+% .xpostsys holds the machinery's procedures and its constants, and after
+% the lockdown it holds nothing else: the writable state a job accumulates
+% lives in the job store, which is a root of its own, and the resource
+% instance stores live in that store because PLRM 3.9 has programs write
+% them. So the rule this file holds carries no clause -- every member of
+% the namespace is read-only, and so is the namespace.
+%
+% Held here rather than inferred from the sweep's counts. The sweep reports
+% how many writable objects a program can still reach, which is a number
+% that moves whenever a constant is sealed or a reference is baked; a
+% member arriving writable moves it by one, and one is not a signal. This
+% asks the question directly and names what it finds.
+%
+% .xpostsys is hidden from name lookup after the lockdown. It is recovered
+% the way a program would recover it -- by walking the procedures the local
+% private dictionary anchors, which carry frozen references to it -- so a
+% failure here is a failure a program could exploit, not a bookkeeping
+% mismatch.
+%
+/failcount 0 def
+/assert { % bool (name)  .  -
+    exch { pop } { (FAIL: ) print print (\n) print
+                   /failcount failcount 1 add store } ifelse
+} def
+
+/found null def
+/probe { 2 dict begin /d exch def /o exch cvlit def
+  d 0 gt found null eq and {
+    o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
+    { o type /arraytype eq { o rcheck {
+        0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
+  } if end } def
+.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
+
+found null ne
+  (the namespace was not reached, so nothing below was asked) assert
+
+found null ne {
+    found wcheck not
+      (the namespace itself is read-only) assert
+
+    % every member, whatever its type: a dictionary, a procedure, a table
+    % of names, a string a message is built in
+    /openmembers 0 def
+    /firstopen null def
+    found { exch pop
+        dup type dup /dicttype eq exch dup /arraytype eq exch /stringtype eq or or {
+            dup wcheck {
+                /openmembers openmembers 1 add store
+                firstopen null eq { /firstopen 1 index store } if
+            } if
+        } if pop } forall
+    openmembers 0 eq
+      (no member of the namespace is writable) assert
+    openmembers 0 ne {
+        (      ) print openmembers =print
+        ( writable member(s); the first is a ) print
+        firstopen type 20 string cvs print
+        (\n      seal it where it is defined, or put it in the job store if it) =
+        (      is state the machinery writes) =
+    } if
+} if
+
+failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse

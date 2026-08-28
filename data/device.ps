@@ -22,7 +22,12 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names .imagingrows binds its five operands to.
+%
+.xpostsys /.imagingrownames [ /ph /sy /off /h /bbox ] readonly put
 
 %
 %  The one number formatter for the vector writers (the PDF, SVG and DSC
@@ -320,7 +325,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 .xpostsys /.imagingrows {  % bbox h off sy ph  .  [top rows] | null
     12 dict begin
-    {/ph /sy /off /h /bbox}{exch def}forall
+    //.imagingrownames {exch def}forall
     bbox type dup /arraytype eq exch /packedarraytype eq or
     { bbox length 4 eq }{ false } ifelse
     { true bbox { type dup /integertype eq exch /realtype eq or and } forall }
@@ -358,7 +363,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  the program painted is forgotten. This dictionary is global, which
 %  restore leaves alone.
 %
-.xpostsys /.pagestate 1 dict put
+.jobstore /.pagestate 1 dict put
 
 %
 %  The output file name for the page about to be written: the %d marker
@@ -1390,6 +1395,6 @@ end } bind put
     } if
 } put
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof device.ps\n)print } ifelse

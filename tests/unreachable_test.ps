@@ -1,0 +1,101 @@
+% Dictionaries that must not be handed out. Prints SUCCESS iff none is.
+%
+% The machinery's namespace and the job store are reachable to the machinery
+% and to C, and nameable by neither a program nor anything a program can
+% read. That is hygiene rather than containment -- a program can still take a
+% dictionary out of a bound procedure body, which this tree accepts -- but it
+% is what keeps a reference from being handed over by accident, and an
+% accident is what it took: a list of the lockdown sweep's roots, kept in
+% .privatedict so that a test could read it, put the namespace and the store
+% one get away from any program that asked for them.
+%
+% From everything a program can name, neither may appear -- as a value, or
+% inside a literal array held as a value. The three public dictionaries are
+% searched, and so are the accessors that stay reachable by decision:
+% .privatedict and .gscratch (driver prologs name them at run time) and
+% internaldict (it answers its password). Procedure bodies are NOT searched:
+% reading one is the accepted gap, and searching them here would report that
+% gap as a failure on every run.
+%
+% The namespace is recognised by what it holds rather than by identity -- no
+% accessor hands it out, which is the property under test -- and the store by
+% identity, since internaldict does hand that out.
+
+/scratch 400 dict def
+scratch begin
+
+% Both are recognised by what they hold. Neither is handed out by any
+% accessor -- which is the property under test -- so identity is not
+% available to compare against, and asking for one would be asking the
+% tree to hand over the thing this says it must not.
+
+% Two keys the namespace has and nothing else does. One is not enough:
+% .strcat and .classcopydict are copied into device class dictionaries, and
+% a recogniser asking for either called two of those the namespace.
+/isnamespace {               % obj  .  bool
+  dup type /dicttype eq {
+    dup /.finalize known exch /.loadgraphics known and
+  } { pop false } ifelse
+} def
+
+% Two keys the job store has and nothing else does.
+/isstore {                   % obj  .  bool
+  dup type /dicttype eq {
+    dup /.pagestate known exch /.glyphstate known and
+  } { pop false } ifelse
+} def
+
+/bad 0 def
+/hit {                       % obj where  .  -
+  exch dup isnamespace
+  { pop (FAIL: the machinery namespace is reachable, in ) print =
+    /bad bad 1 add def }
+  { dup isstore
+    { pop (FAIL: the job store is reachable, in ) print =
+      /bad bad 1 add def }
+    { pop pop } ifelse } ifelse
+} def
+
+/look {                      % dict name  .  -
+  /nm exch def
+  {
+    exch pop
+    dup nm hit
+    dup type /arraytype eq {
+      dup xcheck not {
+        dup rcheck {
+          dup length 500 le {
+            dup length 1 sub 0 exch 1 exch
+            { 1 index exch get nm hit } for
+          } if
+        } if
+      } if
+    } if
+    pop
+  } forall
+} def
+
+systemdict   (systemdict) look
+userdict     (userdict) look
+globaldict   (globaldict) look
+.privatedict (.privatedict) look
+{ .gscratch (.gscratch) look } stopped pop
+1183615869 internaldict (internaldict) look
+
+% the check must be able to see a positive: prove the recogniser fires
+% Both recognisers must be shown to fire, or a clean run proves nothing.
+/proved false def
+<< /.pagestate 1 /.glyphstate 1 >> isstore
+<< /.pagestate 1 >> isstore not and
+<< /.finalize 1 /.loadgraphics 1 >> isnamespace and
+<< /.finalize 1 >> isnamespace not and
+{ /proved true def } if
+
+proved
+{ bad 0 eq { (SUCCESS\n) print }
+           { (FAILURES: ) print bad =print ( reachable\n) print } ifelse }
+{ (FAILURES: the recogniser never fired, so a pass would prove nothing\n)
+  print } ifelse
+flush
+end
+quit

@@ -2458,7 +2458,16 @@ int _arc_append(Xpost_Context *ctx,
 
     for (i = 0; i < n; i++)
         xpost_stack_push(ctx->lo, ctx->es, xpost_operator_cons_opcode(_curveto_opcode));
-    xpost_stack_push(ctx->lo, ctx->es, _arc_start_proc);
+    /* The context's own, not the file static. Every context that starts
+       installs the operators again and rebuilds the static, so the static
+       names whichever context initialised last -- while each context roots
+       the one IT built. Running the static therefore ran an array that the
+       running context did not root, and that nothing roots at all once the
+       context which built it goes away. They are the same object in a run
+       with one context, which is why this held up. */
+    xpost_stack_push(ctx->lo, ctx->es,
+                     xpost_object_get_type(ctx->arcstartproc) == arraytype
+                     ? ctx->arcstartproc : _arc_start_proc);
     return 0;
 }
 
@@ -3043,6 +3052,16 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
                           XPOST_OP(ctx, opifelse));
     if (ret)
         return ret;
+
+    /* Read-only from here on. It is an array the machinery executes,
+       living in global virtual memory, which is the property the lockdown
+       sweep refuses everywhere it can see -- and it cannot see this one:
+       no dictionary holds it, so no walk from a namespace reaches it. It
+       is finished at this point and nothing writes it again, so it is
+       sealed where it is made rather than left to a sweep that cannot
+       arrive. */
+    _arc_start_proc = xpost_object_set_access(ctx, _arc_start_proc,
+                                              XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
 
     /* The procedure is held in a variable of this file, which the
        collector does not walk. It is made while the operators are being

@@ -90,6 +90,8 @@ xpost_context_host_setting
 xpost_context_init
 xpost_context_init_ctxlist
 xpost_context_install_event_handler
+xpost_context_job_member
+xpost_context_job_store
 xpost_context_release
 xpost_context_remove_ctxlist
 xpost_context_select_memory
@@ -521,6 +523,7 @@ xpost_temp_dir
 xpost_token_string_scan
 xpost_unlinkat_beneath
 xpost_version_get
+xpost_vm_blind_measure
 xpost_vm_image_bank_field_name
 xpost_vm_image_bank_name
 xpost_vm_image_config

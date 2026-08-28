@@ -25,13 +25,13 @@
 %
 /DATA_DIR //.xpostsys /.hostvalue get exec null eq {
     currentglobal true setglobal
-    .xpostsys /.hostdict get /DATA_DIR {} put
+    .jobstore /.hostdict get /DATA_DIR {} put
     setglobal
 } if
 
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  The language is defined into systemdict, its final home, rather than
@@ -129,7 +129,7 @@ systemdict begin
 %  A value, not a procedure. .callout below is its only reader and bakes
 %  it in by immediate evaluation, so it stands above .callout here.
 %
-/.conothing 0 array def
+/.conothing 0 array readonly def
 
 %
 %  The operators a bracket's unwinding program is made of, held as
@@ -148,7 +148,7 @@ systemdict begin
     /stopped /stopped load
     /exec /exec load
     /if /if load
->> def
+>> readonly def
 
 %
 %  The re-raise, held as a program rather than a name so that a
@@ -170,7 +170,7 @@ systemdict begin
 %  readers and both bake it in by immediate evaluation, so it stands
 %  above either of them here.
 %
-/.coabsent 1 dict def
+/.coabsent 1 dict readonly def
 
 %
 %  grestore until the graphics state stack stands at depth n, so that a
@@ -460,6 +460,6 @@ false setglobal
 %
 end  % systemdict
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof callout.ps\n)print } ifelse

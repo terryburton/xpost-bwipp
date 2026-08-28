@@ -35,6 +35,9 @@ tests/check-device-destroy.sh \
 tests/check-library-lifetime.sh \
 tests/check-serial-caches.sh \
 tests/check-skip-verdict.sh \
+tests/check-vm-forbidden.sh \
+tests/vm_forbidden.golden \
+tests/vm_forbidden_test.ps \
 tests/serial-caches \
 tests/check-counter-register.sh \
 tests/check-vm-growth.sh \
@@ -132,6 +135,9 @@ tests/check-compaction-safe-point.sh \
 tests/check-vm-address.sh \
 tests/check-vm-address-fields.sh \
 tests/vm_address_fields.golden \
+tests/unreachable_test.ps \
+tests/check-store-not-run.sh \
+tests/check-context-executes-own.sh \
 tests/check-raw-allocations.sh \
 tests/special_entity_slots_test.c \
 tests/raw_allocations.golden \
@@ -576,6 +582,7 @@ tests/string_bounds_test.c \
 tests/subinterval_retention_test.ps \
 tests/svg_append_fail_test.ps \
 tests/tamper_dispatch_test.ps \
+tests/xpostsys_sealed_test.ps \
 tests/run-glyph-page-test.sh \
 tests/run-halftone-drain-test.sh \
 tests/run-lzwencode-early-test.sh \

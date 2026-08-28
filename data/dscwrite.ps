@@ -11,7 +11,15 @@
 
 //.internaldict /QUIET known { }{ (loading dscwrite.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.dscwritebind0 [ /diint /didec /dirows /dim /dinc /dih /diw ] readonly put
+.xpostsys /.dscwritebind1 [ /dsint /dsdata /dsm /dspol /dsh /dsw ] readonly put
 
 %
 %  Make an instance of the DSC writer, which emits the page as
@@ -134,7 +142,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  and the operand form is what keeps this to LanguageLevel 1.
 %
 .xpost_DSCWRITE /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
-{ {diint didec dirows dim dinc dih diw}{exch def}forall
+{ //.dscwritebind0 {exch def} forall
 
     % one byte-to-byte table per component, so the samples go out decoded
     /diluts [ 0 1 dinc 1 sub { /c exch def
@@ -220,7 +228,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  page by whatever painted last, exactly as it is for the runs.
 %
 .xpost_DSCWRITE /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
-{ {dsint dsdata dsm dspol dsh dsw}{exch def}forall
+{ //.dscwritebind1 {exch def} forall
     /dshex 2 string def
 
     .qsave
@@ -399,6 +407,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
 } //.indict exec } put
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof dscwrite.ps\n)print } ifelse

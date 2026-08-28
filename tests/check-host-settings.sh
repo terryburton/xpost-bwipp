@@ -180,7 +180,8 @@ fi
 # what lets the name and the dictionary be read off together.
 #
 #   <key> //.xpostsys /.hostvalue get exec    -- the accessor
-#   .xpostsys /.hostdict get <key> ...        -- reaching the dictionary
+#   .jobstore /.hostdict get <key> ...          -- the dictionary,
+#                                              which lives in the job store
 #
 # The accessor's shape is required rather than searched for: a call
 # written another way is one whose key this scan would take from
@@ -261,13 +262,17 @@ cat > "$work/probe.ps" <<'PSEOF'
   } if end } def
 .privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
 found null eq { (bad recovered\n) print quit } if
-found /.hostdict known not { (bad recovered\n) print quit } if
+% The names the host dictionary holds, and each setting's value, asked for
+% by name. Neither hands the dictionary over: it is job-store state, and a
+% register that wants to know what is in there does not need a reference it
+% could write through.
+/ID 1183615869 internaldict def
+/NAMES { /.hostdict ID /.jobmembernames get exec } def
+mark { NAMES } stopped { (bad recovered\n) print quit } if cleartomark
 (ok recovered\n) print
-/H found /.hostdict get def
 
 % what it holds
-H { pop dup type /nametype eq { (member ) print 60 string cvs print (\n) print }
-    { pop } ifelse } forall
+NAMES { (member ) print 60 string cvs print (\n) print } forall
 
 % every setting this run made, written out for the caller to compare
 % against what it asked for. A setting the run made nothing of is a null
@@ -291,9 +296,9 @@ H { pop dup type /nametype eq { (member ) print 60 string cvs print (\n) print }
         40 string cvs print
     } ifelse } ifelse } ifelse } ifelse
 } bind def
-H { % key value
-    exch (value ) print 40 string cvs print ( ) print
-    render (\n) print
+NAMES {
+    dup (value ) print 40 string cvs print ( ) print
+    ID /.hostsetting get exec render (\n) print
 } forall
 
 % a name that is not a setting is refused where it is asked for, rather
@@ -309,12 +314,13 @@ cleartomark
 % the namespace holding it is read-only by then, and it is the seal
 % being shallow that lets a setting be written afresh for each run the
 % context serves rather than only at start-up
-H wcheck { (ok writable\n) }{ (bad writable\n) } ifelse print
+/.hostdict ID /.jobmemberwritable get exec
+    { (ok writable\n) }{ (bad writable\n) } ifelse print
 
 % and none of them is reachable from the language, which is what would
 % let a value be read from two places with the wrong one winning
 /leaked 0 def
-H { pop dup type /nametype eq {
+NAMES { dup type /nametype eq {
       dup systemdict exch known { /leaked leaked 1 add store } if
       dup .privatedict exch known { /leaked leaked 1 add store } if
       dup 1183615869 internaldict exch known { /leaked leaked 1 add store } if

@@ -173,6 +173,10 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
     /* the interpreter's own machinery, local and global */ \
     _(privatedict) \
     _(globalprivatedict) \
+    /* the machinery's writable state, gathered in one dictionary so the
+       namespaces holding its procedures and constants hold nothing a
+       program could write */ \
+    _(jobstore) \
     /* the file a run wrapped around its program */ \
     _(run_input_file) \
     /* the window a device draws into, and the handler it reports to */ \
@@ -631,6 +635,8 @@ void xpost_context_exit(Xpost_Context *ctx);
  * records, and tests/host_settings.golden is what holds it to the set
  * that exists.
  */
+Xpost_Object xpost_context_job_store(Xpost_Context *ctx);
+Xpost_Object xpost_context_job_member(Xpost_Context *ctx, const char *name);
 Xpost_Object xpost_context_host_setting(Xpost_Context *ctx, const char *name);
 
 /**

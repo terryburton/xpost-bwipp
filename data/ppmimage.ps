@@ -11,7 +11,7 @@
 
 //.internaldict /QUIET known { }{ (loading ppmimage.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  Make an instance of the 24-bit colour raster device: the class
@@ -113,6 +113,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } bind
 >> .makerasterclass def
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof ppmimage.ps\n)print } ifelse

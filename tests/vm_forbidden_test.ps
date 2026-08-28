@@ -1,0 +1,130 @@
+%!testlib
+% How many composites in GLOBAL virtual memory a program can reach and write,
+% and a digest of which ones.
+%
+% A restore does not reach global virtual memory (PLRM 3.7.2), so a write into
+% one of these stands for the rest of the job; and the machinery's namespaces
+% are reachable, because bind freezes the dictionary a helper names into the
+% helper's body and a program can read that body.
+%
+% ONLY THE TWO NUMBERS ARE PRINTED. The paths are not, and are not written
+% down anywhere the tree is published from: a list of the objects that still
+% have the property is a map for whoever wants to use them, and this test runs
+% in public logs. The digest is enough to hold the set: it changes if the set
+% changes, and the count says which way. A developer who needs to see the
+% objects runs the sweep locally, where nothing is published.
+%
+% The sweep is .vmsweep, an interpreter assist. It has to be: an object's
+% access belongs to the reference and not to the value for every composite but
+% the dictionary (PLRM 3.3.2), so a walk written in PostScript is refused by
+% every container that is already read-only. Being dot-named it is moved into
+% .internaldict at the lockdown, so a program cannot call it.
+
+/ID 1183615869 internaldict def
+/BANK 1 def
+/KIND 0 def
+
+% The walk takes its own roots from the context, so there are none to pass
+% and none kept anywhere a program could read. What is passed is the
+% exemption, the bank, and which question to ask.
+/sweep { BANK KIND ID /.vmsweep get exec } bind def
+
+% An order-independent digest: each path is folded to a number and the numbers
+% are summed, so the order the walk happened to take does not enter into it.
+% The modulus keeps every intermediate inside the integer range, which is what
+% makes the answer the same whatever width the build is.
+/M 65521 def
+/fold {                      % string . int
+  /s exch def /h 1 def
+  0 1 s length 1 sub { s exch get h 257 mul add M mod /h exch def } for
+  h
+} bind def
+
+/total 0 def /sum 0 def
+/tally {                     % -  .  -
+  sweep
+  dup length /n exch def
+  /total total n add def
+  0 1 n 1 sub { 1 index exch get fold sum add M mod /sum exch def } for
+  pop
+} bind def
+
+tally
+
+(REACHABLE-WRITABLE-GLOBAL ) print total =print ( ) print sum ==
+(DECLARED-WRITABLE-STORAGE ) print ID /.vmdeclaredcount get exec ==
+
+% The same question of local virtual memory. A write there is undone by a
+% restore and by the job boundary, so what it buys a program is the rest of
+% the job -- which, for a workload that is one job per request, is the whole
+% of the request. The two are reported apart because what they guarantee is
+% not the same, and a single number would hide the stronger of the two.
+% Rooted at the machinery's own namespaces and NOT at systemdict, which
+% reaches userdict and so reaches whatever the running program has defined --
+% a number that moved when this file was edited would hold nothing. Those
+% three are machinery only: a program can no longer store into them.
+/total 0 def /sum 0 def /BANK 2 def
+tally
+(REACHABLE-WRITABLE-LOCAL ) print total =print ( ) print sum ==
+
+% The constants bind froze into the machinery's bodies. They hold no
+% executable array, so the sweep above passes over them, and they are what
+% the machinery reads to decide how to read what a program gave it -- how
+% many components a space costs, which bit depths an image may declare.
+% A program that reads a body reaches one and may write it. Counted here so
+% that each is either sealed where it is defined or answered for; the count
+% is a ratchet like the others.
+/total 0 def /sum 0 def /BANK 1 def /KIND 1 def
+tally
+(FROZEN-WRITABLE-CONSTANTS ) print total =print ( ) print sum ==
+
+% The other half of that question: what a body reaches that the job store
+% holds. The store is where the machinery keeps what it writes as it runs,
+% so the rule above passes over it -- a reference baked into a body reaches
+% state, and state reached through code is still state. That is the one
+% place the constant rule gives way, so its size is counted here rather
+% than left to be discovered. The two counts partition what a body reaches.
+/total 0 def /sum 0 def /BANK 1 def /KIND 2 def
+tally
+(STORE-SHIELDED-STATE ) print total =print ( ) print sum ==
+
+% And what execute-only has closed: a constant a body froze in that no route
+% reaches through readable containers. A program can make the machinery run
+% past it and cannot take it, so it is not the hazard the count above is --
+% but it is counted, because a census that stopped seeing behind an
+% execute-only body would report a hazard closed and a question abandoned
+% with the same number.
+/total 0 def /sum 0 def /BANK 1 def /KIND 5 def
+tally
+(BODY-CLOSED-CONSTANTS ) print total =print ( ) print sum ==
+
+% And the question the local pair above cannot ask. Its dictionary rule
+% ends in "and global", because sealing the local tables stops the
+% interpreter working -- so `local 0 0` can only ever mean "no executable
+% array in local virtual memory". A table in LOCAL memory that a program
+% can write and the machinery can be made to run out of is counted here
+% instead, where the number cannot be mistaken for the stronger claim.
+/total 0 def /sum 0 def /BANK 2 def /KIND 6 def
+tally
+(LOCAL-CODE-TABLES ) print total =print ( ) print sum ==
+% What the INTERPRETER reaches that the walk above does not. Every number
+% before this one is about the graph five named roots reach; this one says
+% how much of the arena that is. It is asked for here and taken at the
+% interpreter's safe point, because it marks from the collector's roots --
+% the stacks, the save stack, the name stack -- and marking from inside an
+% operator reads a root set that operator's own C frames are holding
+% storage out of.
+%
+% Reported apart from the strings, which are the text of interned names:
+% the name tree holds those and no object graph reaches them, so they say
+% nothing about coverage and would move whenever a name was interned.
+ID /.vmblindcount get exec
+pop                 % the name strings drop
+exch                % containers under, reached on top
+(WALK-BLIND-REACHED ) print ==
+
+(WALK-BLIND-CONTAINERS ) print ==
+
+(SWEPT\n) print
+flush
+quit

@@ -95,7 +95,11 @@ awk -F'\t' '
 f != pf { pf = f; depth = 0; acc = "" }
 {
     if (acc == "") {
-        if (depth == 0 && c ~ /^[ \t]*static[ \t]/) { acc = c; aln = ln }
+        # The keyword may stand alone on its line -- twelve declarations in
+        # this tree are written that way, and a pattern wanting whitespace
+        # after it saw none of them, one of which names a virtual memory
+        # object. Matched here as either form.
+        if (depth == 0 && (c ~ /^[ \t]*static[ \t]/ || c ~ /^[ \t]*static[ \t]*$/)) { acc = c; aln = ln }
     } else acc = acc " " c
 
     if (acc != "") {
@@ -137,7 +141,7 @@ function fn_body(t,   b, head) {
     return (head ~ /\(/ && head !~ /=/)
 }
 
-function emit(file, line, head,   outer, decls, i, k, nm, rest) {
+function emit(file, line, head,   outer, decls, i, k, nm, rest, ppos, pre) {
     if (head !~ /\*/ && head !~ /(^|[^A-Za-z0-9_])Xpost_Object([^A-Za-z0-9_]|$)/)
         return
     # what is written outside any brace group: the object being declared,
@@ -147,6 +151,17 @@ function emit(file, line, head,   outer, decls, i, k, nm, rest) {
     if (outer ~ /\*[ \t]*const[ \t]/) return          # the pointer is const
     if (outer !~ /\*/ && outer ~ /^[ \t]*static[ \t]+const[ \t]/) return  # a const object
     if (outer ~ /\(/ && outer !~ /\(\*/) return       # a prototype, not a variable
+
+    # a prototype whose PARAMETER is a function pointer answers the test
+    # above: the (* it carries belongs to the parameter rather than to the
+    # thing declared. What tells the two apart is what stands before the
+    # first parenthesis -- a name being called is a function, a ( * is a
+    # pointer to one.
+    ppos = index(outer, "(")
+    if (ppos > 0 && substr(outer, ppos, 2) != "(*") {
+        pre = substr(outer, 1, ppos - 1)
+        if (pre ~ /[A-Za-z0-9_][ \t]*$/) return
+    }
 
     # a pointer to a function: the name is inside the parentheses the
     # star is in, and the parameter list after it would otherwise be read

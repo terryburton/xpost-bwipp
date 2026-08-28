@@ -27,7 +27,18 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.fontbind0 [ /charcode /cy /cx ] readonly put
+.xpostsys /.fontbind1 [ /charcode /cy /cx /dy /dx ] readonly put
+.xpostsys /.fontbind2 [ /cpy3 /cpx3 /cpy2 /cpx2 /cpy1 /cpx1 ] readonly put
+.xpostsys /.fontbind3 [ /dy /dx ] readonly put
+.xpostsys /.fontbind4 [ /ury /urx /lly /llx /wy /wx ] readonly put
 
 %
 %  Type 3 fonts render through their BuildChar procedure; Type 42 fonts
@@ -43,12 +54,12 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  mid-use of across the call -- a build procedure may show text, which
 %  builds glyphs against the same count -- so the bracket puts it back.
 %
-.xpostsys /.buildkeys [ /.inglyph ] put
+.xpostsys /.buildkeys [ /.inglyph ] readonly put
 
 %
 %  The capture pair the glyph cache is mid-use of while a build runs.
 %
-.xpostsys /.t3capkeys [ /.t3want /.t3cap ] put
+.xpostsys /.t3capkeys [ /.t3want /.t3cap ] readonly put
 
 %
 %  What a build declared, kept where the build itself cannot take it back.
@@ -61,7 +72,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  advance the build declared, and /capturing says its marks were going to a
 %  capture raster rather than to the page.
 %
-.xpostsys /.glyphstate << /advx 0 /advy 0 /capturing false >> put
+.jobstore /.glyphstate << /advx 0 /advy 0 /capturing false >> put
 
 %
 %  Run a glyph's build procedure -- a Type 3 font's BuildGlyph or
@@ -172,7 +183,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %  description carries. A CIDFontType 2 is stamped 11 and not the 42 a
 %  TrueType base font would carry.
 %
-.xpostsys /.cidtypemap << 0 9 1 10 2 11 4 32 >> put
+.xpostsys /.cidtypemap << 0 9 1 10 2 11 4 32 >> readonly put
 
 %
 %  Stamp a CIDFont dictionary with the FontType its CIDFontType calls for.
@@ -499,7 +510,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 .xpostsys /.maskcapture {  % wx wy llx lly urx ury  .  -
     16 dict begin
-    {ury urx lly llx wy wx}{exch def}forall
+    //.fontbind4 {exch def} forall
     wx wy setcharwidth
     llx lly transform /y0 exch def /x0 exch def
     urx lly transform /y1 exch def /x1 exch def
@@ -1047,7 +1058,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     5 2 roll
     {
     3 dict begin
-    {charcode cy cx}{exch def}forall
+    //.fontbind0 {exch def} forall
     gsave
         currentpoint translate
         newpath
@@ -1109,7 +1120,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     4 2 roll
     {
     2 dict begin
-    {dy dx}{exch def}forall
+    //.fontbind3 {exch def} forall
     gsave
         currentpoint translate
         newpath
@@ -1176,7 +1187,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         7 2 roll 5 2 roll
         {
         5 dict begin
-        {charcode cy cx dy dx}{exch def}forall
+        //.fontbind1 {exch def} forall
         gsave
             currentpoint translate
             newpath
@@ -1520,7 +1531,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             dup /h eq { pop closepath }{
             /cpcmd exch def
             cpcmd /c eq {
-                {cpy3 cpx3 cpy2 cpx2 cpy1 cpx1}{exch def}forall
+                //.fontbind2 {exch def} forall
                 cpx1 cpy1 cpt cpx2 cpy2 cpt cpx3 cpy3 cpt curveto
             }{
                 cpt
@@ -1919,7 +1930,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 /StandardEncoding StandardEncoding dup length array copy /Encoding defineresource pop
 /ISOLatin1Encoding ISOLatin1Encoding dup length array copy /Encoding defineresource pop
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof font.ps\n)print } ifelse
 

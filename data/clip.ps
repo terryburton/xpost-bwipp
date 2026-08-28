@@ -16,7 +16,7 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  The one writer of the clip.
@@ -860,6 +860,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } if
 } .defop
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof clip.ps\n)print } ifelse

@@ -1,0 +1,150 @@
+# How many composites in GLOBAL virtual memory a program can reach and write,
+# and a digest of which ones.
+#
+# A restore does not reach global virtual memory (PLRM 3.7.2), so a write into
+# one of these stands for the rest of the job -- and the machinery's own
+# namespaces are reachable, because bind freezes the dictionary a helper names
+# into the helper's body and a program can read that body. An object with all
+# three properties is one a program can rewrite and the machinery will then run
+# or read.
+#
+# THERE ARE NO PATHS HERE, AND THERE MUST NOT BE. A list of the objects that
+# still have the property is a map for whoever would like to use them, and this
+# tree is published. The two numbers hold the set without describing it: the
+# digest changes if the set changes and the count says which way. Someone
+# working on it runs tests/vm_forbidden_test.ps locally, where the sweep will
+# name them and nothing is published. The same reason keeps the paths out of
+# the test's own output: the guard runs in public build logs.
+#
+# The count is a RATCHET. It may fall and it may not rise, and either way the
+# pair below is rewritten in the commit that moved it. Nothing about the claim
+# depends on anyone remembering it.
+#
+# The digest is order-independent -- each path is folded to a number and the
+# numbers are summed -- so the order the walk took does not enter into it, and
+# both object widths answer the same pair.
+#
+# The second number is the storage the language hands programs to write: the
+# resource registry and its per-category instance stores, which defineresource
+# writes (PLRM 3.9) and which hold procedure sets. They answer the forbidden
+# shape while being exactly what a program is entitled to write, so they are
+# declared to the sweep instead of being sealed. That declaration is a hole by
+# construction, so its SIZE is ratcheted too -- it may fall and it may not
+# rise -- and the walk still descends through them, so what a resource holds is
+# held to the rule like anything else.
+#
+# The third pair is the same question asked of LOCAL virtual memory, rooted at
+# the machinery's namespaces alone and not at systemdict -- systemdict reaches
+# userdict, and so reaches whatever the running program has defined, which
+# would make the number move whenever the test was edited. A write into local
+# virtual memory is undone by a restore and by the job boundary, so it buys a
+# program the rest of the job rather than all of it; for a workload that is one
+# job per request, that is the whole of the request. It is held apart from the
+# first pair because a single number would hide the stronger of the two claims.
+#
+#   count  digest
+
+0 0
+
+declared 51
+
+local 0 0
+
+# The fourth pair is the constants bind froze into the machinery's bodies:
+# a dictionary, string or literal array that sits inside a procedure, holds
+# no executable array, and can be written. The sweep above passes over them
+# because nothing there can be made to RUN -- but they are what the
+# machinery reads to decide how to read what a program gave it, and a
+# program that reads a body reaches one. Sealing them is not automatic: the
+# tables the machinery writes at every render live among them, and a rule
+# that took the lot stops the interpreter working. So they are counted
+# rather than sealed, and the count is a ratchet: it may fall, as each is
+# either sealed where it is defined or answered for, and it may not rise.
+#
+#   count  digest
+
+frozen 0 0
+
+# The other half of that question, and the one place the rule above gives
+# way. The job store is where the machinery keeps what it writes as it runs,
+# and a body reaches it through a reference baked in at load: state reached
+# through code is still state, so the constant rule passes over it. A hole
+# nothing counts is a hole nobody can hold to a size, so it is counted here,
+# and the pair below is a ratchet like the others -- it may fall and it may
+# not rise, and either way the commit that moved it says why.
+#
+# The two counts partition what a body reaches and is still writable: an
+# object leaving one of them has to appear in the other, so state cannot be
+# quietly reclassified as a constant, nor a constant hidden in the store.
+#
+#   count  digest
+
+shielded 214 55832
+
+# What the INTERPRETER can reach that the walk above cannot. Every number
+# here describes the graph five named roots reach, and this one says how
+# much of the arena that is: the collector marks from the roots the
+# interpreter itself has -- the stacks, the save stack, the name stack --
+# and what it reaches that the walk did not is a root the walk has not been
+# given. Taken at the interpreter's safe point, because marking from inside
+# an operator reads a root set that operator's own C frames hold storage
+# out of.
+#
+# Only containers are counted. A dictionary or an array can hold what the
+# machinery runs, so one the walk never sees is a gap in the claim; a string
+# holds nothing, and the ones outside are the text of interned names, which
+# the name tree holds and no object graph reaches. Counting those beside
+# these would bury a number that matters under one that moves whenever a
+# name is interned.
+#
+# It is nothing, and the roots are why. The context holds objects in fields
+# of its own -- the arc procedure, the page device, the file a run wrapped
+# around its program -- which no dictionary names and so no list written in
+# PostScript can reach; they are seeded from the X-macro that declares them,
+# so a root added to the context joins the walk without this being
+# revisited. A ratchet like the others: it may fall and it may not rise, and
+# either way the commit that moved it says why.
+
+# What execute-only has closed: a constant a body froze in that no route
+# reaches through readable containers, so a program can make the machinery
+# run past it and cannot take it. It is NOT the hazard the frozen count is,
+# and it is counted anyway -- a census that stopped seeing behind an
+# execute-only body would report a hazard closed and a question abandoned
+# with the same number, and the two must not read alike. Sealing a body
+# execute-only moves objects from `frozen` to here, one for one; the pair
+# was demonstrated by doing exactly that, with the sweep's seal held off so
+# that there was something left to move.
+#
+# This one is NOT a downward ratchet: it rises as bodies are closed, which
+# is the direction the campaign wants. What must not rise is `frozen`.
+#
+#   count  digest
+
+closed 0 0
+
+# Tables in LOCAL virtual memory that a program can write and the machinery
+# can be made to run out of. The pair above them says `local 0 0`, and that
+# is not the claim it looks like: the seal reduces a dictionary only in
+# global memory, because the local ones are where the machinery keeps what
+# it writes at every render and sealing them stops the interpreter working
+# -- MEASURED, 101 tests fail. So the local pair's dictionary rule ends in
+# "and global" and can only ever report an executable array.
+#
+# What this counts is real and was demonstrated: a program replaced Emit in
+# a device class dictionary and the machinery ran the program's procedure
+# at showpage. A restore and the job boundary both take local memory back,
+# so it buys the rest of the job -- which, for one job per request, is the
+# request.
+#
+# The remedy is not to seal them. A device class holds methods, which must
+# not change, and per-render state, which must; the answer is the one the
+# stroke table got -- split it, do not seal it -- and that is design work
+# on eleven classes and the dispatch path, with a lookup's worth of
+# performance in it. Until then this is a ratchet: it may fall and it may
+# not rise.
+#
+#   count  digest
+
+localcode 17 293
+
+blind 0

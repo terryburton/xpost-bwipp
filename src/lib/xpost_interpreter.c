@@ -54,6 +54,7 @@
 #include "xpost_dict.h"  /* eval functions examine dicts */
 #include "xpost_file.h"  /* eval functions examine files */
 
+#include "xpost_op_misc.h"
 #include "xpost_interpreter.h" /* uses: context itp MAXCONTEXT MAXMFILE */
 #include "xpost_vm_image.h"
 #include "xpost_garbage.h"  /*  test gc, install collect() in context's memory files */
@@ -2294,6 +2295,11 @@ ctxswitch:
             }
         }
         _compaction_wanted(ctx);
+        if (ctx->gl && ctx->gl->blind_pending)
+        {
+            ctx->gl->blind_pending = 0;
+            (void)xpost_vm_blind_measure(ctx);
+        }
         /* a push the stack would not take, made somewhere other than
            inside an operator -- the dispatch answers for those itself.
            The object is on no stack and the step that pushed it carried
@@ -3258,10 +3264,15 @@ xpost_band_bytes_set(long bytes)
    rather than only at start-up. */
 static Xpost_Object _host_dict(Xpost_Context *ctx)
 {
+    Xpost_Object store;
+
     if (xpost_object_get_type(ctx->globalprivatedict) != dicttype)
         return null;
-    return xpost_dict_get(ctx, ctx->globalprivatedict,
-                          xpost_name_cons(ctx, ".hostdict"));
+    /* Through the job store: the machinery's writable state is gathered
+       there, so the namespace its procedures live in holds nothing a
+       program could write (data/init.ps). */
+    (void)store;
+    return xpost_context_job_member(ctx, ".hostdict");
 }
 
 /* Write one setting, answering the refusal so the caller can report it:

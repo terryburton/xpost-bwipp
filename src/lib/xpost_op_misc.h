@@ -18,4 +18,8 @@
 
 int xpost_oper_init_misc_ops(Xpost_Context *ctx, Xpost_Object sd);
 
+/* The census of what the interpreter reaches and the seal's walk does
+   not. Called from the interpreter's safe point only. */
+int xpost_vm_blind_measure(Xpost_Context *ctx);
+
 #endif

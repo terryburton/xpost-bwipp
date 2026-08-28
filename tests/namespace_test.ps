@@ -22,7 +22,7 @@
 userdict   length 0 ne { userdict   length (userdict not empty)   bad } if
 globaldict length 0 ne { globaldict length (globaldict not empty) bad } if
 
-% the 396 name keys every build exposes
+% the 395 name keys every build exposes
 /golden <<
   ($error) true  (.gscratch) true  (.lockdown) true  (.permitfileread) true
   (.permitfilewrite) true  (.privatedict) true  (.resourcefileopen) true  (11x17) true
@@ -60,69 +60,69 @@ globaldict length 0 ne { globaldict length (globaldict not empty) bad } if
   (dtransform) true  (dup) true  (echo) true  (eexec) true
   (end) true  (eoclip) true  (eofill) true  (eq) true
   (erasepage) true  (errordict) true  (exch) true  (exec) true
-  (execdict) true  (execform) true  (execstack) true  (execuserobject) true
-  (executeonly) true  (executive) true  (exit) true  (exp) true
-  (false) true  (file) true  (filenameforall) true  (fileposition) true
-  (fill) true  (filter) true  (findcmykcustomcolor) true  (findcolorrendering) true
-  (findencoding) true  (findfont) true  (findresource) true  (findrgbcustomcolor) true
-  (flattenpath) true  (floor) true  (flush) true  (flushfile) true
-  (flushpage) true  (for) true  (forall) true  (gcheck) true
-  (ge) true  (get) true  (getenv) true  (getinterval) true
-  (globaldict) true  (globalvmstatus) true  (glyphshow) true  (graphicsdict) true
-  (grestore) true  (grestoreall) true  (gsave) true  (gstate) true
-  (gt) true  (handleerror) true  (identmatrix) true  (idiv) true
-  (idtransform) true  (if) true  (ifelse) true  (image) true
-  (imagemask) true  (index) true  (ineofill) true  (infill) true
-  (initclip) true  (initgraphics) true  (initmatrix) true  (instroke) true
-  (internaldict) true  (inueofill) true  (inufill) true  (inustroke) true
-  (invertmatrix) true  (itransform) true  (known) true  (kshow) true
-  (languagelevel) true  (le) true  (ledger) true  (legal) true
-  (length) true  (letter) true  (lettersmall) true  (lineto) true
-  (ln) true  (load) true  (loadbgrdevice) true  (loadrasterdevice) true
-  (loadrecorddevice) true  (log) true  (loop) true  (lt) true
-  (makefont) true  (makepattern) true  (mark) true  (matrix) true
-  (maxlength) true  (mod) true  (moveto) true  (mul) true
-  (ne) true  (neg) true  (newpath) true  (noaccess) true
-  (not) true  (note) true  (null) true  (nulldevice) true
-  (or) true  (packedarray) true  (pathbbox) true  (pathforall) true
-  (pdfmark) true  (pop) true  (print) true  (printobject) true
-  (product) true  (prompt) true  (pstack) true  (put) true
-  (putenv) true  (putinterval) true  (quit) true  (rand) true
-  (rcheck) true  (rcurveto) true  (read) true  (readhexstring) true
-  (readline) true  (readonly) true  (readstring) true  (realtime) true
-  (rectclip) true  (rectfill) true  (rectstroke) true  (renamefile) true
-  (repeat) true  (resourceforall) true  (resourcestatus) true  (restore) true
-  (returntocaller) true  (reversepath) true  (revision) true  (rlineto) true
-  (rmoveto) true  (roll) true  (rootfont) true  (rotate) true
-  (round) true  (rrand) true  (run) true  (save) true
-  (scale) true  (scalefont) true  (scheck) true  (search) true
-  (selectfont) true  (separationimage) true  (serialnumber) true  (serverdict) true
-  (setbbox) true  (setblackgeneration) true  (setcachedevice) true  (setcachedevice2) true
-  (setcachelimit) true  (setcacheparams) true  (setcharwidth) true  (setcmykcolor) true
-  (setcolor) true  (setcolorrendering) true  (setcolorscreen) true  (setcolorspace) true
-  (setcolortransfer) true  (setcustomcolor) true  (setdash) true  (setdevparams) true
-  (setdistillerparams) true  (setfileposition) true  (setflat) true  (setfont) true
-  (setglobal) true  (setgray) true  (setgstate) true  (sethalftone) true
-  (sethsbcolor) true  (setlinecap) true  (setlinejoin) true  (setlinewidth) true
-  (setmatrix) true  (setmiterlimit) true  (setobjectformat) true  (setoverprint) true
-  (setoverprintmode) true  (setpacking) true  (setpagedevice) true  (setpattern) true
-  (setrasteropcode) true  (setrgbcolor) true  (setscreen) true  (setshared) true
-  (setsmoothness) true  (setstrokeadjust) true  (setsystemparams) true  (settransfer) true
-  (setucacheparams) true  (setundercolorremoval) true  (setuserparams) true  (setvmthreshold) true
-  (shareddict) true  (shfill) true  (show) true  (showpage) true
-  (signalerror) true  (sin) true  (sqrt) true  (srand) true
-  (stack) true  (startjob) true  (status) true  (statusdict) true
-  (stop) true  (stopped) true  (store) true  (string) true
-  (stringwidth) true  (stroke) true  (strokepath) true  (sub) true
-  (systemdict) true  (token) true  (transform) true  (translate) true
-  (true) true  (truncate) true  (type) true  (uappend) true
-  (ucache) true  (ucachestatus) true  (ueofill) true  (ufill) true
-  (undef) true  (undefinefont) true  (undefineresource) true  (undefineuserobject) true
-  (upath) true  (userdict) true  (usertime) true  (ustroke) true
-  (ustrokepath) true  (version) true  (vmreclaim) true  (vmstatus) true
-  (wcheck) true  (where) true  (widthshow) true  (write) true
-  (writehexstring) true  (writeobject) true  (writestring) true  (xcheck) true
-  (xor) true  (xshow) true  (xyshow) true  (yshow) true
+  (execform) true  (execstack) true  (execuserobject) true  (executeonly) true
+  (executive) true  (exit) true  (exp) true  (false) true
+  (file) true  (filenameforall) true  (fileposition) true  (fill) true
+  (filter) true  (findcmykcustomcolor) true  (findcolorrendering) true  (findencoding) true
+  (findfont) true  (findresource) true  (findrgbcustomcolor) true  (flattenpath) true
+  (floor) true  (flush) true  (flushfile) true  (flushpage) true
+  (for) true  (forall) true  (gcheck) true  (ge) true
+  (get) true  (getenv) true  (getinterval) true  (globaldict) true
+  (globalvmstatus) true  (glyphshow) true  (graphicsdict) true  (grestore) true
+  (grestoreall) true  (gsave) true  (gstate) true  (gt) true
+  (handleerror) true  (identmatrix) true  (idiv) true  (idtransform) true
+  (if) true  (ifelse) true  (image) true  (imagemask) true
+  (index) true  (ineofill) true  (infill) true  (initclip) true
+  (initgraphics) true  (initmatrix) true  (instroke) true  (internaldict) true
+  (inueofill) true  (inufill) true  (inustroke) true  (invertmatrix) true
+  (itransform) true  (known) true  (kshow) true  (languagelevel) true
+  (le) true  (ledger) true  (legal) true  (length) true
+  (letter) true  (lettersmall) true  (lineto) true  (ln) true
+  (load) true  (loadbgrdevice) true  (loadrasterdevice) true  (loadrecorddevice) true
+  (log) true  (loop) true  (lt) true  (makefont) true
+  (makepattern) true  (mark) true  (matrix) true  (maxlength) true
+  (mod) true  (moveto) true  (mul) true  (ne) true
+  (neg) true  (newpath) true  (noaccess) true  (not) true
+  (note) true  (null) true  (nulldevice) true  (or) true
+  (packedarray) true  (pathbbox) true  (pathforall) true  (pdfmark) true
+  (pop) true  (print) true  (printobject) true  (product) true
+  (prompt) true  (pstack) true  (put) true  (putenv) true
+  (putinterval) true  (quit) true  (rand) true  (rcheck) true
+  (rcurveto) true  (read) true  (readhexstring) true  (readline) true
+  (readonly) true  (readstring) true  (realtime) true  (rectclip) true
+  (rectfill) true  (rectstroke) true  (renamefile) true  (repeat) true
+  (resourceforall) true  (resourcestatus) true  (restore) true  (returntocaller) true
+  (reversepath) true  (revision) true  (rlineto) true  (rmoveto) true
+  (roll) true  (rootfont) true  (rotate) true  (round) true
+  (rrand) true  (run) true  (save) true  (scale) true
+  (scalefont) true  (scheck) true  (search) true  (selectfont) true
+  (separationimage) true  (serialnumber) true  (serverdict) true  (setbbox) true
+  (setblackgeneration) true  (setcachedevice) true  (setcachedevice2) true  (setcachelimit) true
+  (setcacheparams) true  (setcharwidth) true  (setcmykcolor) true  (setcolor) true
+  (setcolorrendering) true  (setcolorscreen) true  (setcolorspace) true  (setcolortransfer) true
+  (setcustomcolor) true  (setdash) true  (setdevparams) true  (setdistillerparams) true
+  (setfileposition) true  (setflat) true  (setfont) true  (setglobal) true
+  (setgray) true  (setgstate) true  (sethalftone) true  (sethsbcolor) true
+  (setlinecap) true  (setlinejoin) true  (setlinewidth) true  (setmatrix) true
+  (setmiterlimit) true  (setobjectformat) true  (setoverprint) true  (setoverprintmode) true
+  (setpacking) true  (setpagedevice) true  (setpattern) true  (setrasteropcode) true
+  (setrgbcolor) true  (setscreen) true  (setshared) true  (setsmoothness) true
+  (setstrokeadjust) true  (setsystemparams) true  (settransfer) true  (setucacheparams) true
+  (setundercolorremoval) true  (setuserparams) true  (setvmthreshold) true  (shareddict) true
+  (shfill) true  (show) true  (showpage) true  (signalerror) true
+  (sin) true  (sqrt) true  (srand) true  (stack) true
+  (startjob) true  (status) true  (statusdict) true  (stop) true
+  (stopped) true  (store) true  (string) true  (stringwidth) true
+  (stroke) true  (strokepath) true  (sub) true  (systemdict) true
+  (token) true  (transform) true  (translate) true  (true) true
+  (truncate) true  (type) true  (uappend) true  (ucache) true
+  (ucachestatus) true  (ueofill) true  (ufill) true  (undef) true
+  (undefinefont) true  (undefineresource) true  (undefineuserobject) true  (upath) true
+  (userdict) true  (usertime) true  (ustroke) true  (ustrokepath) true
+  (version) true  (vmreclaim) true  (vmstatus) true  (wcheck) true
+  (where) true  (widthshow) true  (write) true  (writehexstring) true
+  (writeobject) true  (writestring) true  (xcheck) true  (xor) true
+  (xshow) true  (xyshow) true  (yshow) true
 >> def
 
 % names present only when an optional library or the platform provides them

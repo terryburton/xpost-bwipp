@@ -11,7 +11,12 @@
 
 //.internaldict /QUIET known { }{ (loading tiffimage.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names the TIFF band writer binds its file and sink to.
+%
+.xpostsys /.tiffsinknames [ /f /snk ] readonly put
 
 %
 %  .xpost_TIFFIMAGE: the TIFF sibling of the 24-bit rgb device. The page
@@ -134,7 +139,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
 %
 .xpost_TIFFIMAGE /.writetail {  % sink file  .  -
     16 dict {
-        {/f /snk}{exch def}forall
+        //.tiffsinknames {exch def}forall
         /hdr 200 string def
         /hp 0 def
 
@@ -196,6 +201,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } //.indict exec
 } put
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof tiffimage.ps\n)print } ifelse

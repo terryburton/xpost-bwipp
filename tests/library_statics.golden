@@ -198,6 +198,11 @@ src/lib/xpost_dev_xcb.c      nameheight            reset xpost_oper_init_xcb_dev
 src/lib/xpost_dev_xcb.c      namenativecolorspace  reset xpost_oper_init_xcb_device_ops
 src/lib/xpost_dev_xcb.c      namewidth             reset xpost_oper_init_xcb_device_ops
 src/lib/xpost_interpreter.c  nameerrordict         reset _xpost_interpreter_extra_context_init
+src/lib/xpost_interpreter.c  namedollarerror       reset _xpost_interpreter_extra_context_init
+src/lib/xpost_object.c       xpost_object_dict_get_access outlives replaced-at-init
+src/lib/xpost_object.c       xpost_object_dict_set_access outlives replaced-at-init
+src/lib/xpost_object.c       xpost_object_file_get_access outlives replaced-at-init
+src/lib/xpost_object.c       xpost_object_file_set_access outlives replaced-at-init
 src/lib/xpost_op_font.c      name_BlendPix          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_CIDFontType       reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_CharStrings       reset xpost_oper_init_font_ops
@@ -272,3 +277,5 @@ src/lib/xpost_op_path.c      namecurrmatrix        reset xpost_oper_init_path_op
 src/lib/xpost_op_path.c      namecurrpath          reset xpost_oper_init_path_ops
 src/lib/xpost_op_path.c      nameflat              reset xpost_oper_init_path_ops
 src/lib/xpost_op_path.c      namegraphicsdict      reset xpost_oper_init_path_ops
+src/lib/xpost_op_path.c      _arc_start_proc       reset xpost_oper_init_path_ops
+src/lib/xpost_op_misc.c      name_dotresources     reset xpost_oper_init_misc_ops

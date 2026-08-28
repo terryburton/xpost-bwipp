@@ -26,7 +26,7 @@
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
 %  The resource categories the composite font machinery keeps its
@@ -1115,6 +1115,6 @@ end
     } ifelse
 } .defop
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof cid.ps\n)print } ifelse

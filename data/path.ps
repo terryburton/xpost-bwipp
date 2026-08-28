@@ -12,12 +12,22 @@
 //.internaldict /QUIET known { }{ (loading path.ps...)print } ifelse
 
 %
+%  The names the miter-join calculation binds its six coordinates to.
+%
+.xpostsys /.joinnames [ /cy /cx /oy /ox /ny /nx ] readonly put
+
+%
 %  Everything here defines into global VM, except the local routines
 %  wrapped below.
 %
 true setglobal
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names .crossdashbound binds its three operands to.
+%
+.xpostsys /.crossdashnames [ /ang /rad /data ] readonly put
 
 %
 %  The current path is maintained by the operators
@@ -255,7 +265,7 @@ end
 %  leave the same three for it to drop; nothing reads them.
 %
 .xpostsys /.crossdashbound {  % data rad ang  .  data rad ang
-    {/ang/rad/data}{exch def}forall
+    //.crossdashnames {exch def}forall
     /partial dasharray ipos get pos sub def
     {  % loop
         cp aload pop
@@ -440,7 +450,7 @@ end
           % exactly when limit^2 (1 + cos delta) < 2: then the join
           % falls back to the bevel triangle.
             10 dict begin
-            {/cy /cx /oy /ox /ny /nx}{exch def}forall
+            //.joinnames {exch def}forall
             /vox ox cx sub def /voy oy cy sub def
             /vnx nx cx sub def /vny ny cy sub def
             /cosd vox vnx mul voy vny mul add
@@ -852,6 +862,6 @@ setglobal
 %
 %  pathbbox is implemented in xpost_op_path.c
 %
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof path.ps\n)print } ifelse

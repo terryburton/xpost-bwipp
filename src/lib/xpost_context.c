@@ -57,14 +57,32 @@
    invocation decided rather than what the language is. A context whose
    namespace is not built yet has no settings to give, which reads as
    nothing settled. */
+/* The machinery's writable state is gathered in one dictionary, the job
+   store, so that the namespace its procedures and constants live in holds
+   nothing a program could write (data/init.ps). Everything that reaches
+   that state from C comes through here, so a member moved into or out of
+   the store is one place to change rather than several to find. */
+Xpost_Object xpost_context_job_store(Xpost_Context *ctx)
+{
+    return ctx->jobstore;
+}
+
+Xpost_Object xpost_context_job_member(Xpost_Context *ctx, const char *name)
+{
+    Xpost_Object store = xpost_context_job_store(ctx);
+
+    if (xpost_object_get_type(store) != dicttype)
+        return null;
+    return xpost_dict_get(ctx, store, xpost_name_cons(ctx, name));
+}
+
 Xpost_Object xpost_context_host_setting(Xpost_Context *ctx, const char *name)
 {
     Xpost_Object h;
 
     if (xpost_object_get_type(ctx->globalprivatedict) != dicttype)
         return null;
-    h = xpost_dict_get(ctx, ctx->globalprivatedict,
-                       xpost_name_cons(ctx, ".hostdict"));
+    h = xpost_context_job_member(ctx, ".hostdict");
     if (xpost_object_get_type(h) != dicttype)
         return null;
     return xpost_dict_get(ctx, h, xpost_name_cons(ctx, name));

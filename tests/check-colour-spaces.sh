@@ -73,7 +73,7 @@ fail=0
 table() {                               # $1 table name -> "name value" lines
     awk -v want="$1" '
         $0 ~ ("^\\.xpostsys /" want " <<") { inside = 1; next }
-        inside && /^>> put/               { inside = 0 }
+        inside && /^>> (readonly )?put/               { inside = 0 }
         inside && /^[ \t]*\/[A-Za-z]/ {
             gsub(/^[ \t]*\//, "")
             v = $2; sub(/^\//, "", v)

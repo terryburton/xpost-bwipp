@@ -381,6 +381,21 @@ typedef struct Xpost_Memory_File
         made rather than anything about what the memory holds. */
     int compact_pending;
 
+    /* A census of what the interpreter can reach and the seal's walk did
+       not, asked for by .vmblind and taken at the same safe point for the
+       same reason: it marks from the collector's roots, which are the
+       stacks and the save and name stacks, and marking from inside an
+       operator reads a root set the operator's own C frames are still
+       holding storage out of. Asking is not doing (PLRM has nothing to
+       say here; this is the tree's own rule, and a compaction that
+       ignored it killed real renders).
+
+       Not carried in a virtual memory image, for the reason above it. */
+    int blind_pending;
+    unsigned int blind_reach;   /**< entities the interpreter reaches */
+    unsigned int blind_missed;  /**< of those, containers the walk did not */
+    unsigned int blind_missed_str; /**< and strings, which hold nothing */
+
     int garbage_collect_pending; /**< a collection is due; performed at the
                                       interpreter's safe point rather than
                                       inside the triggering allocation, so

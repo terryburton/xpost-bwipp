@@ -65,6 +65,9 @@ cat > "$work/dump.ps" <<'PSEOF'
     { lbl print 60 string cvs print (\n) print }{ pop } ifelse } forall
 } bind def
 found null ne { found (xpostsys ) dump } if
+1183615869 internaldict /.jobmembernames known
+  { null 1183615869 internaldict /.jobmembernames get exec
+    { (jobstore ) print 60 string cvs print (\n) print } forall } if
 .privatedict (privatedict ) dump
 1183615869 internaldict (internaldict ) dump
 systemdict (systemdict ) dump
@@ -72,7 +75,7 @@ PSEOF
 
 XPOST_DATA_DIR="$src/data" "$xpost" -q --no-sandbox -d null -o /dev/null \
     "$work/dump.ps" </dev/null 2>/dev/null \
-    | tr -d "$cr" | grep -E '^(xpostsys|privatedict|internaldict|systemdict) .' \
+    | tr -d "$cr" | grep -E '^(xpostsys|privatedict|internaldict|systemdict|jobstore) .' \
     | sort -u > "$work/all"
 grep -vE '^systemdict ' "$work/all" > "$work/have"
 
@@ -109,6 +112,10 @@ done > "$work/lines"
         | sed 's|^1183615869 *internaldict *|internaldict |'
     grep -oE '\.privatedict +/[A-Za-z0-9._=-]+( +[A-Za-z]+)?' "$work/lines" \
         | sed 's|^\.privatedict *|privatedict |'
+    # the job store, which the data files begin alongside the namespace, so
+    # a member of it is frozen in by //name exactly as a member of .xpostsys is
+    grep -oE '\.jobstore +/[A-Za-z0-9._=-]+( +[A-Za-z]+)?' "$work/lines" \
+        | sed 's|^\.jobstore *|jobstore |'
 } | sed 's| /| |' > "$work/occ"
 
 awk '$3 == "get"   { print $1, $2 }' "$work/occ" | sort -u > "$work/want"

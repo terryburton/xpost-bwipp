@@ -11,7 +11,20 @@
 
 //.internaldict /QUIET known { }{ (loading pdfwrite.ps...)print } ifelse
 
-currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in init.ps
+currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
+
+%
+%  The names these procedures bind their operands to. Literal
+%  arrays: a list forall walks is data, and a list in braces is an
+%  executable array a body may not read once the machinery is closed.
+%
+.xpostsys /.imagebind2 [ /h /w /y /x ] readonly put
+.xpostsys /.pdfwritebind0 [ /pcchunks /pcmat /pctt /pcys /pcxs /pcbb ] readonly put
+.xpostsys /.pdfwritebind1 [ /piint /pidec /pirows /pim /pinc /pih /piw ] readonly put
+.xpostsys /.pdfwritebind2 [ /psint /psdata /psm /pspol /psh /psw ] readonly put
+.xpostsys /.pdfwritebind3 [ /spy3 /spx3 /spy2 /spx2 /spy1 /spx1 ] readonly put
+.xpostsys /.pdfwritebind4 [ /y /x ] readonly put
+.xpostsys /.imagebind3 [ /y2 /x2 /y1 /x1 ] readonly put
 
     % The zero pad for xref offsets is a shared read-only constant, kept in the
     % global private dictionary rather than leaking a name into userdict. The
@@ -24,11 +37,11 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % time, so a single shared record serves, and it outlives any one device:
     % a page device change replaces the device without ending the document.
     currentglobal true setglobal
-        .xpostsys /.zeros (0000000000) put
-        .xpostsys /.vecout 16 dict put
-        .xpostsys /.vecout get /single false put
-        .xpostsys /.vecout get /ready false put
-        .xpostsys /.vecout get /docid 0 put
+        .xpostsys /.zeros (0000000000) readonly put
+        .jobstore /.vecout 16 dict put
+        //.vecout /single false put
+        //.vecout /ready false put
+        //.vecout /docid 0 put
 
         % The maps a document fills in belong to the record rather than to any
         % one document: each is keyed by a counter the document restarts from
@@ -37,9 +50,9 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
         % with the record because the record outlives any one document and
         % holds what is put in it: a container made per document would be
         % held for as long as the record is, one for every document.
-        .xpostsys /.vecout get /off 256 dict put
-        .xpostsys /.vecout get /pobj 64 dict put
-        .xpostsys /.vecout get /sobj 16 dict put
+        //.vecout /off 256 dict put
+        //.vecout /pobj 64 dict put
+        //.vecout /sobj 16 dict put
     setglobal
 
 %
@@ -110,7 +123,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     /.copydict //.classcopydict
 
     /Create {  % width height IMAGE  .  IMAGE'
-    { {/height /width}{exch def}forall
+    { //.rasterwh {exch def}forall
 
     % The page dimensions are points and need not be integral; adopt the
     % exact values when the page device machinery published them.
@@ -399,7 +412,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % two colours files as two cells.
     /PatternCell {  % bbox xstep ystep tilingtype matrix chunks IMAGE  .  n
     {
-        {pcchunks pcmat pctt pcys pcxs pcbb}{exch def}forall
+        //.pdfwritebind0 {exch def} forall
 
         % The matrix arrives as the mapping from the coordinates the
         % cell was written in to the device's, and PDF wants the mapping
@@ -780,7 +793,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } //.indict exec }
 
     /PutPix {  % c1..cN x y IMAGE  .  -
-    { {y x}{exch def}forall
+    { //.pdfwritebind4 {exch def} forall
         .pdffillcolor
         x .pdfnum ( ) .put y .pdfnum ( 1 1 re\nf\n) .put
     } //.indict exec }
@@ -790,14 +803,14 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     }
 
     /DrawLine {  % c1..cN x1 y1 x2 y2 IMAGE  .  -
-    { {y2 x2 y1 x1}{exch def}forall
+    { //.imagebind3 {exch def} forall
         .pdfstrokecolor
         x1 .pdfnum ( ) .put y1 .pdfnum ( m\n) .put
         x2 .pdfnum ( ) .put y2 .pdfnum ( l\nS\n) .put
     } //.indict exec }
 
     /DrawRect {  % c1..cN x y w h IMAGE  .  -
-    { {h w y x}{exch def}forall
+    { //.imagebind2 {exch def} forall
         .pdfstrokecolor
         x .pdfnum ( ) .put y .pdfnum ( ) .put
         w .pdfnum ( ) .put h .pdfnum ( re\nS\n) .put
@@ -810,7 +823,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % device painting a rectangle a pixel short in each direction of
     % every other device's.
     /FillRect {  % c1..cN x y w h IMAGE  .  -
-    { {h w y x}{exch def}forall
+    { //.imagebind2 {exch def} forall
         w 0 lt { /x x w add def /w w neg def } if
         h 0 lt { /y y h add def /h h neg def } if
         .pdffillcolor
@@ -848,7 +861,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
             /.dpoff exch def
             dup 2 eq {
                 pop
-                {spy3 spx3 spy2 spx2 spy1 spx1}{exch def}forall
+                //.pdfwritebind3 {exch def} forall
                 spx1 .pdfnum ( ) .put spy1 .pdfnum ( ) .put
                 spx2 .pdfnum ( ) .put spy2 .pdfnum ( ) .put
                 spx3 .pdfnum ( ) .put spy3 .pdfnum ( ) .put
@@ -983,7 +996,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % paints it through the unit square under the image-to-device matrix,
     % the decode ranges carried in the object for the consumer to apply.
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
-    { {piint pidec pirows pim pinc pih piw}{exch def}forall
+    { //.pdfwritebind1 {exch def} forall
         /piidx .pdfimages length def
         /.pdfimages [ .pdfimages aload pop
             << /w piw /h pih /nc pinc /rows pirows /dec pidec
@@ -1010,7 +1023,7 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     % decomposed into a rectangle per run -- which is what a page of
     % bitmap glyphs came out as.
     /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
-    { {psint psdata psm pspol psh psw}{exch def}forall
+    { //.pdfwritebind2 {exch def} forall
         % The same mask painted again is the same XObject drawn again:
         % a page of bitmap glyphs repeats a handful of them, and filing
         % one per occurrence is what made this dearer than the runs it
@@ -1435,6 +1448,6 @@ currentdict .xpostsys begin begin  % Bake the helper names; see .xpostsys in ini
     } //.indict exec } bind
 >> def
 
-end end
+end end end
 
 //.internaldict /QUIET known { }{ (eof pdfwrite.ps\n)print } ifelse
