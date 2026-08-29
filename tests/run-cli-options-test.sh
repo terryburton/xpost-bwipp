@@ -411,5 +411,47 @@ else
         || note "the unwatched run of the page program did not run it"
 fi
 
+
+# Several programs named on one command line are one job, run in the
+# order they were given. The second begins where the first left off:
+# what the first defined is still defined, there being no boundary
+# between them, which is the whole of the difference between naming two
+# files and naming a file that holds both texts.
+printf '/carried 42 def\n(one ran) =\n' > "$work/seq1.ps"
+printf '(two ran) =\n/carried where { pop (two sees ) print carried == }\n  { (TWO SEES NOTHING) = } ifelse\n' > "$work/seq2.ps"
+got=$("$xpost" -q -d null "$work/seq1.ps" "$work/seq2.ps" </dev/null 2>&1)
+printf '%s\n' "$got" | grep -qx 'one ran' \
+    || note "the first of two programs named did not run"
+printf '%s\n' "$got" | grep -qx 'two ran' \
+    || note "the second of two programs named did not run"
+printf '%s\n' "$got" | grep -qx 'two sees 42' \
+    || note "the second program did not begin where the first left off"
+[ "$(printf '%s\n' "$got" | grep -n 'ran' | head -1 | cut -d: -f2)" = "one ran" ] \
+    || note "the programs did not run in the order they were named"
+
+# A quit takes the interpreter down, so what was named after it is not
+# read -- the same as a quit halfway through a single file.
+printf '(one ran) =\nquit\n' > "$work/seqq.ps"
+got=$("$xpost" -q -d null "$work/seqq.ps" "$work/seq2.ps" </dev/null 2>&1)
+status=$?
+printf '%s\n' "$got" | grep -qx 'one ran' || note "the quitting program did not run"
+printf '%s\n' "$got" | grep -qx 'two ran' \
+    && note "a program named after one that quit was read anyway"
+[ "$status" = 0 ] || note "a run ended by quit reported failure ($status)"
+
+# An uncaught error ends the job, and ends it for what was named after
+# it too, with the run reporting the failure.
+printf '(one ran) =\nthisnameisnotdefined\n' > "$work/seqe.ps"
+got=$("$xpost" -q -d null "$work/seqe.ps" "$work/seq2.ps" </dev/null 2>&1)
+status=$?
+printf '%s\n' "$got" | grep -qx 'two ran' \
+    && note "a program named after one that failed was read anyway"
+[ "$status" = 0 ] \
+    && note "a run ended by an uncaught error reported success"
+
+# and one program named is still one program run
+got=$("$xpost" -q -d null "$work/seq1.ps" </dev/null 2>&1)
+printf '%s\n' "$got" | grep -qx 'one ran' || note "a single program named did not run"
+
 [ "$fail" = 0 ] || { echo "FAILURES: the options above"; exit 1; }
 echo "SUCCESS"

@@ -505,6 +505,41 @@ _xpost_geometry_parse(const char *geometry, int *width, int *height, int *xoffse
    its count travel together, and a list that has taken nothing yet is the
    null pointer with a count of zero. Answers zero if the copy or the room
    for it could not be had, leaving the list exactly as it was. */
+/* A program that reads each named program in turn. The names are the
+   caller's, so each goes into the string literal escaped: a backslash
+   and the two parentheses are what a literal cannot carry raw (PLRM
+   3.2.2), and a name holding one of them would otherwise end the
+   literal early or leave it unclosed. */
+static char *
+_xpost_main_driver(char **files, int count)
+{
+    size_t len = 1;
+    char *out, *w;
+    int i;
+    const char *r;
+
+    for (i = 0; i < count; i++)
+        len += 2 * strlen(files[i]) + sizeof "() run " - 1;
+    out = malloc(len);
+    if (!out)
+        return NULL;
+    w = out;
+    for (i = 0; i < count; i++)
+    {
+        *w++ = '(';
+        for (r = files[i]; *r; r++)
+        {
+            if (*r == '\\' || *r == '(' || *r == ')')
+                *w++ = '\\';
+            *w++ = *r;
+        }
+        *w++ = ')';
+        *w++ = ' '; *w++ = 'r'; *w++ = 'u'; *w++ = 'n'; *w++ = ' ';
+    }
+    *w = '\0';
+    return out;
+}
+
 static int
 _xpost_main_list_add(char ***list, int *count, const char *str)
 {
@@ -559,7 +594,8 @@ int main(int argc, char *argv[])
     const char *device = NULL;
     const char *spill = NULL;
     const char *band_bytes = NULL;
-    const char *ps_file = NULL;
+    char **psfiles = NULL;
+    int num_psfiles = 0;
     const char *filename = argv[0];
     const char *define = NULL;
     char **defs = NULL;
@@ -809,7 +845,12 @@ int main(int argc, char *argv[])
         }
         else
         {
-            ps_file = argv[i];
+            /* Every program named is run, in the order given. */
+            if (!_xpost_main_list_add(&psfiles, &num_psfiles, argv[i]))
+            {
+                XPOST_LOG_ERR("out of memory");
+                goto quit_xpost;
+            }
         }
     }
 
@@ -1041,7 +1082,8 @@ int main(int argc, char *argv[])
     {
         xpost_path_permit_read(".");
         xpost_path_permit_write(".");
-        _xpost_permit_file_dir(ps_file, 0);
+        for (i = 0; i < num_psfiles; i++)
+            _xpost_permit_file_dir(psfiles[i], 0);
         if (output_file)
         {
             /* One file where the name settles on one, its directory
@@ -1062,9 +1104,42 @@ int main(int argc, char *argv[])
     {
         Xpost_Run_Status status;
 
-        status = jobserver
-            ? xpost_run(ctx, XPOST_INPUT_FILEPTR, stdin, 0)
-            : xpost_run(ctx, XPOST_INPUT_FILENAME, ps_file, 0);
+        /* The programs named are one job on one interpreter, run in
+           the order they were given: the second begins where the first
+           left off, with what it defined still defined, exactly as the
+           two texts in one file would. So the run stops where that file
+           would have stopped -- a quit takes the interpreter down, and
+           an uncaught error ends the job -- and what follows either is
+           not read. */
+        if (jobserver)
+            status = xpost_run(ctx, XPOST_INPUT_FILEPTR, stdin, 0);
+        else if (num_psfiles > 1)
+        {
+            /* Several programs named are one job, in the order given:
+               the second begins where the first left off, with what it
+               defined still defined. A named program is a job on its
+               own, so what runs is a program that reads each of them in
+               turn -- which is what puts them in one job, and what
+               makes a quit end the run and an uncaught error end it
+               with the rest unread, as they would halfway through a
+               single file. */
+            char *driver = _xpost_main_driver(psfiles, num_psfiles);
+
+            if (!driver)
+            {
+                XPOST_LOG_ERR("out of memory");
+                _xpost_main_list_free(&psfiles, &num_psfiles);
+                xpost_destroy(ctx);
+                xpost_quit();
+                return EXIT_FAILURE;
+            }
+            status = xpost_run(ctx, XPOST_INPUT_STRING, driver, 0);
+            free(driver);
+        }
+        else
+            status = xpost_run(ctx, XPOST_INPUT_FILENAME,
+                               num_psfiles ? psfiles[0] : NULL, 0);
+        _xpost_main_list_free(&psfiles, &num_psfiles);
         xpost_destroy(ctx);
 
         xpost_quit();
@@ -1082,6 +1157,7 @@ int main(int argc, char *argv[])
        what it was told. */
   quit_asked:
     _xpost_main_list_free(&defs, &num_defs);
+    _xpost_main_list_free(&psfiles, &num_psfiles);
     _xpost_main_list_free(&incs, &num_incs);
     _xpost_main_list_free(&params, &num_params);
     xpost_quit();
