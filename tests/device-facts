@@ -422,6 +422,23 @@ answer pbm true data/pbmimage.ps
     rendering rather than the only way it can show one.
 disposition settled
 
+question WhiteIsOpaque bbox
+    Whether a white mark counts towards what the page holds. A device
+    that records where marks fall has to decide whether a mark carrying
+    the ground colour is one; a device that stores pixels never asks,
+    because it stores the value either way and the page shows what it
+    stores.
+family per-device
+answer bbox false data/bboxdev.ps
+    A white mark does not enlarge the box. The box is what a later
+    reader must cover to see the page, and ground-coloured ink shows
+    nothing to cover. A request declaring it true says the ground is
+    not what will be behind these marks, and then white is ink like any
+    other. Declared on the class so the method reads it rather than
+    asking whether it is there; the request's answer is written over
+    this as the instance is copied.
+disposition settled
+
 # ---------------------------------------------------------------------
 # Facts another guard holds
 
@@ -642,6 +659,7 @@ method GlyphExtents bbox
 method Ground bgr jpeg pbm pgm png pngalpha ppm raster tiff record
 method .groundpix bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .groundrowat bgr jpeg pbm pgm png pngalpha ppm raster tiff
+method .instance every
 method .intersect bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .maxmin bbox bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
@@ -700,62 +718,82 @@ method .writepage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .writetail bgr jpeg pbm pgm png pngalpha ppm raster tiff
 
 # What an instance carries while it works.
-state b svgwrite
 state .bandbytes record
-state .bandrows jpeg pbm pgm png pngalpha ppm tiff record
-state .bandtop jpeg pbm pgm png pngalpha ppm tiff
-state .chan bgr jpeg pbm pgm png pngalpha ppm raster tiff
-state .devrequest bbox bgr dscwrite jpeg null pbm pdfwrite pgm png pngalpha ppm raster svgwrite tiff
+fixed .bandrows jpeg pbm pgm png pngalpha ppm tiff record
+fixed .bandtop jpeg pbm pgm png pngalpha ppm tiff
+fixed .chan bgr jpeg pbm pgm png pngalpha ppm raster tiff
+fixed .devrequest bbox bgr dscwrite jpeg null pbm pdfwrite pgm png pngalpha ppm raster svgwrite tiff
     The features of the page-device request this instance was made for,
     kept by the class-to-instance copy that wrote them onto it
     (data/device.ps .classcopydict); the recording class reads them
     back for the painter it builds. Absent from a device made with no
     request -- the run's start device, and so the record read here.
-state defaultmatrix every
-state dimensions every
-state .docinfo dscwrite pdfwrite
-state .emptyrow pbm pgm ppm tiff
-state g svgwrite
-state .ground bgr jpeg pbm pgm png ppm raster tiff record
-state .groundrow pbm pgm ppm tiff
-state h dscwrite pdfwrite svgwrite
-state height every
+fixed .dev every
+    The device's name for itself, answering the instance it is an
+    entry of. A method reads what the device is through the dictionary
+    stack, and a method given a working dictionary of its own is no
+    longer reading the device when it asks for the topmost one. This
+    name is the device wherever it is read from, and a working
+    dictionary states it again so the lookup lands there rather than
+    searching the device for it.
+disposition settled
+fixed defaultmatrix every
+fixed dimensions every
+fixed .docinfo dscwrite pdfwrite
+fixed .emptyrow pbm pgm ppm tiff
+fixed .ground bgr jpeg pbm pgm png ppm raster tiff record
+fixed .groundrow pbm pgm ppm tiff
+fixed height every
 state .htang pbm
 state .htcell pbm
 state .htfreq pbm
 state .hth pbm
 state .htsrc pbm
 state .htw pbm
-state ImgData pbm pgm ppm tiff
+fixed ImgData pbm pgm ppm tiff
 state maxx bbox
 state maxy bbox
 state minx bbox
 state miny bbox
-state .ncomps dscwrite pdfwrite
-state .nextobj dscwrite pdfwrite
-state .opaque bbox
+fixed .ncomps dscwrite pdfwrite
+fixed .nextobj dscwrite pdfwrite
+fixed .opaque bbox
 state .opused dscwrite pdfwrite
-state OutputFileName every
-state .pdffillcolor dscwrite pdfwrite
+fixed OutputFileName every
+state .pdfclipopen dscwrite pdfwrite
+    Whether a clip is open in the content stream the page is
+    accumulating, so the writer knows to close it before the page ends.
+    Declared on the class, false, so the accumulator reads it rather
+    than asking whether it is there; what a page writes over that is
+    the page's own. Both writers carry it because both accumulate a
+    content stream a clip is opened in; the SVG writer states the same
+    thing under a name of its own, its clip being an element rather
+    than a stream operator.
+fixed .pdffillcolor dscwrite pdfwrite
 state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
 state .pdfpatterns dscwrite pdfwrite
-state .pdfstrokecolor dscwrite pdfwrite
+fixed .pdfstrokecolor dscwrite pdfwrite
 state .playclass record
 state .playdev record
 state .playpage record
 state .playrows record
 state .playrun record
-state Private bgr dscwrite jpeg pdfwrite png pngalpha raster svgwrite record
-state r svgwrite
-state .svgids svgwrite
+fixed Private bgr dscwrite jpeg pdfwrite png pngalpha raster svgwrite record
+fixed .state every
+state .svgclipopen svgwrite
+    Whether a clip is open in the document the page is accumulating, so
+    the writer knows to close it before the page ends. Declared on the
+    class, false, so the writer reads it rather than asking whether it
+    is there. The same thing the PDF writers state as .pdfclipopen,
+    under a name of its own: a clip here is an element the document
+    holds rather than an operator in a content stream, and the two
+    writers close them differently.
+fixed .svgids svgwrite
 state .svgmasks svgwrite
 state .svgpatterns svgwrite
-state .vecticket dscwrite pdfwrite
-state w dscwrite pdfwrite svgwrite
-state width every
-state x dscwrite pdfwrite svgwrite
-state y dscwrite pdfwrite svgwrite
+fixed .vecticket dscwrite pdfwrite
+fixed width every
 
 # The class's own constants and tables.
 part .gsextgstate dscwrite pdfwrite

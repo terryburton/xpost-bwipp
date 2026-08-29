@@ -142,7 +142,10 @@ end } bind put
 5 dict begin
     /dev exch def
     /ph dev /height known { dev /height get }{ 0 } ifelse def
-    /held dev /.playrun known { dev /.playrun get 1 get }{ ph } ifelse def
+    % the band arithmetic is asked of a dictionary standing for a device
+    % as well as of a device, and only a device carries a state
+    /held dev /.state 2 copy known { get }{ pop pop 0 dict } ifelse
+        /.playrun 2 copy known { get 1 get }{ pop pop ph } ifelse def
     dev /.playclass known ph 0 gt and {
         /cls .privatedict dev /.playclass get get def
         /rowbytes dev //.rowbytes exec def
@@ -180,7 +183,10 @@ end } bind put
 4 dict begin
     /dev exch def
     /ph dev /height known { dev /height get }{ 0 } ifelse def
-    /held dev /.playrun known { dev /.playrun get 1 get }{ ph } ifelse def
+    % the band arithmetic is asked of a dictionary standing for a device
+    % as well as of a device, and only a device carries a state
+    /held dev /.state 2 copy known { get }{ pop pop 0 dict } ifelse
+        /.playrun 2 copy known { get 1 get }{ pop pop ph } ifelse def
     /rows dev //.bandheight exec def
     rows held lt
         { held rows sub dev //.rowbytes exec mul }
@@ -232,7 +238,7 @@ end } bind put
         .privatedict cls known {
             << /width pw /height ph
                /.playclass cls
-               /.bandbytes rec /.bandbytes get >>
+               /.bandbytes //.xpostsys /.bandbudget get exec >>
             //.bandheight exec ph lt
         }{ true } ifelse
     }{ true } ifelse
@@ -352,10 +358,10 @@ end } bind put
 .xpostsys /.playdrop {  % dict  .  -
 1 dict {
     /pd.rec exch def
-    pd.rec /.playdev known {
-        pd.rec /.playdev get
-        pd.rec /.playdev undef
-        pd.rec /.playrows undef
+    pd.rec /.state get /.playdev known {
+        pd.rec /.state get /.playdev get
+        pd.rec /.state get /.playdev undef
+        pd.rec /.state get /.playrows undef
         dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
     } if
 } //.indict exec } bind put
@@ -481,6 +487,7 @@ setglobal
     % then.
 
     /.copydict //.classcopydict
+    /.instance //.classinstance
 
     % Take up the colour the page is being cleared to. A record holds no
     % pixel to read back, so this is the only statement of what a read
@@ -584,8 +591,8 @@ setglobal
     % nothing to do.
     /Flush {  % IMAGE  .  -
     {
-        currentdict /.playdev known {
-            .playdev dup /Flush 2 copy known
+        .state /.playdev known {
+            .state /.playdev get dup /Flush 2 copy known
                 { get exec }{ pop pop pop } ifelse
         } if
     } //.indict exec } bind
@@ -659,7 +666,7 @@ setglobal
         % what it took has to be what it kept, and this is where it is
         % kept. Taken, and not merely read: the next device made must not
         % inherit a box that was not asked of it.
-        rec /.playrun known not {
+        rec /.state get /.playrun known not {
             /run graphicsdict /.rasterband 2 copy known
                 { 2 copy get 3 1 roll undef }{ pop pop null } ifelse def
             /rtop 0 def
@@ -674,10 +681,10 @@ setglobal
                 rrows 1 lt { /rrows 1 def } if
                 rtop rrows add ph gt { /rrows ph rtop sub def } if
             } if
-            rec /.playrun [ rtop rrows ] put
+            rec /.state get /.playrun [ rtop rrows ] put
         } if
-        /imgtop rec /.playrun get 0 get def
-        /imgrows rec /.playrun get 1 get def
+        /imgtop rec /.state get /.playrun get 0 get def
+        /imgrows rec /.state get /.playrun get 1 get def
 
         % The rows this raster stands on at once, taken where every
         % reader of it takes it (.bandheight above), and the comparison
@@ -703,15 +710,15 @@ setglobal
         % pointing, after the restore, at a device whose page has already
         % been released. What answers that is state the record keeps
         % outside virtual memory (.playkept).
-        /kept rec /.playdev known {
-            rec /.playdev get /dimensions get aload pop
+        /kept rec /.state get /.playdev known {
+            rec /.state get /.playdev get /dimensions get aload pop
             ph eq exch pw eq and
-            rec /.playrows get bandrows eq and
-            rec rec /.playdev get //.internaldict /.playkept get exec and
+            rec /.state get /.playrows get bandrows eq and
+            rec rec /.state get /.playdev get //.internaldict /.playkept get exec and
         }{ false } ifelse def
 
         kept {
-            /page rec /.playdev get def
+            /page rec /.state get /.playdev get def
         }{
             rec //.playdrop exec
 
@@ -748,8 +755,8 @@ setglobal
             % Named as soon as it exists, so that a device this record
             % built is a device this record gives up however the rest of
             % this ends.
-            rec /.playdev page put
-            rec /.playrows bandrows put
+            rec /.state get /.playdev page put
+            rec /.state get /.playrows bandrows put
             rec page //.internaldict /.playbuilt get exec
 
             % The raster's first move onto a run of rows, made here and
@@ -776,8 +783,9 @@ setglobal
         % and the pages the announcing semantics have counted, which they
         % count on the device they were asked of (data/device.ps) -- this
         % record, and not the device it paints through.
-        rec /pagenumber known
-            { page /pagenumber rec /pagenumber get put } if
+        rec /.state get /pagenumber known
+            { page /.state get /pagenumber
+              rec /.state get /pagenumber get put } if
 
         % The finishing every page device takes, so that the compiled
         % fills this one ends up with are the ones the same page painted
@@ -796,7 +804,7 @@ setglobal
         % How much of its page this record holds at once, which is how
         % much of it the raster above holds: a record has no rows of its
         % own, and what it is asked about them is asked about those.
-        rec /.bandrows rasterrows put
+        rec /.state get /.bandrows rasterrows put
 
         % And what holding the page that way saves over holding it whole,
         % handed down to the device holding the record, which answers it
@@ -867,13 +875,15 @@ setglobal
         % at once: the raster this record is carrying where it can still
         % stand for the page, and a new one where it cannot.
         rec dup /.playmake get exec
-        /page rec /.playdev get def
-        /bandrows rec /.playrows get def
-        /imgtop rec /.playrun get 0 get def
-        /imgrows rec /.playrun get 1 get def
+        /page rec /.state get /.playdev get def
+        /bandrows rec /.state get /.playrows get def
+        /imgtop rec /.state get /.playrun get 0 get def
+        /imgrows rec /.state get /.playrun get 1 get def
         /banding bandrows imgrows lt def
 
-        rec /.outputfile known { page /.outputfile rec /.outputfile get put } if
+        rec /.state get /.outputfile known
+            { page /.state get /.outputfile
+              rec /.state get /.outputfile get put } if
 
         % The colour the page was cleared to, carried onto the raster
         % that paints it. That colour is what a device shows over a row
@@ -902,7 +912,7 @@ setglobal
             % is going to and how far down the page it has got. It is
             % this page's and not the page before's, so a raster standing
             % again is given a fresh one.
-            page /.bandpage 4 dict put
+            page /.state get /.bandpage 4 dict put
             imgtop bandrows imgtop imgrows add 1 sub {
                 /top exch def
 

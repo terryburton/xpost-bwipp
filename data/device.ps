@@ -15,6 +15,55 @@
 %  It also implements the Showpage Semantics behavior
 %  specified in the call to xpost_create().
 %
+%
+%  ---- what a device is, and where each part of it lives ----------------
+%
+%  A device is three things kept apart on purpose. The C half of this is
+%  stated in src/lib/xpost_dev_driver.h; this is the PostScript half.
+%
+%  THE CLASS is a declaration: the methods the machinery runs on a device
+%  of that kind, and the constants it answers with -- how many components
+%  a pixel has, what colour space it is native to, whether its page may
+%  arrive a band at a time. It is built once, as the boot reads the file
+%  that defines it, and is sealed at the lockdown (data/init.ps). Nothing
+%  writes a class after that, and nothing needs to: a class states what
+%  every device of its kind is, and one that a run could write would be a
+%  table a program can put its own method into and have the machinery run
+%  at showpage.
+%
+%  THE INSTANCE is one device: the class's methods and constants, copied,
+%  plus what the page-device request asked of it and what construction
+%  settled -- its dimensions, the file it writes, the buffer it paints
+%  into. It is made by .classinstance, finished by .completedevice, and
+%  sealed at the end of installation. From that point a device IS what it
+%  is, and reading one tells you what will be true of it for the rest of
+%  its life.
+%
+%  THE STATE is what a page does to the device: reached as /.state on the
+%  instance, made fresh for each instance, given up with it. The page
+%  number, the settled output name, the run of rows a band walk has
+%  reached, the halftone cell in force, the images and patterns a page has
+%  filed. If a value is written after the device is installed, it belongs
+%  here, and there is nowhere else it can go -- the instance will refuse
+%  it.
+%
+%  A METHOD'S OWN WORKING NAMES belong to neither. A method that binds its
+%  operands to names, or works out a page's arithmetic, opens .indevwork:
+%  the device, and a dictionary of its own above it. A def in that body
+%  lands in the working dictionary and is given up when the call returns;
+%  a name the body only reads is found on the device beneath it, at the
+%  one lookup it always cost. Inside that bracket currentdict is the
+%  working dictionary, so a body wanting the device itself says .dev.
+%
+%  ---- adding a device --------------------------------------------------
+%
+%  Declare the constants and the methods in the class. Let Create call
+%  .classinstance and specialise the copy it answers with. Put what the
+%  page writes in .state, and give any method that names its operands a
+%  working dictionary. Then tests/device-facts will ask you to say what
+%  each new entry is, and check that a class states it, an instance
+%  carries it, or a page writes it -- whichever you said.
+%
 //.internaldict /QUIET known { }{ (loading device.ps...\n)print } ifelse
 
 %
@@ -28,6 +77,17 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  The names .imagingrows binds its five operands to.
 %
 .xpostsys /.imagingrownames [ /ph /sy /off /h /bbox ] readonly put
+
+%
+%  What this run settled on for its band budget, and the figure the
+%  recording class was stating when it settled. Kept here rather than
+%  written back onto that class: a class states what it is and every
+%  device made from it copies that statement, so a run's own figure
+%  written there would stand in a declaration every later device reads.
+%  In the job store because it is what this job settled on, and the next
+%  job settles again.
+%
+.jobstore /.bandstate 2 dict put
 
 %
 %  The one number formatter for the vector writers (the PDF, SVG and DSC
@@ -70,9 +130,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  it from the class dictionary before specialising the copy).
 %
 %  An instance is a copy of its class with the state the instance
-%  accumulates: the dimensions it adopted, the output file name in
-%  force when it was made, and the device features of the page-device
-%  request it is being made for. The file name matters to any class
+%  accumulates: the output file name in force when it was made, and the
+%  device features of the page-device request it is being made for. The
+%  page geometry is not among them -- it reaches the instance through
+%  .classinstance below, which is what every Create calls. The file name matters to any class
 %  whose Emit writes a file, and a class carrying a copy without it
 %  produced a device that wrote wherever Emit defaulted to whatever the
 %  program had asked for -- which is why this is one procedure rather
@@ -96,17 +157,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  finished device, written there after it is built exactly as every
 %  feature always was.
 %
-%  The dimensions are written with the copy current, and it is opened
-%  through the bracket that takes it off again however the body ends,
-%  error included (.indict, callout.ps): a copy left current is a
-%  dictionary the caller's error handler, and everything after it, would
-%  go on defining into.
-%
 .xpostsys /.classcopydict {  % dict1  .  dict2
     dup length dict copy
-    dup /width known {
-        dup { /dimensions [width height] def } //.indict exec
-    } if
 
     % The file name this run was started with. A request's own binding
     % is a device feature and arrives through the merge below, writing
@@ -136,6 +188,126 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         } forall                            % Copy
     }{ pop pop } ifelse
 } put
+
+%
+%  The one class-to-instance make, called by every Create -- the
+%  PostScript ones directly, the compiled ones through the class entry
+%  /.instance (xpost_dev_create_begin, src/lib/xpost_dev_generic.c).
+%
+%  A class is a declaration: the methods every instance of it runs and
+%  the constants every instance of it answers with. The page a device
+%  was made for belongs to the instance that adopted it, so the geometry
+%  arrives here as operands and is written to the copy. A Create that
+%  instead defined it into the class would leave the class holding one
+%  page's size for the next device made to inherit, and would leave a
+%  declaration that cannot be sealed because making a device writes to
+%  it.
+%
+%  width and height are written as well as dimensions: a device's own
+%  Create reads them by name out of the instance while it builds the
+%  rest of it, and .adoptexactpage (init.ps) restates them there where
+%  the page-device machinery published exact ones.
+%
+%  The copy is opened through the bracket that takes it off again
+%  however the body ends, error included (.indict, callout.ps): a copy
+%  left current is a dictionary the caller's error handler, and
+%  everything after it, would go on defining into.
+%
+.xpostsys /.classinstance {  % width height class  .  instance
+3 dict {
+    /ci.class exch def
+    /ci.height exch def
+    /ci.width exch def
+    ci.class //.classcopydict exec
+    dup {
+        /width ci.width def
+        /height ci.height def
+        /dimensions [ci.width ci.height] def
+
+        % The device's name for itself. A method reads what the device
+        % is through the dictionary stack, which answers whatever is
+        % uppermost; where a method has been given a dictionary of its
+        % own to work in, that is no longer the device. This name is
+        % the device whichever it is, and a working dictionary states
+        % it again so the lookup lands on the small dictionary rather
+        % than searching the device for it.
+        /.dev currentdict def
+
+        % A class that prices its page in bands states the figure it was
+        % written with, and the run may have been started with another;
+        % the instance is where a run's own answer belongs. A class
+        % stating something other than it stated when the run settled is
+        % stating it deliberately, and keeps it.
+        .dev /.bandbytes known {
+            //.bandstate /bytes 2 copy known { get }{ pop pop null } ifelse
+            dup null eq {
+                pop
+            }{
+                //.bandstate /declared 2 copy known { get }{ pop pop null } ifelse
+                .dev /.bandbytes get eq
+                    { .dev exch /.bandbytes exch put }{ pop } ifelse
+            } ifelse
+        } if
+
+        % Where everything this device writes after it is built goes.
+        % A device's own entries are what it is -- its methods and the
+        % constants they answer with -- and are settled by the time it
+        % is finished; what a page does to it belongs somewhere of its
+        % own, reached through this one name. Made fresh for each
+        % instance, so nothing a device wrote can reach the next one,
+        % and given up with it.
+        /.state 8 dict def
+    } //.indict exec
+} //.indict exec } put
+
+%
+%  The bracket a device method runs its own working names in: the
+%  device, and a dictionary of its own above it.
+%
+%  A method that computes a page's worth of intermediate values names
+%  them, and naming them with the device current wrote them onto the
+%  device -- so a device that had emitted a page carried that page's
+%  arithmetic for the rest of the job. They belong to the call. This
+%  gives the call a dictionary to hold them, discarded when it returns,
+%  and the body needs no changing: a def lands in the working
+%  dictionary because it is uppermost, and a name the body only reads --
+%  the device's dimensions, its constants, its sibling methods -- is
+%  found on the device beneath, at the one lookup it always cost.
+%
+%  What must OUTLIVE the call does not belong here. That is the
+%  instance's state, written through /.state by name, and a method
+%  wanting both uses both.
+%
+%  Inside the bracket currentdict is the working dictionary, so the
+%  device is given a name of its own: .dev, for the bodies that hand
+%  the device to something else.
+%
+%  The body is never given a name: naming a procedure runs it, and a
+%  bracket that ran its body while trying to hand it to stopped would
+%  lose the very unwinding it exists for. It stays on the operand stack.
+%
+.xpostsys /.indevwork {  % dev nslots {body}  .  -
+    3 1 roll exch dup begin exch dict begin /.dev exch def
+    stopped { end end //.costop exec }{ end end } ifelse
+} put
+
+%
+%  Empty a dictionary, keeping the dictionary. A record a page fills and
+%  the page after it starts empty is emptied rather than replaced: what
+%  reads the record holds the dictionary, and installing a fresh one
+%  writes the entry that names it -- on the device, for a record a device
+%  keeps -- where emptying the one already there writes nothing outside
+%  the record itself.
+%
+%  The keys are taken before any is removed. A dictionary walked while it
+%  is being written is a dictionary whose walk PLRM 3.4 leaves undefined.
+%
+.xpostsys /.emptydict {  % dict  .  -
+2 dict {
+    /ed.d exch def
+    /ed.keys [ ed.d { pop } forall ] def
+    ed.keys { ed.d exch undef } forall
+} //.indict exec } put
 
 %
 %  Refuse a device whose band budget will not buy one row of its page.
@@ -203,6 +375,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  reach the compiled rasterisers, and a global object may not hold a
 %  local one.
 %
+%
+%  Close a device that is installed and finished. Everything that says
+%  what the device is has been written by this point -- the class it was
+%  copied from, the page-device request's features, the post-construction
+%  fixups, and whatever an Install procedure set -- and what a page does
+%  to it goes to the state beside it. A device left writable is a table a
+%  program can put its own method into and have the machinery run at
+%  showpage; the class is closed at the lockdown, and closing the class
+%  closes nothing an instance holds, a copy carrying its own references.
+%
+.xpostsys /.sealdevice {  % devdict  .  -
+    systemdict /UNSEALEDDEVICES known { pop }{ readonly pop } ifelse
+} put
+
 .privatedict /.completedevice {  % devdict sx sy  .  -
     % Whether the budget this device's bands were cut to bought any of
     % them, asked before anything is written on the device and before
@@ -296,6 +482,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } if
         } if
     } if
+
     og
     end
     setglobal
@@ -398,8 +585,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  replaced with the page number, from the one counter .pagefilename keeps,
 %  so every device numbers its pages alike. A device with no name at all
 %  writes to the standard output, which is where a page goes when nobody
-%  said where. What comes out is stored on the device as /.outputfile,
-%  and that -- not the template -- is what an Emit opens.
+%  said where. What comes out is stored in the device's state as
+%  /.outputfile, and that -- not the template -- is what an Emit opens.
 %
 %  Settling the name belongs to the page and not to the device: a device
 %  that settled it when it was made wrote every page of a job to the name
@@ -414,7 +601,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
           dup null eq { pop (%stdout) } if }
     ifelse
     //.pagefilename exec
-    1 index exch /.outputfile exch put
+    1 index /.state get exch /.outputfile exch put
 
     % What became of this page, for a run that asked to be told
     //.internaldict /QUIET known
@@ -492,11 +679,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.settlebandbudget {  % -  .  -
     .privatedict /.xpost_RECORD known {
         currentglobal true setglobal
+
+        % The figure the class is stating as this run settles, so that a
+        % class saying something else afterwards is saying it on purpose
+        % and keeps it.
+        .privatedict /.xpost_RECORD get /.bandbytes get
+        //.bandstate exch /declared exch put
+
         /MaxBandBytes //.hostvalue exec
         dup type /integertype eq
-            { .privatedict /.xpost_RECORD get exch /.bandbytes exch put }
-            { pop //.hostdict /MaxBandBytes
-              .privatedict /.xpost_RECORD get /.bandbytes get put }
+            { //.bandstate exch /bytes exch put }
+            { pop
+              //.bandstate /declared get
+              dup //.bandstate exch /bytes exch put
+              //.hostdict /MaxBandBytes 3 -1 roll put }
         ifelse
         setglobal
     } if
@@ -516,9 +712,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  answers for the band it would have reported.
 %
 .xpostsys /.bandbudget {  % -  .  bytes
+    % What the recording class states, and what this run settled on. The
+    % run's figure stands where the class still states what it stated as
+    % the run settled; a class saying something else is saying it on
+    % purpose and is answered with, which is the same rule the instance
+    % is made under.
     .privatedict /.xpost_RECORD 2 copy known
         { get /.bandbytes 2 copy known { get }{ pop pop 0 } ifelse }
         { pop pop 0 } ifelse
+    dup //.bandstate /declared 2 copy known { get }{ pop pop null } ifelse
+    eq {
+        //.bandstate /bytes 2 copy known { get }{ pop pop null } ifelse
+        dup null eq { pop }{ exch pop } ifelse
+    } if
 } put
 
 %
@@ -748,6 +954,8 @@ end } bind put
         % showpage; the reset clears none of them, since it resets the
         % graphics state and not raster memory.
         erasepage
+
+        DEVICE //.sealdevice exec
     } ifelse
 } put
 
@@ -792,7 +1000,7 @@ end } bind put
     % XPOST_SHOWPAGE_DEFAULT
     0 {
         (----showpage----) //.pagepause exec
-        DEVICE /pagenumber
+        DEVICE /.state get /pagenumber
         2 copy known {
             2 copy get 1 add put
         }{

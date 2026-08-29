@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 473
+entries 477
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -57,6 +57,7 @@ entries 473
 .jobstore /.hostdict
 .jobstore /.isectscratch
 .jobstore /.opsigs
+.jobstore /.bandstate
 .jobstore /.pagestate
 .jobstore /.promptdigit
 .jobstore /.resourcemissing
@@ -160,6 +161,10 @@ entries 473
 .xpostsys /.cietblval
 .xpostsys /.ciexyzrgb
 .xpostsys /.classcopydict
+.xpostsys /.emptydict
+.xpostsys /.classinstance
+.xpostsys /.indevwork
+.xpostsys /.sealdevice
 .xpostsys /.clipbig
 .xpostsys /.clipmeet
 .xpostsys /.clipmeetparts
@@ -414,7 +419,6 @@ entries 473
 .xpostsys /.qsort
 .xpostsys /.radialsh
 .xpostsys /.rasterproto
-.xpostsys /.rasterwh
 .xpostsys /.ravec
 .xpostsys /.recordcolorscreen
 .xpostsys /.rect

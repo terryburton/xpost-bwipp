@@ -3071,7 +3071,7 @@ initgraphics
 % one uncompressed strip of the pixels
 /DEVT 8 8 .privatedict /newTIFFIMAGEdevice get exec def
 DEVT /OutputFileName (graphics.scratch) put
-DEVT /.outputfile (graphics.scratch) put
+DEVT /.state get /.outputfile (graphics.scratch) put
 DEVT zerorgb
 1 1 0 2 2 4 4 DEVT dup /FillRect get exec
 DEVT dup /Emit get exec
@@ -3103,7 +3103,7 @@ tf.rt 2 8 mul 2 add 3 mul 2 add get 0 eq and
 % structure and a prolog naming the accumulated operators
 /DEVP 100 100 .privatedict /newDSCWRITEdevice get exec def
 DEVP /OutputFileName (graphics.scratch) put
-DEVP /.outputfile (graphics.scratch) put
+DEVP /.state get /.outputfile (graphics.scratch) put
 0.5 10 10 30 20 DEVP dup /FillRect get exec
 DEVP dup /Emit get exec
 % the distilled program spans pages, so Destroy writes the trailer that closes
@@ -3122,7 +3122,7 @@ pw.s (%%EOF) search { pop pop pop true }{ pop false } ifelse
 % bitmap as a data URI; both leave the masked forms to the painters
 /DEVV 100 100 .privatedict /newPDFWRITEdevice get exec def
 DEVV /OutputFileName (graphics.scratch) put
-DEVV /.outputfile (graphics.scratch) put
+DEVV /.state get /.outputfile (graphics.scratch) put
 graphicsdict /currgstate get /device DEVV put
 matrix setmatrix
 gsave 10 10 translate 40 40 scale
@@ -3143,7 +3143,7 @@ vw.s (/XObject) search { pop pop pop true }{ pop false } ifelse
 (the page resources reference the image) assert
 /DEVW 100 100 .privatedict /newSVGWRITEdevice get exec def
 DEVW /OutputFileName (graphics.scratch) put
-DEVW /.outputfile (graphics.scratch) put
+DEVW /.state get /.outputfile (graphics.scratch) put
 graphicsdict /currgstate get /device DEVW put
 matrix setmatrix
 gsave 10 10 translate 40 40 scale

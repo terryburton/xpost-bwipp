@@ -366,7 +366,7 @@ probe_run() {                   # <output file> <extra args...>
     # its libraries allowed, and on one of them that is a window on the
     # screen the run was started from. A caller naming its own device
     # names it after this one and is the device used.
-    XPOST_DATA_DIR="$src/data" "$xpost" -q --no-sandbox -d null "$@" \
+    XPOST_DATA_DIR="$src/data" XPOST_CENSUS=1 "$xpost" -q --no-sandbox -d null "$@" \
         "$hwork/probe.ps" </dev/null 2>/dev/null | tr -d "$cr" > "$o"
 }
 

@@ -254,7 +254,7 @@ banding {
     graphicsdict /.rasterband [ gd.top gd.rows ] put
     /gd.dev GW GH .privatedict /newPGMIMAGEdevice get exec store
     gd.dev 1 1 .privatedict /.completedevice get exec
-    gd.dev /.outputfile gd.file put
+    gd.dev /.state get /.outputfile gd.file put
     gd.dev
 } bind def
 
@@ -268,7 +268,7 @@ banding {
     % and the page in a raster holding eleven rows, put out as each run
     % of rows is finished
     /gband 0 GBAND (pgm-band.pgm) greydev def
-    gband /.bandpage 4 dict put
+    gband /.state get /.bandpage 4 dict put
     /gn 0 def
     0 GBAND GH 1 sub {
         /gtop exch store

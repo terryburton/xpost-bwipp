@@ -238,7 +238,7 @@
     /wh.before gvm store
     << /PageSize [W wh.h] >> setpagedevice
     watch
-    DEVICE /.outputfile wh.h wholename put
+    DEVICE /.state get /.outputfile wh.h wholename put
     wh.h paint
     DEVICE dup /Emit get exec
     /wh.after gvm store
@@ -260,10 +260,10 @@
     graphicsdict /.rasterband [ 0 bd.b ] put
     << /PageSize [W bd.h] >> setpagedevice
     watch
-    DEVICE /.outputfile bd.h bd.b bandname put
+    DEVICE /.state get /.outputfile bd.h bd.b bandname put
     % what the page's emission keeps between bands: the file it is going
     % to and how far down the page it has reached
-    DEVICE /.bandpage 4 dict put
+    DEVICE /.state get /.bandpage 4 dict put
     /bd.n 0 store
     0 bd.b bd.h 1 sub {
         /bd.top exch store

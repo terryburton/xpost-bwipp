@@ -690,10 +690,13 @@ static int _sweep_forbidden(Xpost_Context *ctx, Xpost_Object o, int leadstocode,
        executable array. That makes `local 0 0` read as "nothing writable
        in local virtual memory" when it means something much weaker.
        Counted here instead: a table in local virtual memory that a program
-       can write and the machinery can be made to run out of. The device
-       classes are the population, and a program that replaces a method in
-       one has the machinery run it -- for the rest of the job, since a
-       restore and the job boundary both take local memory back. */
+       can write and the machinery can be made to run out of, which a
+       restore and the job boundary take back rather than close. The
+       device classes were the bulk of the population and are sealed at
+       the lockdown now that nothing writes one after the boot builds it;
+       what is left is the graphics state, which holds the procedures a
+       program sets -- a transfer, a spot function -- and is written on
+       every gsave, so it is state rather than a table to close. */
     if (kind == 6)
         return leadstocode && !instore && !glob;
 
@@ -719,9 +722,12 @@ static int _sweep_forbidden(Xpost_Context *ctx, Xpost_Object o, int leadstocode,
         return xpost_object_is_exe(o) || (inbody && !instore && glob);
 
     /* A table is sealed in global virtual memory when the machinery can be
-       made to run out of it, and when a body froze it in. The local ones are
-       where the machinery keeps what it writes at every render -- that is
-       why they are local -- and sealing them stops it working. */
+       made to run out of it, and when a body froze it in. The local ones
+       are where the machinery keeps what it writes at every render --
+       that is why they are local. The device classes are the exception
+       and are sealed where the lockdown can tell one from the graphics
+       state, which is in PostScript: this rule cannot make that
+       distinction. */
     if (t == dicttype)
         return (leadstocode || (inbody && !instore)) && glob;
 
@@ -1483,6 +1489,15 @@ done:
 static
 int op_vmsweep(Xpost_Context *ctx, Xpost_Object B, Xpost_Object K)
 {
+    /* The introspection operators answer only a run that asked for
+       introspection. .vmsweep hands back the PATHS of what is still
+       writable, which is the map tests/vm_forbidden.golden refuses to
+       carry -- "a list of the objects that still have the property is a
+       map for whoever would like to use them" -- and handing it to any
+       program that asks undoes that. The others give the machinery's own
+       member names and the host's settings, which are smaller maps of the
+       same kind. */
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
     if (B.int_.val < 1 || B.int_.val > 3) return rangecheck;
     if (K.int_.val < 0
         || (K.int_.val > 2 && K.int_.val != 5 && K.int_.val != 6))
@@ -1508,6 +1523,7 @@ int xpost_vm_blind_measure(Xpost_Context *ctx)
 static
 int op_jobmembernames(Xpost_Context *ctx, Xpost_Object N)
 {
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
     Xpost_Object D = ctx->jobstore;
     Xpost_Memory_File *mem;
     Xpost_Object arr;
@@ -1561,6 +1577,7 @@ int op_jobmembernames(Xpost_Context *ctx, Xpost_Object N)
 static
 int op_jobmemberwritable(Xpost_Context *ctx, Xpost_Object N)
 {
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
     Xpost_Object D;
 
     if (xpost_object_get_type(N) != nametype) return typecheck;
@@ -1578,6 +1595,7 @@ int op_jobmemberwritable(Xpost_Context *ctx, Xpost_Object N)
 static
 int op_hostsetting(Xpost_Context *ctx, Xpost_Object N)
 {
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
     Xpost_Object v;
     Xpost_Object ns;
     char *cp;

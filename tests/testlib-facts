@@ -134,7 +134,7 @@ own    loop_exit_test.ps                      6
 own    mask_cache_range_test.ps               2
 own    name_intern_test.ps                    1
 own    namespace_test.ps                      1
-own    unreachable_test.ps                  1
+own    unreachable_test.ps                  2
 own    nographics_test.ps                     3
 own    numstring_decode_test.ps               1
 own    op_compare_test.ps                     1

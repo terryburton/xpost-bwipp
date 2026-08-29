@@ -90,8 +90,12 @@
 %  as well, so the page is read on the terms it was written on.
 %
 .xpost_PBMIMAGE /.screenpix {  % c1 x y  .  c1' x y
-    currentdict /.htcell known {
-        currentdict //.internaldict /.screenink get exec
+    % the cell in force is the device's state where a page installed one,
+    % and the device's own where a replay handed it the screen it was
+    % recorded under; whichever holds it answers
+    .dev /.state get /.htcell known
+    .dev /.htcell known or {
+        .dev //.internaldict /.screenink get exec
     } if
 } put
 
@@ -115,7 +119,7 @@
 %  until the next call fills it again.
 %
 .xpost_PBMIMAGE /.groundrowat {  % y  .  row
-    currentdict /.ground known {
+    .dev /.ground known {
         /.gndy exch def
         0 1 width 1 sub {
             /.gndx exch def

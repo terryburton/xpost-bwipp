@@ -3383,6 +3383,17 @@ currentglobal true setglobal
                 erasepage
                 off aload pop translate
 
+                % The device is installed and everything that describes it
+                % has been written: the request's features, the fixups, and
+                % whatever an Install procedure set. What a page does to it
+                % from here goes to the state beside it, so the device is
+                % closed. A device left writable is a table a program can
+                % put its own method into and have the machinery run at
+                % showpage -- and closing the class it was copied from
+                % closes nothing this holds, a copy carrying its own
+                % references.
+                newdev //.xpostsys /.sealdevice get exec
+
                 % The page count belongs to the device, so an activation starts
                 % it again at zero.
                 0 //.xpostsys /.setpageno get exec
@@ -3435,6 +3446,11 @@ currentglobal true setglobal
                     << /PageSize [ DEVICE /dimensions get aload pop ]
                        /Policies //.xpostsys /.defaultpolicies get exec >>
                 } ifelse
+                % PLRM 6.1: what this returns is read-only. It is already a
+                % copy, so a program writing to it would change nothing that
+                % survives the next call -- refusing the write says that,
+                % where letting it through quietly loses it.
+                readonly
             } //.defop exec
             end  % Systemdict
 
@@ -3783,6 +3799,13 @@ currentglobal true setglobal
             % and are answered with names and values, never the dictionary.
             .internaldict /.jobstore known
               { .internaldict /.jobstore undef } if
+
+            % ...and .vmseal, which REDUCES access wherever it is asked.
+            % The lockdown above is the only caller and it has run by now;
+            % leaving the operator where a program can reach it leaves the
+            % machinery's own access under a program's hand.
+            .internaldict /.vmseal known
+              { .internaldict /.vmseal undef } if
             { systemdict exch undef } forall
 
             % The internal draw-line flag is interpreter state a program has no use
@@ -3966,6 +3989,49 @@ currentglobal true setglobal
             % through the body of the procedure that answers the password
             % and seals it like any other namespace, so a put here
             % afterwards is refused.
+            % A device class is a declaration once the interpreter is
+            % up: the methods the machinery runs on a device of that
+            % kind, and the entries it answers with. What a page does to
+            % a device goes to that instance's own state, and what a run
+            % settled on goes where the run's answers are kept, so
+            % nothing writes a class after this point. One left writable
+            % is a table a program can put its own method into and have
+            % the machinery run, for the rest of the job.
+            %
+            % Sealed by what a class IS -- a table the local machinery
+            % holds that knows how to make an instance of itself -- so a
+            % device added later is sealed without this naming it. The
+            % sweep below cannot ask this question: its table rule is for
+            % global virtual memory, and these are local because an
+            % instance made from one is local.
+            %
+            % A run that asked to instrument the machinery keeps them
+            % writable, because a program has no other way to watch a
+            % device method: the private namespaces refuse a program's
+            % writes, so it can neither register a class of its own nor
+            % reach one already made. That is the invocation's decision
+            % and not the program's -- nothing a program does can reach
+            % the setting -- and check-vm-forbidden holds the ordinary
+            % run, which is the one that ships.
+            % Read from systemdict, and taken out of it here: the flag
+            % is put there by the C before the boot runs, and a run that
+            % loaded a built image never ran the boot, so this is the one
+            % place that sees it either way. Taken out so that what a
+            % program can read of systemdict does not include it as
+            % anything it can set: by the time the lockdown runs the
+            % window on systemdict has closed, so this is read and left
+            % where it is, and what it tells a program is only what
+            % trying to write a class would tell it anyway.
+            systemdict /UNSEALEDDEVICES known not {
+                .privatedict {
+                    exch pop
+                    dup type /dicttype eq {
+                        dup /.instance known { readonly } if
+                    } if
+                    pop
+                } forall
+            } if
+
             .internaldict /LOCKDOWN_DONE true put
 
             0 16#7FFFFFFF .vmseal pop

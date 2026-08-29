@@ -113,6 +113,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /NoOutput true  % Keep this device's own vector FillPoly (no rasterizing)
     /VectorGlyphs true  % Text operators emit glyph outlines, not bitmaps
 
+    % Whether a clip is open in the content stream this page is
+    % accumulating. Declared, so the accumulator reads it rather than
+    % asking whether it is there; a page opens one and closes it again,
+    % and the entry a page writes is its own.
+    /.pdfclipopen false
+
     % Whether the tiling construct this writer has can hold a cell larger
     % than the step between cells -- overlapping cells, which PLRM Table
     % 4.9 allows by letting XStep and YStep differ from the BBox. PDF
@@ -121,22 +127,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /PatternOverlap true
 
     /.copydict //.classcopydict
+    /.instance //.classinstance
 
     /Create {  % width height IMAGE  .  IMAGE'
-    { //.rasterwh {exch def}forall
+    //.classinstance exec
 
     % The page dimensions are points and need not be integral; adopt the
-    % exact values when the page device machinery published them.
-    //.adoptexactpage exec
-    currentdict } //.indict exec
-    dup /.copydict get exec
+    % exact values when the page device machinery published them, and
+    % restate the pair the rest of the machinery reads.
+    dup { //.adoptexactpage exec
+          /dimensions [width height] def } //.indict exec
     {
         /.docinfo 8 dict def    % Document metadata from DOCINFO pdfmarks
-        currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
-        /.pdfimages 0 array def
-        /.pdfmasks 64 dict def  % masks already filed, so a repeated glyph files once
-        /.pdfpatterns 0 array def  % tiling cells filed as /Pattern resources
-        /.opused 8 dict def   % Overprint states used on this page -> ExtGState entries
+        .dev //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
+        .state /.pdfimages 0 array put
+        .state /.pdfclipopen .dev /.pdfclipopen get put
+        .state /.pdfmasks 64 dict put  % masks already filed, so a repeated glyph files once
+        .state /.pdfpatterns 0 array put  % tiling cells filed as /Pattern resources
+        .state /.opused 8 dict put   % Overprint states used on this page -> ExtGState entries
 
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
@@ -147,8 +155,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % single-file output now -- before the job's first per-page save -- so
         % restore cannot close it (a handle opened after a save is closed by
         % that restore).
-        currentdict dup /.setupoutput get exec
-    currentdict
+        .dev dup /.setupoutput get exec
+    .dev
     } //.indict exec } bind
 
     % Take the ticket on the open document. The record names one ticket and
@@ -159,7 +167,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         //.vecout /docid get 1 add
         //.vecout /docid 2 index put
         //.vecout /owner 2 index put
-        currentdict /.vecticket 3 -1 roll put
+        .dev /.vecticket 3 -1 roll put
     } //.indict exec } bind
 
     % Decide the output form from the name and, for the single-file form, open
@@ -181,10 +189,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /.setupoutput {  % IMAGE  .  -
     {
         //.vecout /ready get {
-            currentdict /OutputFileName known {
+            .dev /OutputFileName known {
                 //.vecout /name get OutputFileName ne {
                     //.vecout /single get {
-                        currentdict dup /.endfile get exec
+                        .dev dup /.endfile get exec
                     } if
                     //.vecout dup /single false put
                         dup /ready false put /owner undef
@@ -195,15 +203,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             % The document stays open across the change of device; this one
             % writes it from here on.
             //.vecout /owner known
-            currentdict /.vecticket known and {
-                //.vecout /owner get currentdict /.vecticket get ne {
-                    currentdict dup /.claimdoc get exec
+            .dev /.vecticket known and {
+                //.vecout /owner get .dev /.vecticket get ne {
+                    .dev dup /.claimdoc get exec
                 } if
             }{
-                currentdict dup /.claimdoc get exec
+                .dev dup /.claimdoc get exec
             } ifelse
         }{
-            currentdict /OutputFileName known {
+            .dev /OutputFileName known {
                 currentglobal true setglobal
                 OutputFileName (%d) search { pop pop pop false }{ pop true } ifelse
                 {
@@ -250,7 +258,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 } ifelse
                 setglobal
                 //.vecout /ready get {
-                    currentdict dup /.claimdoc get exec
+                    .dev dup /.claimdoc get exec
                 } if
             } if
         } ifelse
@@ -281,7 +289,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % Append a string to the content accumulator (held outside VM via /Private)
     /.put {  % str  .  -
-        currentdict //.internaldict /.pdfput get exec
+        .dev //.internaldict /.pdfput get exec
     } bind
 
     % A PDF content stream is a state machine (PDF 8.4): a colour, a line
@@ -298,13 +306,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % rather than to a string here, so a page of paints takes no virtual
     % memory to say what colour each one is in.
     /.sput {  % str  .  -
-        currentdict //.internaldict /.pdfsput get exec
+        .dev //.internaldict /.pdfsput get exec
     } bind
     /.send {  % slot  .  bool
-        currentdict //.internaldict /.pdfsend get exec
+        .dev //.internaldict /.pdfsend get exec
     } bind
     /.scarried {  % slot  .  -
-        currentdict //.internaldict /.pdfscarried get exec
+        .dev //.internaldict /.pdfscarried get exec
     } bind
 
     % A number into the state operator being built, formatted as .pdfnum
@@ -329,10 +337,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % Q has already undone, which is a paint in the wrong colour rather
     % than a larger file.
     /.qsave {  % -  .  -
-        currentdict //.internaldict /.pdfsave get exec
+        .dev //.internaldict /.pdfsave get exec
     } bind
     /.qrestore {  % -  .  -
-        currentdict //.internaldict /.pdfrestore get exec
+        .dev //.internaldict /.pdfrestore get exec
     } bind
 
     % A tiling pattern reaches a consumer as the format's own construct:
@@ -372,11 +380,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % that is no longer there.
     /.patterntell {  % IMAGE  .  token true | false
     {
-        currentdict //.internaldict /.pdfsubbegin get exec {
-            [ exch .pdfimages .pdfmasks dup length dict copy
-              .opused dup length dict copy
-              currentdict /.pdfclipopen 2 copy known
-                  { get }{ pop pop false } ifelse ]
+        .dev //.internaldict /.pdfsubbegin get exec {
+            [ exch .state /.pdfimages get .state /.pdfmasks get dup length dict copy
+              .state /.opused get dup length dict copy
+              .state /.pdfclipopen get ]
             true
         }{ false } ifelse
     } //.indict exec } bind
@@ -385,15 +392,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     {
         exch                                    % Keep token
         dup 0 get                               % Keep token at
-        currentdict
+        .dev
         //.internaldict /.pdfsubend get exec    % Keep token chunks
         3 1 roll                                % Chunks keep token
         exch not {
-            /.pdfimages 1 index 1 get def
-            /.pdfmasks 1 index 2 get def
-            /.opused 1 index 3 get def
+            % what the cell was entered with, put back where it lives
+            dup 1 get .state exch /.pdfimages exch put
+            dup 2 get .state exch /.pdfmasks exch put
+            dup 3 get .state exch /.opused exch put
         } if
-        /.pdfclipopen exch 4 get def
+        4 get .state exch /.pdfclipopen exch put
     } //.indict exec } bind
 
     % File a captured cell for this page and answer the number the
@@ -411,7 +419,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % bytes, having been painted into the cell, so one pattern used in
     % two colours files as two cells.
     /PatternCell {  % bbox xstep ystep tilingtype matrix chunks IMAGE  .  n
-    {
+    24 {
         //.pdfwritebind0 {exch def} forall
 
         % The matrix arrives as the mapping from the coordinates the
@@ -423,10 +431,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /pcmat pcmat [ 1 0 0 -1 0 height ] matrix concatmatrix def
         /pclen 0 def pcchunks { length pclen add /pclen exch def } forall
         /pchit -1 def
-        0 1 .pdfpatterns length 1 sub {
+        0 1 .state /.pdfpatterns get length 1 sub {
             /pci exch def
             pchit 0 lt {
-                /pcc .pdfpatterns pci get def
+                /pcc .state /.pdfpatterns get pci get def
                 pcc /len get pclen eq
                 pcc /tt get pctt eq and
                 pcc /xs get pcxs eq and
@@ -439,13 +447,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } if
         } for
         pchit 0 lt {
-            /pchit .pdfpatterns length def
-            /.pdfpatterns [ .pdfpatterns aload pop
+            /pchit .state /.pdfpatterns get length def
+            % the cells this page names outlive the call that files one
+            .state /.pdfpatterns [ .state /.pdfpatterns get aload pop
                 << /bb pcbb /xs pcxs /ys pcys /tt pctt /mat pcmat
-                   /chunks pcchunks /len pclen >> ] def
+                   /chunks pcchunks /len pclen >> ] put
         } if
         pchit
-    } //.indict exec } bind
+    } //.indevwork exec } bind
 
     % Whether two arrays hold the same things, element by element. What
     % it is asked of is a filed cell and a fresh one: strings compare by
@@ -475,12 +484,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .pdfoverprint
         (/Pattern cs /P) .sput 20 string cvs .sput ( scn\n) .sput
         .gsfill .send pop
-        currentdict //.internaldict /.pdffillpath get exec
+        .dev //.internaldict /.pdffillpath get exec
 
         % a clip adopted for this fill ends with it
-        currentdict /.pdfclipopen 2 copy known { get }{ pop pop false } ifelse {
+        .state /.pdfclipopen get {
             .qrestore
-            /.pdfclipopen false def
+            .state /.pdfclipopen false put
         } if
     } //.indict exec } bind
 
@@ -508,7 +517,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % selection nothing had unmade, and a document that never touches
     % overprint would carry one at the head of every page but its first.
     /.streamreset {  % -  .  -
-        currentdict //.internaldict /.pdfreset get exec
+        .dev //.internaldict /.pdfreset get exec
         .streamdefaults
     } bind
 
@@ -590,9 +599,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % each key used names an ExtGState entry the page's Resources declares.
     % Nothing is emitted while overprint stays at its default, so a document
     % that never touches overprint carries no ExtGState at all.
-    % no scratch dict here: .put reaches the content accumulator through
-    % currentdict, which a begin would displace, so the state is carried on
-    % the operand stack instead (opv opm statekey).
+    % The state is carried on the operand stack (opv opm statekey), which
+    % is what it needs to be for three values used once each.
     % PreserveOverprintSettings false (a distiller parameter) drops the
     % overprint state from the output; the default carries it.
     /.pdfoverprint {  % -  .  -
@@ -607,8 +615,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             % offered: an entry declared for a selection the stream never
             % makes would put an ExtGState on every page of a document
             % that never touches overprint.
-            dup .opused exch known not {
-                dup .opused exch 4 index 4 index 2 array astore put
+            dup .state /.opused get exch known not {
+                dup .state /.opused get exch 4 index 4 index 2 array astore put
             } if
         } if
         pop pop pop } ifelse
@@ -767,7 +775,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             false
         }{
             /.sepname .sepspace 1 get dup type /stringtype ne { 127 string cvs } if def
-            .sepname currentdict //.internaldict /.pdffindsep get exec {
+            .sepname .dev //.internaldict /.pdffindsep get exec {
                 true
             }{
                 (/Separation /) .sepname .escname .strcat ( /) .strcat
@@ -787,34 +795,34 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     .fbody length 20 string cvs .strcat
                     ( >>\nstream\n) .strcat .fbody .strcat (\nendstream) .strcat
                 } ifelse
-                .sepname 3 1 roll currentdict //.internaldict /.pdfregsep get exec
+                .sepname 3 1 roll .dev //.internaldict /.pdfregsep get exec
                 true
         } ifelse } ifelse
     } //.indict exec }
 
     /PutPix {  % c1..cN x y IMAGE  .  -
-    { //.pdfwritebind4 {exch def} forall
+    8 { //.pdfwritebind4 {exch def} forall
         .pdffillcolor
         x .pdfnum ( ) .put y .pdfnum ( 1 1 re\nf\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     /GetPix {  % x y IMAGE  .  r g b
         pop pop pop  0 0 0
     }
 
     /DrawLine {  % c1..cN x1 y1 x2 y2 IMAGE  .  -
-    { //.imagebind3 {exch def} forall
+    10 { //.imagebind3 {exch def} forall
         .pdfstrokecolor
         x1 .pdfnum ( ) .put y1 .pdfnum ( m\n) .put
         x2 .pdfnum ( ) .put y2 .pdfnum ( l\nS\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     /DrawRect {  % c1..cN x y w h IMAGE  .  -
-    { //.imagebind2 {exch def} forall
+    10 { //.imagebind2 {exch def} forall
         .pdfstrokecolor
         x .pdfnum ( ) .put y .pdfnum ( ) .put
         w .pdfnum ( ) .put h .pdfnum ( re\nS\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     % The operands name an inclusive pixel span and a PDF rectangle is
     % half-open, so the rectangle that covers the pixels a raster device
@@ -823,13 +831,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % device painting a rectangle a pixel short in each direction of
     % every other device's.
     /FillRect {  % c1..cN x y w h IMAGE  .  -
-    { //.imagebind2 {exch def} forall
+    10 { //.imagebind2 {exch def} forall
         w 0 lt { /x x w add def /w w neg def } if
         h 0 lt { /y y h add def /h h neg def } if
         .pdffillcolor
         x .pdfnum ( ) .put y .pdfnum ( ) .put
         w 1 add .pdfnum ( ) .put h 1 add .pdfnum ( re\nf\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     % Append the fill colour, the subpath moveto/lineto/closepath, and
     % a nonzero-winding fill. The per-coordinate
@@ -837,11 +845,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % appending to the accumulator; the colour is emitted here, where
     % separations are the device's business.
     /FillPoly {  % c1..cN polygon IMAGE  .  -
-    {
+    4 {
         /.polyarg exch def
         .pdffillcolor
-        .polyarg currentdict //.internaldict /.pdffillpoly get exec
-    } //.indict exec }
+        .polyarg .dev //.internaldict /.pdffillpoly get exec
+    } //.indevwork exec }
 
     % Walk the device path and append its construction operators to the
     % content stream as they are reached -- x y m, x y l, the six control
@@ -853,6 +861,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % The same bytes the collector wrote are written here, only without the
     % array between the walk and the output.
     /.emitdevpath {  % -  .  n
+        .dev 12 {
         /.dpstr //.xpostsys /.cpath get exec def
         /.dpoff 0 def
         /.dpn 0 def
@@ -877,6 +886,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /.dpn .dpn 1 add def
         } loop
         .dpn
+        } //.indevwork exec
     } bind
 
     % Write the clip in force into the content stream, so that a paint
@@ -922,6 +932,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % must not commit the colour and line state) from one to draw, before
     % it walks the path again to draw it.
     /.pathelems {  % -  .  n
+        .dev 12 {
         /.pcstr //.xpostsys /.cpath get exec def
         /.pcoff 0 def
         /.pcn 0 def
@@ -934,6 +945,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /.pcn .pcn 1 add def
         } loop
         .pcn
+        } //.indevwork exec
     } bind
 
     % Fill the current path as one content-stream path with curves
@@ -946,12 +958,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /FillPath {  % c1..cN IMAGE  .  -
     {
         .pdffillcolor
-        currentdict //.internaldict /.pdffillpath get exec
+        .dev //.internaldict /.pdffillpath get exec
 
         % a clip adopted for this fill ends with it
-        currentdict /.pdfclipopen 2 copy known { get }{ pop pop false } ifelse {
+        .state /.pdfclipopen get {
             .qrestore
-            /.pdfclipopen false def
+            .state /.pdfclipopen false put
         } if
     } //.indict exec }
 
@@ -977,9 +989,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         pop
 
         % The path walker reads the current path, so install the clip
-        % shape for the walk and put the working path back after. No
-        % scratch dictionary is opened: the accumulator methods below
-        % append through currentdict, which must stay the device.
+        % shape for the walk and put the working path back after.
         exch                                            % Evenodd path
         graphicsdict /currgstate get /currpath get      % ... path saved
         exch                                            % ... saved path
@@ -988,7 +998,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .emitdevpath pop
         exch { (W* n\n) }{ (W n\n) } ifelse .put
         graphicsdict /currgstate get exch /currpath exch put
-        /.pdfclipopen true def
+        .state /.pdfclipopen true put
     } //.indict exec } bind
 
     % Take a whole sampled image: the rows (one interleaved 8-bit string
@@ -996,11 +1006,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % paints it through the unit square under the image-to-device matrix,
     % the decode ranges carried in the object for the consumer to apply.
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
-    { //.pdfwritebind1 {exch def} forall
-        /piidx .pdfimages length def
-        /.pdfimages [ .pdfimages aload pop
+    20 { //.pdfwritebind1 {exch def} forall
+        /piidx .state /.pdfimages get length def
+        % The list of images this page names outlives the call that
+        % adds one, so it is put on the device rather than defined in
+        % the dictionary this call is working in.
+        .state /.pdfimages [ .state /.pdfimages get aload pop
             << /w piw /h pih /nc pinc /rows pirows /dec pidec
-               /int piint >> ] def
+               /int piint >> ] put
         .qsave
 
         % the clip travels with the paint; the painting operators
@@ -1014,7 +1027,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         dup 4 get .pdfnum ( ) .put
         5 get .pdfnum ( cm\n) .put
         (/Im) .put piidx 20 string cvs .put ( Do\n) .put .qrestore
-    } //.indict exec }
+    } //.indevwork exec }
 
     % Take a stencil: the bits file as an image XObject the same way a
     % sampled image's rows do, marked as a mask so Emit writes it with
@@ -1023,7 +1036,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % decomposed into a rectangle per run -- which is what a page of
     % bitmap glyphs came out as.
     /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
-    { //.pdfwritebind2 {exch def} forall
+    20 { //.pdfwritebind2 {exch def} forall
         % The same mask painted again is the same XObject drawn again:
         % a page of bitmap glyphs repeats a handful of them, and filing
         % one per occurrence is what made this dearer than the runs it
@@ -1037,11 +1050,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /pskey pskey psw 131 mul add psh 17 mul add
                pspol { 1 add } if 16#ffff and def
         /pshit -1 def
-        .pdfmasks pskey known {
-            .pdfmasks pskey get {
+        .state /.pdfmasks get pskey known {
+            .state /.pdfmasks get pskey get {
                 /pscand exch def
                 pshit 0 lt {
-                    /psc .pdfimages pscand get def
+                    /psc .state /.pdfimages get pscand get def
                     psc /w get psw eq psc /h get psh eq and
                     psc /pol get pspol eq and
                     psc /rows get 0 get psdata eq and
@@ -1050,12 +1063,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } forall
         } if
         pshit 0 lt {
-            /psidx .pdfimages length def
-            /.pdfimages [ .pdfimages aload pop
+            /psidx .state /.pdfimages get length def
+            % as does the list of images a stencil is written into
+            .state /.pdfimages [ .state /.pdfimages get aload pop
                 << /w psw /h psh /mask true /pol pspol
-                   /rows [ psdata ] /int psint >> ] def
-            .pdfmasks pskey
-                .pdfmasks pskey known { .pdfmasks pskey get }{ [ ] } ifelse
+                   /rows [ psdata ] /int psint >> ] put
+            .state /.pdfmasks get pskey
+                .state /.pdfmasks get pskey known { .state /.pdfmasks get pskey get }{ [ ] } ifelse
                 [ exch aload pop psidx ] put
         }{
             /psidx pshit def
@@ -1086,7 +1100,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         dup 4 get .pdfnum ( ) .put
         5 get .pdfnum ( cm\n) .put
         (/Im) .put psidx 20 string cvs .put ( Do\n) .put .qrestore
-    } //.indict exec }
+    } //.indevwork exec }
 
     % r g b IMAGE . -  ; stroke the current path as one content-stream
     % path with the device-space line width and the graphics state's
@@ -1134,7 +1148,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             0 1 nseps 1 sub {
                 /si exch def
                 ( /CS) .vw si 20 string cvs .vw ( [) .vw
-                si currentdict //.internaldict /.pdfsepget get exec pop .vw
+                si .dev //.internaldict /.pdfsepget get exec pop .vw
                 ( ) .vw //.vecout /sobj get si get 20 string cvs .vw ( 0 R]) .vw
             } for
             ( >>) .vw
@@ -1148,9 +1162,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             ( >>) .vw
         } if
-        .opused length 0 gt {
+        .state /.opused get length 0 gt {
             ( /ExtGState <<) .vw
-            .opused {
+            .state /.opused get {
                 exch ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
                 aload pop                                   % Op mode
                 ( /OPM ) .vw 20 string cvs .vw              % Consume mode
@@ -1207,7 +1221,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % The file is allocated global because the record that holds it is,
         % and a global dictionary may not hold a local object.
         currentglobal true setglobal
-        .outputfile (w) file
+        .state /.outputfile get (w) file
 
         % But a file lives in local memory whatever dictionary names it, and
         % a global dictionary is no root for local memory (PLRM 3.7.2), so it
@@ -1231,12 +1245,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % as the page is emitted, before any restore the job runs -- so none of
     % them need to outlive the page.
     /.emitpage {  % IMAGE  .  -
-    {
+    24 {
         //.vecout /headered get not {
             (%PDF-1.4\n) .vw
             //.vecout /headered true put
         } if
-        /Chunks currentdict //.internaldict /.pdfchunks get exec def
+        /Chunks .dev //.internaldict /.pdfchunks get exec def
 
         % CompressPages false (a distiller parameter) leaves the content stream
         % uncompressed, so the page is readable; the default compresses it.
@@ -1248,8 +1262,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /clen 0 def Chunks { length /clen exch clen add def } forall
         /hs height .pdfnumstr def
         /ws width .pdfnumstr def
-        /nseps currentdict //.internaldict /.pdfsepcount get exec def
-        /nimg .pdfimages length def
+        /nseps .dev //.internaldict /.pdfsepcount get exec def
+        /nimg .state /.pdfimages get length def
 
         % Content stream object
         /coobj .nextobj def
@@ -1268,7 +1282,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /so .nextobj def
             so .recordoff
             so 20 string cvs .vw ( 0 obj\n) .vw
-            si currentdict //.internaldict /.pdfsepget get exec exch pop .vw
+            si .dev //.internaldict /.pdfsepget get exec exch pop .vw
             (\nendobj\n) .vw
             //.vecout /sobj get si so put
         } for
@@ -1278,7 +1292,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /imgobjs nimg array def
         0 1 nimg 1 sub {
             /ii exch def
-            /ime .pdfimages ii get def
+            /ime .state /.pdfimages get ii get def
             /io .nextobj def io .recordoff
             imgobjs ii io put
             ime /rows get //.internaldict /.flatecompress get exec /imf exch def /imc exch def
@@ -1319,12 +1333,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % This page's pattern objects. Every number is taken before any
         % of them is written, because each pattern carries the page's own
         % resources and those name the objects standing beside it.
-        /npat .pdfpatterns length def
+        /npat .state /.pdfpatterns get length def
         /patobjs npat array def
         0 1 npat 1 sub { patobjs exch .nextobj put } for
         0 1 npat 1 sub {
             /pti exch def
-            /pte .pdfpatterns pti get def
+            /pte .state /.pdfpatterns get pti get def
             /pto patobjs pti get def
             pto .recordoff
             % Held uncompressed where the page's own content is
@@ -1370,19 +1384,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
         % start the next page fresh
         .streamreset
-        /.pdfimages 0 array def
-        /.pdfmasks 64 dict def
-        /.pdfpatterns 0 array def
-        /.opused 8 dict def
+        .state /.pdfimages 0 array put
+        .state /.pdfmasks get //.emptydict exec
+        .state /.pdfpatterns 0 array put
+        .state /.opused get //.emptydict exec
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
-    } //.indict exec } bind
+    } //.indevwork exec } bind
 
     % Close the accumulating file: the page tree over every page (object 2),
     % the catalog (object 1), the document info if any DOCINFO arrived, then
     % the cross-reference table and trailer. Runs with the device dictionary
     % current, for the document info.
     /.endfile {  % IMAGE  .  -
-    {
+    16 {
         //.vecout /headered get not {
             (%PDF-1.4\n) .vw //.vecout /headered true put
         } if
@@ -1445,7 +1459,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % Close the file unless it is stdout, and give up the local hold
         //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
         .gscratch /.vecoutfile undef
-    } //.indict exec } bind
+    } //.indevwork exec } bind
 >> def
 
 end end end

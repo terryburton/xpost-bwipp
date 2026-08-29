@@ -295,7 +295,7 @@ INTERLACED 0 gt { request /png_interlaced 1 put } if
 % rows of each run written as they are finished. What each run took is
 % counted down one column as it goes.
 /bandpage { % outfile  .  -
-    DEVICE /.outputfile 3 -1 roll put
+    DEVICE /.state get /.outputfile 3 -1 roll put
     /total 0 def
     /nbands 0 def
     /passed 0 def
@@ -340,7 +340,7 @@ INTERLACED 0 gt { request /png_interlaced 1 put } if
 BAND 0 gt {
     graphicsdict /.rasterband [ 0 BAND ] put
     request setpagedevice
-    DEVICE /.bandpage 4 dict put
+    DEVICE /.state get /.bandpage 4 dict put
     BAND name bandpage
     % ... and a second page through the same device, which is what a
     % job's second showpage puts out. A page finished stays finished, so
@@ -371,7 +371,7 @@ pixels of the page written whole) assert
     } if
 }{
     request setpagedevice
-    DEVICE /.outputfile 0 name put
+    DEVICE /.state get /.outputfile 0 name put
     paint
     CHECK 0 gt { /total 0 H 1 sub inked def }{ /total 0 def } ifelse
     DEVICE dup /Emit get exec

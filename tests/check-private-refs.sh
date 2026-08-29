@@ -73,7 +73,7 @@ found null ne { found (xpostsys ) dump } if
 systemdict (systemdict ) dump
 PSEOF
 
-XPOST_DATA_DIR="$src/data" "$xpost" -q --no-sandbox -d null -o /dev/null \
+XPOST_DATA_DIR="$src/data" XPOST_CENSUS=1 "$xpost" -q --no-sandbox -d null -o /dev/null \
     "$work/dump.ps" </dev/null 2>/dev/null \
     | tr -d "$cr" | grep -E '^(xpostsys|privatedict|internaldict|systemdict|jobstore) .' \
     | sort -u > "$work/all"

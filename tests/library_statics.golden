@@ -138,17 +138,17 @@ src/lib/xpost_dev_generic.c  namecvx               reset xpost_oper_init_generic
 src/lib/xpost_dev_generic.c  namedotbandrows       reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namedotbandtop        reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namedotcopydict       reset xpost_oper_init_generic_device_ops
+src/lib/xpost_dev_generic.c  namedotinstance       reset xpost_oper_init_generic_device_ops
+src/lib/xpost_dev_generic.c  namedotstate          reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namedotground         reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namedothtcell         reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namedothth            reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namedothtw            reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  nameexec              reset xpost_oper_init_generic_device_ops
-src/lib/xpost_dev_generic.c  nameheight            reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namenativecolorspace  reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namepdfPrivate        reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namerepeat            reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  nameroll              reset xpost_oper_init_generic_device_ops
-src/lib/xpost_dev_generic.c  namewidth             reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_jpeg.c     nameDeviceRGB         reset xpost_oper_init_jpeg_device_ops
 src/lib/xpost_dev_jpeg.c     namePrivate           reset xpost_oper_init_jpeg_device_ops
 src/lib/xpost_dev_jpeg.c     namedotbandpage       reset xpost_oper_init_jpeg_device_ops
@@ -172,6 +172,7 @@ src/lib/xpost_dev_raster.c   namewidth             reset xpost_oper_init_raster_
 src/lib/xpost_dev_record.c   namePrivate           reset xpost_oper_init_record_device_ops
 src/lib/xpost_dev_record.c   namebdkey             reset xpost_oper_init_record_device_ops
 src/lib/xpost_dev_record.c   namedotcopydict       reset xpost_oper_init_record_device_ops
+src/lib/xpost_dev_record.c   namedotstate          reset xpost_oper_init_record_device_ops
 src/lib/xpost_dev_record.c   namedotground         reset xpost_oper_init_record_device_ops
 src/lib/xpost_dev_record.c   namedotncomp          reset xpost_oper_init_record_device_ops
 src/lib/xpost_dev_record.c   namedotplayclass      reset xpost_oper_init_record_device_ops

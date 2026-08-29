@@ -58,19 +58,23 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /NoOutput true  % Accumulate coordinates only; never rasterize
     /GlyphExtents true  % Text marks contribute outline ink boxes, not bitmaps
 
+    % Whether a white mark counts. A page-device request saying so
+    % writes over this as it is copied, which is the one way it is ever
+    % anything else; declared here so a method reads it rather than
+    % asking whether it is there.
+    /WhiteIsOpaque false
+
     /.copydict //.classcopydict
+    /.instance //.classinstance
 
     /Create {  % width height IMAGE  .  IMAGE'
-        { //.rasterwh {exch def}forall
-        currentdict } //.indict exec
-        dup /.copydict get exec
-        {
-            /minx 1e30 def   % Empty box: min > max
-            /miny 1e30 def
-            /maxx -1e30 def
-            /maxy -1e30 def
-        currentdict
-        } //.indict exec
+        //.classinstance exec
+        dup 8 {
+            .state /minx 1e30 put   % Empty box: min > max
+            .state /miny 1e30 put
+            .state /maxx -1e30 put
+            .state /maxy -1e30 put
+        } //.indevwork exec
     }
 
     /Destroy {  % IMAGE  .  -
@@ -82,24 +86,27 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % ignored), so crop-style boxes exclude painted white. Anything else
     % always marks.
     /.opaque {  % val  .  bool
-        1 lt
-        currentdict /WhiteIsOpaque 2 copy known { get }{ pop pop false } ifelse
-        or
+        1 lt WhiteIsOpaque or
     }
 
     % Expand the box to include a device-space point
+    % The extent is written on every mark and read at the end, so it
+    % outlives the call and is named where such a thing lives: the state
+    % beside the device. Not left to the dictionary stack -- a state put
+    % above the device shadows the device, and a name a body reads
+    % unqualified would then be a name a program can supply.
     /.maxmin {  % x y  .  -
         2 copy
-        dup maxy gt { /maxy exch def }{ pop } ifelse
-        dup maxx gt { /maxx exch def }{ pop } ifelse
-        dup miny lt { /miny exch def }{ pop } ifelse
-        dup minx lt { /minx exch def }{ pop } ifelse
+        dup .state /maxy get gt { .state exch /maxy exch put }{ pop } ifelse
+        dup .state /maxx get gt { .state exch /maxx exch put }{ pop } ifelse
+        dup .state /miny get lt { .state exch /miny exch put }{ pop } ifelse
+        dup .state /minx get lt { .state exch /minx exch put }{ pop } ifelse
     }
 
     /PutPix {  % val x y IMAGE  .  -
-        {
+        8 {
             3 -1 roll .opaque { .maxmin }{ pop pop } ifelse
-        } //.indict exec
+        } //.indevwork exec
     }
 
     /GetPix {  % x y IMAGE  .  val
@@ -107,26 +114,41 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     }
 
     /DrawLine {  % val x1 y1 x2 y2 IMAGE  .  -
-        { //.bboxdevbind1 {exch def} forall
+        8 { //.bboxdevbind1 {exch def} forall
             val .opaque {
                 x1 y1 .maxmin
                 x2 y2 .maxmin
             } if
-        } //.indict exec
+        } //.indevwork exec
     }
 
     /DrawRect {  % val x y w h IMAGE  .  -
-        { //.bboxdevbind0 {exch def} forall
+        8 { //.bboxdevbind0 {exch def} forall
             val .opaque {
                 x y .maxmin
                 x w add  y h add  .maxmin
             } if
-        } //.indict exec
+        } //.indevwork exec
     }
 
     % The page clear (erasepage) is not a mark
+    % Clearing the page empties the box with it: what the box states is
+    % the extent of the marks the page holds, and a cleared page holds
+    % none. erasepage is the one event that says so -- copypage
+    % transmits a page without ending it (PLRM 8.2) and leaves the marks
+    % where they are, so a box carried across one is the box of
+    % everything still on the page, which is what it should be.
+    %
+    % A device holding pixels clears them here. This one holds only the
+    % extent, so the extent is what it clears, back to the empty box
+    % Create starts from.
     /Erase {  % IMAGE  .  -
-        pop
+        8 {
+            .state /minx 1e30 put
+            .state /miny 1e30 put
+            .state /maxx -1e30 put
+            .state /maxy -1e30 put
+        } //.indevwork exec
     }
 
     % A whole path, taken exactly. The fill machinery offers the current
@@ -143,7 +165,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % for the pixels painted. The colour gates the mark as everywhere on
     % this device: an unmarking white leaves the box alone.
     /FillPath {  % mark c1..cn IMAGE  .  mark
-        {
+        8 {
             % The repeat loop stays. The index/roll/cleartomark form is
             % faster where the mark goes with the operands, but this keeps
             % the mark, which costs a second cleartomark and a fresh mark
@@ -171,20 +193,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     } if
                 } ifelse
             } if
-        } //.indict exec
+        } //.indevwork exec
     }
 
     /FillRect {  % val x y w h IMAGE  .  -
-        { //.bboxdevbind0 {exch def} forall
+        8 { //.bboxdevbind0 {exch def} forall
             val .opaque {
                 x y .maxmin
                 x w add  y h add  .maxmin
             } if
-        } //.indict exec
+        } //.indevwork exec
     }
 
     /FillPoly {  % val polygon IMAGE  .  -
-        {
+        8 {
             exch .opaque {
                 {
                     dup type /arraytype eq {
@@ -194,12 +216,17 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             }{
                 pop
             } ifelse
-        } //.indict exec
+        } //.indevwork exec
     }
 
     /Emit {  % IMAGE  .  -
-        {
-            minx maxx gt {  % Nothing was marked
+        % The device's own scale, taken while the device is still the
+        % thing on the stack: inside the bracket currentdict is the
+        % state, and this asks the device.
+        dup //.xpostsys /.devres-to-points get exec
+        3 -1 roll 8 {
+            /sy exch def /sx exch def
+            .state /minx get .state /maxx get gt {  % Nothing was marked
                 (%%BoundingBox: 0 0 0 0\n) print
                 (%%HiResBoundingBox: 0 0 0 0\n) print
             }{
@@ -207,12 +234,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 % the device resolution and flip. The defaultmatrix fixup
                 % applied after construction carries the scale; a raw
                 % device is 1:1
-                currentdict //.xpostsys /.devres-to-points get exec
-                /sy exch def /sx exch def
-                /uxmin minx sx div def
-                /uxmax maxx sx div def
-                /uymin height maxy sub sy div def
-                /uymax height miny sub sy div def
+                /uxmin .state /minx get sx div def
+                /uxmax .state /maxx get sx div def
+                /uymin height .state /maxy get sub sy div def
+                /uymax height .state /miny get sub sy div def
                 (%%BoundingBox: ) print
                 uxmin floor cvi 20 string cvs print ( ) print
                 uymin floor cvi 20 string cvs print ( ) print
@@ -224,7 +249,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 uxmax 30 string cvs print ( ) print
                 uymax 30 string cvs print (\n) print
             } ifelse
-        } //.indict exec
+        } //.indevwork exec
     }
 >> def
 

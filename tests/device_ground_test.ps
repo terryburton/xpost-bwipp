@@ -24,9 +24,12 @@
 % cell and averaged. A device that stores the colour it is handed has a
 % cell of one pixel and is read at one pixel, as it always was.
 %
-% The cell is asked of the device, which is where a screen installs it.
-/cellw dev /.htw 2 copy known { get }{ pop pop 1 } ifelse def
-/cellh dev /.hth 2 copy known { get }{ pop pop 1 } ifelse def
+% The cell is asked of the device's state, which is where a screen
+% installs it: what a page does to a device is kept beside the device
+% rather than on it (data/device.ps).
+/devst dev /.state 2 copy known { get }{ pop pop 0 dict } ifelse def
+/cellw devst /.htw 2 copy known { get }{ pop pop 1 } ifelse def
+/cellh devst /.hth 2 copy known { get }{ pop pop 1 } ifelse def
 cellw type /integertype ne { /cellw 1 def } if
 cellh type /integertype ne { /cellh 1 def } if
 cellw 1 lt { /cellw 1 def } if

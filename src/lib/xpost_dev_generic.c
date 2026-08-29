@@ -66,9 +66,9 @@
    check-library-lifetime holds to naming every one and what resets it. */
 static Xpost_Context *localctx;
 
-static Xpost_Object namewidth;
-static Xpost_Object nameheight;
 static Xpost_Object namedotcopydict;
+static Xpost_Object namedotinstance;
+static Xpost_Object namedotstate;
 static Xpost_Object namenativecolorspace;
 static Xpost_Object nameDeviceGray;
 static Xpost_Object nameDeviceRGB;
@@ -227,12 +227,14 @@ FILE *xpost_device_page_open(Xpost_Context *ctx, Xpost_Object devdic)
     int err;
 
     /* The name settled for the page being written, which the page
-       machinery puts on the device before it runs Emit (.transmitpage,
-       data/device.ps). It is the name and not the template: the template
-       may carry a %d, and the page number that replaces it is the page's
-       to know, not the device's. A device that read the template instead
-       wrote every page of a job to one name. */
-    namestr = xpost_dict_get(ctx, devdic,
+       machinery puts in the device's state before it runs Emit
+       (.transmitpage, data/device.ps). It is the name and not the
+       template: the template may carry a %d, and the page number that
+       replaces it is the page's to know, not the device's. A device
+       that read the template instead wrote every page of a job to one
+       name. */
+    namestr = xpost_dict_get(ctx,
+                             xpost_dict_get(ctx, devdic, namedotstate),
                              xpost_name_cons(ctx, ".outputfile"));
     if (xpost_object_get_type(namestr) != stringtype)
         return NULL;
@@ -602,8 +604,18 @@ static int _device_rows(Xpost_Context *ctx, Xpost_Object devdic,
     Xpost_Object top, nrows;
     integer lo, n;
 
+    /* The rows a device holds are its own where it was built to hold
+       them, and its state's where they were written as it painted: what
+       a page does to a device is kept beside it (data/device.ps). */
     top = xpost_dict_get(ctx, devdic, namedotbandtop);
     nrows = xpost_dict_get(ctx, devdic, namedotbandrows);
+    if (xpost_object_get_type(nrows) != integertype)
+    {
+        Xpost_Object st = xpost_dict_get(ctx, devdic, namedotstate);
+
+        if (xpost_object_get_type(st) == dicttype)
+            nrows = xpost_dict_get(ctx, st, namedotbandrows);
+    }
     if (xpost_object_get_type(top) != integertype
         || xpost_object_get_type(nrows) != integertype)
         return 0;
@@ -1537,9 +1549,22 @@ _channel(Xpost_Object v, double max)
 const unsigned char *
 xpost_dev_ht_cell(Xpost_Context *ctx, Xpost_Object devdic, int *w, int *h)
 {
-    Xpost_Object c = xpost_dict_get(ctx, devdic, namedothtcell);
-    Xpost_Object wo = xpost_dict_get(ctx, devdic, namedothtw);
-    Xpost_Object ho = xpost_dict_get(ctx, devdic, namedothth);
+    /* The cell in force is written as the screen changes, which is what a
+       page does to a device rather than what the device is, so it is kept
+       in the state beside it (data/device.ps). */
+    Xpost_Object src = devdic;
+    Xpost_Object st, c, wo, ho;
+
+    /* Asked of a device and of the blit dictionary a caller copies the
+       cell into. A device keeps what a page does to it beside it, in
+       its state (data/device.ps); a blit dictionary is handed the cell
+       itself and has no state. Whichever holds it answers. */
+    st = xpost_dict_get(ctx, devdic, namedotstate);
+    if (xpost_object_get_type(st) == dicttype)
+        src = st;
+    c = xpost_dict_get(ctx, src, namedothtcell);
+    wo = xpost_dict_get(ctx, src, namedothtw);
+    ho = xpost_dict_get(ctx, src, namedothth);
 
     if (xpost_object_get_type(c) != stringtype
      || xpost_object_get_type(wo) != integertype
@@ -2714,8 +2739,12 @@ int xpost_dev_page_emit(Xpost_Context *ctx, Xpost_Object devdic,
 
     *handed_off = 0;
 
+    /* A device holding its page a band at a time says so in the state it
+       writes as it runs, which is where what a page does to a device is
+       kept (data/device.ps) rather than on the device itself. */
     banded = xpost_object_get_type(
-                 xpost_dict_get(ctx, devdic,
+                 xpost_dict_get(ctx,
+                                xpost_dict_get(ctx, devdic, namedotstate),
                                 xpost_name_cons(ctx, ".bandpage")))
              != invalidtype;
 
@@ -2904,30 +2933,31 @@ const Xpost_Dev_Option *xpost_dev_option_roster(int *count)
 }
 
 /* The half of a device's Create that runs before the class procedure
-   does. It records the page's size on the class and arranges for the
-   device's own continuation to run after the class has copied itself,
-   since neither can be done until the other has finished. */
+   does. It arranges for the device's own continuation to run after the
+   class has made the instance, since neither can be done until the
+   other has finished.
+
+   The page's size is handed to the class as operands rather than
+   written onto the class: a class is a declaration its instances
+   share, and a size left on one is a size the next device made would
+   inherit without being asked for it. */
 int xpost_dev_create_begin(Xpost_Context *ctx,
                            Xpost_Object width,
                            Xpost_Object height,
                            Xpost_Object classdic,
                            unsigned int cont_opcode)
 {
-    int ret;
-
     /* the three the continuation will be called with: it is an operator
        like this one and takes its operands the same way, so they go back
        where they came from rather than being carried in C */
     xpost_stack_push(ctx->lo, ctx->os, width);
     xpost_stack_push(ctx->lo, ctx->os, height);
-    xpost_stack_push(ctx->lo, ctx->os, classdic);
 
-    ret = xpost_dict_put(ctx, classdic, namewidth, width);
-    if (ret)
-        return ret;
-    ret = xpost_dict_put(ctx, classdic, nameheight, height);
-    if (ret)
-        return ret;
+    /* and the three /.instance takes, which it consumes down to the
+       instance it leaves for the continuation above */
+    xpost_stack_push(ctx->lo, ctx->os, width);
+    xpost_stack_push(ctx->lo, ctx->os, height);
+    xpost_stack_push(ctx->lo, ctx->os, classdic);
 
     /* the class procedure first, then the device's continuation: pushed
        in the reverse of the order they run in, the execution stack
@@ -2936,7 +2966,7 @@ int xpost_dev_create_begin(Xpost_Context *ctx,
                           xpost_operator_cons_opcode(cont_opcode)))
         return execstackoverflow;
     if (!xpost_stack_push(ctx->lo, ctx->es,
-                          xpost_dict_get(ctx, classdic, namedotcopydict)))
+                          xpost_dict_get(ctx, classdic, namedotinstance)))
         return execstackoverflow;
 
     return 0;
@@ -5026,21 +5056,22 @@ static int _devinstalled(Xpost_Context *ctx, Xpost_Object devdic)
        release, which happens inside restore: one operator, not an
        interpreter loop, with nothing above it to catch what it raises.
 
-       The instance dictionary is an ordinary dictionary and the program
-       writes to it. A page device request's keys are stored into the
-       instance setpagedevice builds, so /Destroy is a slot a program
-       reaches without naming anything internal, and the instance itself
-       is reachable through the graphics state afterwards. So what stands
-       there now is not the class's method to read.
+       The instance is sealed at the end of its installation and a page
+       device request's method-named keys are not taken from it, so what
+       stands under /Destroy is the class's own method. This does not
+       read it even so: the release runs inside restore, where a lookup
+       that resolved to the wrong thing has nothing above it to catch
+       what it raises. What runs is settled while the block is issued,
+       from a dictionary that is still the device's own.
 
        The release run is the one the instance's own state was issued to
        be given up by, recorded with the block when the block was issued
        -- from the dictionary the device's own Create had just filled,
        before the program regained control. A device carrying such a
-       block is released by that operator whatever the program has since
-       written under /Destroy, so a self-sabotaged device is still given
-       up correctly rather than left leaking or released by whatever the
-       slot now holds; an operator of the program's choosing, and the
+       block is released by that operator whatever stands under /Destroy
+       when the release comes, so a device is given up correctly rather
+       than left leaking or released by whatever the slot then holds; an
+       operator of the program's choosing, and the
        release of another class whose block is the same width, run
        neither here nor from the restore.
 
@@ -5220,11 +5251,11 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
         return VMerror;
     if (xpost_object_get_type((namedothth = xpost_name_cons(ctx, ".hth"))) == invalidtype)
         return VMerror;
-    if (xpost_object_get_type((namewidth = xpost_name_cons(ctx, "width"))) == invalidtype)
-        return VMerror;
-    if (xpost_object_get_type((nameheight = xpost_name_cons(ctx, "height"))) == invalidtype)
-        return VMerror;
     if (xpost_object_get_type((namedotcopydict = xpost_name_cons(ctx, ".copydict"))) == invalidtype)
+        return VMerror;
+    if (xpost_object_get_type((namedotinstance = xpost_name_cons(ctx, ".instance"))) == invalidtype)
+        return VMerror;
+    if (xpost_object_get_type((namedotstate = xpost_name_cons(ctx, ".state"))) == invalidtype)
         return VMerror;
     if (xpost_object_get_type((namenativecolorspace = xpost_name_cons(ctx, "nativecolorspace"))) == invalidtype)
         return VMerror;

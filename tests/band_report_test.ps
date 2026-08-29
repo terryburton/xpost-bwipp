@@ -69,9 +69,16 @@
 % other reading. A record keeps the device it played into; a device that
 % paints is the one that held the rows.
 /rasterrows {
-    DEVICE /.playdev known
-        { DEVICE /.playdev get }{ DEVICE } ifelse
-    dup /.bandrows known { /.bandrows get }{ pop 0 } ifelse
+    % What a page does to a device is kept beside it, in the state the
+    % device carries, rather than on the device itself.
+    DEVICE /.state get /.playdev known
+        { DEVICE /.state get /.playdev get }{ DEVICE } ifelse
+    % the rows a device holds are its own where it was built to hold
+    % them, and its state's where a record wrote them as it painted
+    dup /.bandrows 2 copy known
+        { get exch pop }
+        { pop /.state get /.bandrows 2 copy known { get }{ pop pop 0 } ifelse }
+    ifelse
 } bind def
 
 % h  paint  -

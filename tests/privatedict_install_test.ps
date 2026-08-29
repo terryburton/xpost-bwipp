@@ -58,13 +58,17 @@ currentglobal true setglobal /gd 64 dict def setglobal
 { .privatedict /.graphicsdict undef }
   /invalidaccess (nor may a name be taken away) raises
 
-% --- the values it holds are still the machinery's to write ---
-% The device classes take the page geometry a job asks for and the
-% machinery's tables are written as a page is painted, so what is
-% sealed is which object each name answers with, not the objects.
-.privatedict /.xpost_PGMIMAGE get wcheck
-  (a device class dictionary is still writable) assert
-.gscratch wcheck (and the scratch a render mutates) assert
+% --- what the names answer with, and what those objects allow ---
+% Sealing the dictionary settles which object each name answers with.
+% What each object then allows is its own question, and the two answers
+% differ: a device class is a declaration, settled once the boot has
+% built it, and is closed -- a class left writable is a table a program
+% can put its own method into and have the machinery run it. The scratch
+% a render mutates is the opposite case and stays open, being where the
+% machinery keeps what it writes.
+.privatedict /.xpost_PGMIMAGE get wcheck not
+  (a device class is closed once the interpreter is up) assert
+.gscratch wcheck (and the scratch a render mutates is not) assert
 
 % --- and a device is still built from it ---
 { << /OutputDevice /pgm /PageSize [ 40 40 ] >> setpagedevice }

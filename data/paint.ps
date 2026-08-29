@@ -1171,10 +1171,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 bd /dluts dluts put
             } ifelse
             bd /tlut tlut put
-            DEVICE /.htcell known {
-                bd /.htcell DEVICE /.htcell get put
-                bd /.htw DEVICE /.htw get put
-                bd /.hth DEVICE /.hth get put
+            DEVICE /.state get /.htcell known {
+                bd /.htcell DEVICE /.state get /.htcell get put
+                bd /.htw DEVICE /.state get /.htw get put
+                bd /.hth DEVICE /.state get /.hth get put
             } if
             nat 3 eq {
                 bd /tlutr tlutr put

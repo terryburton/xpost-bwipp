@@ -197,7 +197,7 @@ loaders {
     }{
         exch pop
         20 10 3 -1 roll exec
-        dup /.outputfile unopenable put
+        dup /.state get /.outputfile unopenable put
         mk.finish { dup 1 1 .privatedict /.completedevice get exec } if
     } ifelse
 } def

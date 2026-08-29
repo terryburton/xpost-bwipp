@@ -213,6 +213,7 @@ static Xpost_Object namePrivate;
 static Xpost_Object namewidth;
 static Xpost_Object nameheight;
 static Xpost_Object namedotcopydict;
+static Xpost_Object namedotstate;
 static Xpost_Object namedotplaypage;
 static Xpost_Object namedotplaymake;
 static Xpost_Object namedotplaydev;
@@ -1252,13 +1253,20 @@ static int _play_image(Xpost_Context *ctx,
         PUT(BK_CSPANS, a);
     }
     /* the screen a bilevel device thresholds through is that device's
-       and not the image's, so it is taken from the one being painted */
-    if (xpost_object_get_type(
-            xpost_dict_get(ctx, targetdic, namebdkey[BK_HTCELL])) == stringtype)
+       and not the image's, so it is taken from the one being painted --
+       from the state beside it, which is where what a page did to a
+       device is kept (data/device.ps) */
     {
-        PUT(BK_HTCELL, xpost_dict_get(ctx, targetdic, namebdkey[BK_HTCELL]));
-        PUT(BK_HTW, xpost_dict_get(ctx, targetdic, namebdkey[BK_HTW]));
-        PUT(BK_HTH, xpost_dict_get(ctx, targetdic, namebdkey[BK_HTH]));
+        Xpost_Object st = xpost_dict_get(ctx, targetdic, namedotstate);
+
+        if (xpost_object_get_type(st) == dicttype
+            && xpost_object_get_type(
+                   xpost_dict_get(ctx, st, namebdkey[BK_HTCELL])) == stringtype)
+        {
+            PUT(BK_HTCELL, xpost_dict_get(ctx, st, namebdkey[BK_HTCELL]));
+            PUT(BK_HTW, xpost_dict_get(ctx, st, namebdkey[BK_HTW]));
+            PUT(BK_HTH, xpost_dict_get(ctx, st, namebdkey[BK_HTH]));
+        }
     }
 
     /* the row in hand, and -- where the samples are blended -- the row
@@ -1964,13 +1972,22 @@ static int _install_screen(Xpost_Context *ctx, Xpost_Object targetdic,
        screen -- which is what the rows a page holds no pixel of do. */
     s = xpost_object_cvlit(s);
 
-    ret = xpost_dict_put(ctx, targetdic, namebdkey[BK_HTCELL], s);
-    if (!ret)
-        ret = xpost_dict_put(ctx, targetdic, namebdkey[BK_HTW],
-                             xpost_int_cons((integer)w));
-    if (!ret)
-        ret = xpost_dict_put(ctx, targetdic, namebdkey[BK_HTH],
-                             xpost_int_cons((integer)h));
+    /* The screen a page was painted under is what the page did to the
+       device, so it goes where that is kept: the state beside the device
+       rather than the device itself (data/device.ps). */
+    {
+        Xpost_Object st = xpost_dict_get(ctx, targetdic, namedotstate);
+
+        if (xpost_object_get_type(st) != dicttype)
+            return typecheck;
+        ret = xpost_dict_put(ctx, st, namebdkey[BK_HTCELL], s);
+        if (!ret)
+            ret = xpost_dict_put(ctx, st, namebdkey[BK_HTW],
+                                 xpost_int_cons((integer)w));
+        if (!ret)
+            ret = xpost_dict_put(ctx, st, namebdkey[BK_HTH],
+                                 xpost_int_cons((integer)h));
+    }
     return ret;
 }
 
@@ -3579,13 +3596,19 @@ static int _destroy(Xpost_Context *ctx,
     PrivateData private;
     int held = _private_get(ctx, devdic, &privatestr, &private);
 
-    play = xpost_dict_get(ctx, devdic, namedotplaydev);
+    play = xpost_dict_get(ctx,
+                          xpost_dict_get(ctx, devdic, namedotstate),
+                          namedotplaydev);
     if (xpost_object_get_type(play) == dicttype)
     {
         unsigned int release = xpost_handle_device_release(ctx, play);
 
-        (void)xpost_dict_undef(ctx, devdic, namedotplaydev);
-        (void)xpost_dict_undef(ctx, devdic, namedotplayrows);
+        (void)xpost_dict_undef(ctx,
+                   xpost_dict_get(ctx, devdic, namedotstate),
+                   namedotplaydev);
+        (void)xpost_dict_undef(ctx,
+                   xpost_dict_get(ctx, devdic, namedotstate),
+                   namedotplayrows);
         /* counted as a build is counted, so that a restore leaving this
            record naming the device again finds a stamp that has been
            left behind (.playbuilt above) */
@@ -3872,11 +3895,12 @@ static int _declares(Xpost_Context *ctx, Xpost_Object dic, const char *name)
 static Xpost_Object _form_class(Xpost_Context *ctx, Xpost_Object devdic)
 {
     /* what the recorder takes from the class every recorder is made
-       from: how a page is cleared, how an instance is copied out of a
-       class, that it paints nothing, and the extent it will carry */
+       from: how a page is cleared, how a class is copied and how an
+       instance is made out of one, that it paints nothing, and the
+       extent it will carry */
     static const char *const carry[] =
     {
-        "Ground", ".copydict", "NoOutput", "dimensions"
+        "Ground", ".copydict", ".instance", "NoOutput", "dimensions"
     };
     Xpost_Object src, cls, o;
     int ncomp, i, ret;
@@ -4247,6 +4271,8 @@ int xpost_oper_init_record_device_ops (Xpost_Context *ctx,
     if (xpost_object_get_type((namewidth = xpost_name_cons(ctx, "width"))) == invalidtype)
         return VMerror;
     if (xpost_object_get_type((nameheight = xpost_name_cons(ctx, "height"))) == invalidtype)
+        return VMerror;
+    if (xpost_object_get_type((namedotstate = xpost_name_cons(ctx, ".state"))) == invalidtype)
         return VMerror;
     if (xpost_object_get_type((namedotcopydict = xpost_name_cons(ctx, ".copydict"))) == invalidtype)
         return VMerror;

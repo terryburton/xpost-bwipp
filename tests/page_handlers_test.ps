@@ -137,7 +137,7 @@ replaced (a device whose EndPage fails can still be replaced) assert
 % --- what the boolean actually decides ----------------------------------
 % Under the default showpage semantics the device's own page number advances
 % only when a page is transmitted, so it says whether the answer was obeyed.
-/devpageno { DEVICE /pagenumber 2 copy known { get }{ pop pop 0 } ifelse } bind def
+/devpageno { DEVICE /.state get /pagenumber 2 copy known { get }{ pop pop 0 } ifelse } bind def
 fresh
 << /OutputDevice /null /EndPage { pop pop true } >> setpagedevice
 /n0 devpageno def

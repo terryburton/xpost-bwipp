@@ -585,11 +585,11 @@ banding {
     d.b 0 gt {
         graphicsdict /.rasterband [ 0 d.b ] put
         << /PageSize [W d.h] >> setpagedevice
-        DEVICE /.outputfile d.file put
+        DEVICE /.state get /.outputfile d.file put
         DEVICE /.writeband { countband wbbase } bind put
         % what the page's emission keeps between bands: the file it is
         % going to and how far down the page it has reached
-        DEVICE /.bandpage 4 dict put
+        DEVICE /.state get /.bandpage 4 dict put
         0 d.b d.h 1 sub {
             /d.top exch store
             /d.rows d.b d.h d.top sub 2 copy gt { exch } if pop store
@@ -635,7 +635,7 @@ banding {
         DEVICE dup /Emit get exec
     }{
         << /PageSize [W d.h] >> setpagedevice
-        DEVICE /.outputfile d.file put
+        DEVICE /.state get /.outputfile d.file put
         DEVICE /.writeband { countband wbbase } bind put
         d.h paint
         DEVICE dup /Emit get exec
@@ -662,10 +662,12 @@ banding {
     graphicsdict /.rasterband [ 0 prows ] put
     /page pw ph pcls dup /Create get exec def
     page 1 1 .privatedict /.completedevice get exec
-    rec /.outputfile known { page /.outputfile rec /.outputfile get put } if
+    rec /.state get /.outputfile known
+        { page /.state get /.outputfile
+          rec /.state get /.outputfile get put } if
     rec /.ground known
         { rec /.ground get aload pop page dup /Ground get exec } if
-    page /.bandpage 4 dict put
+    page /.state get /.bandpage 4 dict put
     0 prows ph 1 sub {
         /top exch def
         /rows prows ph top sub 2 copy gt { exch } if pop def
@@ -691,10 +693,12 @@ end } bind def
     graphicsdict /.rasterband [ 0 prows ] put
     /page pw ph pcls dup /Create get exec def
     page 1 1 .privatedict /.completedevice get exec
-    rec /.outputfile known { page /.outputfile rec /.outputfile get put } if
+    rec /.state get /.outputfile known
+        { page /.state get /.outputfile
+          rec /.state get /.outputfile get put } if
     rec /.ground known
         { rec /.ground get aload pop page dup /Ground get exec } if
-    page /.bandpage 4 dict put
+    page /.state get /.bandpage 4 dict put
     /nth 0 def
     0 prows ph 1 sub {
         /top exch def
@@ -728,7 +732,7 @@ end } bind def
 NOBAND 0 gt {
     NOBAND 2 eq { graphicsdict /.rasterband [ 0 8 ] put } if
     << /PageSize [W NBH] /OutputFile (noband.out) >> setpagedevice
-    NOBAND 2 eq { DEVICE /.bandpage 4 dict put } if
+    NOBAND 2 eq { DEVICE /.state get /.bandpage 4 dict put } if
     NBH drawmixed
     % read back before the page is transmitted: showpage clears the page
     % it sends, so a read after it is a read of a cleared page

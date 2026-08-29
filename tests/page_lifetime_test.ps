@@ -259,7 +259,7 @@ setglobal
     % page is taken up inside whatever the job has opened by then, and
     % the name it is reached by goes back at the restore.
     banding {
-        DEVICE /.playdev known not {
+        DEVICE /.state get /.playdev known not {
             (FAIL the record is painting through nothing before its ) print
             (first page, so the raster it will paint through is taken up ) print
             (inside whatever the job has opened by then\n) print
@@ -281,17 +281,17 @@ setglobal
         showpage
         restore
         banding {
-            DEVICE /.playdev known not {
+            DEVICE /.state get /.playdev known not {
                 (FAIL after page ) print sc.pg num print
                 ( the record is painting through nothing: the restore) print
                 ( took away the name its raster was reached by\n) print
                 /sc.bad true store
             }{
                 sc.dev null eq {
-                    /sc.dev DEVICE /.playdev get store
+                    /sc.dev DEVICE /.state get /.playdev get store
                     /sc.mem gvm store
                 }{
-                    DEVICE /.playdev get sc.dev eq not {
+                    DEVICE /.state get /.playdev get sc.dev eq not {
                         (FAIL page ) print sc.pg num print
                         ( was painted through a different device from the) print
                         ( page before it, so a raster was built for it\n) print
@@ -363,7 +363,7 @@ savedcase
     % and the device really was built on it, since a case that quietly
     % held its page whole would exercise none of what it is here for
     banding bc.bad not and {
-        DEVICE /.playrows get BANDBYTES ROWBYTES idiv ne {
+        DEVICE /.state get /.playrows get BANDBYTES ROWBYTES idiv ne {
             (FAIL the record was not built on the band grid asked for, so ) print
             (this case is not the case it says it is\n) print
             /bc.bad true store
@@ -376,15 +376,15 @@ savedcase
         showpage
         restore
         banding {
-            DEVICE /.playdev known not {
+            DEVICE /.state get /.playdev known not {
                 (FAIL after page ) print bc.pg num print
                 ( the record built on its own band grid is painting ) print
                 (through nothing\n) print
                 /bc.bad true store
             }{
                 bc.dev null eq
-                    { /bc.dev DEVICE /.playdev get store }
-                    { DEVICE /.playdev get bc.dev eq not {
+                    { /bc.dev DEVICE /.state get /.playdev get store }
+                    { DEVICE /.state get /.playdev get bc.dev eq not {
                         (FAIL page ) print bc.pg num print
                         ( was painted through a different device from the) print
                         ( page before it\n) print

@@ -135,6 +135,7 @@ record test sparse-rows
 record test check-clip-writer
 record test check-page-output
 record test check-device-skeleton
+record path tests/device-facts
 record test check-device-facts
 record width witness
 
@@ -499,6 +500,8 @@ guards path tests/gate.sh
 guards path tests/check-gate-map.sh
 guards path tests/check-proc-spec.sh
 guards path tests/proc-spec
+guards path tests/library_statics.golden
+guards path tests/vm_forbidden.golden
 guards path tests/testlib.ps
 guards path tests/testlib-prepend.sh
 guards path tests/testlib-facts
@@ -693,6 +696,8 @@ always test check-proc-spec
 always test check-ps-spacing
 always test check-memory-declarations
 always test check-name-interning
+always test check-library-lifetime
+always test dict-homes
 always test check-userdict-reach
 always width witness
 

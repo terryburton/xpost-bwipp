@@ -117,6 +117,16 @@ cat > "$work/enc.ps" <<'EOF'
     /DN exch def
     DEVICE { exch (K ) print DN S cvs print ( ) print S cvs print ( ) print
              .enc (\n) print } forall
+
+    % What a device writes as it runs is kept beside it rather than on
+    % it, and is stated here with the rest: an entry that moved out of
+    % the device is an entry this would otherwise stop asking about, and
+    % a register that stops asking reads exactly like one with nothing
+    % to ask.
+    DEVICE /.state 2 copy known {
+        get { exch (T ) print DN S cvs print ( ) print S cvs print ( ) print
+              .enc (\n) print } forall
+    }{ pop pop } ifelse
 } bind def
 EOF
 
@@ -165,8 +175,8 @@ while read -r t; do
     rout=$( cd "$work" && XPOST_DATA_DIR="$srcdata" \
             "$xpost" -q -d "$t:band" -o facts.scratch askrec.ps \
             </dev/null 2>&1 )
-    printf '%s\n' "$rout" | grep '^K record ' \
-        | sed "s/^K record /R $t /" >> "$work/rec"
+    printf '%s\n' "$rout" | grep -E '^[KT] record ' \
+        | sed -e "s/^K record /R $t /" -e "s/^T record /R $t /" >> "$work/rec"
     if grep -q "^R $t " "$work/rec"; then
         recasked=$((recasked + 1))
         echo "$t" >> "$work/tasked"
@@ -182,7 +192,7 @@ grep -vxF -f "$work/unmade" "$work/roster" 2>/dev/null | grep . \
 # counts in before counts out: a run that installed nothing agrees with
 # any register at all
 nasked=$(grep -c . "$work/made" || true)
-nkey=$(awk '$1 == "K" { print $3 }' "$work/said" | sort -u | grep -c . || true)
+nkey=$(awk '$1 == "K" || $1 == "T" { print $3 }' "$work/said" | sort -u | grep -c . || true)
 nrkey=$(awk '$1 == "R" { print $3 }' "$work/rec" | sort -u | grep -c . || true)
 if [ "$nasked" -lt 8 ] || [ "$nkey" -lt 40 ] || [ "$recasked" -lt 1 ]; then
     echo "FAILURES: $nasked device(s) answered, stating $nkey distinct entries,"
@@ -207,7 +217,7 @@ canon() {
         print $2, $3, v
     }'
 }
-awk '$1 == "K"' "$work/said" | canon | sort > "$work/state"
+awk '$1 == "K" || $1 == "T"' "$work/said" | canon | sort > "$work/state"
 awk '$1 == "R"' "$work/rec"  | canon | sort > "$work/rstate"
 
 # Who carries an entry. The record carries one when it carries it over
@@ -228,7 +238,8 @@ awk '
     /^[ \t]/ { if (last != "") prose[last] = prose[last] + 1; next }
     NF == 0 { next }
     $1 == "question" || $1 == "method" || $1 == "state" || $1 == "part" ||
-    $1 == "elsewhere" || $1 == "open" || $1 == "trait" || $1 == "tune" {
+    $1 == "elsewhere" || $1 == "open" || $1 == "trait" || $1 == "tune" ||
+    $1 == "fixed" {
         print "KIND", $2, $1 > (out "/reg.kind")
         line = ""
         for (i = 3; i <= NF; i++) line = line " " $i
@@ -279,6 +290,43 @@ if [ "$(sort "$work/keys.reg" | uniq -d | grep -c . || true)" -ne 0 ]; then
     fail=1
 fi
 sort -u "$work/keys.reg" -o "$work/keys.reg"
+
+# ---- the word matches the home ----------------------------------------
+#
+# A device is closed once it is installed (data/device.ps), and what a
+# page does to it is written beside it, in the state it carries. So the
+# two homes answer a question this register used to take on trust: an
+# entry read off the device is one no page can write, and an entry read
+# out of the state is one a page wrote. The register says which each is
+# in its own words; here those words are held to where the entry
+# actually lives.
+#
+# That is what stops the classification drifting. A constant filed as
+# state, or a page's own scribble filed as a constant, reads exactly
+# like a correct line -- until the seal is asked where the entry is.
+awk '$1 == "T" { print $3 }' "$work/said" | sort -u > "$work/home.state"
+awk '$1 == "K" { print $3 }' "$work/said" | sort -u > "$work/home.device"
+# an entry in both homes is one device's constant and another's state;
+# it is held to neither, and the carrier rules already answer for it
+comm -12 "$work/home.state" "$work/home.device" > "$work/home.both"
+comm -23 "$work/home.state" "$work/home.both" > "$work/home.stateonly"
+comm -23 "$work/home.device" "$work/home.both" > "$work/home.deviceonly"
+
+awk '$3 == "state" { print $2 }' "$work/reg.kind" | sort -u > "$work/kind.state"
+awk '$3 != "state" { print $2 }' "$work/reg.kind" | sort -u > "$work/kind.other"
+
+if [ -s "$(comm -12 "$work/kind.state" "$work/home.deviceonly" > "$work/x"; echo "$work/x")" ]; then
+    echo "FAIL: called state, but the device carries it and a device is"
+    echo "      closed once installed, so no page can have written it:"
+    sed 's/^/      /' "$work/x"
+    fail=1
+fi
+if [ -s "$(comm -12 "$work/kind.other" "$work/home.stateonly" > "$work/y"; echo "$work/y")" ]; then
+    echo "FAIL: called something other than state, but it is only ever"
+    echo "      found in the state a page writes:"
+    sed 's/^/      /' "$work/y"
+    fail=1
+fi
 
 # ---- the two directions
 #
@@ -929,6 +977,25 @@ else
         printf '        %s\n' $both
         fail=1
     fi
+fi
+
+# What a page does to a device is data. The state beside a device is the
+# one part of it a program writes, so a procedure kept there is a
+# procedure a program can replace, under a name something would go on
+# to run. Nothing keeps code there; this is what says so later.
+# .htsrc is the exception, and is one because of what is done with it:
+# it holds whatever the cell in force was built from -- a threshold
+# string, or the spot function a program handed setscreen -- and is
+# compared with eq against the screen now in the graphics state to
+# decide whether the cell has to be built again (data/halftone.ps). It
+# is a key held to be recognised, never a body reached to be run.
+statecode=$(awk '$1 == "T" && $4 == "proc" && $3 != ".htsrc" \
+                 { print $2 "/" $3 }' "$work/said" | sort -u)
+if [ -n "$statecode" ]; then
+    echo "FAIL: these keep a procedure in the state a program writes, where"
+    echo "      what is stored is what would be run:"
+    printf '        %s\n' $statecode
+    fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then

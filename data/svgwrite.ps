@@ -62,6 +62,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /VectorGlyphs true   % Text operators emit glyph outlines, not bitmaps
     /VectorSyntax /svg   % ... spelled as SVG path data
 
+    % Whether a clip is open in the document this page is accumulating.
+    % Declared, so the writer reads it rather than asking whether it is
+    % there; a page opens one and closes it again, and what a page
+    % writes over this is the page's own.
+    /.svgclipopen false
+
     % Whether the tiling construct this writer has can hold a cell larger
     % than the step between cells -- overlapping cells, which PLRM Table
     % 4.9 allows by letting XStep and YStep differ from the BBox. SVG's
@@ -72,17 +78,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /PatternOverlap false
 
     /.copydict //.classcopydict
+    /.instance //.classinstance
 
     /Create {  % width height IMAGE  .  IMAGE'
-    { //.rasterwh {exch def}forall
+    //.classinstance exec
 
     % The page dimensions are points and need not be integral; adopt the
-    % exact values when the page device machinery published them.
-    //.adoptexactpage exec
-    currentdict } //.indict exec
-    dup /.copydict get exec
+    % exact values when the page device machinery published them, and
+    % restate the pair the rest of the machinery reads.
+    dup { //.adoptexactpage exec
+          /dimensions [width height] def } //.indict exec
     {
-        currentdict //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
+        .dev //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
 
         % Where the identities written into the document are counted
         % from. A clipPath is referenced by identity, so no two of them
@@ -98,7 +105,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % here rather than shared, so each device counts its own document
         % and two of them open at once cannot take each other's numbers.
         currentglobal true setglobal
-        /.svgids 4 dict def
+        .dev /.svgids 4 dict put
         setglobal
         .svgids /clipid 0 put
         .svgids /maskid 0 put
@@ -123,9 +130,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % starts at one.
         .svgids /clipser 0 put
         .svgids /clipfor 0 put
-        /.svgmasks 64 dict def  % masks already written, so a repeated glyph is written once
-        /.svgpatterns 0 array def  % tiling cells already written as pattern elements
-    currentdict
+        .state /.svgclipopen .dev /.svgclipopen get put
+        .state /.svgmasks 64 dict put  % masks already written, so a repeated glyph is written once
+        .state /.svgpatterns 0 array put  % tiling cells already written as pattern elements
+    .dev
     } //.indict exec } bind
 
     /Destroy {  % IMAGE  .  -
@@ -134,7 +142,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % Append a string to the content accumulator (held outside VM via /Private)
     /.put {  % str  .  -
-        currentdict //.internaldict /.pdfput get exec
+        .dev //.internaldict /.pdfput get exec
     } bind
 
     % Append a number in SVG syntax (integer, or two decimals; never
@@ -152,29 +160,29 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     } bind
 
     /PutPix {  % r g b x y IMAGE  .  -
-    { //.svgwritebind5 {exch def} forall
+    12 { //.svgwritebind5 {exch def} forall
         (<rect fill=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width="1" height="1"/>\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     /GetPix {  % x y IMAGE  .  r g b
         pop pop pop  0 0 0
     }
 
     /DrawLine {  % r g b x1 y1 x2 y2 IMAGE  .  -
-    { //.svgwritebind6 {exch def} forall
+    12 { //.svgwritebind6 {exch def} forall
         (<path fill="none" stroke=) .put r g b .svgrgb
         ( d="M) .put x1 .svgnum ( ) .put y1 .svgnum
         (L) .put x2 .svgnum ( ) .put y2 .svgnum ("/>\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     /DrawRect {  % r g b x y w h IMAGE  .  -
-    { //.svgwritebind0 {exch def} forall
+    12 { //.svgwritebind0 {exch def} forall
         (<rect fill="none" stroke=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width=") .put w .svgnum (" height=") .put h .svgnum ("/>\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     % The operands name an inclusive pixel span and an SVG rect is
     % half-open, so the rect that covers the pixels a raster device
@@ -183,14 +191,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % device painting a rect a pixel short in each direction of every
     % other device's.
     /FillRect {  % r g b x y w h IMAGE  .  -
-    { //.svgwritebind0 {exch def} forall
+    12 { //.svgwritebind0 {exch def} forall
         w 0 lt { /x x w add def /w w neg def } if
         h 0 lt { /y y h add def /h h neg def } if
         (<rect fill=) .put r g b .svgrgb
         ( x=") .put x .svgnum (" y=") .put y .svgnum
         (" width=") .put w 1 add .svgnum
         (" height=") .put h 1 add .svgnum ("/>\n) .put
-    } //.indict exec }
+    } //.indevwork exec }
 
     % Append one path element: the fill colour, the subpaths as M/L
     % commands each closed with Z, and a nonzero fill rule. The
@@ -210,6 +218,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % where the fill of the same path did not; the same bytes are written
     % here, only without the array between the walk and the output.
     /.emitdevpath {  % -  .  n
+        .dev 12 {
         /.dpstr //.xpostsys /.cpath get exec def
         /.dpoff 0 def
         /.dpn 0 def
@@ -234,12 +243,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /.dpn .dpn 1 add def
         } loop
         .dpn
+        } //.indevwork exec
     } bind
 
     % Count the device path's elements without emitting or collecting them,
     % so the stroke emitter can tell an empty path from one to draw before
     % it walks the path to draw it.
     /.pathelems {  % -  .  n
+        .dev 12 {
         /.pcstr //.xpostsys /.cpath get exec def
         /.pcoff 0 def
         /.pcn 0 def
@@ -252,13 +263,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /.pcn .pcn 1 add def
         } loop
         .pcn
+        } //.indevwork exec
     } bind
 
     % Take a whole sampled image as an embedded bitmap: the samples
     % decode to rgb, pack as a bottom-up 24-bit BMP, and ride a base64
     % data URI under the image-to-device matrix.
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
-    { //.svgwritebind1 {exch def} forall
+    24 { //.svgwritebind1 {exch def} forall
 
         % Per-component decode tables to bytes
         /siluts [ 0 1 sinc 1 sub { /c exch def
@@ -407,7 +419,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         ("/>\n) .put
         } ifelse
         .sicg { (</g>\n) .put } if
-    } //.indict exec }
+    } //.indevwork exec }
 
     % Take a stencil. SVG has no stencil of its own, so the bits go in
     % as a mask -- an image whose light samples are the ones that let
@@ -422,7 +434,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % from under its own matrix with the stencil at the same place in
     % it, so one mask serves every placement of the same bits.
     /PaintStencil {  % w h polarity mat data interp DEVICE  .  -
-    { //.svgwritebind2 {exch def} forall
+    24 { //.svgwritebind2 {exch def} forall
 
         % keyed by a sum over the bits, held inside sixteen bits so the
         % running total cannot leave the integers, and the candidate
@@ -435,8 +447,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                smpol { 1 add } if 16#ffff and def
         /smgen .svgids /docgen get def
         /smid -1 def
-        .svgmasks smkey known {
-            .svgmasks smkey get {
+        .state /.svgmasks get smkey known {
+            .state /.svgmasks get smkey get {
                 aload pop /smcd exch def /smch exch def
                 /smcw exch def /smcp exch def
                 /smcg exch def /smci exch def
@@ -450,8 +462,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         smid 0 lt {
             /smid .svgids /maskid get def
             .svgids /maskid smid 1 add put
-            .svgmasks smkey
-                .svgmasks smkey known { .svgmasks smkey get }{ [ ] } ifelse
+            .state /.svgmasks get smkey
+                .state /.svgmasks get smkey known { .state /.svgmasks get smkey get }{ [ ] } ifelse
                 [ exch aload pop
                   [ smid smgen smpol smw smh smdata ] ] put
 
@@ -512,7 +524,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         ( mask="url\(#xm) .put smid 20 string cvs .put
         (\)"/></g>\n) .put
         smcg { (</g>\n) .put } if
-    } //.indict exec }
+    } //.indevwork exec }
 
     % A tiling pattern reaches a reader as the format's own construct: a
     % pattern element holding the cell, and a fill naming it (SVG 1.1
@@ -539,12 +551,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % unique across the whole document wherever the element lands.
     /.patterntell {  % IMAGE  .  token true | false
     {
-        currentdict //.internaldict /.pdfsubbegin get exec {
-            [ exch .svgmasks
+        .dev //.internaldict /.pdfsubbegin get exec {
+            [ exch .state /.svgmasks get
               .svgids /clipser get .svgids /clipfor get
-              currentdict /.svgclipopen 2 copy known
-                  { get }{ pop pop false } ifelse ]
-            /.svgmasks 64 dict def
+              .state /.svgclipopen get ]
+            .state /.svgmasks 64 dict put
             .svgids /clipser 0 put
             .svgids /clipfor 0 put
             true
@@ -555,13 +566,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     {
         pop                                     % Whether it is kept
         dup 0 get                               % Token at
-        currentdict
+        .dev
         //.internaldict /.pdfsubend get exec    % Token chunks
         exch                                    % Chunks token
-        dup 1 get /.svgmasks exch def
+        dup 1 get .state exch /.svgmasks exch put
         dup 2 get .svgids exch /clipser exch put
         dup 3 get .svgids exch /clipfor exch put
-        4 get /.svgclipopen exch def
+        4 get .state exch /.svgclipopen exch put
     } //.indict exec } bind
 
     % Write a captured cell as a pattern element and answer the number
@@ -579,7 +590,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % what the box excludes -- the language clips a cell to its box (PLRM
     % 4.9.2) and the tile is not that rectangle.
     /PatternCell {  % bbox xstep ystep tilingtype matrix chunks IMAGE  .  n
-    {
+    24 {
         //.svgwritebind4 {exch def} forall
 
         % The spacing PLRM Table 4.9 names as TilingType is taken and
@@ -594,10 +605,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /svys svys abs def
         /svlen 0 def svchunks { length svlen add /svlen exch def } forall
         /svhit -1 def
-        0 1 .svgpatterns length 1 sub {
+        0 1 .state /.svgpatterns get length 1 sub {
             /svi exch def
             svhit 0 lt {
-                /svc .svgpatterns svi get def
+                /svc .state /.svgpatterns get svi get def
                 svc /gen get .svgids /docgen get eq
                 svc /len get svlen eq and
                 svc /xs get svxs eq and
@@ -612,10 +623,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         svhit 0 lt {
             /svhit .svgids /patid get def
             .svgids /patid svhit 1 add put
-            /.svgpatterns [ .svgpatterns aload pop
+            % the cells this document names outlive the call that
+            % files one, so the list is put on the device
+            .state /.svgpatterns [ .state /.svgpatterns get aload pop
                 << /bb svbb /xs svxs /ys svys /mat svmat
                    /chunks svchunks /len svlen /id svhit
-                   /gen .svgids /docgen get >> ] def
+                   /gen .svgids /docgen get >> ] put
 
             % The cell's box, as the clip the tile's content is drawn
             % through. It is written beside the pattern element rather
@@ -642,7 +655,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             (</g></pattern>\n) .put
         } if
         svhit
-    } //.indict exec } bind
+    } //.indevwork exec } bind
 
     % A number at the accumulator's full precision, where .svgnum's two
     % decimals are not enough: a pattern's matrix is a scale, and a
@@ -684,9 +697,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         ("/>\n) .put
 
         % a clip adopted for this fill ends with it
-        currentdict /.svgclipopen 2 copy known { get }{ pop pop false } ifelse {
+        .state /.svgclipopen get {
             (</g>\n) .put
-            /.svgclipopen false def
+            .state /.svgclipopen false put
         } if
     } //.indict exec } bind
 
@@ -702,9 +715,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
         % a clip adopted for this fill ends with it
         {
-            currentdict /.svgclipopen 2 copy known { get }{ pop pop false } ifelse {
+            .state /.svgclipopen get {
                 (</g>\n) .put
-                /.svgclipopen false def
+                .state /.svgclipopen false put
             } if
         } //.indict exec
     } bind
@@ -736,6 +749,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % The path walker reads the current path, so the region stands in for
     % it across the walk and the working path goes back afterwards.
     /.clipgroup {  % -  .  bool
+        .dev 12 {
         % A region covering the whole page cuts nothing off any paint,
         % and is written down nowhere: a page of bitmap glyphs under no
         % clip would otherwise carry a group and a reference per glyph
@@ -751,13 +765,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         }{ false } ifelse
         { false }{
             /.cgser graphicsdict /currgstate get /clipcache get /serial get def
-            currentdict /.svgids get /clipser get .cgser eq {
-                /.cgid currentdict /.svgids get /clipfor get def
+            .dev /.svgids get /clipser get .cgser eq {
+                /.cgid .dev /.svgids get /clipfor get def
             }{
-                currentdict /.svgids get /clipid 2 copy get 1 add put
-                /.cgid currentdict /.svgids get /clipid get def
-                currentdict /.svgids get /clipser .cgser put
-                currentdict /.svgids get /clipfor .cgid put
+                .dev /.svgids get /clipid 2 copy get 1 add put
+                /.cgid .dev /.svgids get /clipid get def
+                .dev /.svgids get /clipser .cgser put
+                .dev /.svgids get /clipfor .cgid put
                 graphicsdict /currgstate get /currpath get
                 //.xpostsys /.clipregionpath get exec
                 (<clipPath id="xc) .put .cgid 20 string cvs .put
@@ -769,6 +783,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             (<g clip-path="url\(#xc) .put .cgid 20 string cvs .put (\)">\n) .put
             true
         } ifelse
+        } //.indevwork exec
     } bind
 
     % clippath IMAGE . -  ; adopt a clip shape the interpreter could not
@@ -793,18 +808,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % same region are the same region, whatever the counter does over the
     % length of a run.
     /ClipPath {  % path evenodd serial IMAGE  .  -
-    {
+    12 {
         /.svgcser exch def
-        currentdict /.svgids get /clipser get .svgcser eq {
+        .dev /.svgids get /clipser get .svgcser eq {
             pop pop  % the shape and its rule are in the document already
-            /.svgcid currentdict /.svgids get /clipfor get def
+            /.svgcid .dev /.svgids get /clipfor get def
         }{
         % The next identity this document has not used: the counter is
         % the one made at Create, which a restore does not reach.
-        currentdict /.svgids get /clipid 2 copy get 1 add put
-        /.svgcid currentdict /.svgids get /clipid get def
-        currentdict /.svgids get /clipser .svgcser put
-        currentdict /.svgids get /clipfor .svgcid put
+        .dev /.svgids get /clipid 2 copy get 1 add put
+        /.svgcid .dev /.svgids get /clipid get def
+        .dev /.svgids get /clipser .svgcser put
+        .dev /.svgids get /clipfor .svgcid put
 
         % The path walker reads the current path, so install the clip
         % shape for the walk and put the working path back after.
@@ -823,8 +838,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % The group the fill is drawn in refers to the element by
         % identity, whether this call wrote it or an earlier one did.
         (<g clip-path="url\(#xc) .put .svgcid 20 string cvs .put (\)">\n) .put
-        /.svgclipopen true def
-    } //.indict exec } bind
+        .state /.svgclipopen true put
+    } //.indevwork exec } bind
 
     % r g b IMAGE . -  ; stroke the current path as one path element with
     % the device-space line width and the graphics state's cap, join and
@@ -833,7 +848,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % first (the walker runs in its own dictionary, away from this
     % device's methods) and emitted afterwards.
     /StrokePath {  % r g b IMAGE  .  -
-    { //.svgwritebind3 {exch def} forall
+    12 { //.svgwritebind3 {exch def} forall
         .pathelems 0 gt {
             (<path fill="none" stroke=) .put spr spg spb .svgrgb
             ( stroke-width=") .put
@@ -849,22 +864,22 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .emitdevpath pop
             ("/>\n) .put
         } if
-    } //.indict exec }
+    } //.indevwork exec }
 
     /Emit {  % IMAGE  .  -
-    {
+    16 {
         % An SVG document holds one page, so successive pages are written
         % to separate files: the name settled for this page carries the
         % page number where the output name has a %d, and without one
         % every page rewrites the same file.
-        /F .outputfile (w) file def
+        /F .state /.outputfile get (w) file def
         /.w {  % str  .  -
             F exch writestring
         } def
 
         % page size in points: unscale the device resolution carried in
         % the defaultmatrix fixup; a raw 1:1 device is unaffected.
-        currentdict //.xpostsys /.devres-to-points get exec
+        .dev //.xpostsys /.devres-to-points get exec
         /sy exch def /sx exch def
 
         (<?xml version="1.0" encoding="UTF-8"?>\n) .w
@@ -881,7 +896,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         height sy div .wnum (pt" viewBox="0 0 ) .w
         width .wnum ( ) .w height .wnum (">\n) .w
 
-        currentdict //.internaldict /.pdfchunks get exec { .w } forall
+        .dev //.internaldict /.pdfchunks get exec { .w } forall
 
         (</svg>\n) .w
         F (%stdout) (w) file ne { F closefile } if
@@ -889,18 +904,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % start the next page fresh: showpage's page clear and later
         % marks must not stack on the emitted content (a later Emit
         % rewrites the output with the then-current page).
-        currentdict //.internaldict /.pdfreset get exec
+        .dev //.internaldict /.pdfreset get exec
 
         % and with it the identities, since a document holds one page and
         % an identity need only be unique within the document it is
         % written into. Counting from the same place for each of them is
         % what keeps a page's output the same wherever it falls in a job.
-        currentdict /.svgids get /clipid 0 put
+        .dev /.svgids get /clipid 0 put
 
         % and the clip written last is in the page just emitted, not in
         % the one starting, so nothing may refer to it again
-        currentdict /.svgids get /clipser 0 put
-        currentdict /.svgids get /clipfor 0 put
+        .dev /.svgids get /clipser 0 put
+        .dev /.svgids get /clipfor 0 put
 
         % nor may a stencil on the page starting be painted through a
         % mask written into the one just emitted. The record of masks
@@ -912,13 +927,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % and the rectangle it qualifies is painted whole, so a page of
         % bitmap glyphs anywhere but the first comes out as solid
         % blocks.
-        currentdict /.svgids get /maskid 0 put
-        /.svgmasks 64 dict def
+        .dev /.svgids get /maskid 0 put
+        .state /.svgmasks get //.emptydict exec
 
         % nor may a fill on the page starting name a pattern element
         % written into the one just emitted
-        currentdict /.svgids get /patid 0 put
-        /.svgpatterns 0 array def
+        .dev /.svgids get /patid 0 put
+        .state /.svgpatterns 0 array put
 
         % Emptying the two records above is a store in local memory,
         % which a restore reaching over this point undoes: either record
@@ -926,8 +941,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % done here. The stamp they are read against is not in local
         % memory, so moving it on is what makes such an entry stale
         % however the record comes to be holding it.
-        currentdict /.svgids get /docgen 2 copy get 1 add put
-    } //.indict exec }
+        .dev /.svgids get /docgen 2 copy get 1 add put
+    } //.indevwork exec }
 >> def
 
 end end end

@@ -112,4 +112,93 @@ llx=$2; lly=$3; urx=$4; ury=$5
 [ "$lly" -lt 40 ] || { echo "FAIL: nothing falls below the baseline: $box"; exit 1; }
 echo "text bounding box OK ($box)"
 
+# A box belongs to the page it was accumulated for. showpage clears the
+# page, and a cleared page holds no marks, so the next page's box is the
+# next page's marks -- not the marks of everything the job has drawn.
+# The pages below are disjoint and the second is the smaller: a box that
+# carries reports the first page again, and a box that is thrown away
+# too eagerly reports nothing.
+tmp2=${TMPDIR:-/tmp}/bbox-perpage-$$.ps
+trap 'rm -f "$tmp2"' EXIT
+cat > "$tmp2" <<'PSEOF'
+0 setgray
+newpath 200 200 moveto 100 0 rlineto 0 100 rlineto -100 0 rlineto closepath fill
+showpage
+newpath 20 20 moveto 30 0 rlineto 0 30 rlineto -30 0 rlineto closepath fill
+showpage
+quit
+PSEOF
+out=$("$xpost" -q -d bbox -o /dev/null "$tmp2" </dev/null 2>&1)
+status=$?
+printf '%s
+' "$out"
+verdict_run "$status" "$out" "the per-page box job" || exit 1
+printf '%s
+' "$out" | grep -qx '%%BoundingBox: 200 200 300 300' \
+    || { echo "FAIL: the first page's box is not its own marks"; exit 1; }
+printf '%s
+' "$out" | grep -qx '%%BoundingBox: 20 20 50 50' \
+    || { echo "FAIL: the second page's box is not its own marks; a box that"
+         echo "      carries across showpage reports the whole job instead"
+         exit 1; }
+echo "per-page bounding box OK"
+
+# A device's writable state sits beside the device, not above it. It has
+# to be writable -- it is what the page does to the device -- so a
+# program can put whatever it likes under whatever key it likes. What it
+# must not buy with that is the device's own machinery: if a method body
+# reached its names down a dictionary stack with the state on top, a
+# procedure stored under a method's name would be found first, and the
+# program would be choosing the code the device runs on every mark.
+tmp3=$(mktemp); trap 'rm -f "$tmp3"' EXIT
+cat > "$tmp3" <<'PSEOF'
+/ranmine false def
+100 100 50 50 rectfill
+DEVICE /.state get /.maxmin { pop pop /ranmine true store } put
+newpath 200 200 moveto 300 300 lineto 300 200 lineto closepath fill
+(planted: ) print ranmine ==
+showpage
+quit
+PSEOF
+out=$("$xpost" -q -d bbox -o /dev/null "$tmp3" </dev/null 2>&1)
+status=$?
+printf '%s\n' "$out"
+verdict_run "$status" "$out" "the shadowed-method job" || exit 1
+printf '%s\n' "$out" | grep -qx 'planted: false' \
+    || { echo "FAIL: the device ran a procedure the program stored in its"
+         echo "      state -- state named above the device on the dictionary"
+         echo "      stack shadows every method the device has"
+         exit 1; }
+printf '%s\n' "$out" | grep -qx '%%BoundingBox: 100 100 300 300' \
+    || { echo "FAIL: the box does not cover both marks, so the device's own"
+         echo "      extent method did not run for the second one"
+         exit 1; }
+echo "state does not shadow the device's methods OK"
+
+# The device tests ask for their devices unsealed, so that they can reach
+# in and state what is there. That is an instrumentation setting and it
+# is read once, as the language is locked down. A run that starts from
+# the built image has locked down already: the setting arrives too late
+# to be read, and the seal is not a thing an environment can undo. Both
+# halves are checked here, because a probe that could not see an unsealed
+# device would report this as held whether it were held or not.
+tmp4=$(mktemp); trap 'rm -f "$tmp2" "$tmp3" "$tmp4"' EXIT
+cat > "$tmp4" <<'PSEOF'
+{ DEVICE /zz 1 put } stopped { (sealed) = }{ (unsealed) = } ifelse
+quit
+PSEOF
+out=$(env -u XPOST_NO_VM_IMAGE -u XPOST_DATA_DIR XPOST_UNSEALED_DEVICES=1 \
+        "$xpost" -q -d bbox -o /dev/null "$tmp4" </dev/null 2>&1)
+printf '%s\n' "$out" | grep -qx 'sealed' \
+    || { echo "FAIL: a run starting from the image left its device unsealed"
+         echo "      because the environment asked; the seal is not the"
+         echo "      environment's to lift"
+         exit 1; }
+out=$(XPOST_NO_VM_IMAGE=1 XPOST_UNSEALED_DEVICES=1 "$xpost" -q -d bbox -o /dev/null "$tmp4" </dev/null 2>&1)
+printf '%s\n' "$out" | grep -qx 'unsealed' \
+    || { echo "FAIL: the setting did nothing even where it is read, so the"
+         echo "      check above could not have seen an unsealed device"
+         exit 1; }
+echo "the seal is not the environment's to lift OK"
+
 exit 0

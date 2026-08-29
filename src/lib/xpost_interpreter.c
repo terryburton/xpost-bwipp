@@ -3810,6 +3810,31 @@ XPAPI Xpost_Context *xpost_create(const char *device,
         return NULL;
     }
 
+    /* A run that has asked to instrument the interpreter says so here.
+       The device classes are sealed at the lockdown, which is what stops
+       a program putting its own method where the machinery will run it;
+       a run measuring the machinery -- counting the bands a page was put
+       out in, watching what a class does before any device is made from
+       it -- cannot do that through a sealed class and has no other way
+       in, the private namespaces being closed to programs. So the seal
+       is what this run gives up, and only this run: the setting is the
+       invocation's, not the program's, and a program cannot reach it.
+       Handed through systemdict for the same reason QUIET is, and moved
+       into the private dictionary beside it. */
+    if (getenv("XPOST_UNSEALED_DEVICES"))
+    {
+        ret = xpost_dict_put(ctx, sd,
+                             xpost_name_cons(ctx, "UNSEALEDDEVICES"),
+                             xpost_bool_cons(1));
+        if (ret)
+        {
+            XPOST_LOG_ERR("%s naming UNSEALEDDEVICES in systemdict",
+                          errorname[ret]);
+            xpost_interpreter_set_initializing(0);
+            return NULL;
+        }
+    }
+
     ctx->quiet = quiet;
     if (quiet)
     {

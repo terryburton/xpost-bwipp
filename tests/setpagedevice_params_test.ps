@@ -76,4 +76,15 @@ currentpagedevice /Destroy known not
 currentpagedevice /Emit known not
     (and neither is Emit) assert
 
+% PLRM 6.1: what currentpagedevice returns is read-only. It is built
+% fresh on each call, so a write to it could never be seen by the next
+% one; refusing the write says so, where accepting it would leave a
+% program believing it had set a parameter it had not.
+currentpagedevice wcheck not
+    (what currentpagedevice returns is read-only) assert
+{ currentpagedevice /PageSize [1 1] put } /invalidaccess
+    (and a write to it is refused) raises
+currentpagedevice /PageSize get 0 get 1 ne
+    (so the refused write did not take) assert
+
 verdict

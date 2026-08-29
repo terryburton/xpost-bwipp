@@ -83,12 +83,64 @@ globaldict   (globaldict) look
 1183615869 internaldict (internaldict) look
 
 % the check must be able to see a positive: prove the recogniser fires
-% Both recognisers must be shown to fire, or a clean run proves nothing.
+% And what a program CAN reach and write must be local, because that is the
+% whole of the bound on it. A program takes a device class out of
+% .privatedict, replaces a method, and the machinery runs it -- see the
+% localcode pair in vm_forbidden.golden. A restore and the job boundary both
+% take local memory back, so it buys the rest of the job; in global memory it
+% would buy the rest of the run, and nothing else here would notice.
+% A driver brought in on first use installs its class AFTER the lockdown,
+% so ask for one before counting -- otherwise this holds only the classes
+% that were there when the sweep ran, and the late ones, which nothing
+% sweeps, would go unasked. Guarded because the loader is build-optional.
+systemdict /loadpngdevice known
+  { mark { loadpngdevice } stopped pop cleartomark } if
+
+/globalclasses 0 def
+.privatedict {
+  exch 60 string cvs dup length 6 ge
+    { 0 6 getinterval (.xpost) eq
+        { dup type /dicttype eq
+            { gcheck { /globalclasses globalclasses 1 add def } if }
+            { pop } ifelse }
+        { pop } ifelse }
+    { pop pop } ifelse
+} forall
+% and the loop must have found classes at all: one that matched nothing
+% would report no global classes just as quietly as one that checked them.
+/classcount 0 def
+.privatedict {
+  exch 60 string cvs dup length 6 ge
+    { 0 6 getinterval (.xpost) eq { /classcount classcount 1 add def } if }
+    { pop } ifelse pop
+} forall
+classcount 0 eq
+{ (FAIL: no device class was found, so the bank check proved nothing) =
+  /bad bad 1 add def } if
+
+globalclasses 0 gt
+{ (FAIL: ) print globalclasses =print
+  ( device class dictionaries live in global memory, where a) print
+  ( replaced method would keep for the whole run) =
+  /bad bad 1 add def } if
+
+% Every recogniser must be shown to fire, or a clean run proves nothing --
+% including the bank test above, which reports nothing when it is working
+% and would report nothing just as quietly if gcheck were asked of the
+% wrong object.
+/banktest false def
+currentglobal
+true setglobal 4 dict gcheck
+false setglobal 4 dict gcheck not and
+exch setglobal
+{ /banktest true def } if
+
 /proved false def
 << /.pagestate 1 /.glyphstate 1 >> isstore
 << /.pagestate 1 >> isstore not and
 << /.finalize 1 /.loadgraphics 1 >> isnamespace and
 << /.finalize 1 >> isnamespace not and
+banktest and
 { /proved true def } if
 
 proved

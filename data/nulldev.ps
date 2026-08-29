@@ -52,10 +52,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /NoOutput true  % This device draws nothing: keep its no-op methods
 
     /.copydict //.classcopydict
+    /.instance //.classinstance
     /Create {  % width height IMAGE  .  IMAGE'
-        begin //.rasterwh {exch def}forall
-        currentdict end
-        dup /.copydict get exec
+        //.classinstance exec
     }
 
     /Destroy {  % IMAGE  .  -

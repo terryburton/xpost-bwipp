@@ -185,7 +185,7 @@ paint
     /pb.top exch def
     /pb.set exch def
     /pb.dev pb.top pb.rows mkband def
-    pb.dev /.outputfile pb.file put
+    pb.dev /.state get /.outputfile pb.file put
     DEVICE pb.dev pb.top pb.top pb.rows add 1 sub replaypage
     pb.dev dup /Emit get exec
     pb.dev dup /Destroy get exec

@@ -2124,7 +2124,8 @@ test('graphics-regression',
   args: [ xpost_exe, files('tests/graphics_regression_test.ps') ],
   suite: cost_slow,
   timeout: 180,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # Render classes: Type 3 and composite fonts, the shading types, tiling and
 # shading patterns, and screen/halftone setup. Standard PostScript that prints
@@ -2158,7 +2159,8 @@ test('raster-formats',
 test('device-features',
   find_program('tests/run-device-features-test.sh'),
   args: [ xpost_exe, files('tests/device_features_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 180)
 
@@ -2217,14 +2219,16 @@ test('form-nest',
   args: [ xpost_exe, files('tests/form_nest_test.ps') ],
   suite: cost_slow,
   timeout: 180,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # Bounding-box device: render a known fill through -d bbox and check the box.
 test('bbox-device',
   find_program('tests/run-bbox-test.sh'),
   args: [ xpost_exe, files('tests/bbox_test.ps') ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' ,
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # PDF device: write a PDF and check the document against itself -- its
 # structure, its cross-reference geometry, the colour spaces its marks
@@ -2247,7 +2251,8 @@ test('pdf-device',
   args: [ xpost_exe, files('tests/pdf_bigfill_test.ps') ],
   suite: cost_slow,
   timeout: 120,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' ,
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # The same PDFs read by consumers that did not write them: qpdf parses the
 # document as a reader does, and poppler images it so that what it paints
@@ -2259,7 +2264,8 @@ test('pdf-consumer',
   find_program('tests/run-pdf-consumer-test.sh'),
   args: [ xpost_exe ],
   suite: cost_slow,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   timeout: 120)
 
 # PDF content appends under memory pressure: a FillPoly whose content
@@ -2299,7 +2305,8 @@ test('fill-span',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/fill_span_test.ps') ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # The shape of a raster row: one byte per pixel per component, held in a
 # string per component rather than in one string or one array element per
@@ -2634,7 +2641,8 @@ test('svg-device',
   find_program('tests/run-svg-test.sh'),
   args: [ xpost_exe ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' ,
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # A clipPath is referenced by identity, and the document it is written
 # into cannot be taken back, so the counter naming those elements has to
@@ -2762,7 +2770,8 @@ test('op-hexstring',
 test('op-context',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/op_context_test.ps'), '', '--enable-dps' ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 60)
 
@@ -3291,7 +3300,8 @@ test('screen-scope',
   find_program('tests/run-device-ps-test.sh'),
   args: [ xpost_exe, files('tests/screen_scope_test.ps'), 'pbm' ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # Every text-showing operator against both kinds of font. Each operator
 # walks its string its own way, so one positioning a glyph correctly says
@@ -4202,7 +4212,8 @@ test('vm-reclaim-compaction',
 test('devices',
   find_program('tests/run-devices-test.sh'),
   args: [ xpost_exe ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4489,7 +4500,8 @@ test('check-fused-ops',
 test('record-replay',
   find_program('tests/run-record-replay-test.sh'),
   args: [ xpost_exe, files('tests/record_replay_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4504,7 +4516,8 @@ test('record-replay',
 test('region-replay',
   find_program('tests/run-region-replay-test.sh'),
   args: [ xpost_exe, files('tests/region_replay_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4523,7 +4536,8 @@ test('region-replay',
 test('record-screen',
   find_program('tests/run-record-screen-test.sh'),
   args: [ xpost_exe, files('tests/record_screen_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4537,7 +4551,8 @@ test('record-screen',
 test('record-image',
   find_program('tests/run-record-image-test.sh'),
   args: [ xpost_exe, files('tests/record_image_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4555,7 +4570,8 @@ test('record-image',
 test('record-glyph',
   find_program('tests/run-record-glyph-test.sh'),
   args: [ xpost_exe, files('tests/record_glyph_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 180)
 
@@ -4612,7 +4628,8 @@ test('form-band',
 test('record-span',
   find_program('tests/run-record-span-test.sh'),
   args: [ xpost_exe, files('tests/record_span_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4627,7 +4644,8 @@ test('record-span',
 test('band-loop',
   find_program('tests/run-band-loop-test.sh'),
   args: [ xpost_exe, files('tests/band_loop_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4641,7 +4659,8 @@ test('band-loop',
 test('band-sparse',
   find_program('tests/run-band-sparse-test.sh'),
   args: [ xpost_exe, files('tests/band_sparse_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4661,7 +4680,8 @@ test('band-sparse',
 test('band-report',
   find_program('tests/run-band-report-test.sh'),
   args: [ xpost_exe, files('tests/band_report_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -4680,7 +4700,8 @@ test('band-report',
 test('band-budget',
   find_program('tests/run-band-budget-test.sh'),
   args: [ xpost_exe, files('tests/band_budget_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -4698,7 +4719,8 @@ test('band-budget',
 test('band-format',
   find_program('tests/run-band-format-test.sh'),
   args: [ xpost_exe, files('tests/band_format_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4716,7 +4738,8 @@ test('band-format',
 test('band-writer',
   find_program('tests/run-band-writer-test.sh'),
   args: [ xpost_exe, files('tests/band_writer_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4733,7 +4756,8 @@ test('band-writer',
 test('page-lifetime',
   find_program('tests/run-page-lifetime-test.sh'),
   args: [ xpost_exe, files('tests/page_lifetime_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4749,7 +4773,8 @@ test('page-lifetime',
 test('page-lifetime-truetype',
   find_program('tests/run-page-lifetime-truetype-test.sh'),
   args: [ xpost_exe, files('tests/page_lifetime_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4772,7 +4797,8 @@ test('page-lifetime-truetype',
 test('band-device',
   find_program('tests/run-band-device-test.sh'),
   args: [ xpost_exe, files('tests/band_device_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4822,7 +4848,8 @@ test('band-device',
 test('band-campaign',
   find_program('tests/run-band-campaign-test.sh'),
   args: [ xpost_exe, files('tests/band_campaign_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_veryslow,
   priority: 150,
   timeout: 900)
@@ -4854,7 +4881,8 @@ test('golden-render',
   priority: guard_priority,
   args: [ xpost_exe, files('tests/golden_page.ps'), files('tests/golden_pages.ps'),
           meson.current_source_dir() / 'tests' / 'golden' ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -4884,7 +4912,8 @@ test('render-differ',
 test('device-contract',
   find_program('tests/run-device-contract-test.sh'),
   args: [ xpost_exe, files('tests/device_contract_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4898,7 +4927,8 @@ test('device-contract',
 test('device-dictstack',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/device_dictstack_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -4926,7 +4956,8 @@ test('operator-dictstack',
 test('device-ground',
   find_program('tests/run-device-ground-test.sh'),
   args: [ xpost_exe, files('tests/device_ground_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -4940,7 +4971,8 @@ test('device-ground',
 test('page-cover',
   find_program('tests/run-page-cover-test.sh'),
   args: [ xpost_exe, files('tests/page_cover_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -4952,7 +4984,8 @@ test('page-cover',
 test('colour-range',
   find_program('tests/run-colour-range-test.sh'),
   args: [ xpost_exe, files('tests/colour_range_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -5095,7 +5128,8 @@ test('band-extent',
 test('band-route',
   find_program('tests/run-band-route-test.sh'),
   args: [ xpost_exe ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 600)
 
@@ -5250,7 +5284,8 @@ test('device-completion',
 test('device-destroy',
   find_program('tests/run-device-destroy-test.sh'),
   args: [ xpost_exe, files('tests/device_destroy_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -5262,7 +5297,8 @@ test('device-destroy',
 test('device-restore-retired',
   find_program('tests/run-device-restore-test.sh'),
   args: [ xpost_exe, files('tests/device_restore_retired_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -5276,7 +5312,8 @@ test('device-restore-retired',
 test('device-retire-restored',
   find_program('tests/run-device-restore-test.sh'),
   args: [ xpost_exe, files('tests/device_retire_restored_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 300)
 
@@ -5349,7 +5386,8 @@ test('setpagedevice-policies',
 test('imaging-bbox',
   find_program('tests/run-imaging-bbox-test.sh'),
   args: [ xpost_exe, files('tests/imaging_bbox_test.ps') ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_slow,
   timeout: 300)
 
@@ -5831,7 +5869,8 @@ test('check-image-devclip',
   find_program('tests/run-image-devclip-test.sh'),
   args: [ xpost_exe ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' ,
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # The font family has no dispatch: the type is re-read at thirteen places
 # in data/font.ps and two in data/cid.ps, and between them they ask only
@@ -6009,7 +6048,8 @@ test('check-error-quiet',
   priority: guard_priority,
   args: [ xpost_exe ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   timeout: 240)
 
 test('check-testlib',
@@ -6272,7 +6312,8 @@ sandbox_exe = executable('sandbox_test',
 test('sandbox',
   sandbox_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' ,
+          'XPOST_UNSEALED_DEVICES': '1' })
 
 # The same checks against the portable route. There are two ways the file
 # layer confines an open -- the kernel resolving beneath a root, and a
@@ -6348,7 +6389,8 @@ test('resource-file',
   find_program('tests/check-resource-file.sh'),
   priority: guard_priority,
   args: [ xpost_exe ],
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' },
   suite: cost_fast,
   timeout: 120)
 
@@ -6393,7 +6435,8 @@ if host_machine.system() == 'linux'
     include_directories: [ config_dir, include_directories('src/lib') ],
     install: false)
   test('record-cost', record_cost_exe, suite: cost_fast + ['memacct'],
-    env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+    env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_UNSEALED_DEVICES': '1' })
 endif
 
 # Where a record puts what it need not hold, and what happens when the

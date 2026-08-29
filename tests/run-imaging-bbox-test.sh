@@ -192,8 +192,12 @@ band_prologue() {
 route_report() {
     printf '(\\nROUTE ) print\n'
     printf 'DEVICE /.playclass known { (record) }{ (direct) } ifelse print\n'
+    # the rows a device holds are its own where it was built to hold them,
+    # and its state's where a record wrote them as it painted
     printf '(\\nHELD ) print DEVICE /.bandrows known\n'
-    printf '  { DEVICE /.bandrows get }{ DEVICE /height get } ifelse\n'
+    printf '  { DEVICE /.bandrows get }\n'
+    printf '  { DEVICE /.state get /.bandrows 2 copy known\n'
+    printf '      { get }{ pop pop DEVICE /height get } ifelse } ifelse\n'
     printf '  20 string cvs print (\\n) print\n'
 }
 

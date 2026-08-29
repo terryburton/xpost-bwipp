@@ -620,4 +620,23 @@ newdev dev ne readable and {
     } if
 } if
 
+% A device is not made by writing to the class it is made from. A class
+% is a declaration every instance of it shares; a page's geometry
+% belongs to the instance that adopted it, and a class left carrying it
+% is a class this run has written to -- which is both a class that
+% cannot be sealed and a page size the next device made would inherit
+% without being asked.
+/geomclean true def
+.privatedict {
+    exch pop
+    dup type /dicttype eq {
+        dup /Create known {
+            dup /width known 1 index /height known or
+                { /geomclean false def } if
+        } if
+    } if
+    pop
+} forall
+geomclean (no device class carries a page's geometry) assert
+
 contractfail { (FAILURES\n) print }{ (SUCCESS\n) print } ifelse

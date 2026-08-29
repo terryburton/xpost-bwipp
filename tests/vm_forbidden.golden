@@ -46,7 +46,7 @@
 
 0 0
 
-declared 51
+declared 52
 
 local 0 0
 
@@ -136,15 +136,27 @@ closed 0 0
 # so it buys the rest of the job -- which, for one job per request, is the
 # request.
 #
-# The remedy is not to seal them. A device class holds methods, which must
-# not change, and per-render state, which must; the answer is the one the
-# stroke table got -- split it, do not seal it -- and that is design work
-# on eleven classes and the dispatch path, with a lookup's worth of
-# performance in it. Until then this is a ratchet: it may fall and it may
-# not rise.
+# The device classes were the bulk of this and are now closed, not by
+# splitting them but by removing what wrote them. A class held two things
+# it should not have: the page geometry a Create staged through it on the
+# way to the instance, and the band budget a run settled on. Both belong
+# to the device being made, and go there now, so a class is settled once
+# the boot has built it and is sealed at the lockdown. Nothing was split
+# and no lookup was added to the dispatch.
+#
+# What is left is the graphics state. It holds procedures a program sets
+# -- a transfer, a spot function -- and is written on every gsave, so it
+# is state rather than a table to close, and closing it is a different
+# question with a different answer.
+#
+# A run that has asked to instrument the machinery keeps the classes
+# writable and is counted here as any run would be; the number below is
+# an ordinary run's, which is the one that ships.
+#
+# This is a ratchet: it may fall and it may not rise.
 #
 #   count  digest
 
-localcode 17 293
+localcode 6 55077
 
 blind 0

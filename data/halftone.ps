@@ -582,8 +582,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         dup 255 gt { pop 255 } if
         put
     } for
-    DEVICE /.htfreq freq put
-    DEVICE /.htang ang put
+    DEVICE /.state get /.htfreq freq put
+    DEVICE /.state get /.htang ang put
 
     % Fetched, not looked up: a bare name would run the procedure
     cell L L currentdict /proc get
@@ -605,10 +605,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  where a cell is built.
 %
 .xpostsys /.setscreencell {  % cell w h src  .  -
-    DEVICE exch /.htsrc exch put
-    DEVICE exch /.hth exch put
-    DEVICE exch /.htw exch put
-    DEVICE exch /.htcell exch put
+    DEVICE /.state get exch /.htsrc exch put
+    DEVICE /.state get exch /.hth exch put
+    DEVICE /.state get exch /.htw exch put
+    DEVICE /.state get exch /.htcell exch put
     DEVICE /ScreenChanged known {
         DEVICE dup /ScreenChanged get exec
     } if
@@ -627,7 +627,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ht /Thresholds 2 copy known { get }{ pop pop null } ifelse
             dup type /stringtype eq {
                 /th exch def
-                DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
+                DEVICE /.state get /.htsrc 2 copy known { get }{ pop pop null } ifelse
                 th eq not {
                     th ht /Width get ht /Height get th
                     //.setscreencell exec
@@ -637,7 +637,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 ht /SpotFunction 2 copy known { get }{ pop pop null } ifelse
                 dup null ne {
                     /sp exch def
-                    DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
+                    DEVICE /.state get /.htsrc 2 copy known { get }{ pop pop null } ifelse
                     currentdict /sp get eq not {
                         ht /Frequency 2 copy known { get }{ pop pop 60 } ifelse
                         ht /Angle 2 copy known { get }{ pop pop 0 } ifelse
@@ -646,11 +646,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 }{ pop } ifelse
             } ifelse
         }{
-            DEVICE /.htsrc 2 copy known { get }{ pop pop null } ifelse
+            DEVICE /.state get /.htsrc 2 copy known { get }{ pop pop null } ifelse
                 graphicsdict /currgstate get /screenproc get eq
-            DEVICE /.htfreq 2 copy known { get }{ pop pop null } ifelse
+            DEVICE /.state get /.htfreq 2 copy known { get }{ pop pop null } ifelse
                 graphicsdict /currgstate get /screenfreq get eq and
-            DEVICE /.htang 2 copy known { get }{ pop pop null } ifelse
+            DEVICE /.state get /.htang 2 copy known { get }{ pop pop null } ifelse
                 graphicsdict /currgstate get /screenangle get eq and
             not {
                 graphicsdict /currgstate get /screenfreq get
