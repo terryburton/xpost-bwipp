@@ -66,7 +66,7 @@
    written past its end shows up as a colour in the wrong place rather
    than being absorbed by flat ground. */
 static const char paint_program[] =
-    "/dev .privatedict /.graphicsdict get /currgstate get /device get def\n"
+    "/dev DEVICE def\n"
     /* the ground, laid through the device rather than assumed */
     "1 1 1  0 0 23 17 dev dup /FillRect get exec\n"
     /* blocks, through the rectangle fill: the far corner of a fill is

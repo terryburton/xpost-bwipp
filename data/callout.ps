@@ -58,25 +58,19 @@ systemdict begin
     % Both the state dictionary and the procedures that reach it are local,
     % and privatedict is the local dictionary they belong in, so they are put
     % there outright rather than anchored in userdict for the finalizer to move.
-    % The accessor either holds the graphics dictionary as a value -- fast, and
-    % correct while there is only one context -- or reaches it through the
-    % running context's privatedict every time, so a context forked from this
-    % one finds its own private graphics state (PLRM 2nd ed 7.1) rather than the
-    % one this ran in. Only a fork needs the second form, and a fork happens
-    % only when the context operators were installed, so .dpsenabled chooses:
-    % a default run keeps the baked value it always had. .privatedict is baked
-    % as the operator (//) so the deferred form does not depend on a name being
-    % reachable on the dictionary stack.
-    .privatedict /.graphicsdict <<
+    % The graphics dictionary is rooted in the context rather than kept under a
+    % name in privatedict, which is reachable by decision -- driver prologs name
+    % it -- and a member of it naming the graphics state is a slot a program
+    % writes to hand the machinery a device of its own. The accessor reaches the
+    % running context's own, so a context forked from this one finds its own
+    % private graphics state (PLRM 2nd ed 7.1) rather than the one this ran in,
+    % which is what the deferred form used to buy and now comes for nothing.
+    <<
         /currgstate 12 dict
         /gstackarray 100 array
         /gptr -1
-    >> put
-    .privatedict /.graphicsdictproc
-        .dpsenabled
-            { { //.privatedict /.graphicsdict get } }
-            { [ .privatedict /.graphicsdict get ] cvx } ifelse
-        put
+    >> .setgraphicsdict
+    .privatedict /.graphicsdictproc { .graphicsdictroot } put
     setglobal
 
     % The operator is not local, so it is defined here, in systemdict

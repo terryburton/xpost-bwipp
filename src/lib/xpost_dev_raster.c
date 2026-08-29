@@ -825,8 +825,7 @@ int loadrasterdevicecont(Xpost_Context *ctx,
        the page-device request, and the machinery reaches the class by
        name here. Nothing of the driver's is defined where a program
        could shadow it. */
-    ret = xpost_dict_put_internal(ctx, ctx->privatedict,
-                         xpost_name_cons(ctx, ".xpost_RASTERDEVICE"), classdic);
+    ret = xpost_dev_class_publish(ctx, ".xpost_RASTERDEVICE", classdic);
     if (ret)
         return ret;
 

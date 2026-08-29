@@ -17,9 +17,10 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % stays closed as dispatch tables are added.
 %
 % .xpostsys itself is hidden from name lookup after lockdown; it is recovered
-% here by walking the bound procedures privatedict anchors, which carry the
-% dictionary baked in by their // immediate references. (Internals remain
-% reachable this way by design -- the hiding is hygiene, not a sandbox.)
+% here through the introspection accessors, which answer a run that asked
+% for them with names and with one value at a time. Walking a bound
+% procedure no longer reaches it: the machinery's bodies are execute-only,
+% which is what closes reading a body as a route to what it froze in.
 
 /failcount 0 def
 /assert { % bool (name) . -
@@ -29,23 +30,20 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % --- recover .xpostsys from a privatedict-anchored bound procedure ---
 % (values are taken cvlit: a walked element may be an operator or an
 % executable name, and a bare variable reference would execute it)
-/found null def
-/probe { % obj depth
-  2 dict begin
-  /d exch def /o exch cvlit def
-  d 0 gt found null eq and {
-    o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
-    % and evaluates both its operands, so the type test has to stand as
-    % its own condition: asking a non-composite whether it is readable
-    % is a typecheck, not a false
-    { o type /arraytype eq {
-        o rcheck {
-          0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
-  } if
-  end
-} def
-.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
-found null ne (the .xpostsys namespace is recoverable for scanning) assert
+% The namespace is not recovered by reading a bound body: the bodies the
+% machinery runs are execute-only, so a program cannot read one and lift
+% out the dictionary bind froze into it. It is enumerated instead, by the
+% accessors a run that asked for introspection is given -- names, and a
+% value at a time. What is scanned below is therefore a copy built from
+% those, and the namespace itself is never handed over.
+/ID 1183615869 internaldict def
+/NSV ID /.namespacevalue get def
+/found 600 dict def
+/xpostsys ID /.namespacenames get exec {
+  dup /xpostsys exch NSV
+  found 3 1 roll put
+} forall
+found length 0 gt (the .xpostsys namespace is enumerable for scanning) assert
 
 % --- the scanner: count executable-name values in a dict, recursing into
 %     sub-dictionaries ---
@@ -79,7 +77,7 @@ found null ne { found (.xpostsys) 2 scan } if
 errordict (errordict) 1 scan
 statusdict (statusdict) 1 scan
 found null ne {
-    .privatedict /.graphicsdict get dup type /dicttype eq
+    graphicsdict dup type /dicttype eq
         { (graphicsdict) 2 scan }{ pop } ifelse
 } if
 nbad 0 eq (no internal dispatch dictionary stores an executable name) assert
@@ -164,7 +162,7 @@ found null ne { found (.xpostsys) 6 false bscan } if
 1183615869 internaldict (.internaldict) 6 false bscan
 .gscratch (.gscratch) 6 false bscan
 found null ne {
-    .privatedict /.graphicsdict get dup type /dicttype eq
+    graphicsdict dup type /dicttype eq
         { (graphicsdict) 6 false bscan }{ pop } ifelse
 } if
 nunbound 0 eq (no nested dispatch table carries an unbound operator reference) assert

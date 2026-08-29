@@ -13,7 +13,7 @@
 % transfer function's answer, which is how three different pages are had
 % here.
 
-/dev .privatedict /.graphicsdict get /currgstate get /device get def
+/dev DEVICE def
 /getpix { dev dup /GetPix get exec } def
 
 % How much of the device plane one reading has to cover to be a colour.

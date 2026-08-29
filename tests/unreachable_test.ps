@@ -96,6 +96,32 @@ globaldict   (globaldict) look
 systemdict /loadpngdevice known
   { mark { loadpngdevice } stopped pop cleartomark } if
 
+% A class is what the machinery runs on a device of its kind, so a class a
+% program can write is a program choosing that code. The lockdown closes
+% the classes it can see, and the driver asked for above arrives after it
+% -- which is the case this has to cover, since the bank question below
+% would answer the same whether a late class were closed or open.
+% No class is published open. A class a program can write is a program
+% choosing the code the machinery runs on a device of that kind.
+/openothers 0 def
+[ .privatedict { pop } forall ] {
+  /k exch def
+  k 60 string cvs dup length 6 ge
+    { 0 6 getinterval (.xpost) eq
+        { .privatedict k get
+          dup type /dicttype eq
+            { wcheck { /openothers openothers 1 add def } if }
+            { pop } ifelse }
+        if }
+    { pop } ifelse
+} forall
+openothers 0 ne
+{ (FAIL: ) print openothers =print
+  ( device class(es) a program can write, so a) =
+  (      program can put its own procedure under a method name and have) =
+  (      the machinery run it) =
+  /bad bad 1 add def } if
+
 /globalclasses 0 def
 .privatedict {
   exch 60 string cvs dup length 6 ge

@@ -26,7 +26,7 @@
     exch { pop }{ /fails fails 1 add def (FAIL: ) print note } ifelse
 } bind def
 
-/device? { .privatedict /.graphicsdict get /currgstate get /device get } bind def
+/device? { DEVICE } bind def
 
 /W 8 def
 /H 10 def

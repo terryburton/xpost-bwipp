@@ -51,20 +51,14 @@ cr=$(printf '\r')   # tolerate CRLF line endings (Windows checkouts)
 # procedures, and those carry the dictionary baked in by their //
 # references.
 cat > "$work/dump.ps" <<'PSEOF'
-/found null def
-/probe { 2 dict begin /d exch def /o exch cvlit def
-  d 0 gt found null eq and {
-    o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
-    { o type /arraytype eq { o rcheck {
-        0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
-  } if end } def
-.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
 /dump { % dict (label)  .  -
   /lbl exch def
   { pop dup type /nametype eq
     { lbl print 60 string cvs print (\n) print }{ pop } ifelse } forall
 } bind def
-found null ne { found (xpostsys ) dump } if
+1183615869 internaldict /.namespacenames known
+  { /xpostsys 1183615869 internaldict /.namespacenames get exec
+    { (xpostsys ) print 60 string cvs print (\n) print } forall } if
 1183615869 internaldict /.jobmembernames known
   { null 1183615869 internaldict /.jobmembernames get exec
     { (jobstore ) print 60 string cvs print (\n) print } forall } if

@@ -280,3 +280,5 @@ src/lib/xpost_op_path.c      nameflat              reset xpost_oper_init_path_op
 src/lib/xpost_op_path.c      namegraphicsdict      reset xpost_oper_init_path_ops
 src/lib/xpost_op_path.c      _arc_start_proc       reset xpost_oper_init_path_ops
 src/lib/xpost_op_misc.c      name_dotresources     reset xpost_oper_init_misc_ops
+src/lib/xpost_op_misc.c      name_xpostsys         reset xpost_oper_init_misc_ops
+src/lib/xpost_op_misc.c      name_privatedict      reset xpost_oper_init_misc_ops

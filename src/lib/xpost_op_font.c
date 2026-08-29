@@ -2157,8 +2157,7 @@ fail:
 static
 Xpost_Object _gstate(Xpost_Context *ctx)
 {
-    Xpost_Object gd = xpost_dict_get(ctx, ctx->privatedict,
-                                     name_dotgraphicsdict);
+    Xpost_Object gd = ctx->graphicsdict;
 
     return xpost_dict_get(ctx, gd, name_currgstate);
 }

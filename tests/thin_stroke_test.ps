@@ -37,7 +37,7 @@ faildict /n 0 put
     } ifelse
 } bind def
 
-/dev .privatedict /.graphicsdict get /currgstate get /device get def
+/dev DEVICE def
 /ncomp dev /nativecolorspace 2 copy known
     { get /DeviceRGB eq { 3 }{ 1 } ifelse }{ pop pop 1 } ifelse def
 /getpix { dev dup /GetPix get exec } def

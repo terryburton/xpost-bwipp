@@ -28,7 +28,7 @@
 % body did not expect leaves the one standing here and is reported rather
 % than caught and passed over.
 
-/getdevice { .privatedict /.graphicsdict get /currgstate get /device get } def
+/getdevice { DEVICE } def
 
 /verdict (FAILURE: the run raised an error) def
 /bail { /verdict exch def stop } def

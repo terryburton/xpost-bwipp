@@ -538,6 +538,39 @@ int op_setjobstore(Xpost_Context *ctx,
     return 0;
 }
 
+/* dict  .setgraphicsdict  -
+   Root the live graphics state in the context. Said once, as the
+   graphics language builds: privatedict is reachable by decision --
+   driver prologs name it -- so a member of it naming the graphics state
+   is a slot a program writes to hand the machinery a device of its own.
+   Rooted here it is reached by the machinery and by the collector, and
+   named by nothing a program can enumerate. */
+static
+int op_setgraphicsdict(Xpost_Context *ctx, Xpost_Object D)
+{
+    /* Said as the graphics language builds, and again by a fork, which
+       gives the child its own graphics state (PLRM 2nd ed 7.1) -- so
+       this is not the job store's one-shot. What keeps a program from
+       saying it is that the operator is not one a program can name. */
+    if (xpost_context_select_memory(ctx, D) != ctx->lo)
+        return invalidaccess;
+    ctx->graphicsdict = D;
+    return 0;
+}
+
+/* -  .graphicsdictroot  dict
+   The live graphics state of the running context. A forked context has
+   its own, which is what the accessor this answers used to reach
+   through privatedict for. */
+static
+int op_graphicsdictroot(Xpost_Context *ctx)
+{
+    if (xpost_object_get_type(ctx->graphicsdict) != dicttype)
+        return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, ctx->graphicsdict);
+    return 0;
+}
+
 /* -  .jobstore  dict
    Push the job store, so the boot files can begin it and freeze references to
    its members as they are scanned. */
@@ -647,12 +680,34 @@ typedef struct
    on purpose, and no program can make the machinery RUN it. */
 static int _sweep_forbidden(Xpost_Context *ctx, Xpost_Object o, int leadstocode,
                             int inbody, int instore, int readable,
-                            int banks, int kind)
+                            int banks, int kind, int forseal)
 {
     int glob = (o.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK) ? 1 : 0;
     int t = xpost_object_get_type(o);
 
-    if (!xpost_object_is_writeable(ctx, o)) return 0;
+    /* kind 7 is what closing a body execute-only is for: a body the
+       machinery runs that a program can still READ, and so still lift
+       what bind froze into it out of. It is asked before the writability
+       test below, because a body already sealed read-only is not
+       writable and is precisely what this has to go on counting. The
+       route must be readable and so must the body: a container a program
+       cannot open does not hand over what it holds, and a body it can
+       reach but not read is closed. */
+    if (kind == 7)
+        return t == arraytype && xpost_object_is_exe(o)
+            && readable && xpost_object_is_readable(ctx, o);
+
+    /* Counting asks about what a program can still write, so an object
+       already closed to writing is not one of them. Sealing is a
+       different question: bind leaves a nested procedure read-only, so a
+       body can arrive at the lockdown unwritable and still readable, and
+       reading a body is how a program lifts out the dictionary bind
+       froze into it. Those are exactly the ones left to close, so the
+       seal is allowed past this. */
+    if (!xpost_object_is_writeable(ctx, o)
+        && !(forseal && t == arraytype && xpost_object_is_exe(o)
+             && xpost_object_is_readable(ctx, o)))
+        return 0;
 
     /* kind 1 counts rather than seals: the constants bind froze into a body,
        which a program reaches by reading the body and may then write. They
@@ -831,7 +886,9 @@ static int _vm_seal_at(Xpost_Context *ctx, Xpost_Sweep_Node *nodes,
        is not something only the first node can be. The lockdown seals them
        itself, each at the point it has finished writing to it; sealing one
        here shuts it while the lockdown still has entries to record. */
-    if (nodes[i].isroot || _vm_is_root(nodes, nn, nodes[i].obj)) return 0;
+    if ((xpost_object_get_type(o) != arraytype || !xpost_object_is_exe(o))
+        && (nodes[i].isroot || _vm_is_root(nodes, nn, nodes[i].obj)))
+        return 0;
 
     if (xpost_object_get_type(o) == dicttype)
     {
@@ -846,8 +903,24 @@ static int _vm_seal_at(Xpost_Context *ctx, Xpost_Sweep_Node *nodes,
     ent = xpost_object_get_ent(p);
     if (!xpost_ent_valid(mem, ent)) return 0;
 
+    /* A body stored under a name is run and never read, so it is closed
+       to reading as well: execute-only leaves the machinery able to run
+       it and takes away the route by which a program reads it and lifts
+       out the dictionaries bind froze in (PLRM 3.3.2).
+
+       A body nested inside another body keeps the weaker reduction. It
+       is not a route of its own -- reaching it means reading the body
+       above it, which is now closed -- and bind leaves nested procedures
+       read-only by design (PLRM 8.2), with the machinery reading that
+       structure as it works. Closing those as well breaks stroking.
+
+       Everything that is not a body keeps the weaker reduction too: a
+       constant the machinery reads has to stay readable to it. */
     o.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
-    o.tag |= (XPOST_OBJECT_TAG_ACCESS_READ_ONLY
+    o.tag |= ((xpost_object_get_type(o) == arraytype && xpost_object_is_exe(o)
+               && xpost_object_get_type(p) == dicttype
+               ? XPOST_OBJECT_TAG_ACCESS_EXECUTE_ONLY
+               : XPOST_OBJECT_TAG_ACCESS_READ_ONLY)
               << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
 
     if (xpost_object_get_type(p) == dicttype)
@@ -1110,8 +1183,14 @@ int _vm_walk(Xpost_Context *ctx, int banks,
        whatever the running program has defined, which would make that
        number move whenever a test was edited. .internaldict needs no
        seeding -- the procedure that answers the password holds it frozen
-       in its body, and this walk descends into bodies. */
-    if (banks != 2)
+       in its body, and this walk descends into bodies.
+
+       The bodies question leaves it out for the same reason: it asks
+       which of the MACHINERY's bodies a program can read, and a walk
+       that started at systemdict would reach userdict and count the
+       asking program's own procedures -- a number that moved whenever
+       the test that reads it was edited. */
+    if (banks != 2 && kind != 7)
     {
         Xpost_Object sd = xpost_stack_bottomup_fetch(ctx->lo, ctx->ds, 0);
 
@@ -1418,7 +1497,7 @@ int _vm_walk(Xpost_Context *ctx, int banks,
         i = nn - 1 - ix;
         if (!_sweep_forbidden(ctx, nodes[i].obj, nodes[i].leadstocode,
                               nodes[i].inbody, nodes[i].instore,
-                              nodes[i].readable, banks, kind))
+                              nodes[i].readable, banks, kind, seal))
             continue;
         /* Storage the language has programs write is not machinery, however
            much code it leads to: the resource registry and its per-category
@@ -1500,7 +1579,8 @@ int op_vmsweep(Xpost_Context *ctx, Xpost_Object B, Xpost_Object K)
     if (!getenv("XPOST_CENSUS")) return invalidaccess;
     if (B.int_.val < 1 || B.int_.val > 3) return rangecheck;
     if (K.int_.val < 0
-        || (K.int_.val > 2 && K.int_.val != 5 && K.int_.val != 6))
+        || (K.int_.val > 2 && K.int_.val != 5 && K.int_.val != 6
+            && K.int_.val != 7))
         return rangecheck;
     return _vm_walk(ctx, (int)B.int_.val, (int)K.int_.val, 0, 0, 0);
 }
@@ -1520,25 +1600,17 @@ int xpost_vm_blind_measure(Xpost_Context *ctx)
    does not need a reference it could write through, and handing the
    dictionary over is how the store came to be reachable by any program in
    the first place. */
-static
-int op_jobmembernames(Xpost_Context *ctx, Xpost_Object N)
+/* The key names of a dictionary, pushed as a literal array. Shared by
+   the accessors below, which each answer for a different dictionary and
+   answer the same way: with names. */
+static int
+_dict_names_push(Xpost_Context *ctx, Xpost_Object D)
 {
-    if (!getenv("XPOST_CENSUS")) return invalidaccess;
-    Xpost_Object D = ctx->jobstore;
     Xpost_Memory_File *mem;
     Xpost_Object arr;
     dichead *dp;
     dicrec *tp;
     unsigned int ent, sz, k, n = 0;
-
-    if (xpost_object_get_type(D) != dicttype) return undefined;
-    if (xpost_object_get_type(N) == nametype)
-    {
-        D = xpost_dict_get(ctx, D, N);
-        if (xpost_object_get_type(D) != dicttype) return undefined;
-    }
-    else if (xpost_object_get_type(N) != nulltype)
-        return typecheck;
 
     mem = (D.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK) ? ctx->gl : ctx->lo;
     if (!mem) return undefined;
@@ -1568,6 +1640,102 @@ int op_jobmembernames(Xpost_Context *ctx, Xpost_Object N)
     return 0;
 }
 
+static
+int op_jobmembernames(Xpost_Context *ctx, Xpost_Object N)
+{
+    Xpost_Object D = ctx->jobstore;
+
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
+    if (xpost_object_get_type(D) != dicttype) return undefined;
+    if (xpost_object_get_type(N) == nametype)
+    {
+        D = xpost_dict_get(ctx, D, N);
+        if (xpost_object_get_type(D) != dicttype) return undefined;
+    }
+    else if (xpost_object_get_type(N) != nulltype)
+        return typecheck;
+    return _dict_names_push(ctx, D);
+}
+
+/* The two spellings a namespace is asked for by, resolved once as the
+   operators install: interning them here would intern on every call, and
+   this is asked for in a loop. */
+static Xpost_Object name_xpostsys;
+static Xpost_Object name_privatedict;
+
+/* Which namespace a name selects. */
+static Xpost_Object
+_namespace_of(Xpost_Context *ctx, Xpost_Object N)
+{
+    if (xpost_dict_compare_objects(ctx, N, name_xpostsys) == 0)
+        return ctx->globalprivatedict;
+    if (xpost_dict_compare_objects(ctx, N, name_privatedict) == 0)
+        return ctx->privatedict;
+    return null;
+}
+
+/* name  .namespacewritable  bool
+   Whether one of the machinery's namespaces is still writable. The
+   question is worth asking directly rather than inferring from the
+   census, and a yes-or-no answers it without handing over the reference
+   the answer is about. */
+static
+int op_namespacewritable(Xpost_Context *ctx, Xpost_Object N)
+{
+    Xpost_Object D;
+
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
+    if (xpost_object_get_type(N) != nametype) return typecheck;
+    D = _namespace_of(ctx, N);
+    if (xpost_object_get_type(D) != dicttype) return undefined;
+    xpost_stack_push(ctx->lo, ctx->os,
+                     xpost_bool_cons(xpost_object_is_writeable(ctx, D)));
+    return 0;
+}
+
+/* name key  .namespacevalue  any
+   What one of the machinery's namespaces holds under a key. The scanners
+   that walk the machinery looking for what must not be there need the
+   values, not just the names, and used to reach them by reading a bound
+   body -- the route the bodies are now closed to. This answers the same
+   question without handing over the namespace itself, which is the
+   reference a program would write through. Undefined where the key is
+   not held, so a scan cannot mistake absence for an answer. */
+static
+int op_namespacevalue(Xpost_Context *ctx, Xpost_Object N, Xpost_Object K)
+{
+    Xpost_Object D, v;
+
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
+    if (xpost_object_get_type(N) != nametype) return typecheck;
+    D = _namespace_of(ctx, N);
+    if (xpost_object_get_type(D) != dicttype) return undefined;
+    v = xpost_dict_get(ctx, D, K);
+    if (xpost_object_get_type(v) == invalidtype) return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, v);
+    return 0;
+}
+
+/* name  .namespacenames  array
+   The names one of the machinery's namespaces holds. Names and nothing
+   else, for the reason the job store's accessor gives: a register that
+   wants to know WHAT is in there does not need a reference it could
+   write through, and a body closed to reading is exactly the route this
+   replaces -- a guard that recovered a namespace by reading the
+   dictionary a bound body froze in was reading what the machinery runs
+   to find out what the machinery holds. */
+static
+int op_namespacenames(Xpost_Context *ctx, Xpost_Object N)
+{
+    Xpost_Object D;
+
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
+    if (xpost_object_get_type(N) != nametype) return typecheck;
+    D = _namespace_of(ctx, N);
+    if (xpost_object_get_type(D) != dicttype) return undefined;
+    return _dict_names_push(ctx, D);
+}
+
 /* name  .jobmemberwritable  bool
    Whether a job-store member is still writable. The seal is shallow on
    purpose -- the store's members are what the machinery writes as it runs
@@ -1591,7 +1759,7 @@ int op_jobmemberwritable(Xpost_Context *ctx, Xpost_Object N)
 
 /* name  .hostsetting  any
    What the host said this run was started with, by name. A value, not the
-   dictionary holding it. */
+   dictionary holding it, and undefined where the name is not a setting. */
 static
 int op_hostsetting(Xpost_Context *ctx, Xpost_Object N)
 {
@@ -1608,6 +1776,13 @@ int op_hostsetting(Xpost_Context *ctx, Xpost_Object N)
     memcpy(buf, cp, ns.comp_.sz);
     buf[ns.comp_.sz] = 0;
     v = xpost_context_host_setting(ctx, buf);
+    /* A name that is not a setting at all is refused where it is asked
+       for, rather than answered with something the caller carries off
+       and reads somewhere the mistake no longer looks like one. A
+       setting the invocation did not supply is a different thing: the
+       name is a setting, and its answer is that nothing was given. */
+    if (xpost_object_get_type(v) == invalidtype)
+        return undefined;
     xpost_stack_push(ctx->lo, ctx->os, v);
     return 0;
 }
@@ -1736,7 +1911,17 @@ int xpost_oper_init_misc_ops(Xpost_Context *ctx,
             (name_dotresources = xpost_name_cons(ctx, ".resources")))
         == invalidtype)
         return VMerror;
+    if (xpost_object_get_type(
+            (name_xpostsys = xpost_name_cons(ctx, "xpostsys"))) == invalidtype)
+        return VMerror;
+    if (xpost_object_get_type(
+            (name_privatedict = xpost_name_cons(ctx, "privatedict")))
+        == invalidtype)
+        return VMerror;
     op = xpost_operator_cons(ctx, ".jobmembernames", (Xpost_Op_Func)op_jobmembernames, 1, anytype); INSTALL;
+    op = xpost_operator_cons(ctx, ".namespacenames", (Xpost_Op_Func)op_namespacenames, 1, nametype); INSTALL;
+    op = xpost_operator_cons(ctx, ".namespacevalue", (Xpost_Op_Func)op_namespacevalue, 2, nametype, anytype); INSTALL;
+    op = xpost_operator_cons(ctx, ".namespacewritable", (Xpost_Op_Func)op_namespacewritable, 1, nametype); INSTALL;
     op = xpost_operator_cons(ctx, ".jobmemberwritable", (Xpost_Op_Func)op_jobmemberwritable, 1, nametype); INSTALL;
     op = xpost_operator_cons(ctx, ".hostsetting", (Xpost_Op_Func)op_hostsetting, 1, nametype); INSTALL;
     op = xpost_operator_cons(ctx, ".vmdeclaredcount", (Xpost_Op_Func)op_vmdeclaredcount, 0); INSTALL;
@@ -1748,6 +1933,8 @@ int xpost_oper_init_misc_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".setprivatedict", (Xpost_Op_Func)op_setprivatedict, 1, dicttype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".setjobstore", (Xpost_Op_Func)op_setjobstore, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".setgraphicsdict", (Xpost_Op_Func)op_setgraphicsdict, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".graphicsdictroot", (Xpost_Op_Func)op_graphicsdictroot, 0); INSTALL;
     op = xpost_operator_cons(ctx, ".jobstore", (Xpost_Op_Func)op_jobstore, 0); INSTALL;
     op = xpost_operator_cons(ctx, ".setglobalprivatedict", (Xpost_Op_Func)op_setglobalprivatedict, 1, dicttype);
     INSTALL;

@@ -33,8 +33,11 @@ currentglobal true setglobal /gd 64 dict def setglobal
 % the interpreter recorded at startup is still the one in hand ---
 .privatedict type /dicttype eq
   (the interpreter still has its private dictionary) assert
-.privatedict /.graphicsdict known
-  (it still holds the graphics machinery) assert
+% Asked of the wrapped procedures rather than the graphics state: the
+% graphics state is rooted in the context now, so privatedict does not
+% name it, and a marker that moved would say the dictionary was wrong.
+.privatedict /.wrappedprocs known
+  (it still holds the machinery it anchors) assert
 .gscratch type /dicttype eq
   (the graphics scratch dictionary still answers) assert
 

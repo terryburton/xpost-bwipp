@@ -46,7 +46,7 @@
     exch { pop }{ note } ifelse
 } bind def
 
-/getdevice { .privatedict /.graphicsdict get /currgstate get /device get } bind def
+/getdevice { DEVICE } bind def
 /ents { 1183615869 internaldict /.vmentcount get exec exch pop } bind def
 
 % the components a device reports for one pixel, added up. Any change to

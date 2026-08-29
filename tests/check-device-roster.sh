@@ -407,7 +407,7 @@ if [ -n "$stray" ]; then
 fi
 
 cat > "$work/kind.ps" <<'EOF'
-/getdevice { .privatedict /.graphicsdict get /currgstate get /device get } def
+/getdevice { DEVICE } def
 /d getdevice def
 (KIND ) print
 d /Emit get type /operatortype eq { (compiled) }{ (interpreted) } ifelse print

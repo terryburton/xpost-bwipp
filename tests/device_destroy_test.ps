@@ -14,7 +14,7 @@
 newpath 10 10 moveto 90 90 lineto stroke showpage
 
 /.destroydevice {
-    .privatedict /.graphicsdict get /currgstate get /device get
+    DEVICE
     dup /Destroy 2 copy known
     { get exec }
     { pop pop pop }
@@ -36,7 +36,7 @@ newpath 10 10 moveto 90 90 lineto stroke showpage
 % An error is an answer -- the program can catch it, and a device that
 % loses the name its raster was reached by reports one -- so what is
 % asked is that the interpreter is still here to print below.
-/dev .privatedict /.graphicsdict get /currgstate get /device get def
+/dev DEVICE def
 /ncomp dev /.ncomp 2 copy known { get }{ pop pop
     dev /nativecolorspace 2 copy known { get }{ pop pop /DeviceGray } ifelse
     dup /DeviceCMYK eq { pop 4 }{ /DeviceRGB eq { 3 }{ 1 } ifelse } ifelse

@@ -228,7 +228,7 @@ setglobal
 .xpostsys /.forkcontext {  % -  .  -
     currentglobal false setglobal   % The graphics state is local
     10 dict begin
-        /pgd //.privatedict /.graphicsdict get def   % The graphics dict shared with the parent
+        /pgd .graphicsdictroot def   % The graphics dict shared with the parent
         /gp pgd /gptr get def
 
         % The gsave stack, each occupied slot copied into a gstate of its own
@@ -251,7 +251,7 @@ setglobal
             /gstackarray newstack
             /gptr gp
         >> def
-        //.privatedict /.graphicsdict newgd put
+        newgd .setgraphicsdict
 
         % The child's copy of the machinery dictionary is sealed as the
         % parent's is, now that the graphics state this fork gives it is

@@ -518,14 +518,11 @@ static
 Xpost_Object _gstate(Xpost_Context *ctx)
 {
     Xpost_Object gd, gs;
-    int ret;
 
     if (_gstate_cached && _gstate_cache_id == ctx->id)
         return _gstate_cache;
-    ret = xpost_op_privatedict_load(ctx, namegraphicsdict);
-    if (ret) return invalid;
-    gd = xpost_stack_pop(ctx->lo, ctx->os);
-    if (xpost_object_get_type(gd) == invalidtype)
+    gd = ctx->graphicsdict;
+    if (xpost_object_get_type(gd) != dicttype)
         return invalid;
     gs = xpost_dict_get(ctx, gd, namecurrgstate);
     if (xpost_object_get_type(gs) == dicttype)
@@ -596,13 +593,10 @@ static
 Xpost_Object _cpath(Xpost_Context *ctx)
 {
     Xpost_Object gd, gstate, path;
-    int ret;
 
     /* graphicsdict /currgstate get /currpath get */
-    ret = xpost_op_privatedict_load(ctx, namegraphicsdict);
-    if (ret) return invalid;
-    gd = xpost_stack_pop(ctx->lo, ctx->os);
-    if (xpost_object_get_type(gd) == invalidtype)
+    gd = ctx->graphicsdict;
+    if (xpost_object_get_type(gd) != dicttype)
         return invalid;
     gstate = xpost_dict_get(ctx, gd, namecurrgstate);
     if (xpost_object_get_type(gstate) == invalidtype)
@@ -2287,7 +2281,7 @@ int _pathbbox(Xpost_Context *ctx)
 
     /* fetch the CTM and build its inverse; on any irregularity fall
        back to the raw device-space box rather than erroring */
-    gd = xpost_dict_get(ctx, ctx->privatedict, xpost_name_cons(ctx, ".graphicsdict"));
+    gd = ctx->graphicsdict;
     gs = xpost_dict_get(ctx, gd, xpost_name_cons(ctx, "currgstate"));
     psmat = xpost_dict_get(ctx, gs, xpost_name_cons(ctx, "currmatrix"));
     if (xpost_object_get_type(psmat) == arraytype && psmat.comp_.sz == 6)
@@ -3059,9 +3053,12 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
        no dictionary holds it, so no walk from a namespace reaches it. It
        is finished at this point and nothing writes it again, so it is
        sealed where it is made rather than left to a sweep that cannot
-       arrive. */
+       arrive. Execute-only, like every other body the machinery runs:
+       the sweep closes those to reading too, and a body reached through
+       a variable rather than a dictionary is no different for being
+       out of the sweep's way. */
     _arc_start_proc = xpost_object_set_access(ctx, _arc_start_proc,
-                                              XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
+                                              XPOST_OBJECT_TAG_ACCESS_EXECUTE_ONLY);
 
     /* The procedure is held in a variable of this file, which the
        collector does not walk. It is made while the operators are being

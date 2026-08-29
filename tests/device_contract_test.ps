@@ -10,7 +10,7 @@
 % keeps its raster somewhere this test cannot see announces itself by
 % failing the readback probe and takes the safety tier alone.
 
-/dev .privatedict /.graphicsdict get /currgstate get /device get def
+/dev DEVICE def
 
 % The tag is put away before the procedure runs, and the stack is taken
 % back to the depth the procedure was handed: a procedure that fails may
@@ -554,7 +554,7 @@ showpage
 % same finishing, or the same device behaves differently according to
 % how it was selected. Compare the two, slot by slot.
 
-/newdev .privatedict /.graphicsdict get /currgstate get /device get def
+/newdev DEVICE def
 /slotsame { % /key (what)  .  -
     /csw exch def /csk exch def
     dev csk known newdev csk known eq

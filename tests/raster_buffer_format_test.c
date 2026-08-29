@@ -144,7 +144,7 @@ static const Format formats[] =
    page semantics transmits the page and ends it without clearing it, so
    what was painted is still in the buffer when the run returns. */
 static const char paint_program[] =
-    "/dev .privatedict /.graphicsdict get /currgstate get /device get def\n"
+    "/dev DEVICE def\n"
     "/last %d def\n"
     /* row 0, the rectangle fill: one call spanning the row, the far
        corner of a fill being the pixel it names rather than the one

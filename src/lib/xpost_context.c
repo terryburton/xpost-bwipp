@@ -443,6 +443,7 @@ int xpost_context_init(Xpost_Context *ctx,
     ctx->globalprivatedict = null;
     ctx->executingarray = null;
     ctx->arcstartproc = null;
+    ctx->graphicsdict = null;
     ctx->pagedevice = null;
     ctx->pagedevice_destroy = null;
     ctx->pagedevice_depth = 0;

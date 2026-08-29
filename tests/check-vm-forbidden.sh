@@ -38,9 +38,38 @@ guard_workdir
 # otherwise: it costs peak resident memory at startup and only a reading
 # wants it. A run without it answers nothing reached, which is refused
 # below rather than read as nothing missed.
+# Asked of a run that was given an output file, because that is what an
+# invocation looks like and it is not the same question: the name a run
+# writes to arrives as a host setting, is copied onto the device and
+# reached from the template graphics state, and none of that exists in a
+# run that named no output. Asked without it, this reported nothing while
+# two objects a program could write stood there.
 XPOST_DATA_DIR="$src/data" XPOST_NO_VM_IMAGE=1 XPOST_CENSUS=1 \
-    "$xpost" -q --no-sandbox -d null "$src/tests/vm_forbidden_test.ps" \
+    "$xpost" -q --no-sandbox -d null -o /dev/null "$src/tests/vm_forbidden_test.ps" \
     </dev/null > "$work/out" 2>&1
+
+# And asked again of a run that started from the image of virtual memory,
+# because that is how a run starts once one has been written and the
+# numbers above would otherwise describe a boot nobody does twice. The
+# two must agree: an image carrying a language whose objects answer
+# differently from the one the boot files build is a difference nothing
+# else here would report.
+XPOST_DATA_DIR="$src/data" XPOST_CENSUS=1 \
+    "$xpost" -q --no-sandbox -d null -o /dev/null "$src/tests/vm_forbidden_test.ps" \
+    </dev/null > "$work/out.image" 2>&1
+if grep -q '^SWEPT$' "$work/out.image"; then
+    if ! diff -q "$work/out" "$work/out.image" >/dev/null 2>&1; then
+        echo "FAIL: the census answers differently from the image than from"
+        echo "      the boot files, so what a run reaches depends on which"
+        echo "      way it started:"
+        diff "$work/out" "$work/out.image" | sed 's/^/      /' | head -12
+        exit 1
+    fi
+else
+    echo "FAIL: the census could not be taken from the image, so this asks"
+    echo "      nothing of the way a run starts once an image exists"
+    exit 1
+fi
 
 if ! grep -q '^SWEPT$' "$work/out"; then
     echo "FAILURES: the sweep did not run to its end, so its silence means"
@@ -178,6 +207,26 @@ case ${have_r:-0} in
                    echo "      its answer says nothing about what the sweep misses"
                    exit 1 ;;
 esac
+have_rb=$(awk '/^READABLE-BODIES /{print $2}' "$work/out")
+have_rbd=$(awk '/^READABLE-BODIES /{print $3}' "$work/out")
+want_rb=$(awk '/^bodies [0-9]+ [0-9]+$/{print $2; exit}' "$golden")
+want_rbd=$(awk '/^bodies [0-9]+ [0-9]+$/{print $3; exit}' "$golden")
+if [ -z "$want_rb" ]; then
+    echo "FAIL: $golden states no 'bodies' pair, and the run reports"
+    echo "      $have_rb. The register is the only thing holding this."
+    exit 1
+elif [ "$have_rb" -gt "$want_rb" ]; then
+    echo "FAIL: $have_rb machinery bodies can still be read, where the"
+    echo "      register allows $want_rb. A body a program can read is a"
+    echo "      namespace it can reach, bind having frozen one in."
+    exit 1
+elif [ "$have_rb" -lt "$want_rb" ] || [ "$have_rbd" != "$want_rbd" ]; then
+    echo "NOTE: readable bodies moved to $have_rb $have_rbd; say in the"
+    echo "      commit why it stands, and write 'bodies $have_rb $have_rbd'"
+    echo "      into $golden."
+    exit 1
+fi
+
 have_lc=$(awk '/^LOCAL-CODE-TABLES /{print $2}' "$work/out")
 have_lcd=$(awk '/^LOCAL-CODE-TABLES /{print $3}' "$work/out")
 want_lc=$(awk '/^localcode [0-9]+ [0-9]+$/{print $2; exit}' "$golden")

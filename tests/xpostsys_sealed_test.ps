@@ -25,27 +25,24 @@
                    /failcount failcount 1 add store } ifelse
 } def
 
-/found null def
-/probe { 2 dict begin /d exch def /o exch cvlit def
-  d 0 gt found null eq and {
-    o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
-    { o type /arraytype eq { o rcheck {
-        0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
-  } if end } def
-.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
-
-found null ne
+% The namespace is not recovered by reading a bound body -- the bodies the
+% machinery runs are execute-only -- but asked about through the
+% accessors a run that asked for introspection is given: its names, one
+% value at a time, and a yes-or-no about the namespace itself. None of
+% them hands over the reference the answers are about.
+/ID 1183615869 internaldict def
+/names /xpostsys ID /.namespacenames get exec def
+names length 0 gt
   (the namespace was not reached, so nothing below was asked) assert
-
-found null ne {
-    found wcheck not
+names length 0 gt {
+    /xpostsys ID /.namespacewritable get exec not
       (the namespace itself is read-only) assert
 
     % every member, whatever its type: a dictionary, a procedure, a table
     % of names, a string a message is built in
     /openmembers 0 def
     /firstopen null def
-    found { exch pop
+    names { /xpostsys exch ID /.namespacevalue get exec
         dup type dup /dicttype eq exch dup /arraytype eq exch /stringtype eq or or {
             dup wcheck {
                 /openmembers openmembers 1 add store

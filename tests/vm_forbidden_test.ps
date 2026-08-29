@@ -107,6 +107,20 @@ tally
 /total 0 def /sum 0 def /BANK 2 def /KIND 6 def
 tally
 (LOCAL-CODE-TABLES ) print total =print ( ) print sum ==
+% What closing the bodies is for. A body is what the machinery RUNS, and
+% until it is closed to reading it is also something a program can read:
+% bind freezes the dictionary a helper names into the helper's body, so a
+% body a program can read is a namespace a program can reach. Execute-only
+% (PLRM 3.3.2) leaves the machinery able to run it and takes the reading
+% away, and this counts what is left -- a body the walk reaches through
+% readable containers that a program can still read.
+%
+% It is asked of both banks, because a body is closed in both. A ratchet
+% like the others: it may fall and it may not rise.
+/total 0 def /sum 0 def /BANK 3 def /KIND 7 def
+tally
+(READABLE-BODIES ) print total =print ( ) print sum ==
+
 % What the INTERPRETER reaches that the walk above does not. Every number
 % before this one is about the graph five named roots reach; this one says
 % how much of the arena that is. It is asked for here and taken at the

@@ -249,19 +249,6 @@ done < "$work/readnames"
 
 # ---- a live interpreter, and the values it settled ----
 cat > "$work/probe.ps" <<'PSEOF'
-% .hostdict is inside the private namespace, which cannot be named after
-% lockdown. Recover the namespace the way tamper_dispatch_test.ps does:
-% privatedict anchors bound procedures, and those carry the dictionary
-% baked into them by their // references.
-/found null def
-/probe { 2 dict begin /d exch def /o exch cvlit def
-  d 0 gt found null eq and {
-    o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
-    { o type /arraytype eq { o rcheck {
-        0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
-  } if end } def
-.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
-found null eq { (bad recovered\n) print quit } if
 % The names the host dictionary holds, and each setting's value, asked for
 % by name. Neither hands the dictionary over: it is job-store state, and a
 % register that wants to know what is in there does not need a reference it
@@ -303,8 +290,11 @@ NAMES {
 
 % a name that is not a setting is refused where it is asked for, rather
 % than answered with a null the caller would carry off somewhere else
-found /.hostvalue get /HV exch def
-mark { /.nosuchsettinghere HV exec } stopped
+% Asked through the operator that answers a setting by name. The
+% namespace holding it is not recovered and not needed: what is under
+% test is that an unknown name is refused where it is asked for, and
+% that is the same refusal whichever accessor carries the question.
+mark { /.nosuchsettinghere ID /.hostsetting get exec } stopped
     { $error /errorname get /undefined eq
         { (ok unsetraises\n) }{ (bad unsetraises\n) } ifelse }
     { (bad unsetraises\n) } ifelse print

@@ -104,6 +104,7 @@ xpost_dev_band_page_begin
 xpost_dev_blit_row
 xpost_dev_buffer_emit_call
 xpost_dev_class_install
+xpost_dev_class_publish
 xpost_dev_class_option_default
 xpost_dev_create_begin
 xpost_dev_dict_number

@@ -927,8 +927,7 @@ xpost_dev_band_take(Xpost_Context *ctx, Xpost_Object devdic,
     b->open = 0;
     b->done = 0;
 
-    gd = xpost_dict_get(ctx, ctx->privatedict,
-                        xpost_name_cons(ctx, ".graphicsdict"));
+    gd = ctx->graphicsdict;
     key = xpost_name_cons(ctx, ".rasterband");
     if (xpost_object_get_type(gd) == dicttype)
     {
@@ -1184,6 +1183,16 @@ typedef struct
 
 /* Slots no device may be without, whatever it keeps its raster in. */
 #define XPOST_DEV_MANDATORY_SLOTS { "Create", "Emit", "Destroy", ".copydict" }
+
+/* Publish a finished class under its name in the private dictionary and
+   close it. Every driver registers its class this way, the ones the boot
+   builds and the ones brought in on first use alike: the lockdown's sweep
+   reaches only the first kind, so the second would otherwise stay a
+   writable table of the methods the machinery runs. */
+XPOST_MUST_CHECK int
+xpost_dev_class_publish(Xpost_Context *ctx,
+                        const char *name,
+                        Xpost_Object classdic);
 
 /* Register a method table into a class dictionary and check the result.
    ncomp is the component count of the device's declared colour space.

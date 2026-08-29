@@ -17,20 +17,16 @@
 } bind def
 
 % --- recover .xpostsys through a privatedict-anchored procedure ---
-/found null def
-/probe { % obj depth . -
-    2 dict begin /d exch def /o exch cvlit def
-    d 0 gt found null eq and {
-        o type /dicttype eq { { o /.strcat known { /found o store } if } stopped pop }
-        { o type /arraytype eq {
-            o rcheck { 0 1 o length 1 sub { o exch get d 1 sub probe } for } if } if } ifelse
-    } if
-    end
-} def
-.privatedict { exch pop dup type /arraytype eq { 6 probe }{ pop } ifelse } forall
-found null ne (the .xpostsys namespace is recoverable) assert
-found dup null ne { /.qsort known }{ pop false } ifelse (it holds .qsort) assert
-/qs found /.qsort get def
+% The namespace is not recovered by reading a bound body -- the bodies the
+% machinery runs are execute-only -- but enumerated through the accessors
+% a run that asked for introspection is given.
+/ID 1183615869 internaldict def
+/names /xpostsys ID /.namespacenames get exec def
+names length 0 gt (the .xpostsys namespace is enumerable) assert
+/hasqsort false def
+names { /.qsort eq { /hasqsort true store } if } forall
+hasqsort (it holds .qsort) assert
+/qs /xpostsys /.qsort ID /.namespacevalue get exec def
 
 % --- the sort runs in global VM ---
 currentglobal true setglobal

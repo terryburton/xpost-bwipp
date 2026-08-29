@@ -86,7 +86,7 @@
 % carrying no pixel stands for the rest, and one more of the class's own
 % shape carries the ground they show. Emission assembles the page from
 % them, so the writers meet the ground row as well as the held ones.
-/device? { .privatedict /.graphicsdict get /currgstate get /device get } bind def
+/device? { DEVICE } bind def
 
 % The page is emitted to a scratch file beside the run, and the run
 % removes it. A sink that discards what is written to it is named by the

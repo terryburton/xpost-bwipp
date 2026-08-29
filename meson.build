@@ -1978,7 +1978,8 @@ test('qsort',
   args: [ xpost_exe, files('tests/qsort_test.ps') ],
   suite: cost_fast,
   timeout: 60,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 # A clip region can end up covering no pixels at all. PLRM 7.5.1 makes
 # what a painting operation marks the intersection of two sets of pixels,
@@ -4048,13 +4049,15 @@ test('tamper-dispatch',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/tamper_dispatch_test.ps') ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 test('xpostsys-sealed',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/xpostsys_sealed_test.ps') ],
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 # The scratch dictionary a public operator hands over holds the state of a
 # render and no procedure the machinery goes on to execute: a procedure kept

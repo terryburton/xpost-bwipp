@@ -101,7 +101,7 @@ newpath 20 20 moveto 30 0 rlineto 0 30 rlineto closepath fill
 % painted pixel and one nothing reached. An interpreter that made no
 % device, or one whose buffer was sized and never written, prints
 % nothing and exits cleanly, and that is what these lines are against.
-/device? { .privatedict /.graphicsdict get /currgstate get /device get } def
+/device? { DEVICE } def
 /dev device? def
 /report {       % x y (label)  .  -
     /L exch def

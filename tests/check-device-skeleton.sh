@@ -706,8 +706,11 @@ for f in $fleet xpost_dev_win32.c; do
     # The classes this file installs in the private dictionary: the
     # names it puts there, read joined because the puts wrap lines, and
     # a ternary carries both names of a body that makes two classes.
+    # A class goes in through xpost_dev_class_publish, which puts it and
+    # closes it in one place; the older shape is still read here because
+    # the private dictionary holds more than classes.
     tr '\n' ' ' < "$libdir/$f" \
-        | grep -oE 'xpost_dict_put_internal[(]ctx, ctx->privatedict,[^;]*' \
+        | grep -oE 'xpost_dev_class_publish[(]ctx,[^;]*|xpost_dict_put_internal[(]ctx, ctx->privatedict,[^;]*' \
         | grep -oE '"\.xpost_[A-Za-z0-9_]*"' | tr -d '"' \
         | LC_ALL=C sort -u > "$work/skel.installs"
     # The class this device specialises, and whether that class says its

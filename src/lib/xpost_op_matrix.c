@@ -70,7 +70,7 @@ Xpost_Object _get_ctm(Xpost_Context *ctx)
     Xpost_Object gs;
     Xpost_Object psctm;
 
-    gd = xpost_dict_get(ctx, ctx->privatedict, namedotgraphicsdict);
+    gd = ctx->graphicsdict;
     gs = xpost_dict_get(ctx, gd, namecurrgstate);
     psctm = xpost_dict_get(ctx, gs, namecurrmatrix);
 
@@ -232,7 +232,7 @@ int _default_matrix(Xpost_Context *ctx,
     Xpost_Object devdic;
     Xpost_Object defmat;
 
-    gd = xpost_dict_get(ctx, ctx->privatedict, namedotgraphicsdict);
+    gd = ctx->graphicsdict;
     if (xpost_object_get_type(gd) == invalidtype)
         return undefined;
     XPOST_LOG_INFO("loaded graphicsdict");

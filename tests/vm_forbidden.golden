@@ -122,6 +122,37 @@ shielded 214 55832
 
 closed 0 0
 
+# The machinery's own bodies, and whether a program can still read one.
+# A body is what the machinery RUNS; bind freezes the dictionary a helper
+# names into the helper's body, so a body a program can read is a
+# namespace a program can reach, whatever the namespace's own access
+# says. Execute-only (PLRM 3.3.2) leaves the machinery able to run a body
+# and takes the reading away.
+#
+# What is closed is a body stored under a name, in either bank. A body
+# nested inside another one is left read-only: it is not a route of its
+# own, reaching it means reading the body above it, and bind leaves
+# nested procedures read-only by design (PLRM 8.2) with the machinery
+# reading that structure as it works.
+#
+# Asked of the machinery's own namespaces and not at systemdict, for the
+# reason the local pair is: systemdict reaches userdict, and a number
+# that counted the asking program's own procedures would move whenever
+# the test that reads it was edited.
+#
+# What is left is the default colour rendering dictionary's procedure
+# arrays -- the three of TransformPQR and the three of EncodeABC, and the
+# procedures inside them. A colour rendering dictionary is a program's to
+# read (PLRM 7.1), so these answer to the language rather than to the
+# machinery, and they are counted rather than exempted: a number that
+# stopped seeing them would read the same as one with nothing to see.
+#
+# A ratchet: it may fall and it may not rise.
+#
+#   count  digest
+
+bodies 15 16217
+
 # Tables in LOCAL virtual memory that a program can write and the machinery
 # can be made to run out of. The pair above them says `local 0 0`, and that
 # is not the claim it looks like: the seal reduces a dictionary only in
@@ -157,6 +188,6 @@ closed 0 0
 #
 #   count  digest
 
-localcode 6 55077
+localcode 2 41351
 
 blind 0

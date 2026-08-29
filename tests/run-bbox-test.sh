@@ -187,7 +187,21 @@ cat > "$tmp4" <<'PSEOF'
 { DEVICE /zz 1 put } stopped { (sealed) = }{ (unsealed) = } ifelse
 quit
 PSEOF
-out=$(env -u XPOST_NO_VM_IMAGE -u XPOST_DATA_DIR XPOST_UNSEALED_DEVICES=1 \
+# The image has to exist before this can ask anything of it, and it is
+# minted here rather than found: a cache the run happens to share with
+# whatever ran before it would answer about that run's image.
+verdict_workdir
+trap 'rm -f "$tmp2" "$tmp3" "$tmp4"; rm -rf "$work"' EXIT INT TERM
+sealc=$work/seal; mkdir -p "$sealc"
+env -u XPOST_NO_VM_IMAGE -u XPOST_DATA_DIR -u XPOST_UNSEALED_DEVICES \
+    HOME="$sealc" XDG_CACHE_HOME="$sealc" LOCALAPPDATA="$sealc" \
+    "$xpost" -q -d bbox -o /dev/null "$tmp4" </dev/null >/dev/null 2>&1
+find "$sealc" -name '*.vmimg' 2>/dev/null | grep -q . \
+    || { echo "FAIL: no image was written, so what follows would ask"
+         echo "      nothing of one"; rm -rf "$sealc"; exit 1; }
+out=$(env -u XPOST_NO_VM_IMAGE -u XPOST_DATA_DIR \
+        HOME="$sealc" XDG_CACHE_HOME="$sealc" LOCALAPPDATA="$sealc" \
+        XPOST_UNSEALED_DEVICES=1 \
         "$xpost" -q -d bbox -o /dev/null "$tmp4" </dev/null 2>&1)
 printf '%s\n' "$out" | grep -qx 'sealed' \
     || { echo "FAIL: a run starting from the image left its device unsealed"
@@ -200,5 +214,34 @@ printf '%s\n' "$out" | grep -qx 'unsealed' \
          echo "      check above could not have seen an unsealed device"
          exit 1; }
 echo "the seal is not the environment's to lift OK"
+
+# An image is written by the first run that boots the long way, and every
+# later run on that machine starts from it. A run given the device
+# instrumentation boots to a language whose classes were deliberately
+# left open, so if it wrote one, every later run would start with the
+# devices open and nothing in that run to say why. It boots the long way
+# and leaves the cache alone. HOME and the cache variables move into the
+# scratch directory, so this reads and writes its own cache and never the
+# user's.
+imgc=$work/img; mkdir -p "$imgc"
+env -u XPOST_NO_VM_IMAGE -u XPOST_DATA_DIR \
+    HOME="$imgc" XDG_CACHE_HOME="$imgc" LOCALAPPDATA="$imgc" \
+    XPOST_UNSEALED_DEVICES=1 "$xpost" -q -d bbox -o /dev/null "$tmp4" \
+    </dev/null >/dev/null 2>&1
+if find "$imgc" -name '*.vmimg' 2>/dev/null | grep -q .; then
+    echo "FAIL: a run given the device instrumentation wrote an image of"
+    echo "      virtual memory; every later run on the machine would boot"
+    echo "      from it with the devices left open"
+    exit 1
+fi
+out=$(env -u XPOST_NO_VM_IMAGE -u XPOST_DATA_DIR -u XPOST_UNSEALED_DEVICES \
+      HOME="$imgc" XDG_CACHE_HOME="$imgc" LOCALAPPDATA="$imgc" \
+      "$xpost" -q -d bbox -o /dev/null "$tmp4" </dev/null 2>&1)
+printf '%s\n' "$out" | grep -qx 'sealed' \
+    || { echo "FAIL: a plain run after an instrumented one found its"
+         echo "      device open, so the instrumented run left something"
+         echo "      behind for it to boot from"
+         exit 1; }
+echo "an instrumented run leaves no image behind OK"
 
 exit 0

@@ -1204,10 +1204,8 @@ int _loaddevicecont_common(Xpost_Context *ctx,
        here, and a record asked to be played into this device is
        specialised from the class it finds here. Nothing of the driver's
        is defined where a program could shadow it. */
-    ret = xpost_dict_put_internal(ctx, ctx->privatedict,
-                         xpost_name_cons(ctx, alpha ? ".xpost_PNGALPHADEVICE"
-                                                    : ".xpost_PNGDEVICE"),
-                         classdic);
+    ret = xpost_dev_class_publish(ctx, alpha ? ".xpost_PNGALPHADEVICE"
+                                             : ".xpost_PNGDEVICE", classdic);
     if (ret)
         return ret;
 

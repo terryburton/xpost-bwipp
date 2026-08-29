@@ -20,6 +20,7 @@
 # include <config.h>
 #endif
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "xpost.h"
@@ -101,6 +102,36 @@ xpost_dev_method_cons(Xpost_Context *ctx,
                     numbertype, numbertype, numbertype, numbertype, dicttype);
     }
     return invalid;
+}
+
+XPOST_MUST_CHECK int
+xpost_dev_class_publish(Xpost_Context *ctx,
+                        const char *name,
+                        Xpost_Object classdic)
+{
+    int ret;
+
+    ret = xpost_dict_put_internal(ctx, ctx->privatedict,
+                                  xpost_name_cons(ctx, name), classdic);
+    if (ret)
+        return ret;
+    /* A class states what a device of its kind IS -- the methods the
+       machinery runs on it and the entries it answers with -- and it is
+       finished by the time it is published. The lockdown closes the
+       classes it can see; a driver brought in on first use arrives after
+       the lockdown has run, and there is no later sweep to reach it. So
+       the closing happens here, where every class passes whether it was
+       built before the lockdown or after it. A class left open is a
+       table a program takes out of the private dictionary, puts its own
+       procedure into, and has the machinery run at showpage. */
+    /* The same setting that holds the lockdown's classes open holds
+       these open, and for the same reason: a run instrumenting the
+       devices reaches into whichever class it was given, and a fleet
+       half closed and half open would answer differently by device. */
+    if (!getenv("XPOST_UNSEALED_DEVICES"))
+        (void) xpost_object_set_access(ctx, classdic,
+                                       XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
+    return 0;
 }
 
 int

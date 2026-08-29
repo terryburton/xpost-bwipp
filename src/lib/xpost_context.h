@@ -177,6 +177,11 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
        namespaces holding its procedures and constants hold nothing a
        program could write */ \
     _(jobstore) \
+    /* the live graphics state, rooted here for the reason the job store \
+       is: privatedict is reachable by decision, so a member of it that \
+       names the graphics state is a slot a program writes to hand the \
+       machinery a device of its own */ \
+    _(graphicsdict) \
     /* the file a run wrapped around its program */ \
     _(run_input_file) \
     /* the window a device draws into, and the handler it reports to */ \

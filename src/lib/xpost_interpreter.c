@@ -3087,6 +3087,15 @@ static const char *_image_write_path(const char *datadir)
         return path;
     if (getenv("XPOST_NO_VM_IMAGE") || xpost_vm_image_in_use())
         return NULL;
+    /* An image describes the language this build boots to, and a run
+       given the device instrumentation does not boot to it: the classes
+       are left open so that a test can reach in and say what is there.
+       Writing that run's memory would leave every later run on the
+       machine booting from an image whose devices were never closed --
+       the seal gone, and nothing in the later run to say so. The
+       instrumented run boots the long way and leaves the cache alone. */
+    if (getenv("XPOST_UNSEALED_DEVICES"))
+        return NULL;
     return xpost_vm_image_default_path(chosen, sizeof(chosen), datadir, 1)
            ? chosen : NULL;
 }
@@ -3346,6 +3355,14 @@ static int _host_put_string(Xpost_Context *ctx, const char *name,
     o = xpost_object_cvlit(xpost_string_cons(ctx, len, text));
     if (xpost_object_get_type(o) != stringtype)
         return VMerror;
+    /* What the host said this run was started with is a constant the
+       machinery reads to decide: where the pages go, where the boot
+       files are. A program reaches it -- the output file's name is
+       copied onto the device, and the template graphics state names that
+       device -- so it is closed to writing where it is made. The
+       interpreter fills it through a pointer, which access does not
+       stand in the way of. */
+    o = xpost_object_set_access(ctx, o, XPOST_OBJECT_TAG_ACCESS_READ_ONLY);
     return _host_put(ctx, name, o);
 }
 
@@ -4932,8 +4949,7 @@ run:
     XPOST_LOG_INFO("destroying device");
     /* the device lives in the graphics state; the DEVICE name is an
        accessor operator and no longer holds the dictionary itself */
-    device = xpost_dict_get(ctx, ctx->privatedict,
-            xpost_name_cons(ctx, ".graphicsdict"));
+    device = ctx->graphicsdict;
     if (xpost_object_get_type(device) == dicttype)
         device = xpost_dict_get(ctx, device, xpost_name_cons(ctx, "currgstate"));
     if (xpost_object_get_type(device) == dicttype)

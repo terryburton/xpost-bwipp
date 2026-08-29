@@ -75,7 +75,7 @@
 % raster class states it, and a device that adopts whatever space the
 % paint was set in takes it from the graphics state, so the space is set
 % below to the one the count was read for.
-/dev .privatedict /.graphicsdict get /currgstate get /device get def
+/dev DEVICE def
 /ncomp dev /.ncomp 2 copy known { get }{ pop pop
     dev /nativecolorspace 2 copy known { get }{ pop pop /DeviceGray } ifelse
     dup /DeviceCMYK eq { pop 4 }{ /DeviceRGB eq { 3 }{ 1 } ifelse } ifelse
