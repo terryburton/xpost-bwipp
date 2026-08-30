@@ -172,7 +172,7 @@ own    path_bounds_test.ps                    2
 own    path_recycle_test.ps                   1
 own    path_walk_cost_test.ps                 1
 own    pdf_append_fail_test.ps                1
-own    machinery_diverted_test.ps             10
+own    machinery_diverted_test.ps              11
 own    qsort_test.ps                          2
 own    raster_row_test.ps                     1
 own    record_replay_test.ps                  2

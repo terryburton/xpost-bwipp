@@ -68,6 +68,15 @@ set -u
 src=${1:?usage: check-device-facts.sh <srcroot> <xpost>}
 xpost=${2:?usage: check-device-facts.sh <srcroot> <xpost>}
 . "$(dirname "$0")/guard-paths.sh"
+
+# This guard asks the interpreter about its own device machinery -- DEVICE
+# answers with the live device instance, and the lockdown sweeps that name
+# out of systemdict in a run that did not ask to take a census of itself.
+# Said here rather than in the shared preamble: a guard that does not reach
+# the machinery has no business running in census mode, and one that does
+# reach it should say so where a reader of this file can see it.
+XPOST_CENSUS=1
+export XPOST_CENSUS
 guard_require_srcroot "$src"
 guard_require_interpreter "$xpost"
 guard_srcdata "$src"
