@@ -123,7 +123,18 @@ awk '/^SYSTEMDICT-NAMES-BEGIN$/{f=1;next} /^SYSTEMDICT-NAMES-END$/{f=0} f' \
     "$work/sandboxed" | sed 's|^/||' | sort -u > "$work/sdnames"
 awk -F'\t' '!/^#/ && NF>=2 && $1!="absent" {print $2}' "$src/tests/plrm-operators" \
     | sort -u > "$work/plrm"
-comm -23 "$work/sdnames" "$work/plrm" > "$work/nonplrm"
+# Two names in systemdict are facts about the build rather than surface a
+# program can act on: WIN32 says which platform this is, NOFACES that the
+# build carries no face library. Each is put there by the C, conditionally,
+# and each is a boolean a program reads to know what it may ask for -- a
+# program that cannot show text wants to know before it tries. They are held
+# out of the count because they are absent or present by CONFIGURATION: left
+# in, this register measures the build's identity along with the language's
+# surface, and reports a faceless build and a Windows build as having a name
+# each that a Linux build with faces does not. MEASURED: it did exactly that,
+# red on the faceless lane for NOFACES.
+comm -23 "$work/sdnames" "$work/plrm" \
+    | grep -vxE 'WIN32|NOFACES' > "$work/nonplrm"
 have_np=$(wc -l < "$work/nonplrm" | tr -d ' ')
 have_npd=$(cksum < "$work/nonplrm" | awk '{print $1}')
 want_np=$(awk '$1=="nonplrm"{print $2}' "$golden")
