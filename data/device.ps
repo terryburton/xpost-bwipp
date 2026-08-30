@@ -744,16 +744,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.curbandheight {  % -  .  rows
 3 dict begin
     /rows 0 def
-    /graphicsdict where {
-        pop graphicsdict /currgstate get /device get
-        dup type /dicttype eq {
+    % No /graphicsdict where. The lockdown sweeps the name -- it answers
+    % with the live graphics state -- so a run-time search for it is
+    % always false and everything behind it is dead, which left this
+    % answering nought rows however the device was banding. The bare
+    % graphicsdict below is the operator bind froze in when this body was
+    % bound, before the sweep runs.
+    graphicsdict /currgstate get /device get
+    dup type /dicttype eq {
             /dev exch def
             dev /height known {
                 dev //.bandheight exec
                 dup dev /height get lt { /rows exch def }{ pop } ifelse
             } if
         }{ pop } ifelse
-    } if
     rows
 end } bind put
 
@@ -791,9 +795,9 @@ end } bind put
     % Not /where: bind bakes the operator of that name into this body,
     % and a local of the same name would never be the one read back.
     /held /memory def
-    /graphicsdict where {
-        pop graphicsdict /currgstate get /device get
-        dup type /dicttype eq {
+    % No /graphicsdict where -- see .curbandheight above.
+    graphicsdict /currgstate get /device get
+    dup type /dicttype eq {
             % a device holding a record is the one to ask; one painting
             % its own page holds its marks nowhere and answers /memory,
             % which is where the pixels of such a page are.
@@ -803,7 +807,6 @@ end } bind put
             } if
         } if
         pop
-    } if
     asked held
 end } bind put
 
@@ -835,10 +838,9 @@ end } bind put
                 { get }{ pop pop null } ifelse
         }{ pop pop null } ifelse
         dup null eq {
-            pop /graphicsdict where {
-                pop graphicsdict /.outputdevice 2 copy known
-                    { get }{ pop pop null } ifelse
-            }{ null } ifelse
+            % No /graphicsdict where -- see .curbandheight above.
+            pop graphicsdict /.outputdevice 2 copy known
+                { get }{ pop pop null } ifelse
         } if def
     /paints dev /.playclass known { dev /.playclass get }{ asked } ifelse def
     /pw dev /width known { dev /width get }{ 0 } ifelse def
