@@ -1745,8 +1745,9 @@ int op_namespacenames(Xpost_Context *ctx, Xpost_Object N)
 static
 int op_jobmemberwritable(Xpost_Context *ctx, Xpost_Object N)
 {
-    if (!getenv("XPOST_CENSUS")) return invalidaccess;
     Xpost_Object D;
+
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
 
     if (xpost_object_get_type(N) != nametype) return typecheck;
     if (xpost_object_get_type(ctx->jobstore) != dicttype) return undefined;
@@ -1763,11 +1764,12 @@ int op_jobmemberwritable(Xpost_Context *ctx, Xpost_Object N)
 static
 int op_hostsetting(Xpost_Context *ctx, Xpost_Object N)
 {
-    if (!getenv("XPOST_CENSUS")) return invalidaccess;
     Xpost_Object v;
     Xpost_Object ns;
     char *cp;
     char buf[128];
+
+    if (!getenv("XPOST_CENSUS")) return invalidaccess;
 
     if (xpost_object_get_type(N) != nametype) return typecheck;
     ns = xpost_name_get_string(ctx, N);
