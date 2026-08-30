@@ -56,6 +56,44 @@
   % program wrote, which is a place it is MEANT to run program code, so
   % what is asked here is whether the planting reaches anything else
   % while it does.
+  % Places the machinery runs a procedure the PROGRAM wrote. Each is a
+  % callback the language defines, so running program code there is what
+  % they are for; what is asked is whether the planting reaches anything
+  % else while the machinery has it in hand.
+  [ (a halftone spot function)
+    { gsave << /HalftoneType 1 /Frequency 20 /Angle 0
+               /SpotFunction { pop pop 0.5 } >> sethalftone
+      0.5 setgray 10 10 40 40 rectfill grestore } ]
+  [ (a transfer function)
+    { gsave { 1 exch sub } settransfer
+      0.5 setgray 10 10 40 40 rectfill grestore } ]
+  [ (a page-device BeginPage)
+    { << /PageSize [180 180] /BeginPage { pop } /EndPage { pop pop false } >>
+      setpagedevice 10 10 40 40 rectfill } ]
+  [ (a CIE decode procedure)
+    { gsave [ /CIEBasedABC << /DecodeABC [ {} {} {} ]
+                              /RangeABC [0 1 0 1 0 1]
+                              /WhitePoint [0.9505 1 1.089] >> ] setcolorspace
+      0.4 0.5 0.6 setcolor 10 10 40 40 rectfill grestore } ]
+  % A callback the machinery reaches through the RESOURCE system rather
+  % than through a dictionary the caller handed it: findcolorrendering
+  % resolves the ColorRendering procedure set and runs three procedures
+  % out of it, and a program may define that set (PLRM 7.1.3 says so --
+  % overriding one procedure is how a device customises the selection).
+  % So the machinery runs a program's code by a route none of the entry
+  % points above takes.
+  [ (a ColorRendering procedure set)
+    { /ColorRendering << /GetPageDeviceName { /MyDev }
+                         /GetHalftoneName   { /MyHT }
+                         /GetSubstituteCRD  { pop /DefaultColorRendering }
+                         /GetBlackGeneration { pop {} } >>
+      /ProcSet defineresource pop
+      { (Whatever) findcolorrendering pop } stopped pop } ]
+  [ (an image data source procedure)
+    { gsave 60 0 0 60 10 10 concat
+      << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 8
+         /Decode [0 1] /ImageMatrix [4 0 0 -4 0 4]
+         /DataSource { (\377\000\377\000) } >> image grestore } ]
   [ (a type 3 glyph)
     { gsave
       /T3D 10 dict def
