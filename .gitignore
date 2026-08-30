@@ -57,6 +57,7 @@ semantics.diskf
 semantics.scratch
 *.scratch
 scanner_eof_scratch
+page-*-rec.ppm
 sparse_rows_out.pgm
 type42-charstrings/
 zz.out
