@@ -3017,10 +3017,15 @@ currentglobal true setglobal
                 { 1 2 //.xpostsys /.endpage get exec /xmit exch store }
                 stopped { } if
                 count xbase sub dup 0 gt { { pop } repeat }{ pop } ifelse
+                % No /DEVICE where here. The name is not on the dict stack --
+                % the lockdown sweeps it, because it answers with the live
+                % device instance -- so a run-time search for it is always
+                % false and everything behind it is dead. The bare DEVICE
+                % below is the operator bind froze in when this body was
+                % bound, which is before the sweep runs; the type test it
+                % guards is what the search was really asking anyway.
                 xmit {
-                    /DEVICE where { pop
-                        DEVICE type /dicttype eq { DEVICE //.xpostsys /.transmitpage get exec } if
-                    } if
+                    DEVICE type /dicttype eq { DEVICE //.xpostsys /.transmitpage get exec } if
                 } if
 
                 % PLRM 6.2.7: the revisions a request makes to Policies take
@@ -3298,10 +3303,8 @@ currentglobal true setglobal
 
                 % Retire the outgoing device (Destroy frees its buffers; a
                 % vector device's output was written by showpage's Emit)
-                /DEVICE where { pop
-                    DEVICE type /dicttype eq {
-                        DEVICE dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
-                    } if
+                DEVICE type /dicttype eq {
+                    DEVICE dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
                 } if
 
                 % The device features again, on the finished device before the
