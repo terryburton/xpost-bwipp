@@ -57,12 +57,21 @@ XPOST_DATA_DIR="$src/data" XPOST_NO_VM_IMAGE=1 XPOST_CENSUS=1 \
 XPOST_DATA_DIR="$src/data" XPOST_CENSUS=1 \
     "$xpost" -q --no-sandbox -d null -o /dev/null "$src/tests/vm_forbidden_test.ps" \
     </dev/null > "$work/out.image" 2>&1
+# The walk-coverage census is taken during the boot, which is the work an
+# image exists to skip, so an image cannot carry it and a run reading one
+# answers nothing reached. That is not a difference in the language and is
+# left out of the comparison; the boot run's figure is required to be
+# non-zero below, which is what holds the census to having been taken at
+# all. Everything else an image carries is compared.
+for _vf in out out.image; do
+    grep -v '^WALK-BLIND-REACHED ' "$work/$_vf" > "$work/$_vf.carried"
+done
 if grep -q '^SWEPT$' "$work/out.image"; then
-    if ! diff -q "$work/out" "$work/out.image" >/dev/null 2>&1; then
+    if ! diff -q "$work/out.carried" "$work/out.image.carried" >/dev/null 2>&1; then
         echo "FAIL: the census answers differently from the image than from"
         echo "      the boot files, so what a run reaches depends on which"
         echo "      way it started:"
-        diff "$work/out" "$work/out.image" | sed 's/^/      /' | head -12
+        diff "$work/out.carried" "$work/out.image.carried" | sed 's/^/      /' | head -12
         exit 1
     fi
 else
