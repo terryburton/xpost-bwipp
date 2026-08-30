@@ -227,6 +227,108 @@ static void battery(Xpost_Showpage_Semantics sem)
     xpost_destroy(ctx);
 }
 
+/* The one documented way out of job encapsulation, and the door that
+   closes it.
+
+   PLRM 3.7.7 encapsulates each job, and everything above holds the
+   boundary against a job that tries to leave something behind. exitserver
+   is the exception the language itself grants: `serverdict begin password
+   exitserver` folds the job's state into the baseline, so its definitions
+   persist into every job that follows. PLRM C.3.1 gates it on the
+   StartJobPassword, which is empty by default -- the check is off, so a
+   trusted prolog can use it out of the box -- and a host serving untrusted
+   jobs sets one to lock the door.
+
+   Nothing tested any of that. The battery above is the record of which
+   vectors the boundary closes, and the one vector the language documents
+   for defeating it was not in the record: neither that it works when the
+   door is open, nor -- which is what a host serving untrusted jobs is
+   relying on -- that it is refused when the door is shut. */
+static void exitserver_battery(void)
+{
+    Xpost_Context *ctx;
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL,
+                       XPOST_SHOWPAGE_NOPAUSE, XPOST_OUTPUT_MESSAGE_QUIET,
+                       XPOST_USE_SIZE, 64, 64);
+    if (!ctx) { report_failure("exitserver: xpost_create"); return; }
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+    run_job(ctx, "(warm)pop");
+
+    /* the control: without exitserver the boundary reverts the definition,
+       so a persistence reported below is exitserver's doing and not the
+       boundary failing on its own */
+    vector(ctx, XPOST_SHOWPAGE_NOPAUSE, "exitserver-control",
+           "/XPLAIN 1 def",
+           "/XPLAIN where {pop(POISONED)}{(CLEAN)}ifelse print flush");
+
+    /* with no StartJobPassword the check is off and the escape works. That
+       is the specified default, so the case asserts the persistence rather
+       than refusing it: a build where this stopped working would have
+       broken a trusted prolog's prologue silently. */
+    run_job(ctx, "serverdict begin 0 exitserver /XESC 1 def");
+    run_job(ctx, "/XESC where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "PERSISTED") != 0)
+        report_failure("exitserver: with no password set, the documented "
+                       "escape did not persist: '%s'", out_buf);
+
+    /* and the door a host actually leans on */
+    xpost_startjob_password_set(ctx, "s3cret");
+    run_job(ctx, "serverdict begin 0 exitserver /XWRONG 1 def");
+    run_job(ctx, "/XWRONG where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "reverted") != 0)
+        report_failure("exitserver: a password is set and a job escaped "
+                       "encapsulation with the wrong one: '%s'", out_buf);
+
+    run_job(ctx, "serverdict begin (s3cret) exitserver /XRIGHT 1 def");
+    run_job(ctx, "/XRIGHT where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "PERSISTED") != 0)
+        report_failure("exitserver: the right password was refused, so the "
+                       "lock cannot be opened by the host that set it: '%s'",
+                       out_buf);
+
+    /* and the two ways a program would open the door for itself. The
+       password lives in the context, not in virtual memory, and
+       setsystemparams is a no-op here (PLRM C.3.1 lets an interpreter
+       refuse it) -- which is the whole reason a host can rely on the lock.
+       That reasoning is what these two hold: a program that could set or
+       blank the password would not need to guess it. */
+    run_job(ctx, "<< /StartJobPassword (s3cret) /Password (s3cret) >> setsystemparams "
+                 "serverdict begin 0 exitserver /XSP 1 def");
+    run_job(ctx, "/XSP where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "reverted") != 0)
+        report_failure("exitserver: a program set the StartJobPassword "
+                       "through setsystemparams and let itself out: '%s'",
+                       out_buf);
+
+    run_job(ctx, "<< /StartJobPassword () >> setsystemparams "
+                 "serverdict begin 0 exitserver /XSP2 1 def");
+    run_job(ctx, "/XSP2 where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "reverted") != 0)
+        report_failure("exitserver: a program blanked the StartJobPassword "
+                       "through setsystemparams and let itself out: '%s'",
+                       out_buf);
+
+    /* startjob is the supported form of the same escape (PLRM 3.7.7) and
+       is gated on the same password; a lock that held one and not the
+       other would hold nothing. */
+    run_job(ctx, "true 0 startjob /XSJ 1 def");
+    run_job(ctx, "/XSJ where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "reverted") != 0)
+        report_failure("exitserver: startjob let a job out with the wrong "
+                       "password: '%s'", out_buf);
+
+    run_job(ctx, "true (s3cret) startjob /XSJ2 1 def");
+    run_job(ctx, "/XSJ2 where {pop(PERSISTED)}{(reverted)}ifelse print flush");
+    if (strcmp(out_buf, "PERSISTED") != 0)
+        report_failure("exitserver: startjob refused the right password: "
+                       "'%s'", out_buf);
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     if (!xpost_init())
@@ -236,6 +338,7 @@ int main(void)
     }
 
     battery(XPOST_SHOWPAGE_NOPAUSE);
+    exitserver_battery();
     battery(XPOST_SHOWPAGE_DEFAULT);
     battery(XPOST_SHOWPAGE_RETURN);
 
