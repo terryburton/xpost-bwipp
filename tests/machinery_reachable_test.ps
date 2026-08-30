@@ -1,0 +1,102 @@
+%!PS
+% How many machinery entry points a program can CALL, and a digest of which.
+%
+% The register beside this one counts what a program can reach and WRITE, and
+% answers none. That is true and it is not the whole question: an operator is
+% not a writable object, so a sealed, read-only object graph still answers
+% none while an operator stands that installs a replacement for any part of
+% it. Calling such an operator reaches what writing the object would have
+% reached, and by a route the writable count cannot see.
+%
+% So what is counted here is reachability of the entry points themselves,
+% from the roots a program actually holds. Those roots are systemdict,
+% userdict and globaldict, which need nothing -- and internaldict, which
+% needs a password the specification publishes (PLRM 8), so it is a root a
+% program holds too, not a place things are hidden.
+%
+% THERE ARE NO NAMES IN THE OUTPUT, AND THERE MUST NOT BE. A list of the
+% entry points a program can still call is a map for whoever would like to
+% call them, and this tree and its build logs are published. The count says
+% which way the set moved and the digest says whether it moved at all.
+% Someone working on it adds a print to the walk locally, where nothing is
+% published.
+%
+% A walk must never NAME what it inspects. A bare name in PostScript executes
+% an executable value, so a walk written with bare names runs the machinery it
+% was meant to look at; every reference below therefore goes through load.
+
+/M 65521 def
+/fold {                      % string . int
+  /s exch def /h 1 def
+  0 1 s length 1 sub { s exch get h 257 mul add M mod /h exch def } for
+  h
+} bind def
+
+/stats 4 dict def
+/seen 60000 dict def
+/hits 4000 dict def
+
+% dotted is the tree's mark for machinery, but it cannot be the whole test:
+% a machinery name carrying no dot is exactly the one a census keyed on dots
+% would not see. So the two roots are asked different questions -- everything
+% in internaldict counts, because internaldict holds nothing else.
+/dotted true def
+
+/W {                         % obj depth . -
+  6 dict begin
+    /dep exch def
+    /ob exch def
+    dep 0 gt {
+      /ob load type /dicttype eq {
+        seen /ob load known not {
+          seen /ob load true put
+          /ob load rcheck not
+            { stats /shut stats /shut get 1 add put }
+            { /ob load {
+                /v exch def
+                /k exch def
+                /k load type /nametype eq {
+                  dotted
+                    { /k load 200 string cvs 0 get 46 eq }
+                    { true } ifelse
+                  { hits /k load true put } if
+                } if
+                /v load dep 1 sub W
+              } forall
+            } ifelse
+        } if
+      } {
+        /ob load type /arraytype eq /ob load type /packedarraytype eq or {
+          /ob load rcheck {
+            seen /ob load known not {
+              seen /ob load true put
+              /ob load { dep 1 sub W } forall
+            } if
+          } if
+        } if
+      } ifelse
+    } if
+  end
+} bind def
+
+/R { /seen 60000 dict def /hits 4000 dict def stats /shut 0 put } bind def
+/digest {                    % -  .  int
+  /sum 0 def
+  hits { pop 200 string cvs fold sum add M mod /sum exch def } forall
+  sum
+} bind def
+
+% ---- what a program reaches holding no password ----
+/dotted true def
+R
+systemdict 12 W  userdict 12 W  globaldict 12 W
+(MACHINERY-CALLABLE-NOPASSWORD ) print hits length =print ( ) print digest ==
+
+% ---- and what the published password adds to that ----
+/dotted false def
+R
+1183615869 internaldict 12 W
+(MACHINERY-CALLABLE-PASSWORD ) print hits length =print ( ) print digest ==
+
+(WALKED) =
+quit

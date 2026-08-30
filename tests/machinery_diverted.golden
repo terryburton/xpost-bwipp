@@ -1,0 +1,41 @@
+# How many places a program can write divert the machinery into running
+# the program's own procedure.
+#
+# Every other register here asks whether an object is sealed. This one
+# asks what the sealing is for, and asks it the way a program would:
+# tests/machinery_diverted_test.ps plants a procedure of its own
+# everywhere a program can reach and write, drives the machinery, and
+# counts the places that ran it.
+#
+# The two questions are not the same, and the difference is why this
+# exists. A device class is sealed and its instance is sealed, and a
+# program can still hand the machinery a whole device of its own by
+# writing the slot that names one: every object on that route is closed
+# and a census of objects reads clean.
+#
+# NO PAIR DIVERTS. The one that did is closed, and what closed it is
+# written here so that a rise says what came back:
+#
+#   a device of the program's own / showpage
+#       The machinery found the device through a slot the graphics state
+#       holds, and the graphics state was reached from privatedict, which
+#       is reachable by decision -- driver prologs name it. The slot has
+#       to stay writable: a glyph device and a capture device are swapped
+#       in through it. So the dictionary holding the slot is rooted in
+#       the context instead, where the machinery and the collector reach
+#       it and nothing a program enumerates names it.
+#
+# One pair was reported here and was never real. The recorder class was
+# counted while the case before it had left a device of its own in place
+# carrying the same marker, so what ran was that device's method. The
+# cases put back what they replace now, and the recorder is asked first.
+#
+# The recorder is published closed like every other class. It was held
+# open on the reading that each build writes its method suite into the
+# class; the write goes into a dictionary the build makes for the target
+# it is specialising for, and the published class is finished before it
+# is published.
+#
+#   count
+
+diverted 0

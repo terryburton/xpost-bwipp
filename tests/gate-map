@@ -502,6 +502,7 @@ guards path tests/check-proc-spec.sh
 guards path tests/proc-spec
 guards path tests/library_statics.golden
 guards path tests/vm_forbidden.golden
+guards path tests/machinery_reachable.golden
 guards path tests/testlib.ps
 guards path tests/testlib-prepend.sh
 guards path tests/testlib-facts
@@ -533,6 +534,7 @@ guards test show-clip-routes
 guards test check-serial-caches
 guards test check-skip-verdict
 guards test check-vm-forbidden
+guards test check-machinery-reachable
 guards test check-context-executes-own
 guards test check-store-not-run
 guards test unreachable

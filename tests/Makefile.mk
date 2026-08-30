@@ -35,6 +35,12 @@ tests/check-device-destroy.sh \
 tests/check-library-lifetime.sh \
 tests/check-serial-caches.sh \
 tests/check-skip-verdict.sh \
+tests/check-machinery-diverted.sh \
+tests/machinery_diverted.golden \
+tests/machinery_diverted_test.ps \
+tests/check-machinery-reachable.sh \
+tests/machinery_reachable.golden \
+tests/machinery_reachable_test.ps \
 tests/check-vm-forbidden.sh \
 tests/vm_forbidden.golden \
 tests/vm_forbidden_test.ps \

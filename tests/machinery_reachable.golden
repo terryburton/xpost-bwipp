@@ -1,0 +1,45 @@
+# How many machinery entry points a program can CALL, and a digest of which.
+#
+# The register in vm_forbidden.golden counts what a program can reach and
+# WRITE, and answers none. That is true and it is not the whole question. An
+# operator is not a writable object, so a sealed, read-only object graph
+# answers none while an operator stands that installs a replacement for any
+# part of it. Calling such an operator reaches what writing the object would
+# have reached, by a route the writable count cannot see.
+#
+# The roots are the ones a program actually holds: systemdict, userdict and
+# globaldict, which need nothing, and internaldict, whose password the
+# specification publishes (PLRM 8). internaldict is therefore a root a program
+# holds, not a place where things are out of reach: a name moved into it is as
+# callable as it was, by two tokens any program can write.
+#
+# THERE ARE NO NAMES HERE, AND THERE MUST NOT BE. A list of the entry points a
+# program can still call is a map for whoever would like to call them, and this
+# tree and its build logs are published. The count says which way the set moved
+# and the digest says whether it moved at all. Someone working on it adds a
+# print to the walk in tests/machinery_reachable_test.ps locally.
+#
+# Each count is a RATCHET: it may fall, it may not rise, and the pair is
+# rewritten in the commit that moves it.
+#
+# nopassword -- reachable from systemdict, userdict and globaldict in a
+# sandboxed run, which is the shipped default. The two are the private
+# dictionary and the scratch dictionary, both named in systemdict because an
+# operator implemented in PostScript reaches them there.
+nopassword 2 71
+#
+# nosandbox -- the same walk in a run started with --no-sandbox, which keeps
+# the four file-permission entry points in systemdict that the sandbox
+# removes. A separate line because they are absent by configuration, not by
+# construction, and a register that recorded only the sandboxed run would call
+# that an absence.
+nosandbox 6 28023
+#
+# password -- everything internaldict holds, counted whole rather than by the
+# dot the tree marks machinery with, because a machinery name carrying no dot
+# is exactly the one a census keyed on dots would not see. This number is the
+# work: it is the population that is reachable today and should not be, and
+# nothing about the shape of the object graph brings it down. Only removing an
+# entry point, or refusing it in a shipped run the way the census operators
+# already refuse, moves it.
+password 141 4857

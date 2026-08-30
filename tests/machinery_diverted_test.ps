@@ -1,0 +1,202 @@
+% What a program can make the machinery run.
+%
+% Every other test of this asks whether an object is sealed. This asks
+% the question the seals are for, and asks it the way a program would:
+% plant a procedure of the program's own everywhere a program can reach
+% and write, drive the machinery, and see whether the machinery ran it.
+%
+% The two are not the same question. A device class is sealed, and its
+% instance is sealed, and a program can still hand the machinery a whole
+% device of its own by writing the slot that names one -- every object in
+% that route is closed and a census of objects reads clean.
+%
+% Each case names a place and an entry point, and the count of places
+% that divert the machinery is what tests/check-machinery-diverted.sh
+% ratchets. A case that cannot plant proves nothing, so each one says
+% whether the planting itself was refused: a location that refuses the
+% put is a location this could not have found a diversion in, and reads
+% differently from one that took the put and did not divert.
+
+/failed 0 def
+/diverted 0 def
+/refused 0 def
+/took 0 def
+/ran false def
+
+% The marker. A procedure of the program's own, which nothing the
+% machinery runs should ever reach.
+/marker { /ran true store } def
+
+% ---- the entry points: what makes the machinery work ----
+/entries [
+  [ (showpage)  { 10 10 20 20 rectfill showpage } ]
+  [ (fill)      { newpath 10 10 moveto 60 60 lineto 60 10 lineto closepath fill } ]
+  [ (stroke)    { newpath 10 10 moveto 60 60 lineto stroke } ]
+  [ (erasepage) { erasepage } ]
+  [ (show)      { /Helvetica 12 selectfont 20 20 moveto (xp) show } ]
+  [ (image)     { gsave 20 20 translate 16 16 scale
+                  16 16 8 [16 0 0 -16 0 16] { <80> } image grestore } ]
+  [ (imagemask) { gsave 40 40 translate 8 8 scale
+                  8 8 true [8 0 0 -8 0 8] { <aa> } imagemask grestore } ]
+  [ (a clip)    { gsave newpath 10 10 60 60 rectclip
+                  0 0 100 100 rectfill grestore } ]
+  [ (a form)    { << /FormType 1 /BBox [0 0 30 30] /Matrix [1 0 0 1 0 0]
+                     /PaintProc { pop 2 2 10 10 rectfill } >> execform } ]
+  [ (a pattern) { gsave << /PatternType 1 /PaintType 1 /TilingType 1
+                     /BBox [0 0 8 8] /XStep 8 /YStep 8
+                     /PaintProc { pop 0 0 4 4 rectfill } >> matrix makepattern
+                   setpattern 10 10 40 40 rectfill grestore } ]
+  [ (setpagedevice) { << /PageSize [180 180] >> setpagedevice } ]
+  [ (a shading)  { gsave << /ShadingType 2 /ColorSpace /DeviceGray
+                     /Coords [10 10 60 60]
+                     /Function << /FunctionType 2 /Domain [0 1]
+                                  /C0 [0] /C1 [1] /N 1 >> >>
+                   shfill grestore } ]
+  % A glyph the program itself draws: the machinery runs a BuildGlyph a
+  % program wrote, which is a place it is MEANT to run program code, so
+  % what is asked here is whether the planting reaches anything else
+  % while it does.
+  [ (a type 3 glyph)
+    { gsave
+      /T3D 10 dict def
+      T3D /FontType 3 put
+      T3D /FontMatrix [0.001 0 0 0.001 0 0] put
+      T3D /FontBBox [0 0 1000 1000] put
+      T3D /Encoding 256 array put
+      0 1 255 { T3D /Encoding get exch /.notdef put } for
+      T3D /Encoding get 97 /sq put
+      T3D /CharProcs 2 dict put
+      T3D /CharProcs get /sq { 0 0 700 700 rectfill } put
+      T3D /CharProcs get /.notdef { } put
+      T3D /BuildGlyph
+        { exch /CharProcs get exch 2 copy known not { pop /.notdef } if
+          get exec } put
+      /DivertT3 T3D definefont pop
+      /DivertT3 findfont 20 scalefont setfont
+      20 20 moveto (a) show
+      grestore } ]
+] def
+
+% ---- the names the machinery runs on a device ----
+/methods [ /Emit /Create /Destroy /Erase /PutPix /GetPix /BlendPix
+           /FillRect /DrawLine /FillPath /DrawRect /.maxmin
+           /ScreenChanged /.moveband ] def
+
+/say { % (text) . -
+  print (\n) print
+} def
+
+% Plant every method name into one dictionary, drive one entry point,
+% and report whether anything of the program's ran.
+/probe { % dict (place) (entry) {entry} . -
+  /body exch def /ename exch def /pname exch def /d exch def
+  /planted 0 def
+  methods {
+    /m exch def
+    count /c exch def
+    { d m //marker put } stopped
+    /f exch def count c sub { pop } repeat
+    f not { /planted planted 1 add def } if
+  } forall
+  planted 0 eq
+    { /refused refused 1 add def
+      (   refused the planting: ) print pname print ( / ) print ename say }
+    { /took took 1 add def
+      /ran false store
+      count /c exch def
+      % named, not run: { body } runs it inside the guard, where
+      % naming it here would run it before stopped could catch anything
+      { body } stopped pop
+      count c sub { pop } repeat
+      ran
+        { /diverted diverted 1 add def
+          (DIVERTED: ) print pname print ( / ) print ename say }
+        { } ifelse
+      % put the place back the way it was found
+      methods { /m exch def { d m undef } stopped pop } forall }
+    ifelse
+} def
+
+% ---- the places a program can reach ----
+% Named by a procedure rather than a value: some of them are only there
+% once a device has been made, and one of them is the program's own.
+/places [
+  [ (the device's state)      { DEVICE /.state get } ]
+  [ (the public scratch)      { .gscratch } ]
+  [ (the graphics dictionary) { .privatedict /.graphicsdict get } ]
+  [ (the graphics state)      { .privatedict /.graphicsdict get /currgstate get } ]
+  [ (the page state)          { .privatedict /.pagestate get } ]
+  [ (the scratch dictionary)  { .privatedict /.gscratchdict get } ]
+  [ (the wrapped procedures)  { .privatedict /.wrappedprocs get } ]
+  [ (the wrapped-call saves)  { .privatedict /.wrapsave get } ]
+  [ (userdict)                { userdict } ]
+  [ (systemdict)              { systemdict } ]
+] def
+
+places {
+  /p exch def
+  /pname p 0 get def
+  count /c exch def
+  { p 1 get exec } stopped
+  /f exch def
+  f { count c sub { pop } repeat
+      (   not reachable: ) print pname say }
+    { /d exch def
+      d type /dicttype eq
+        { entries { /e exch def d pname e 0 get e 1 get probe } forall }
+        { (   not a dictionary: ) print pname say } ifelse }
+  ifelse
+} forall
+
+% ---- and the class published open ----
+% The recorder is the one device class not closed when it is published,
+% because each build writes its method suite into it. A program can
+% write it too, and a drawing held for a page is recorded through it.
+systemdict /loadrecorddevice known
+  { mark { loadrecorddevice } stopped pop cleartomark } if
+.privatedict /.xpost_RECORDDEVICE known {
+  /ran false store
+  /rc .privatedict /.xpost_RECORDDEVICE get def
+  count /c exch def
+  { rc /Emit //marker put } stopped
+  /f exch def count c sub { pop } repeat
+  f not {
+    count /c exch def
+    { << /FormType 1 /BBox [0 0 40 40] /Matrix [1 0 0 1 0 0]
+         /PaintProc { pop 5 5 20 20 rectfill } >> execform
+      showpage } stopped pop
+    count c sub { pop } repeat
+    ran { /diverted diverted 1 add def
+          (DIVERTED: the recorder class / a form) say } if
+    { rc /Emit undef } stopped pop
+  }{ (   refused the planting: the recorder class) say } ifelse
+} if
+
+% ---- and the one that is not a planting ----
+% The machinery finds the device through a slot a program can write. It
+% needs no name of the machinery's: the program hands over a device of
+% its own, copied from the one in force so that everything else about it
+% still answers, with one method its own.
+/ran false store
+/realdev DEVICE def
+/fake DEVICE length 8 add dict def
+DEVICE fake copy pop
+fake /Emit //marker put
+count /c exch def
+{ .privatedict /.graphicsdict get /currgstate get /device fake put
+  10 10 20 20 rectfill showpage } stopped pop
+count c sub { pop } repeat
+/wasdiverted ran def
+% put the device back, so nothing after this is answered by the one
+% this case left in place -- a marker left on a substituted device
+% reports as whatever case runs next
+count /c exch def
+{ .privatedict /.graphicsdict get /currgstate get /device realdev put } stopped pop
+count c sub { pop } repeat
+wasdiverted
+  { /diverted diverted 1 add def
+    (DIVERTED: a device of the program's own / showpage) say } if
+
+(machinery-diverted places: ) print diverted =print
+(  places that took the planting: ) print took =print
+(  places that refused it: ) print refused ==

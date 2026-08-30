@@ -6128,6 +6128,33 @@ test('check-vm-forbidden',
   suite: cost_fast,
   timeout: 240)
 
+# Reachable and CALLABLE. The register above asks whether the machinery's
+# objects are sealed, and they are; an operator is not a writable object, so a
+# sealed graph still answers none while an operator stands that installs a
+# replacement for any part of it. This counts the entry points, from the roots
+# a program holds -- including internaldict, whose password the specification
+# publishes (PLRM 8), so it is a root and not a hiding place.
+test('check-machinery-reachable',
+  find_program('tests/check-machinery-reachable.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
+
+# What a program can make the machinery RUN, asked the way a program
+# would ask it: plant a procedure of its own everywhere it can reach and
+# write, drive the machinery, and count the places that ran it. The
+# register above asks whether an object is sealed; this asks what the
+# sealing is for, and the two differ -- a device class is sealed and its
+# instance is sealed, and a program can still hand over a device of its
+# own by writing the slot that names one.
+test('check-machinery-diverted',
+  find_program('tests/check-machinery-diverted.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
+
 # The guards read data/ and tests/ under a source root they are given, and
 # the interpreter finds the working tree by other routes when that root is
 # wrong -- so a misdirected guard reports a true result about a tree nobody
