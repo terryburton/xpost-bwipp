@@ -1174,6 +1174,7 @@ int main(int argc, char *argv[])
     _xpost_main_list_free(&defs, &num_defs);
     _xpost_main_list_free(&incs, &num_incs);
     _xpost_main_list_free(&params, &num_params);
+    _xpost_main_list_free(&psfiles, &num_psfiles);
     xpost_quit();
 
     return EXIT_FAILURE;
