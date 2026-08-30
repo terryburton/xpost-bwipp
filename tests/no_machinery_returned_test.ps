@@ -1,0 +1,91 @@
+%!PS
+% Nothing systemdict holds hands back a machinery object when it is called.
+%
+% The reachability register counts the entry points a program can name. It
+% does not call them, so it cannot see what one answers with, and that is a
+% gap the tree has already been bitten by: .privatedict was one counted name
+% whose call returned thirty-nine members naming every device maker and every
+% device class. Counting the name said "one entry point"; what the call
+% handed over was a map of the machinery.
+%
+% So this calls them. Every name systemdict holds is fetched and executed
+% with nothing on the operand stack. Most raise stackunderflow at once, which
+% is the answer wanted: an operator that needs operands cannot be made to
+% hand anything over by a program that gives it none. What is left on the
+% stack afterwards is looked at.
+%
+% A returned dictionary is machinery if it holds a name beginning with a dot,
+% or the graphics state's own currgstate. Recognised by what it holds rather
+% than by identity, because identity would mean asking the tree to hand over
+% the objects this says it must not -- the same reasoning tests/
+% unreachable_test.ps sets out.
+
+/failed 0 def
+/checked 0 def
+/returned 0 def
+
+% Operators that end the run, or take it somewhere a batch test cannot come
+% back from. Each is excluded for that reason and for no other: none of them
+% answers with a dictionary.
+/SKIP <<
+  /quit true          /start true         /executive true
+  /prompt true        /handleerror true   /.interactive true
+  % returntocaller hands control back to the embedding caller, which ends
+  % the run where it stands -- MEASURED: the walk stopped there.
+  /returntocaller true
+>> def
+
+% Names a dictionary may hold and still be the language's own.
+/machinerykey {         % dict  .  bool
+  /found false def
+  { pop dup type /nametype eq
+    { dup 60 string cvs 0 get 46 eq { /found true def } if
+      /currgstate eq { /found true def } if }
+    { pop } ifelse } forall
+  found
+} bind def
+
+/culprit null def
+/look {                 % any  .  -
+  dup type /dicttype eq {
+    dup rcheck {
+      machinerykey {
+        /failed failed 1 add def
+        % the operator's own name is public -- it is a name systemdict
+        % holds -- so saying which one answered publishes nothing that
+        % naming systemdict's contents does not. What it answered WITH is
+        % not named, here or by the guard.
+        (\nFAIL: ) print /culprit load 40 string cvs print
+        ( answered with a machinery dictionary\n) print
+      } if
+    }{ pop } ifelse
+  }{ pop } ifelse
+} bind def
+
+systemdict {
+  pop dup type /nametype eq {
+    dup SKIP exch known { pop } {
+      /nm exch def
+      % count before the name is pushed, or the name itself is counted and
+      % every delta comes out one short -- which is zero for an operator
+      % that returns one thing, and a walk that finds nothing ever.
+      count /before exch def
+      countdictstack /dbefore exch def
+      { systemdict /nm load get exec } stopped pop
+      /checked checked 1 add def
+      count before gt {
+        /returned returned count before sub add def
+        /culprit /nm load def
+        count before sub { look } repeat
+      } if
+      count before gt { count before sub { pop } repeat } if
+      countdictstack dbefore gt { countdictstack dbefore sub { end } repeat } if
+    } ifelse
+  }{ pop } ifelse
+} forall
+
+(\nCHECKED ) print checked 20 string cvs print
+( RETURNED ) print returned 20 string cvs print
+( FAILED ) print failed 20 string cvs print (\n) print
+failed 0 eq { (SUCCESS) = }{ (FAILURES) = } ifelse
+quit

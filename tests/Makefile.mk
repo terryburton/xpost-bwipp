@@ -41,6 +41,12 @@ tests/machinery_diverted_test.ps \
 tests/check-machinery-reachable.sh \
 tests/machinery_reachable.golden \
 tests/machinery_reachable_test.ps \
+tests/check-no-machinery-returned.sh \
+tests/no_machinery_returned_test.ps \
+tests/check-plrm-entitlements.sh \
+tests/plrm_entitlements_test.ps \
+tests/check-reach-survives-restore.sh \
+tests/reach_survives_restore_test.ps \
 tests/check-vm-forbidden.sh \
 tests/vm_forbidden.golden \
 tests/vm_forbidden_test.ps \

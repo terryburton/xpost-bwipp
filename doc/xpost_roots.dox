@@ -118,8 +118,10 @@
  * dictionary may not hold. @c .xpostsys is recorded in the context, which
  * roots it directly and gives C a route to it. @c .internaldict is global and
  * is reached through the references frozen into procedure bodies, and through
- * the @c internaldict operator, whose own procedure holds one such reference.
- * Both namespaces drop their @c userdict anchor when they are sealed.
+ * those alone: the @c internaldict operator answers with a different
+ * dictionary, @c .plrminternaldict, which holds nothing, so the password PLRM
+ * 8 publishes opens nothing the machinery uses. All three drop their
+ * @c userdict anchor when they are sealed.
  * @ref xpost_dicts is the whole of that layout.
  *
  * <b>Names.</b> @c addname interns into the bank the allocation mode selects, so

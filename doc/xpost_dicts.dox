@@ -210,7 +210,8 @@
  * | Dictionary | VM | Lifecycle | Sealed | Reached by / holds |
  * |---|---|---|---|---|
  * | `.xpostsys` | global | static (+ `.resources` persistent) | read-only + anchor dropped | the single private helper namespace. Reached by run-time `//.xpostsys /.h get exec` (the mutually-recursive path/clip/image/graphics family + interpreter control `.finalize`/`.loadgraphics`/`.startdevice`/`.loadmodule`/`.devicemakers`) and by baking `.xpostsys begin ... //.h exec` (the colour/shading/pattern/halftone/font-CID families) |
- * | `.internaldict` | global | static | read-only + anchor dropped | `1183615869 internaldict` or a frozen `//`; the C operators relocated out of `systemdict`; the internal flags `QUIET`/`USEDRAWLINE`/`GRAPHICS_LOADED`/`GRAPHICS_LOAD_STOPPED`/`GRAPHICS_LOAD_DEPTH`/`LOCKDOWN_DONE`/`LOCKDOWN_STOPPED`/`LOCKDOWN_DEPTH`; the `.=stringproc` anchor; the machinery rasterisers (`.fillpoly` ...) |
+ * | `.internaldict` | global | static | read-only + anchor dropped | a frozen `//.internaldict` and nothing else; the C operators relocated out of `systemdict`; the internal flags `QUIET`/`CENSUS`/`USEDRAWLINE`/`GRAPHICS_LOADED`/`GRAPHICS_LOAD_STOPPED`/`GRAPHICS_LOAD_DEPTH`/`LOCKDOWN_DONE`/`LOCKDOWN_STOPPED`/`LOCKDOWN_DEPTH`; the `.=stringproc` anchor; the machinery rasterisers (`.fillpoly` ...) |
+ * | `.plrminternaldict` | global | static | anchor dropped | what `1183615869 internaldict` answers with, and **not** the dictionary above. Holds nothing. See @ref dicts_password |
  * | `.xpostsys /.resources` | global | persistent | (member, writable) | the resource instance table; `defineresource` writes it; global-persistent per PLRM. A shallow read-only seal of `.xpostsys` correctly leaves this member writable |
  * | `.xpostsys /.hostdict` | global | per-run settled | (member, writable) | **what this run settled, and nothing else** -- see below. Writable for the same reason `.resources` is: the seal is shallow |
  *
@@ -254,11 +255,51 @@
  * reference to it, and a global object may not reference a local one; local
  * machinery lives in `privatedict` instead. The seal is read-only (shallow) plus
  * dropping the userdict anchor, so a program can neither reach, enumerate, nor
- * overwrite the namespace; the frozen references keep it working. Reads are not
- * fully prevented (a determined program can extract a reference by decompiling a
- * readable `systemdict` procedure), which is accepted: it is self-harm under
- * per-job isolation, and closing it would need `executeonly` everywhere,
- * non-standard and breaking the `1183615869 internaldict` path.
+ * overwrite the namespace; the frozen references keep it working.
+ *
+ * Reading is closed too, and by the means this document once recorded as
+ * impossible. Every procedure body stored under a name in a machinery
+ * namespace is made execute-only at the lockdown -- 326 of the 414 members of
+ * `.xpostsys`; the rest are data, which stays readable because the machinery
+ * reads it. Nothing in either namespace is writable. The objection recorded
+ * here was that `executeonly` everywhere would break the
+ * `1183615869 internaldict` path; that path no longer runs through the
+ * machinery's dictionary at all, which is what made the rest of it possible.
+ * See @ref dicts_password.
+ *
+ * @subsection dicts_password What the password opens, and what it does not
+ *
+ * PLRM 8 says three things about `internaldict`, and they are the whole of
+ * what a program may expect: its contents are undocumented and change at any
+ * time; it is to be referenced only in special circumstances, such as
+ * constructing a Type 1 font program; and some interpreters do not have the
+ * operator at all. None of that entitles a program to a member.
+ *
+ * The password is nevertheless published, so a dictionary it opens is a root
+ * of the object graph every program holds. For most of this tree's life that
+ * root **was** `.internaldict` -- the machinery's own working dictionary, the
+ * one its bodies bake in with `//.internaldict`. Every operator the machinery
+ * needed was therefore published, because it needed it, and the lockdown's
+ * relocation sweep kept adding to the pile: each name taken out of
+ * `systemdict` for tidiness arrived somewhere a program could still call it.
+ * MEASURED, before the split: 137 entry points, among them three that
+ * installed machinery state and one that answered with the live graphics
+ * state, whose `currgstate` a program could write and whose device slot
+ * decides where the marks go.
+ *
+ * The two uses are now separate objects. `internaldict` answers with
+ * `.plrminternaldict`, which holds nothing. The machinery keeps
+ * `.internaldict` and reaches it as it always did, through the reference
+ * frozen into the bodies that use it -- the password was never the
+ * machinery's route, which is why taking it away costs the machinery nothing.
+ *
+ * A run started to take a census of itself is answered with the machinery's
+ * dictionary instead, because the registers and the suites that read them
+ * have to be able to ask what a shipped run refuses to be asked. Such a run
+ * boots to a different language, so it reads and writes a virtual-memory
+ * image named apart from the ordinary one: MEASURED, before the name told
+ * them apart, a census run wrote an image and the next plain run booted from
+ * it holding every entry point the census had kept.
  *
  * @subsection dicts_moves What the lockdown still moves, and why each has to stay
  *
@@ -365,4 +406,69 @@
  *    is the bug fixed for the device classes and `statusdict`/`serverdict`. Note
  *    `readonly` is shallow (per PLRM, per-object for arrays/strings, shared for
  *    dicts, never recursive), so sealing a container does not lock its members.
+ *
+ * @section dicts_invariants What is claimed, and what holds each claim
+ *
+ * None of the above is worth anything unless something fails when it stops
+ * being true. Each condition below names the gate that holds it. A condition
+ * with no gate is written here as having none, because a claim nobody checks
+ * is the shape every defect in this area has taken: the object was sealed and
+ * the path to it was not; the register was clean and it counted the wrong
+ * thing; the guard printed FAIL and exited 0.
+ *
+ * **Reachability.** No machinery object is reachable from any root a program
+ * holds -- `systemdict`, `userdict`, `globaldict`, the published password,
+ * the execution stack, `$error`, the resource machinery.
+ * `check-machinery-reachable` holds this, as four ratchets: what is callable
+ * with no password at all, the same in a run started `--no-sandbox`, what
+ * stands behind the password, and every name `systemdict` holds that PLRM 8.2
+ * does not define. The last exists because the first two select on the
+ * leading dot the machinery is spelled with, and a machinery name spelled
+ * without one is exactly what they cannot see: `graphicsdict` and `DEVICE`
+ * were both spelled without.
+ *
+ * **What an entry point answers with.** Counting the names a program can
+ * reach says nothing about what calling one hands over.
+ * `check-no-machinery-returned` calls every operator `systemdict` holds with
+ * an empty operand stack and examines what is left. It exists because
+ * `.privatedict` was a single counted name whose call returned thirty-nine
+ * members naming every device maker and every device class in the build.
+ *
+ * **Access.** Every procedure body stored under a name in a machinery
+ * namespace is bound and execute-only; nested bodies keep the read-only that
+ * `bind` leaves them (PLRM 8.2); machinery data stays readable to the
+ * machinery; nothing in either namespace is writable. The `bodies` ratchet in
+ * `vm_forbidden.golden` holds the first -- a body turning readable raises it
+ * -- and the `global`/`local`/`frozen` pairs hold the rest.
+ *
+ * **Substitution.** No entry point installs machinery state, and the
+ * machinery cannot be made to run a program's own code where it drives a
+ * device. `check-machinery-diverted` holds this by planting a procedure
+ * everywhere a program can reach and counting the places that ran it.
+ *
+ * **Persistence.** A save and its restore do not hand back what a program
+ * could not otherwise reach. `check-reach-survives-restore` holds this. The
+ * lockdown runs before any save a program can take, so a restore has no
+ * earlier state to put back -- but that is reasoning, and the record of the
+ * private dictionary is context state rather than virtual memory precisely
+ * because the same reasoning was once wrong.
+ *
+ * **The image.** A run cannot boot into a more permissive language than it
+ * asked for. The census flag is part of the virtual-memory image's name, so
+ * the two kinds of run never read each other's. MEASURED before it was: a
+ * census run wrote an image and the next plain run booted from it holding
+ * every entry point the census had kept.
+ *
+ * **The counterweight.** Everything the specification entitles a program to
+ * is still there. `check-plrm-entitlements` holds this, and it is the only
+ * gate here that fails when the interpreter has been closed *too far*: every
+ * other register in this area improves by taking something away, and a tree
+ * hardened until it refused its own users would pass all of them.
+ *
+ * **What has no gate.** The job boundary is not asked the question the save
+ * and restore gate asks. The four entry points a `--no-sandbox` run keeps in
+ * `systemdict` are counted but not individually justified. And PLRM 8 states
+ * that the internal dictionary is writeable, where the one this interpreter
+ * answers with is read-only; that deviation is recorded in COMPLIANCE and
+ * nothing enforces it either way.
  */

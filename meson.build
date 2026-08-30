@@ -6144,6 +6144,37 @@ test('check-machinery-reachable',
   suite: cost_fast,
   timeout: 240)
 
+# Reachable, callable, and asked what it ANSWERS with. The register above
+# counts the entry points a program can name but never calls one, so it
+# cannot see what a call hands back -- .privatedict was a single counted
+# name whose call returned every device maker and class this build has.
+test('check-no-machinery-returned',
+  find_program('tests/check-no-machinery-returned.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
+
+# And that none of it comes back inside a save. The lockdown runs before any
+# save a program can take, so a restore has no earlier state to put back --
+# which is the reasoning, and this is the test of it.
+test('check-reach-survives-restore',
+  find_program('tests/check-reach-survives-restore.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
+
+# The counterweight. Every register above improves by taking something away,
+# and none of them notices when something a program is entitled to goes with
+# it; a tree hardened until it refused its own users would pass them all.
+test('check-plrm-entitlements',
+  find_program('tests/check-plrm-entitlements.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
+
 # What a program can make the machinery RUN, asked the way a program
 # would ask it: plant a procedure of its own everywhere it can reach and
 # write, drive the machinery, and count the places that ran it. The

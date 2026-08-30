@@ -1,0 +1,83 @@
+%!PS
+% Everything the specification entitles a program to is still there.
+%
+% This is the counterweight to the reachability registers. Those count what a
+% program must NOT reach, and every one of them improves by taking something
+% away; nothing in them notices when something a program is entitled to goes
+% with it. A tree hardened against its own tests would pass all of them.
+%
+% So this asks the opposite question, and it fails when the interpreter has
+% been closed too far rather than not far enough.
+
+% COLLECTION: the one reading of virtual memory here is `vmstatus`, and what
+% it answers is discarded -- the case asserts only that the operator answers
+% at all, which is what a program is entitled to. No number is compared, so
+% nothing here depends on whether the collector ran between two of them.
+
+/fails 0 def
+/ck { exch not { (FAIL: ) print print (\n) print /fails fails 1 add def }
+             { pop } ifelse } bind def
+/works { % proc string . -
+  % The message is put out of the way rather than left on the stack: a case
+  % that takes more operands than it was given eats what is under it, and
+  % what is under it would be the message.
+  /msg exch def
+  count 1 sub /n exch def
+  stopped
+  /v exch def
+  count n sub dup 0 gt { { pop } repeat }{ pop } ifelse
+  v not msg ck
+} bind def
+
+% ---- the dictionary stack the language is defined on (PLRM 3.3.9) ----
+countdictstack 3 ge (the dict stack holds at least the three public dictionaries) ck
+userdict type /dicttype eq (userdict is a dictionary) ck
+globaldict type /dicttype eq (globaldict is a dictionary) ck
+systemdict type /dicttype eq (systemdict is a dictionary) ck
+
+% ---- the program's own workspace is writable (PLRM 3.3.9) ----
+userdict wcheck (userdict is writable) ck
+{ /myname 42 def myname 42 eq not { (x) cvx exec } if } (a program may define and read back a name) works
+currentglobal true setglobal
+globaldict wcheck (globaldict is writable) ck
+setglobal
+
+% ---- errors: a program installs its own handlers (PLRM 3.11) ----
+errordict type /dicttype eq (errordict is a dictionary) ck
+errordict rcheck (errordict is readable) ck
+{ errordict /undefined errordict /undefined get put } (a program may write a handler into errordict) works
+$error type /dicttype eq ($error is a dictionary) ck
+$error rcheck ($error is readable) ck
+
+% ---- fonts (PLRM 5.2) ----
+FontDirectory type /dicttype eq (FontDirectory is a dictionary) ck
+FontDirectory rcheck (FontDirectory is readable) ck
+
+% ---- resources (PLRM 3.9) ----
+{ /Times-Roman /Font resourcestatus { pop pop } if } (resourcestatus answers for a standard category) works
+{ /Font /Category findresource pop } (a standard category is findable) works
+
+% ---- the internal dictionary, on the terms PLRM 8 gives it ----
+{ 1183615869 internaldict type /dicttype eq not { (x) cvx exec } if }
+  (internaldict answers its password with a dictionary) works
+{ 1 internaldict } stopped
+  { $error /errorname get /invalidaccess eq }{ pop false } ifelse
+  (a wrong password raises invalidaccess) ck
+
+% ---- colour rendering: a program may read the dictionary it is given ----
+{ currentcolorrendering type /dicttype eq not { (x) cvx exec } if }
+  (currentcolorrendering answers with a dictionary) works
+currentcolorrendering rcheck (and it is readable) ck
+{ currentcolorrendering /EncodeABC get 0 get rcheck not { (x) cvx exec } if }
+  (and its procedures are readable) works
+
+% ---- the memory model (PLRM 3.7) ----
+{ save restore } (save and restore work) works
+{ vmstatus pop pop pop } (vmstatus answers) works
+
+% ---- and the interpreter still draws ----
+{ newpath 0 0 moveto 10 10 lineto stroke } (a program may still paint) works
+
+(\nFAILED ) print fails 20 string cvs print (\n) print
+fails 0 eq { (SUCCESS) = }{ (FAILURES) = } ifelse
+quit

@@ -1,0 +1,80 @@
+%!PS
+% What a program cannot reach, it cannot reach by bracketing the attempt in
+% save and restore either.
+%
+% The lockdown runs at boot, before any save a program can take, so a restore
+% has no earlier state to put back and nothing here should move. That is the
+% reasoning; this is the test of it, because the reasoning has been wrong
+% before -- the record of the private dictionary is context state rather than
+% virtual memory for exactly this reason, and nothing but a test says which
+% of the two any given thing is.
+%
+% Every verdict is carried out of the save on the operand stack. A counter
+% lives in local memory, which the restore reverts, so a failure recorded
+% inside a save is erased before it can be printed and the suite reports
+% SUCCESS with the failing assertion already forgotten.
+
+/fails 0 def
+/ck {                   % bool string  .  -
+  exch not { (FAIL: ) print print (\n) print /fails fails 1 add def }
+         { pop } ifelse
+} bind def
+/hidden {               % -  .  bool
+  /graphicsdict where not
+  systemdict /.privatedict known not and
+  systemdict /.gscratch known not and
+  systemdict /DEVICE known not and
+  1183615869 internaldict length 0 eq and
+} bind def
+
+% ---- before any save ----
+hidden (the machinery is out of reach to begin with) ck
+
+% ---- inside one ----
+save hidden exch restore (and inside a save) ck
+
+% ---- after the restore ----
+hidden (and after the restore) ck
+
+% ---- inside a nested pair ----
+save save hidden exch restore exch restore (and inside a nested save) ck
+hidden (and after both restores) ck
+
+% ---- a write attempted inside a save does not survive it ----
+% systemdict is sealed, so the attempt is refused rather than reverted; what
+% is asked is that the refusal holds on both sides of the restore and that
+% the name has not arrived by way of the save.
+% A refused operator leaves its operands where its caller pushed them
+% (PLRM 3.11.1), so the depth is put back before the verdict is taken.
+save
+  count /n exch def
+  { systemdict /graphicsdict 3 dict put } stopped
+  /v exch def
+  count n sub { pop } repeat
+  v
+exch restore
+(a write into systemdict inside a save is refused) ck
+hidden (and systemdict did not acquire the name) ck
+
+% ---- the same for the dictionary the password opens ----
+save
+  count /n exch def
+  { 1183615869 internaldict /.mine 1 put } stopped
+  /v exch def
+  count n sub { pop } repeat
+  v
+exch restore
+(a write into internaldict is refused) ck
+1183615869 internaldict length 0 eq (and it still holds nothing) ck
+
+% ---- and a restore does not reopen what the lockdown closed ----
+save
+  systemdict wcheck not
+  1183615869 internaldict wcheck not and
+  exch restore
+(nothing reopened inside the save) ck
+systemdict wcheck not (systemdict is still sealed) ck
+
+(\nFAILED ) print fails 20 string cvs print (\n) print
+fails 0 eq { (SUCCESS) = }{ (FAILURES) = } ifelse
+quit
