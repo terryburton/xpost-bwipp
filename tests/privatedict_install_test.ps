@@ -13,21 +13,31 @@
 %
 % It is recorded once. The record is context state, not virtual memory:
 % no `restore` puts back a dictionary displaced from it, so a second
-% install stands for the rest of the run.
+% install stands for the rest of the run. Both are held in C, and the
+% operator holding them is out of a program's reach entirely.
 
 
-/setpd 1183615869 internaldict /.setprivatedict get def
-
-% proc label  .  -   the proc must raise invalidaccess. A refused
-% operator leaves its operands where its caller pushed them
-% (PLRM 3.11.1), so the depth is put back before the verdict is taken.
-
-% --- a dictionary already recorded is not displaced ---
-{ 64 dict setpd } /invalidaccess (a second private dictionary is refused) raises
-
-% --- nor by one made where the machinery cannot write ---
-currentglobal true setglobal /gd 64 dict def setglobal
-{ gd setpd } /invalidaccess (a global private dictionary is refused) raises
+% --- and the operator that records it is not a program's to call ---
+% Both properties above are established in C: the operator refuses a
+% second install, and refuses a dictionary made where the machinery
+% cannot write. Neither refusal is exercised from here, because the
+% operator is not reachable from a program at all -- the lockdown leaves
+% it in no dictionary, the way it already leaves the job store's
+% accessor. That is the stronger property and it is the one asked for
+% here. A program able to call it installs a private dictionary of its
+% own, and the machinery reads that one for the rest of the job.
+%
+% internaldict is the root to ask, not systemdict: the password is
+% published (PLRM 8), so a name moved into internaldict is as callable
+% as one left in systemdict, and only absence from both is absence.
+1183615869 internaldict /.setprivatedict known not
+  (the operator recording the private dictionary is unreachable) assert
+1183615869 internaldict /.setgraphicsdict known not
+  (as is the one recording the graphics state) assert
+1183615869 internaldict /.setjobstore known not
+  (as is the one recording the job store) assert
+1183615869 internaldict /.graphicsdictroot known not
+  (and no operator answers with the graphics state by name) assert
 
 % --- the refusal is of the install, not of every dictionary: the one
 % the interpreter recorded at startup is still the one in hand ---
@@ -81,19 +91,22 @@ currentglobal true setglobal /gd 64 dict def setglobal
 { newpath 100 100 moveto 200 100 lineto 200 200 lineto closepath
   0.5 setgray fill } (a page still paints through the recorded dictionary) works
 
-% --- a restore does not hand the record back to be set again ---
-% the verdict is carried out of the save on the operand stack: the
-% failure count lives in local memory, which the restore reverts
+% --- a restore does not hand the operator back either ---
+% The record is context state and not virtual memory, so no restore puts
+% back a dictionary displaced from it; that is held in C. What is asked
+% here is the reachability question the same bracket would answer: the
+% lockdown took the name out of internaldict, and a program must not get
+% the operator returned to it merely by wrapping the attempt in save and
+% restore. The verdict is carried out of the save on the operand stack,
+% because a name defined inside it lives in local memory, which the
+% restore reverts.
 save
-count /nsave exch def
-{ 64 dict setpd } stopped
-  { $error /errorname get /invalidaccess eq }
-  { false } ifelse
+1183615869 internaldict /.setprivatedict known not
 /verdict exch def
-count nsave sub { pop } repeat
 verdict exch restore
-(a second install is refused inside a save too) assert
-{ 64 dict setpd } /invalidaccess (and after the restore) raises
+(the operator does not come back inside a save) assert
+1183615869 internaldict /.setprivatedict known not
+  (nor after the restore) assert
 
 verdict
 quit

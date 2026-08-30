@@ -27,6 +27,18 @@
 # separator is therefore passed as the character and not as an escape.
 # The trailing period holds it through the substitution, which strips
 # newlines and would otherwise be free to strip anything else.
+# Every guard here asks the interpreter about its own machinery, which a
+# shipped run does not answer: PLRM 8 entitles a program to nothing in
+# internaldict, so what the password opens holds nothing and the machinery
+# keeps its own dictionary out of reach. A run that says it is taking a
+# census is answered with the machinery's instead. Said once here, as it is
+# said once in verdict.sh for the wrappers, so that a guard written later is
+# not answered with the empty one and left reporting a moved member as a
+# missing one. The one guard that must NOT take a census unsets it itself.
+XPOST_CENSUS=1
+export XPOST_CENSUS
+
+
 guard_tab=$(printf '\t.'); guard_tab=${guard_tab%.}
 
 guard_require_dir() {

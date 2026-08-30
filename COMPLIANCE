@@ -279,6 +279,16 @@ Typical output devices
 Known behavioural deviations
 ----------------------------
 
+ internaldict answers with a dictionary holding nothing, and that dictionary
+ is read-only where PLRM 8 says the internal dictionary is writeable. PLRM 8
+ documents no member of it, says its contents change at any time, and says
+ the operator is absent from some interpreters, so nothing here is a member
+ a program was entitled to; the machinery's own dictionary is a separate
+ object that the password does not open. The one use the specification
+ sanctions is constructing a Type 1 font program, which reaches the
+ interpreter's procedures through OtherSubrs; no such program has been
+ exercised against this interpreter.
+
  [X] restore  a save object is not invalidated by the restore that uses it,
      where a snapshot is defined to be usable once: restore is defined to
      invalidate its operand and every save object made after it, so a second
@@ -417,9 +427,10 @@ Implementation limits
  collector next runs, so what the limit counts is composites held at once,
  not composites made. Not all of them are the program's own: a gsave and its
  grestore spend about four numbers between them, released like any other
- garbage, where a save and its restore spend none. `1183615869 internaldict
- /.vmentcount get exec` reports how many numbers each of local and global VM
- has handed out.
+ garbage, where a save and its restore spend none. How many numbers each of
+ local and global VM has handed out is counted, but not through any route a
+ program has: the operator reporting it is machinery, and a run is answered
+ with it only when it was started to take a census of itself.
 
  A process holds up to 128 execution contexts at once, the same in both
  builds. PLRM leaves the count

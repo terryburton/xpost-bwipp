@@ -920,7 +920,7 @@ startup_surface_api_exe = executable('startup_surface_api_test',
 test('startup-surface-api',
   startup_surface_api_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_CENSUS': '1', 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
 # Embedding contract: run-status outcomes and error identity across a
 # persistent context.
@@ -1120,7 +1120,7 @@ wrapsave_context_exe = executable('wrapsave_context_test',
 test('wrapsave-context',
   wrapsave_context_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_CENSUS': '1', 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
 # The same embedding runs with the collector set to collect constantly. What
 # the interpreter holds outside the collector's root set survives by luck at
@@ -1603,7 +1603,8 @@ startup_device_exe = executable('startup_device_test',
 test('startup-device',
   startup_device_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 # Embedding contract: a context serves job after job under either
 # snapshot setting. Every other test that reuses a context turns
@@ -2465,7 +2466,8 @@ font_face_error_exe = executable('font_face_error_test',
   install: false)
 test('font-face-error', font_face_error_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 # The faces findfont holds against the names asked for belong to the font
 # library, which goes down with the module: a cache outliving the teardown
@@ -2529,7 +2531,8 @@ if xcb_dep.found() and xvfb_run.found()
     args: [ '-a', xpost_exe, '-q', '--no-sandbox', '-d', 'xcb',
             '-g', '60x30+0+0', files('tests/window_getpix_test.ps') ],
     suite: cost_fast,
-    env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+    env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+            'XPOST_CENSUS': '1' },
     timeout: 120)
 
   test('window-device', xvfb_run,
@@ -6466,7 +6469,8 @@ if host_machine.system() == 'linux'
     install: false)
   test('record-cost', record_cost_exe, suite: cost_fast + ['memacct'],
     env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
-          'XPOST_UNSEALED_DEVICES': '1' })
+          'XPOST_UNSEALED_DEVICES': '1',
+          'XPOST_CENSUS': '1' })
 endif
 
 # Where a record puts what it need not hold, and what happens when the
@@ -6539,7 +6543,8 @@ raster_buffer_format_exe = executable('raster_buffer_format_test',
 test('raster-buffer-format',
   raster_buffer_format_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 # The same page, painted by a device that hands its raster to an
 # embedder and by one that writes a file, held to each other pixel for
@@ -6558,7 +6563,8 @@ raster_reference_exe = executable('raster_reference_test',
 test('raster-reference',
   raster_reference_exe,
   suite: cost_fast,
-  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data',
+          'XPOST_CENSUS': '1' })
 
 # The lifetime of that buffer rather than its arrangement, asked of every
 # device that can hand one over rather than of one device at a time: the

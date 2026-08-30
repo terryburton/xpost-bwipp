@@ -1533,9 +1533,17 @@ static int _cache_dir(char *buf, size_t len)
 /* The name an image of this language goes under. */
 static int _image_name(char *buf, size_t len)
 {
-    int n = snprintf(buf, len, "xpost-%u-%02x.vmimg",
+    /* The census run is named apart. It keeps the entry points that
+       report on the interpreter, which a run that did not ask for them
+       leaves in no dictionary at all, so the two boot to different
+       languages and must not read each other's image. MEASURED, before
+       the name told them apart: a census run wrote an image and the next
+       plain run booted from it holding every entry point the census had
+       kept, with nothing in that run to say where they came from. */
+    int n = snprintf(buf, len, "xpost-%u-%02x%s.vmimg",
                      (unsigned int)sizeof(Xpost_Object),
-                     xpost_vm_image_config());
+                     xpost_vm_image_config(),
+                     getenv("XPOST_CENSUS") ? "-census" : "");
 
     return !(n < 0 || (size_t)n >= len);
 }

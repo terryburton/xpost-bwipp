@@ -21,7 +21,7 @@ golden="$src/tests/machinery_diverted.golden"
 guard_require_file "$golden" "the register of what diverts the machinery"
 guard_require_file "$src/tests/machinery_diverted_test.ps" "the suite"
 
-out=$(XPOST_DATA_DIR="$src/data" "$xpost" -q -d pgm -o /dev/null \
+out=$(XPOST_DATA_DIR="$src/data" XPOST_CENSUS=1 "$xpost" -q -d pgm -o /dev/null \
         "$src/tests/machinery_diverted_test.ps" </dev/null 2>/dev/null)
 status=$?
 if [ "$status" -ne 0 ]; then

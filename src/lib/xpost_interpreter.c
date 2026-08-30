@@ -3060,7 +3060,10 @@ XPOST_TEST_VISIBLE void xpost_interpreter_data_dir(char *datadir,
    Only a quiet run reads or writes one. The boot files narrate their own
    loading, and a run that reads an image does no loading to narrate; the
    flag that silences that narration is itself part of what an image
-   carries, so an image and the run reading it must agree about it. */
+   carries, so an image and the run reading it must agree about it. The
+   census flag is part of what an image carries for the same reason -- it
+   decides which entry points the lockdown keeps -- so it is named into
+   the file, and the two kinds of run never read each other's. */
 static const char *_image_read_path(int quiet, const char *datadir)
 {
     static char found[XPOST_PATH_MAX];
@@ -3093,7 +3096,16 @@ static const char *_image_write_path(const char *datadir)
        Writing that run's memory would leave every later run on the
        machine booting from an image whose devices were never closed --
        the seal gone, and nothing in the later run to say so. The
-       instrumented run boots the long way and leaves the cache alone. */
+       instrumented run boots the long way and leaves the cache alone.
+
+       The census run is the same case for the same reason: it keeps the
+       entry points that report on the interpreter, which a run that did
+       not ask for them leaves in no dictionary at all. An image written
+       from it would hand those entry points to every later run on the
+       machine, with nothing in the later run to say where they came
+       from. The census run is not stopped from writing one, though --
+       it is given a file of its own, named apart in _image_name, so the
+       saving still belongs to whoever runs the tests. */
     if (getenv("XPOST_UNSEALED_DEVICES"))
         return NULL;
     return xpost_vm_image_default_path(chosen, sizeof(chosen), datadir, 1)
@@ -3867,6 +3879,26 @@ XPAPI Xpost_Context *xpost_create(const char *device,
         if (ret)
         {
             XPOST_LOG_ERR("%s naming QUIET in systemdict", errorname[ret]);
+            xpost_interpreter_set_initializing(0);
+            return NULL;
+        }
+    }
+
+    /* And the census flag, handed in the same way and for the same reason.
+       The registers and the tests that take them ask the interpreter to
+       report on itself -- how many names were looked up, what a walk cost,
+       how many entries a bank holds -- and no boot file names any of it. The
+       lockdown keeps those entry points only where this says they were asked
+       for; a run that did not ask leaves them in no dictionary at all, which
+       is where a detail a program has no use for belongs. */
+    if (getenv("XPOST_CENSUS"))
+    {
+        ret = xpost_dict_put(ctx, sd,
+                             xpost_name_cons(ctx, "CENSUS"),
+                             xpost_bool_cons(1));
+        if (ret)
+        {
+            XPOST_LOG_ERR("%s naming CENSUS in systemdict", errorname[ret]);
             xpost_interpreter_set_initializing(0);
             return NULL;
         }

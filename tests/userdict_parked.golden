@@ -10,9 +10,10 @@
 # binding used to be parked there and now live with the graphics
 # machinery and the device; these are what remain:
 #
-#   the bootstrap        init.ps builds .xpostsys and .internaldict in
-#                        userdict because nothing else exists yet, and
-#                        the lockdown seals and removes them (the /exch
+#   the bootstrap        init.ps builds .xpostsys, .internaldict and
+#                        .plrminternaldict in userdict because nothing
+#                        else exists yet, and the lockdown seals and
+#                        removes them (the /exch
 #                        and //.bindscope rows are that relocation and
 #                        removal, and .gstatetemplate's move to the
 #                        private dictionary); DATA_DIR arrives as a
@@ -43,6 +44,7 @@ init.ps /DATA_DIR
 init.ps exch
 init.ps /.gstatetemplate
 init.ps /.internaldict
+init.ps /.plrminternaldict
 init.ps /quit
 init.ps /serverdict
 init.ps /statusdict

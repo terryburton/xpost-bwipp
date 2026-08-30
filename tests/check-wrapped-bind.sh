@@ -93,7 +93,7 @@ cat > "$work/probe.ps" <<'PSEOF'
 (unpromoted ) print m 20 string cvs print (\n) print
 PSEOF
 
-XPOST_DATA_DIR="$src/data" "$xpost" -q --no-sandbox -d null -o /dev/null \
+XPOST_DATA_DIR="$src/data" XPOST_CENSUS=1 "$xpost" -q --no-sandbox -d null -o /dev/null \
     "$work/probe.ps" </dev/null 2>/dev/null | tr -d "$cr" > "$work/out"
 
 n=$(sed -n 's|^promoted ||p' "$work/out" | head -1)

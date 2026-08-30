@@ -98,5 +98,15 @@ R
 1183615869 internaldict 12 W
 (MACHINERY-CALLABLE-PASSWORD ) print hits length =print ( ) print digest ==
 
+% And every name systemdict holds, for the guard to hold against the list
+% of operators the specification defines. Counting machinery by the dot it
+% is spelled with cannot see a machinery name spelled without one --
+% graphicsdict and DEVICE both were, and each answered with live machinery.
+% The names go to the guard, which prints only how many are left after the
+% subtraction; they are not published here or by it.
+(SYSTEMDICT-NAMES-BEGIN) =
+systemdict { pop dup type /nametype eq { == }{ pop } ifelse } forall
+(SYSTEMDICT-NAMES-END) =
+
 (WALKED) =
 quit

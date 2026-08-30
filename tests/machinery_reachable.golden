@@ -23,23 +23,43 @@
 # rewritten in the commit that moves it.
 #
 # nopassword -- reachable from systemdict, userdict and globaldict in a
-# sandboxed run, which is the shipped default. The two are the private
-# dictionary and the scratch dictionary, both named in systemdict because an
-# operator implemented in PostScript reaches them there.
-nopassword 2 71
+# sandboxed run, which is the shipped default. None: the private dictionary
+# and the scratch dictionary went the way of the rest, into the machinery's
+# own dictionary, which the published password no longer opens. A run taking
+# a census keeps them in systemdict, because its suites name them as they
+# stand in the sources.
+nopassword 0 0
 #
 # nosandbox -- the same walk in a run started with --no-sandbox, which keeps
 # the four file-permission entry points in systemdict that the sandbox
 # removes. A separate line because they are absent by configuration, not by
 # construction, and a register that recorded only the sandboxed run would call
-# that an absence.
-nosandbox 6 28023
+# that an absence. These four are what is left to answer for.
+nosandbox 4 27952
 #
 # password -- everything internaldict holds, counted whole rather than by the
 # dot the tree marks machinery with, because a machinery name carrying no dot
-# is exactly the one a census keyed on dots would not see. This number is the
-# work: it is the population that is reachable today and should not be, and
-# nothing about the shape of the object graph brings it down. Only removing an
-# entry point, or refusing it in a shipped run the way the census operators
-# already refuse, moves it.
-password 141 4857
+# is exactly the one a census keyed on dots would not see. None: what the
+# operator answers with is a dictionary of its own that holds nothing, and the
+# machinery's is a separate object reached only through the reference frozen
+# into the bodies that use it.
+password 0 0
+#
+# nonplrm -- names systemdict holds that PLRM 8.2 does not define, counted by
+# subtracting tests/plrm-operators. This is the line that sees what the others
+# cannot: the two counts above key on the leading dot, and a machinery name
+# spelled without one is exactly what a dot-keyed census does not see.
+# graphicsdict and DEVICE were both spelled without, and each answered with
+# live machinery -- the graphics state, whose currgstate a program could
+# write and whose device slot decides where the marks go, and the device
+# instance itself. Both are swept now; a run taking a census keeps them,
+# because its suites name them as the sources do.
+#
+# What is left are names the language has by convention rather than by the
+# specification: the page sizes, the custom-colour and separation calls, the
+# overprint and raster-operation pairs, the distiller parameters and pdfmark,
+# the print shorthands, getenv and putenv, the error names, and the seven
+# device loaders. Each is reachable in one token, which is right for a name a
+# program is meant to call and wrong for anything else, so the count is a
+# ratchet like the rest: it may fall and it may not rise.
+nonplrm 43 4066334446

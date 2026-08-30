@@ -400,6 +400,30 @@ setglobal
 %  ones that stop graphics loading before the relocation pass is reached.
 %
 userdict /.internaldict 256 dict put
+
+%  ...and the dictionary the PLRM operator answers with, which is NOT that
+%  one. PLRM 8 says what a program may expect of internaldict: that its
+%  contents are undocumented and change at any time, that it is referenced
+%  only in special circumstances such as constructing a Type 1 font program,
+%  and that some interpreters do not have the operator at all. None of that
+%  entitles a program to a member, and holding the machinery's own working
+%  dictionary there published every operator the machinery happened to need.
+%  The machinery keeps its own, reached only through the //.internaldict
+%  reference frozen into the bodies that use it.
+%  A run asked to report on the interpreter is handed the machinery's own
+%  dictionary here: its registers and tests ask for entry points a run has
+%  no other use for, and the flag saying so arrives in systemdict from the
+%  C before this file runs. Any other run is handed a dictionary holding
+%  nothing, which is the whole of what PLRM 8 entitles a program to.
+userdict /.plrminternaldict 8 dict put
+systemdict /CENSUS known
+    { userdict /.plrminternaldict userdict /.internaldict get put
+      %  and out of systemdict at once: it is a fact about how the run was
+      %  started, not a name the language has, and a program reading it
+      %  would learn only that it is being measured. It is kept in the
+      %  machinery's own dictionary, where the lockdown reads it again.
+      userdict /.internaldict get /CENSUS true put
+      systemdict /CENSUS undef } if
 [ /.fillpoly /.fillrectgray /.fillrectrgb /.blendpixgray /.blendpixrgb
   /.pdfinit /.pdfput /.flatecompress /.vmreserve /.rundied ]
 { dup systemdict exch get .internaldict 3 1 roll put } forall
@@ -409,7 +433,7 @@ userdict /.internaldict 256 dict put
 %  operators; the password is part of the language folklore.
 %
 /internaldict [ /integertype ] {  % int  .  dict
-    1183615869 eq { //.internaldict }{
+    1183615869 eq { //.plrminternaldict }{
         /internaldict cvx /invalidaccess signalerror
     } ifelse
 } .defop
@@ -3771,13 +3795,33 @@ currentglobal true setglobal
             [ systemdict {
                     exch dup type /nametype eq
                     { dup 60 string cvs 0 get 46 eq
+                      % graphicsdict and DEVICE carry no dot and are not
+                      % the language's: PLRM names neither, and each
+                      % answers with live machinery -- the graphics state,
+                      % whose currgstate a program may WRITE and whose
+                      % device slot decides what the marks go to, and the
+                      % device instance itself. A census keyed on the dot
+                      % is exactly what would not see them, which is why
+                      % they are named here rather than derived.
+                      1 index /graphicsdict eq or
+                      1 index /DEVICE eq or
                       1 index //.isclassname exec not and
                       1 index /.lockdown ne and
                       1 index /.permitfileread ne and
                       1 index /.permitfilewrite ne and
                       1 index /.resourcefileopen ne and
-                      1 index /.gscratch ne and
-                      1 index /.privatedict ne and
+                      % These two answer with the machinery's own
+                      % dictionaries, so they belong out of systemdict with
+                      % the rest. They are kept there only for a run taking
+                      % a census, whose suites name them as they stand in
+                      % the sources; every other run relocates them, and
+                      % since the password no longer opens .internaldict
+                      % that puts them out of reach rather than merely out
+                      % of sight.
+                      1 index /.gscratch ne //.internaldict /CENSUS known not or and
+                      1 index /.privatedict ne //.internaldict /CENSUS known not or and
+                      1 index /graphicsdict ne //.internaldict /CENSUS known not or and
+                      1 index /DEVICE ne //.internaldict /CENSUS known not or and
                     }{ false } ifelse
                     { exch pop }{ pop pop } ifelse
                 } forall ]
@@ -3799,6 +3843,24 @@ currentglobal true setglobal
             % and are answered with names and values, never the dictionary.
             .internaldict /.jobstore known
               { .internaldict /.jobstore undef } if
+
+            % ...and the three that INSTALL machinery state. Each replaces
+            % a dictionary the machinery then reads for the rest of the job:
+            % the graphics state, the private dictionary, the job store. The
+            % lockdown and the boot files are the only callers and they have
+            % bound the operator by now, so nothing needs the name. Left
+            % where a program could reach them, a program installs its own
+            % and the machinery reads it: MEASURED, a plain program replaced
+            % the graphics state and held a writable currgstate and the
+            % device slot with it.
+            .internaldict /.setgraphicsdict known
+              { .internaldict /.setgraphicsdict undef } if
+            .internaldict /.setprivatedict known
+              { .internaldict /.setprivatedict undef } if
+            .internaldict /.setjobstore known
+              { .internaldict /.setjobstore undef } if
+            .internaldict /.graphicsdictroot known
+              { .internaldict /.graphicsdictroot undef } if
 
             % ...and .vmseal, which REDUCES access wherever it is asked.
             % The lockdown above is the only caller and it has run by now;
@@ -4065,6 +4127,14 @@ currentglobal true setglobal
             userdict /.xpostsys get readonly pop
             userdict /.internaldict undef
             userdict /.xpostsys undef
+            % The dictionary the PLRM operator answers with goes the same
+            % way: the operator holds it through the reference frozen into
+            % its own body, so the name in userdict is only a way for a
+            % program to reach it under another route.
+            % Not sealed: PLRM 8 states the internal dictionary is
+            % writeable, and a program writing into one that holds
+            % nothing the machinery reads writes into its own corner.
+            userdict /.plrminternaldict undef
 
             % The graphics state is not initialised here. It is initialised by
             % the device being installed, which is what settles the parameters

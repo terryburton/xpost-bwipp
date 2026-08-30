@@ -79,7 +79,7 @@ ID length 0 gt (internaldict has members to check) assert
 % lockdown that stopped left behind, which is the name it stopped under
 % and the dictionary-stack depth it began at. Anything else arriving
 % here would be a name that escaped its own home.
-/NONOPS << /.=stringproc true /QUIET true
+/NONOPS << /.=stringproc true /QUIET true /CENSUS true
            /GRAPHICS_LOADED true /USEDRAWLINE true
            /GRAPHICS_LOAD_STOPPED true /GRAPHICS_LOAD_DEPTH true
            /LOCKDOWN_DONE true
@@ -96,7 +96,11 @@ priv.odd 0 eq (internaldict holds only operators, the anchor and the latches) as
 priv.leaked 0 eq (no member of internaldict is also in systemdict) assert
 
 % the few private names that stay in systemdict do so because the
-% machinery names them at run time, past the reach of the binding sweep
+% machinery names them at run time, past the reach of the binding sweep.
+% The last two stay only for a run taking a census, which is what this
+% suite is: a run that is not relocates them with the rest, and since the
+% published password no longer opens the dictionary they land in, that
+% puts them out of a program's reach rather than merely out of its sight.
 [ /.lockdown /.permitfileread /.permitfilewrite /.resourcefileopen
   /.privatedict /.gscratch ]
 { dup systemdict exch known exch

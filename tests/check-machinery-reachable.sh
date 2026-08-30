@@ -33,6 +33,13 @@ guard_require_file "$walk" "the walk"
 
 guard_workdir
 
+# This guard is the one that must NOT take a census. Every other suite here
+# asks for one, so that it can reach the machinery at all; this one asks what
+# a shipped run answers, and a census run answers something else entirely.
+# Unset rather than assumed unset: the shared guard preamble exports it, and
+# a control that depends on nobody having set the variable is not a control.
+unset XPOST_CENSUS
+
 run() {  # extra-args outfile
     XPOST_DATA_DIR="$src/data" XPOST_NO_VM_IMAGE=1 \
         "$xpost" -q $1 -d null -o /dev/null "$walk" </dev/null > "$2" 2>&1
@@ -102,6 +109,42 @@ check password   MACHINERY-CALLABLE-PASSWORD   "$work/sandboxed" \
     "stand behind the password the specification publishes"
 check nosandbox  MACHINERY-CALLABLE-NOPASSWORD "$work/open" \
     "are reachable with no password in a run started --no-sandbox"
+
+# And the names systemdict holds that PLRM 8.2 does not define. Counting
+# machinery by the leading dot cannot see a machinery name spelled without
+# one: graphicsdict and DEVICE were both spelled without, and each answered
+# with live machinery -- the graphics state, whose currgstate a program
+# could write, and the device instance. The subtraction is done here rather
+# than in the walk because the list of operators the specification defines
+# is a file, and the walk has no way to read it. Only the count and a sum
+# are printed; the names themselves are not, for the reason the register
+# gives.
+awk '/^SYSTEMDICT-NAMES-BEGIN$/{f=1;next} /^SYSTEMDICT-NAMES-END$/{f=0} f' \
+    "$work/sandboxed" | sed 's|^/||' | sort -u > "$work/sdnames"
+awk -F'\t' '!/^#/ && NF>=2 && $1!="absent" {print $2}' "$src/tests/plrm-operators" \
+    | sort -u > "$work/plrm"
+comm -23 "$work/sdnames" "$work/plrm" > "$work/nonplrm"
+have_np=$(wc -l < "$work/nonplrm" | tr -d ' ')
+have_npd=$(cksum < "$work/nonplrm" | awk '{print $1}')
+want_np=$(awk '$1=="nonplrm"{print $2}' "$golden")
+want_npd=$(awk '$1=="nonplrm"{print $3}' "$golden")
+case ${have_np:-x}${want_np:-x} in
+    *[!0-9]*|'') echo "FAILURES: the non-PLRM name count is missing"; exit 1 ;;
+esac
+if [ "$have_np" -gt "$want_np" ]; then
+    echo "FAILURES: $((have_np - want_np)) more name(s) in systemdict that PLRM 8.2"
+    echo "      does not define. A name there is one a program reaches in a single"
+    echo "      token, whatever it is spelled with. If it belongs to the language,"
+    echo "      say so in the commit and write 'nonplrm $have_np $have_npd' into"
+    echo "      $(basename "$golden"); if it is machinery, sweep it."
+    exit 1
+fi
+if [ "$have_np" -lt "$want_np" ] || [ "$have_npd" != "$want_npd" ]; then
+    echo "FAILURES: the non-PLRM set moved: the register records"
+    echo "      '$want_np $want_npd' and the run answers '$have_np $have_npd'."
+    echo "      Write 'nonplrm $have_np $have_npd' into $(basename "$golden")."
+    exit 1
+fi
 
 n=$(awk '$1=="nopassword"{print $2}' "$golden")
 p=$(awk '$1=="password"{print $2}' "$golden")

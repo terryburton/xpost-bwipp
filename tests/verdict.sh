@@ -1,6 +1,24 @@
 # Sourced by the run-*.sh wrappers: reach what a run was handed, and
 # judge what it answered with.
 #
+# And say, for every one of them, that this run is taking a census.
+# A suite reaching the machinery through `1183615869 internaldict` only
+# finds it because of this. PLRM 8 entitles a program to nothing there --
+# undocumented contents, subject to change at any time, and an operator
+# some interpreters do not have at all -- so a shipped run is answered
+# with a dictionary holding nothing, and the machinery keeps its own
+# where no name reaches it. A run that says it is taking a census is
+# answered with the machinery's, which is what lets a suite ask what a
+# shipped run refuses to be asked. Said here rather than in each wrapper
+# because a wrapper added later would otherwise be answered with the
+# empty one and report a moved member as a missing one.
+#
+# It also decides which entry points the lockdown keeps, so a census run
+# boots to a different language and reads and writes an image named
+# apart from the ordinary one.
+XPOST_CENSUS=1
+export XPOST_CENSUS
+#
 # A run answers in one of two ways, and there is an entry point here for
 # each. A run that prints its own verdict is judged by verdict_ok. A run
 # that reports through its exit status, leaving the wrapper to inspect

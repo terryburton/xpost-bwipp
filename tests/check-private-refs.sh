@@ -150,9 +150,12 @@ for f in "$src"/data/*.ps; do
         | sed 's|.*//||' >> "$work/baked"
 done
 sort -u -o "$work/known" "$work/known"
-# the two namespace anchors are userdict names that exist only while the
-# language loads; the finalizer undefines them, so no dump can show them
-printf '.internaldict\n.xpostsys\n' >> "$work/known"
+# the namespace anchors are userdict names that exist only while the
+# language loads; the finalizer undefines them, so no dump can show them.
+# .plrminternaldict is the third: the dictionary the PLRM operator answers
+# with, held apart from the machinery's own so that the published password
+# (PLRM 8) opens nothing the machinery uses.
+printf '.internaldict\n.xpostsys\n.plrminternaldict\n' >> "$work/known"
 sort -u -o "$work/known" "$work/known"
 sort -u -o "$work/baked" "$work/baked"
 comm -23 "$work/baked" "$work/known" > "$work/badbaked"

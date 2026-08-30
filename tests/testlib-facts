@@ -169,7 +169,6 @@ own    path_bounds_test.ps                    2
 own    path_recycle_test.ps                   1
 own    path_walk_cost_test.ps                 1
 own    pdf_append_fail_test.ps                1
-own    privatedict_install_test.ps            1
 own    machinery_diverted_test.ps             10
 own    qsort_test.ps                          2
 own    raster_row_test.ps                     1
@@ -196,5 +195,5 @@ own    wrapsave_bank_test.ps                  1
 cannot entity_limit_test.ps                   6  its subject is the entity limit, and it exhausts virtual memory deliberately. MEASURED: converted, the framework's own definitions consume entities the suite is counting and it raises limitcheck on a string it means to allocate
 cannot startup_surface_test.ps                6  it asserts that a program's own dictionary starts empty, which is the first thing it checks and the reason it exists; a framework defined into that dictionary is exactly what it would report. MEASURED: converted, it fails on "userdict starts empty" and on nothing else
 
-owns 128
+owns 127
 cannots 2
