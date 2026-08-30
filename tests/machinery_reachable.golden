@@ -62,4 +62,9 @@ password 0 0
 # device loaders. Each is reachable in one token, which is right for a name a
 # program is meant to call and wrong for anything else, so the count is a
 # ratchet like the rest: it may fall and it may not rise.
-nonplrm 43 4066334446
+#
+# Two of them, getenv and putenv, are refused outright once the sandbox is
+# engaged, so a shipped sandboxed run answers nothing through them. They are
+# counted all the same: what is held here is what a program can name, and a
+# name that refuses today is a name that stops refusing if its guard moves.
+nonplrm 42 3884063071

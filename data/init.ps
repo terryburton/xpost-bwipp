@@ -729,12 +729,6 @@ setglobal
 /run [ /stringtype ] { (r) file cvx exec } .defop  % string  .  -
 
 %
-%  run, announcing the file first. A convenience for a person at the
-%  interactive prompt, not part of the language.
-%
-/Run { (\() print dup =print (\) run\n) print flush run } def  % string  .  -
-
-%
 % (2\n)print
 %
 .jobstore /.=string 128 string put
