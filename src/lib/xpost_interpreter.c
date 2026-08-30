@@ -4891,16 +4891,28 @@ XPAPI Xpost_Run_Status xpost_run(Xpost_Context *ctx, Xpost_Input_Type input_type
        3), rather than at the first job's boundary, which would fold that
        first job's own work into it. Each job of the stream -- the first and
        every one after a boundary -- is then primed the way a lone run is, so
-       each begins with its own start procedure and error context. Captured
-       once: the first job reaches here with no baseline, and a job that
-       alters the baseline through exitserver only replaces it. */
+       each begins with its own start procedure and error context.
+
+       Every stream is captured for, including one begun on a context that
+       already has a baseline. This used to ask whether a baseline existed
+       and take its presence to mean the stream had been primed, which are
+       different questions: a host that had called xpost_job_baseline_set --
+       the published way to fold a prelude in, and the reason to warm one --
+       answered the first and not the second, so the stream was never primed
+       and every job after the first was silently dropped, the run still
+       reporting that it had completed. The capture is also what puts this
+       run's input file inside the baseline; a baseline taken before that
+       file existed has the boundary revert the file's own entity out from
+       under the stream still reading it. Re-capturing costs nothing a
+       stream should keep: what a prelude put in virtual memory is still
+       there to be captured, and after the previous stream's last boundary
+       the bank is already at its baseline. */
     {
         Xpost_File *jf =
             xpost_object_get_type(ctx->run_input_file) == filetype
             ? xpost_file_get_file_pointer(ctx->lo, ctx->run_input_file)
             : NULL;
-        if (jf && jf->job_stream && ctx->job_snapshots
-            && (!ctx->job_baseline_lo || !ctx->job_baseline_lo->valid))
+        if (jf && jf->job_stream && ctx->job_snapshots)
         {
             if (!ctx->sysdict_load_done || !ctx->device_made)
             {

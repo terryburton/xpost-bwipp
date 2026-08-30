@@ -286,6 +286,70 @@ static void stream_cache_params(Xpost_Showpage_Semantics semantics,
     xpost_destroy(ctx);
 }
 
+/* A host that folds its prelude into the baseline before running a stream
+ * must still get every job of that stream.
+ *
+ * xpost_job_baseline_set is the published way for an embedder to say "this
+ * is the state each job begins from", and warming a cache is the reason to
+ * use it. The stream setup used to ask whether a baseline existed and take
+ * its presence to mean the stream had already been primed, which are
+ * different questions: a host that had set one answered the first and not
+ * the second, so the stream was never primed, every job after the first was
+ * dropped, and the run reported that it had completed. The baseline taken
+ * before the run's input file existed also had the first boundary revert
+ * that file's own entity out from under the stream still reading it.
+ *
+ * So: run the prelude unencapsulated, fold it in, then stream four jobs and
+ * insist all four ran -- and that the prelude reached them, which is what
+ * the host set a baseline for. */
+static void stream_after_host_baseline(Xpost_Showpage_Semantics semantics,
+                                       const char *what)
+{
+    Xpost_Context *ctx;
+    static const char prelude[] = "/preludemark 1 def";
+    static const char prog[] =
+        "userdict /preludemark known {(P1)}{(NOPRELUDE)} ifelse print flush\004"
+        "(J2)print flush\004"
+        "(J3)print flush\004"
+        "(J4)print flush";
+    Xpost_Run_Status st;
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
+                       XPOST_OUTPUT_MESSAGE_QUIET, XPOST_USE_SIZE, 100, 100);
+    if (!ctx)
+    {
+        report_failure("%s: xpost_create", what);
+        return;
+    }
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+
+    /* the prelude reaches the jobs after it, so it is not encapsulated */
+    xpost_job_snapshots_set(ctx, 0);
+    outlen = 0;
+    (void) xpost_run(ctx, XPOST_INPUT_STRING, prelude, sizeof prelude - 1);
+    xpost_job_baseline_set(ctx);
+
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_jobserver_set(ctx, 1);
+    outlen = 0;
+    st = xpost_run(ctx, XPOST_INPUT_STRING, prog, sizeof prog - 1);
+    outbuf[outlen < sizeof outbuf ? outlen : sizeof outbuf - 1] = '\0';
+
+    if (strstr(outbuf, "NOPRELUDE"))
+        report_failure("%s: the baseline the host folded its prelude into"
+                       " did not reach the stream's jobs", what);
+    if (!strstr(outbuf, "P1"))
+        report_failure("%s: the stream's first job did not run", what);
+    if (!strstr(outbuf, "J2") || !strstr(outbuf, "J3") || !strstr(outbuf, "J4"))
+        report_failure("%s: a job after the first was dropped from a stream"
+                       " begun on a host-set baseline (ran: %s)", what, outbuf);
+    if (st != XPOST_RUN_COMPLETE)
+        report_failure("%s: the stream did not report completion", what);
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     if (!xpost_init())
@@ -306,6 +370,8 @@ int main(void)
     stream_quit(XPOST_SHOWPAGE_RETURN, "quit-returning");
     param_reverts(XPOST_SHOWPAGE_NOPAUSE, "param-nopause");
     param_reverts(XPOST_SHOWPAGE_RETURN, "param-returning");
+    stream_after_host_baseline(XPOST_SHOWPAGE_NOPAUSE, "hostbaseline-nopause");
+    stream_after_host_baseline(XPOST_SHOWPAGE_RETURN, "hostbaseline-returning");
 
     xpost_quit();
     return verdict();
