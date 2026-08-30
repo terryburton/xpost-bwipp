@@ -30,11 +30,21 @@
 # stand in the sources.
 nopassword 0 0
 #
-# nosandbox -- the same walk in a run started with --no-sandbox, which keeps
-# the four file-permission entry points in systemdict that the sandbox
-# removes. A separate line because they are absent by configuration, not by
-# construction, and a register that recorded only the sandboxed run would call
-# that an absence. These four are what is left to answer for.
+# nosandbox -- the same walk in a run started with --no-sandbox. The four are
+# not residue: they are the interface by which a run completes its own
+# lockdown. --no-sandbox does not skip the lockdown -- the language is sealed,
+# the dictionaries are split and the machinery is hidden in that run exactly
+# as in any other -- it leaves the lockdown UNFINISHED, so that an embedder
+# can name the paths a job may read and write and then call .lockdown itself.
+# That call engages path control and removes all four, itself included.
+# MEASURED: before the call `getenv` answers and the four are present; after
+# it `getenv` raises invalidaccess and none of them is there.
+#
+# So the count is a ratchet on a deliberate interface rather than on an
+# oversight, and it is held on a line of its own because these four are absent
+# from a sandboxed run by configuration, not by construction: a register that
+# recorded only the sandboxed run would report that absence as a property of
+# the tree.
 nosandbox 4 27952
 #
 # password -- everything internaldict holds, counted whole rather than by the

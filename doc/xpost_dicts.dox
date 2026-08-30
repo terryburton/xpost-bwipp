@@ -453,6 +453,15 @@
  * private dictionary is context state rather than virtual memory precisely
  * because the same reasoning was once wrong.
  *
+ * The job boundary is the other way state could cross, and it is a stronger
+ * question than the save: the boundary is an outermost restore over both
+ * banks, so what it restores *to* is the state the server snapshotted at,
+ * and a snapshot older than the lockdown would put the machinery back within
+ * reach for every job after the first. Two vectors in the job-isolation
+ * battery hold it -- that the machinery is still hidden in job2, and that a
+ * job which shadows a machinery name in its own dictionary neither leaves
+ * the name behind nor uncovers a real one when the shadow reverts.
+ *
  * **The image.** A run cannot boot into a more permissive language than it
  * asked for. The census flag is part of the virtual-memory image's name, so
  * the two kinds of run never read each other's. MEASURED before it was: a
@@ -465,10 +474,18 @@
  * other register in this area improves by taking something away, and a tree
  * hardened until it refused its own users would pass all of them.
  *
- * **What has no gate.** The job boundary is not asked the question the save
- * and restore gate asks. The four entry points a `--no-sandbox` run keeps in
- * `systemdict` are counted but not individually justified. And PLRM 8 states
- * that the internal dictionary is writeable, where the one this interpreter
- * answers with is read-only; that deviation is recorded in COMPLIANCE and
- * nothing enforces it either way.
+ * **The four a `--no-sandbox` run keeps.** `.lockdown`, `.permitfileread`,
+ * `.permitfilewrite` and `.resourcefileopen` are not residue: they are the
+ * interface by which such a run completes its own lockdown. `--no-sandbox`
+ * does not skip the lockdown -- the language is sealed, the dictionaries are
+ * split and the machinery is hidden in that run as in any other -- it leaves
+ * it UNFINISHED, so an embedder can name the paths a job may read and write
+ * and then call `.lockdown` itself. That call engages path control and
+ * removes all four, itself included. MEASURED: before it, `getenv` answers
+ * and the four are present; after it, `getenv` raises `invalidaccess` and
+ * none of them is there.
+ *
+ * **What has no gate.** PLRM 8 states that the internal dictionary is
+ * writeable, where the one this interpreter answers with is read-only. That
+ * deviation is recorded in COMPLIANCE and nothing enforces it either way.
  */

@@ -200,6 +200,29 @@ static void battery(Xpost_Showpage_Semantics sem)
            "  GA 0 (localstr) put } stopped pop",
            "/GA where {pop(POISONED)}{(CLEAN)}ifelse print flush");
 
+    /* V15: the boundary does not hand back what the lockdown took away.
+       The lockdown runs at boot, BEFORE the first job, and the boundary is
+       an outermost restore over both banks -- so what it restores TO is the
+       state the server took its snapshot at, and a snapshot taken earlier
+       than the lockdown would put the machinery back in a program's reach
+       for every job after the first. Job1 does nothing but exist; the
+       question is entirely about what job2 can see. */
+    vector(ctx, sem, "machinery-hidden-across-the-boundary",
+           "(job) pop",
+           "/graphicsdict where {pop(POISONED)}"
+           "{systemdict /.privatedict known {(POISONED)}"
+           "{systemdict /DEVICE known {(POISONED)}"
+           "{1183615869 internaldict length 0 eq {(CLEAN)}{(POISONED)}ifelse}"
+           "ifelse}ifelse}ifelse print flush");
+
+    /* V16: and a job that shadows a machinery name in its own dictionary
+       does not leave the name behind for the next one -- nor does the
+       revert of that shadow uncover a real one underneath it. */
+    vector(ctx, sem, "machinery-name-shadow",
+           "/graphicsdict {42} def /DEVICE 7 def",
+           "/graphicsdict where {pop(POISONED)}"
+           "{/DEVICE where {pop(POISONED)}{(CLEAN)}ifelse}ifelse print flush");
+
     xpost_stdout_handler_set(ctx, NULL, NULL);
     xpost_destroy(ctx);
 }
