@@ -55,26 +55,7 @@ nosandbox 4 27952
 # into the bodies that use it.
 password 0 0
 #
-# nonplrm -- names systemdict holds that PLRM 8.2 does not define, counted by
-# subtracting tests/plrm-operators. This is the line that sees what the others
-# cannot: the two counts above key on the leading dot, and a machinery name
-# spelled without one is exactly what a dot-keyed census does not see.
-# graphicsdict and DEVICE were both spelled without, and each answered with
-# live machinery -- the graphics state, whose currgstate a program could
-# write and whose device slot decides where the marks go, and the device
-# instance itself. Both are swept now; a run taking a census keeps them,
-# because its suites name them as the sources do.
-#
-# What is left are names the language has by convention rather than by the
-# specification: the page sizes, the custom-colour and separation calls, the
-# overprint and raster-operation pairs, the distiller parameters and pdfmark,
-# the print shorthands, getenv and putenv, the error names, and the seven
-# device loaders. Each is reachable in one token, which is right for a name a
-# program is meant to call and wrong for anything else, so the count is a
-# ratchet like the rest: it may fall and it may not rise.
-#
-# Two of them, getenv and putenv, are refused outright once the sandbox is
-# engaged, so a shipped sandboxed run answers nothing through them. They are
-# counted all the same: what is held here is what a program can name, and a
-# name that refuses today is a name that stops refusing if its guard moves.
-nonplrm 42 3884063071
+# The names systemdict holds that PLRM 8.2 does not define are declared
+# one by one in tests/nonplrm-names, with what a program may do with each.
+# They are not counted here: a count is a property of the build rather than
+# of the language, and went red on two configurations for saying otherwise.

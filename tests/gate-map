@@ -503,6 +503,7 @@ guards path tests/proc-spec
 guards path tests/library_statics.golden
 guards path tests/vm_forbidden.golden
 guards path tests/machinery_reachable.golden
+guards path tests/nonplrm-names
 guards path tests/testlib.ps
 guards path tests/testlib-prepend.sh
 guards path tests/testlib-facts

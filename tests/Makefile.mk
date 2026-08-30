@@ -40,6 +40,7 @@ tests/machinery_diverted.golden \
 tests/machinery_diverted_test.ps \
 tests/check-machinery-reachable.sh \
 tests/machinery_reachable.golden \
+tests/nonplrm-names \
 tests/machinery_reachable_test.ps \
 tests/check-no-machinery-returned.sh \
 tests/no_machinery_returned_test.ps \

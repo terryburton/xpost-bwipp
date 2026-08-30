@@ -65,11 +65,18 @@ if ! grep -q '^WALKED$' "$work/image"; then
     echo "      nothing of the way a run starts once an image exists"
     exit 1
 fi
-if ! diff -q "$work/sandboxed" "$work/image" >/dev/null 2>&1; then
+# The comparison is of what the two runs ANSWER, not of the order they
+# happened to enumerate a dictionary in: the name block below is a set, and
+# a language built from the boot files hashes it into a different order from
+# one loaded out of an image. Only the reported lines are compared.
+for f in sandboxed image; do
+    grep -aE '^(MACHINERY-CALLABLE-[A-Z]+|WALKED)' "$work/$f" > "$work/$f.answers"
+done
+if ! diff -q "$work/sandboxed.answers" "$work/image.answers" >/dev/null 2>&1; then
     echo "FAIL: the walk answers differently from the image than from the"
     echo "      boot files, so what a program can call depends on which way"
     echo "      the run started:"
-    diff "$work/sandboxed" "$work/image" | sed 's/^/      /' | head -12
+    diff "$work/sandboxed.answers" "$work/image.answers" | sed 's/^/      /' | head -12
     exit 1
 fi
 
@@ -113,47 +120,31 @@ check nosandbox  MACHINERY-CALLABLE-NOPASSWORD "$work/open" \
 # And the names systemdict holds that PLRM 8.2 does not define. Counting
 # machinery by the leading dot cannot see a machinery name spelled without
 # one: graphicsdict and DEVICE were both spelled without, and each answered
-# with live machinery -- the graphics state, whose currgstate a program
-# could write, and the device instance. The subtraction is done here rather
-# than in the walk because the list of operators the specification defines
-# is a file, and the walk has no way to read it. Only the count and a sum
-# are printed; the names themselves are not, for the reason the register
-# gives.
+# with live machinery.
+#
+# Held as a LIST rather than a count. A count is a property of the build and
+# not of the language: the device loaders depend on what was compiled in,
+# NOFACES on whether a face library was found, WIN32 on the platform. A
+# register holding a number therefore reports a different one on every
+# configuration -- MEASURED, red on the faceless lane for NOFACES and on
+# macOS for the device loaders it does not build. So an absence never fails
+# here and an arrival always does: a name in neither PLRM 8.2 nor
+# tests/nonplrm-names is surface nobody declared.
 awk '/^SYSTEMDICT-NAMES-BEGIN$/{f=1;next} /^SYSTEMDICT-NAMES-END$/{f=0} f' \
     "$work/sandboxed" | sed 's|^/||' | sort -u > "$work/sdnames"
 awk -F'\t' '!/^#/ && NF>=2 && $1!="absent" {print $2}' "$src/tests/plrm-operators" \
     | sort -u > "$work/plrm"
-# Two names in systemdict are facts about the build rather than surface a
-# program can act on: WIN32 says which platform this is, NOFACES that the
-# build carries no face library. Each is put there by the C, conditionally,
-# and each is a boolean a program reads to know what it may ask for -- a
-# program that cannot show text wants to know before it tries. They are held
-# out of the count because they are absent or present by CONFIGURATION: left
-# in, this register measures the build's identity along with the language's
-# surface, and reports a faceless build and a Windows build as having a name
-# each that a Linux build with faces does not. MEASURED: it did exactly that,
-# red on the faceless lane for NOFACES.
-comm -23 "$work/sdnames" "$work/plrm" \
-    | grep -vxE 'WIN32|NOFACES' > "$work/nonplrm"
-have_np=$(wc -l < "$work/nonplrm" | tr -d ' ')
-have_npd=$(cksum < "$work/nonplrm" | awk '{print $1}')
-want_np=$(awk '$1=="nonplrm"{print $2}' "$golden")
-want_npd=$(awk '$1=="nonplrm"{print $3}' "$golden")
-case ${have_np:-x}${want_np:-x} in
-    *[!0-9]*|'') echo "FAILURES: the non-PLRM name count is missing"; exit 1 ;;
-esac
-if [ "$have_np" -gt "$want_np" ]; then
-    echo "FAILURES: $((have_np - want_np)) more name(s) in systemdict that PLRM 8.2"
-    echo "      does not define. A name there is one a program reaches in a single"
-    echo "      token, whatever it is spelled with. If it belongs to the language,"
-    echo "      say so in the commit and write 'nonplrm $have_np $have_npd' into"
-    echo "      $(basename "$golden"); if it is machinery, sweep it."
-    exit 1
-fi
-if [ "$have_np" -lt "$want_np" ] || [ "$have_npd" != "$want_npd" ]; then
-    echo "FAILURES: the non-PLRM set moved: the register records"
-    echo "      '$want_np $want_npd' and the run answers '$have_np $have_npd'."
-    echo "      Write 'nonplrm $have_np $have_npd' into $(basename "$golden")."
+grep -vE '^#|^[[:space:]]*$' "$src/tests/nonplrm-names" | sort -u > "$work/declared"
+comm -23 "$work/sdnames" "$work/plrm" > "$work/nonplrm"
+comm -23 "$work/nonplrm" "$work/declared" > "$work/undeclared"
+if [ -s "$work/undeclared" ]; then
+    echo "FAILURES: systemdict holds $(wc -l < "$work/undeclared" | tr -d ' ') name(s)"
+    echo "      that PLRM 8.2 does not define and tests/nonplrm-names does not"
+    echo "      declare. A name there is one a program reaches in a single token,"
+    echo "      whatever it is spelled with. If it belongs to the language, add it"
+    echo "      to that file with what a program may do with it; if it is"
+    echo "      machinery, sweep it at the lockdown:"
+    sed 's/^/      /' "$work/undeclared" | head -12
     exit 1
 fi
 

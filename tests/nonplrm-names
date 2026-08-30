@@ -1,0 +1,98 @@
+# The names systemdict holds that PLRM 8.2 does not define.
+#
+# This is the enumeration of the non-standard language surface: every name
+# a program reaches in one token that the specification does not describe.
+# It is a LIST rather than a count, because a count is a property of the
+# build and not of the language. The device loaders depend on which devices
+# were compiled in, NOFACES on whether a face library was found, WIN32 on
+# the platform -- so a count is a different number on every configuration,
+# and a register holding one reports a Windows build, a faceless build and
+# a macOS build as each having a name the others do not. MEASURED: it went
+# red on the faceless lane for NOFACES and on macOS for the device loaders.
+#
+# A name's ABSENCE therefore never fails. Its ARRIVAL always does: a name
+# here is one somebody wrote down and said why, and a name in systemdict
+# that is in neither this list nor PLRM 8.2 is a surface nobody declared.
+#
+# Each entry says what a program may do with the name. That is the part
+# worth reviewing: an operator that only answers is a different thing from
+# one that runs a procedure the program supplied, and a name that is inert
+# in a shipped run is different again.
+
+# --- the page sizes (PLRM Appendix; a program calls them to set a size)
+11x17
+a3
+a4
+a4small
+a5
+b4
+b5
+ledger
+legal
+letter
+lettersmall
+note
+
+# --- separation and custom colour (Adobe separation convention). Each
+# --- takes program data and answers; none runs a program's procedure.
+customcolorimage
+findcmykcustomcolor
+findrgbcustomcolor
+separationimage
+setcustomcolor
+
+# --- Level 3 colour and raster extensions: parameter pairs, get and set
+currentoverprintmode
+setoverprintmode
+currentrasteropcode
+setrasteropcode
+
+# --- distiller parameters and pdfmark: parameter dictionaries and an
+# --- annotation the vector writers read. Program data in, no callback.
+currentdistillerparams
+setdistillerparams
+pdfmark
+
+# --- printing shorthands, and the string = uses
+=only
+==only
+=print
+=string
+
+# --- the error names PLRM 3.11 defines outside the 8.2 operator list.
+# --- $error is writable BY DESIGN: it is where a program reads what went
+# --- wrong, and errordict handlers write it.
+$error
+handleerror
+signalerror
+
+# --- the environment pair. REFUSED once the sandbox is engaged
+# --- (xpost_path_control_is_engaged), so a shipped sandboxed run answers
+# --- nothing through either; listed because what is held here is what a
+# --- program can NAME, and a name that refuses today stops refusing if
+# --- its guard moves.
+getenv
+putenv
+
+# --- Display PostScript
+flushpage
+
+# --- the embedding interface: hands control back to the caller, which
+# --- ends the run where it stands, as PLRM's own quit does
+returntocaller
+
+# --- the device loaders. Which of these exist depends on what was
+# --- compiled in, which is why absence must not fail. Each loads a
+# --- driver written in this tree, not one a program supplies.
+loadbgrdevice
+loadjpegdevice
+loadpngalphadevice
+loadpngdevice
+loadrasterdevice
+loadrecorddevice
+loadxcbdevice
+
+# --- facts about the build, put here by the C so a program can know what
+# --- it may ask for before it asks. Booleans; a program reads them.
+NOFACES
+WIN32
