@@ -200,6 +200,22 @@ static void battery(Xpost_Showpage_Semantics sem)
            "  GA 0 (localstr) put } stopped pop",
            "/GA where {pop(POISONED)}{(CLEAN)}ifelse print flush");
 
+    /* V14b: access reduction. A program may LOWER access on any object it
+       can reach (PLRM 3.3.2), and the dictionaries it reaches are the ones
+       the machinery reads to do its work -- errordict to report an error,
+       FontDirectory to answer findfont. Made unreadable, they take the
+       machinery down with them for the rest of that job: MEASURED, an
+       uncaught error after `errordict noaccess` reports only that reporting
+       it raised another. That is a program harming itself, which the
+       language allows; what must not follow it is the next job inheriting
+       the damage. The attribute lives in the object's tag in virtual
+       memory, so the boundary reverts it like any other write -- which is
+       the claim, and this is the test of it. */
+    vector(ctx, sem, "access-reduction",
+           "errordict noaccess FontDirectory noaccess statusdict noaccess",
+           "errordict rcheck FontDirectory rcheck and statusdict rcheck and "
+           "{(CLEAN)}{(POISONED)}ifelse print flush");
+
     /* V15: the boundary does not hand back what the lockdown took away.
        The lockdown runs at boot, BEFORE the first job, and the boundary is
        an outermost restore over both banks -- so what it restores TO is the
