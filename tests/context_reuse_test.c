@@ -9,27 +9,41 @@
  * that has been destroyed must hold nothing: a job server that gained
  * a context's worth of memory per job would grow without bound.
  *
- * The memory claim is measured as the peak resident size, which only
- * ever rises -- so memory returned and reused registers as no growth,
- * while memory retained registers on every cycle. Where the platform
- * does not report it the cycles still run and their results are still
- * checked; only the growth comparison is left out, which the test says
- * so on its output.
+ * The memory claim is measured as what the process holds, read once a
+ * cycle -- so memory returned and reused registers as no growth, while
+ * memory retained registers on every cycle. Where the platform does not
+ * report it the cycles still run and their results are still checked;
+ * only the growth comparison is left out, which the test says so on its
+ * output.
  *
- * A peak is a high-water mark of the address space the process has
- * touched, not of the memory it holds, and an allocator that satisfies a
- * request from fresh pages rather than from the ones just returned moves
- * that mark without anything having been retained. Such an allocator
- * moves it by a bounded amount, spent over the first cycles and tailing
- * off; retention moves it by a context's worth on every cycle for as
- * long as the process runs. The two are told apart by reading the growth
- * in units of what one context costs, which is measured here rather than
- * assumed: the peak before any context has been created against the peak
- * once one has been created, used and destroyed. What the growth is read
- * over is the second half of the run, since that is the half in which an
- * allocator's own movement has largely been spent while retention would
- * still be costing a unit a cycle. The allowance is a few units for that
- * half, which a run keeping every context would exceed twice over.
+ * An allocator that satisfies a request from fresh pages rather than
+ * from the ones just returned makes the reading rise without anything
+ * having been retained. What is read here is not how far it rose but how
+ * often: retention costs a context's worth on every cycle, and an
+ * allocator taking room for itself costs nothing on most cycles and a
+ * region occasionally. So the reading is the middle one of the per-cycle
+ * steps over the second half of the run -- for retention that is a
+ * context's worth, and for a host taking regions it is nothing, whatever
+ * the total came to.
+ *
+ * A total cannot separate them, and that is not a shortcoming of the
+ * allowance but of the question: MEASURED, a host that grew 7812 KiB
+ * over twelve cycles grew it in three steps of about 3800 with nine
+ * cycles adding nothing, and the same total spread a unit a cycle would
+ * be a leak. A threshold on the total either passes the leak or fails
+ * the host, and which it does depends on the size of a page there --
+ * where pages are four times larger the same steps cost four times as
+ * much, while what a context costs does not scale with them.
+ *
+ * The step allowed is half of what one context costs, which is measured
+ * here rather than assumed: the reading before any context has been
+ * created against the reading once one has been created, used and
+ * destroyed. A run keeping every context reads a whole unit a cycle and
+ * a run keeping half of one reads the allowance exactly.
+ *
+ * A run that exceeds it prints what it read on every cycle, since the
+ * shape is what says where to look: steps level to the end are
+ * retention, and flat runs broken by jumps are the host taking room.
  */
 
 #include <stdio.h>
@@ -56,24 +70,23 @@
    either half. */
 #define MEASURED_FROM (CYCLES / 2 - 1)
 
-/* the growth allowed over that half, in units of what one context costs:
-   enough that an allocator's own drift fits inside it, and half of the
-   CYCLES - 1 - MEASURED_FROM units that retaining every context would
-   come to */
-#define GROWTH_UNITS 6
+/* The step allowed, as a fraction of what one context costs: a cycle
+   that keeps half a context, held to through the measured half, is the
+   most that reads as no retention. Retaining every context reads twice
+   this. */
+#define STEP_NUMERATOR   1
+#define STEP_DENOMINATOR 2
 
 /* What this process holds now, in KiB, or 0 where the platform does not say.
 
-   Not the high-water mark. ru_maxrss never falls, so it answers "how much
-   did this process ever have", which is the same as "how much does it hold"
-   only where the allocator gives back the address space it freed. Where it
-   does not, the mark climbs by about a context a cycle with nothing retained
-   at all, and this check reads that as exactly the leak it exists to catch:
-   MEASURED, a host reporting 104 MB of growth over twelve cycles against an
-   allowance of 91 MB, where the same test on two hosts whose allocators do
-   reuse reported 0 and under 3 MB. What is held now is the question, so it
-   is what is asked. */
-static long peak_resident_kib(void)
+   Not the high-water mark. A high-water mark never falls, so it answers
+   "how much has this process ever had", which is the same as "how much does
+   it hold" only where the allocator reuses the address space it freed. Ask
+   the first of those and an allocator that does not reuse reads exactly
+   like the leak this check exists to catch. Where a host holds on to
+   everything it has taken the two readings agree, so asking for what is
+   held costs nothing there and is the right question everywhere else. */
+static long resident_kib(void)
 {
 #if defined(_WIN32)
     return 0;
@@ -98,19 +111,8 @@ static long peak_resident_kib(void)
 #endif
 }
 
-static char out_buf[256];
-static size_t out_len = 0;
+XPOST_TEST_SINK(out, 256)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 int main(void)
 {
@@ -118,6 +120,8 @@ int main(void)
     long one = 0;
     long settled = 0;
     long grown = 0;
+    long read_at[CYCLES];   /* what each cycle left held, for the shape */
+    int done = 0;
     int i;
 
     if (!xpost_init())
@@ -128,7 +132,7 @@ int main(void)
 
     /* the process with the library up and no context in it: what a
        context costs is read against this */
-    base = peak_resident_kib();
+    base = resident_kib();
 
     for (i = 0; i < CYCLES; i++)
     {
@@ -157,22 +161,48 @@ int main(void)
         xpost_stdout_handler_set(ctx, NULL, NULL);
         xpost_destroy(ctx);
 
-        /* the first cycle carries one context's worth onto the peak, so
-           the reading after it is what a context costs */
+        /* the first cycle carries one context's worth onto the reading,
+           so what it reads after it is what a context costs */
         if (i == 0)
-            one = peak_resident_kib();
+            one = resident_kib();
         if (i == MEASURED_FROM)
-            settled = peak_resident_kib();
-        grown = peak_resident_kib();
+            settled = resident_kib();
+        grown = resident_kib();
+        read_at[i] = grown;
+        done = i + 1;
     }
 
     if (base > 0 && one > base)
     {
         long unit = one - base;
+        long steps[CYCLES];
+        long allowed = unit * STEP_NUMERATOR / STEP_DENOMINATOR;
+        long middle = 0;
+        int nsteps = 0;
+        int c;
 
-        printf("one context costs %ld KiB; the last %d cycles of %d "
-               "added %ld KiB\n", unit, CYCLES - 1 - MEASURED_FROM, CYCLES,
-               grown - settled);
+        /* the per-cycle steps over the measured half, in order, so the
+           middle one can be taken */
+        for (c = MEASURED_FROM + 1; c < done; c++)
+            steps[nsteps++] = read_at[c] - read_at[c - 1];
+        for (c = 1; c < nsteps; c++)   /* insertion sort: nsteps is CYCLES/2 */
+        {
+            long v = steps[c];
+            int j = c - 1;
+
+            while (j >= 0 && steps[j] > v)
+            {
+                steps[j + 1] = steps[j];
+                j--;
+            }
+            steps[j + 1] = v;
+        }
+        if (nsteps > 0)
+            middle = steps[nsteps / 2];
+
+        printf("one context costs %ld KiB; over the last %d cycles of %d "
+               "the middle step is %ld KiB and the total %ld\n", unit,
+               CYCLES - 1 - MEASURED_FROM, CYCLES, middle, grown - settled);
         /* The numbers go in the complaint, not only in the line above it.
            What a harness keeps of a failing run is the lines that say they
            are failures, so a measurement printed beside the verdict is a
@@ -180,17 +210,24 @@ int main(void)
            cannot be acted on without it. Retention of a unit a cycle and
            an allowance that came out near nothing read the same here and
            want opposite fixes. */
-        if (grown - settled >= unit * GROWTH_UNITS)
+        if (middle > allowed)
+        {
             report_failure("a run of contexts keeps no context's worth per"
-                           " cycle: one context costs %ld KiB, the last %d"
-                           " of %d cycles added %ld KiB, and the allowance"
-                           " is %d units of a context (%ld KiB)",
+                           " cycle: one context costs %ld KiB, the middle"
+                           " step over the last %d of %d cycles is %ld KiB,"
+                           " and the step allowed is half a context"
+                           " (%ld KiB); the half came to %ld in all",
                            unit, CYCLES - 1 - MEASURED_FROM, CYCLES,
-                           grown - settled, GROWTH_UNITS,
-                           (long)(unit * GROWTH_UNITS));
+                           middle, allowed, grown - settled);
+            printf("what each cycle left held, KiB above the empty"
+                   " process:\n ");
+            for (c = 0; c < done; c++)
+                printf(" %ld", read_at[c] - base);
+            printf("\n");
+        }
     }
     else
-        printf("NOTE: peak resident size unavailable; growth not compared\n");
+        printf("NOTE: resident size unavailable; growth not compared\n");
 
     xpost_quit();
 
