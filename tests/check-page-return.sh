@@ -183,27 +183,30 @@ done
 # pages.
 holds='1 1 2000 { /Courier findfont exch scalefont /F exch def } for'
 # What is asked here is whether the boundary gives the handle records up, and
-# the reading that answers it is taken with the host allocator told to hand
-# pages back as soon as it can.
+# no absolute figure answers it. How much a host keeps of what it was given
+# back is the host's own business and varies by more than a leak would:
+# MEASURED, the same forty jobs grew resident memory by 470 pages on one
+# machine and 2040 on another, with the interpreter's own figures reading
+# zero on both -- so a threshold that passes the first fails the second while
+# nothing was retained either time.
 #
-# Without that the reading answers a different question. glibc keeps freed
-# pages at its own discretion, and how much it keeps is a property of the
-# machine: MEASURED on one host the same forty jobs grew resident memory by
-# 4009 pages under the default tuning and by -875 with the allocator told to
-# return what it could -- the records were given up in both, and only the
-# first reading said otherwise. A check whose verdict turns on the C
-# allocator's mood is not reading the interpreter.
+# Telling the allocator to hand pages back does not settle it. That was tried
+# and it reads worse, not better: MEASURED, the arms below grew 8868 pages
+# with the allocator told to return what it could against 470 left alone, on
+# the same jobs -- forcing mid-sized blocks into mappings of their own rounds
+# every one of them up to a page, and a trim reaches only the top of the
+# heap. The tuning does not remove the allocator's discretion, it exchanges
+# it for a different one.
 #
-# The untuned arm is still run, and reported when the tuned one fails, since
-# the difference between them is what says whether records are live or merely
-# held.
-for spec in few:4 many:44 untuned:44; do
+# What separates them is the shape. A record left behind costs the same on
+# every job, so a second run of forty jobs costs what the first did. A host
+# taking room for itself takes it once and then stops, so the second forty
+# cost a fraction of the first. Three readings are taken and the two
+# increments compared, which asks about the interpreter and not about the
+# machine.
+for spec in few:4 many:44 more:84; do
     tag=${spec%:*}
     n=${spec#*:}
-    case $tag in
-        untuned) malloc_env="" ;;
-        *)       malloc_env="MALLOC_TRIM_THRESHOLD_=0 MALLOC_MMAP_THRESHOLD_=16384" ;;
-    esac
     {
         i=0
         while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$holds"; i=$((i + 1)); done
@@ -217,14 +220,14 @@ for spec in few:4 many:44 untuned:44; do
         # say which of the two it is.
         printf '/rss { %s } def (HANDLEVM %s ) print vmstatus pop exch pop 20 string cvs print ( ) print globalvmstatus pop exch pop 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
     } > "$work/handle.$tag"
-    env $malloc_env "$xpost" -q --no-sandbox -d null --jobserver \
+    "$xpost" -q --no-sandbox -d null --jobserver \
         < "$work/handle.$tag" > "$work/handle.$tag.out" 2>/dev/null
 done
 
 cat "$work/within.out" "$work/between.out" \
     "$work/device.few.out" "$work/device.many.out" \
     "$work/handle.few.out" "$work/handle.many.out" \
-    "$work/handle.untuned.out" > "$work/out"
+    "$work/handle.more.out" > "$work/out"
 
 # Each pair must show resident memory fall by a clear margin. The growth is
 # about ten thousand pages; a return of a fifth of it is asked, which the
@@ -241,10 +244,11 @@ awk '
     # anchored, because the pair of lines the handle case prints share a
     # prefix and an unanchored match would read the second into the first
     /^HANDLE few/    { hf = $3 }
-    /^HANDLE untuned/ { hu = $3 }
+    /^HANDLE more/   { hx = $3 }
     /^HANDLE many/   { hm = $3 }
     /^HANDLEVM few/  { vlf = $3; vgf = $4 }
     /^HANDLEVM many/ { vml = $3; vmg = $4 }
+    /^HANDLEVM more/ { vxl = $3; vxg = $4 }
     END {
         want = 5000     # pages, ~20MB, well under the ~39MB grown
         grew = 2000     # pages, ~8MB; 40 leaked 500x500x3 buffers is ~7300
@@ -270,25 +274,30 @@ awk '
             printf "resident grew %d pages over 40 extra setpagedevice jobs\n", dm - df
             bad = 1
         }
-        held = 700      # pages; 40 jobs x 2000 records leak about 1100,
-                        # and the sweep holds the same probe inside +-270
-        if (hf == "" || hm == "")
-            { print "the handle probe did not report both figures"; bad = 1 }
-        else if (hm - hf > held) {
+        # A second forty jobs costing what the first did is a record left
+        # behind on each; costing a fraction of it is a host that took its
+        # room and stopped. Below the floor there is nothing to divide:
+        # forty jobs of records unswept cost about eleven hundred pages, so
+        # a second forty under three hundred is not that however the first
+        # forty read.
+        floor = 300     # pages
+        if (hf == "" || hm == "" || hx == "")
+            { print "the handle probe did not report all three figures"; bad = 1 }
+        else if (hx - hm > floor && hx - hm > (hm - hf) / 2) {
             printf "the job boundary did not give up the handle records of the\n"
-            printf "entities it dropped: resident grew %d pages over 40 extra jobs\n", hm - hf
-            printf "      virtual memory over the same forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
-            printf "      (a resident figure that grew while these did not is memory\n"
-            printf "      the interpreter gave up and the host did not take back)\n"
-            if (hu != "")
-                printf "      the same forty with the allocator left to its own tuning: %d --\n      near the figure above means the records are still live; far\n      above it means only the allocator was holding pages\n", hu - hf
+            printf "entities it dropped: a second forty jobs grew resident memory\n"
+            printf "by %d pages where the first forty grew it by %d -- a cost that\n", hx - hm, hm - hf
+            printf "does not fall away is a record kept on every job\n"
+            printf "      virtual memory over the first forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
+            printf "      and over the second: local %d bytes, global %d\n", vxl - vml, vxg - vmg
             bad = 1
         }
         if (bad) exit 1
         printf "within a job vmreclaim returned %d pages; between jobs the boundary\n", wp - wa
         printf "returned %d, held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
-        printf "and the handle records flat (%d pages over 40 jobs, virtual memory\n", hm - hf
-        printf "over the same forty: local %d bytes, global %d)\n", vml - vlf, vmg - vgf
+        printf "and the handle records flat (%d pages over the first 40 jobs and\n", hm - hf
+        printf "%d over the second, virtual memory over the first: local %d bytes,\n", hx - hm, vml - vlf
+        printf "global %d)\n", vmg - vgf
     }
 ' "$work/out" > "$work/problems" 2>&1
 rc=$?
