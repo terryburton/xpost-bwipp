@@ -147,6 +147,8 @@ AC_CANONICAL_HOST
 
 have_win32="no"
 have_cygwin="no"
+have_linux="no"
+have_darwin="no"
 case "$host_os" in
    mingw*)
       have_win32="yes"
@@ -154,9 +156,17 @@ case "$host_os" in
    cygwin*)
       have_cygwin="yes"
    ;;
+   linux*)
+      have_linux="yes"
+   ;;
+   darwin*)
+      have_darwin="yes"
+   ;;
 esac
 
 AM_CONDITIONAL([HAVE_WIN32], [test "x${have_win32}" = "xyes"])
+AM_CONDITIONAL([HAVE_LINUX], [test "x${have_linux}" = "xyes"])
+AM_CONDITIONAL([HAVE_DARWIN], [test "x${have_darwin}" = "xyes"])
 
 ### Checks for programs
 

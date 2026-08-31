@@ -330,6 +330,7 @@ graphics width witness
 # a change here is gated against the whole suite at both widths.
 vm path src/lib/xpost_object.*
 vm path src/lib/xpost_memory.*
+vm path src/lib/xpost_vm_writeset*
 vm path src/lib/xpost_garbage*
 vm path src/lib/xpost_free.*
 vm path src/lib/xpost_save.*
@@ -373,6 +374,8 @@ vm test local-vm-invariant
 vm test check-vm-address-fields
 vm test vm-account
 vm test vm-page-return
+vm test vm-writeset
+vm test vm-writeset-copying
 vm test special-entity-slots
 vm test table-row-reuse
 vm test vm-compaction

@@ -247,6 +247,24 @@ typedef struct Xpost_Memory_File
     unsigned char *optab;
     unsigned int optab_max; /**< bytes optab points at */
 
+    /* How this bank's writes are being tracked, so that a job boundary
+       can put back only the pages a job wrote instead of copying the
+       whole baseline over itself. What is kept here is the host's
+       business and differs between them -- see xpost_vm_writeset.h --
+       and on a host with no answer worth having it stays empty and the
+       boundary copies. */
+    struct
+    {
+        int fd;        /**< the baseline as something mappable, or -1 */
+        int tracking;  /**< the host is recording writes to this bank */
+        size_t len;    /**< the extent the arrangement covers */
+        size_t used;   /**< the baseline's own extent within it */
+        size_t back_lo; /**< bytes changed with nothing writing them: */
+        size_t back_hi; /**< the range handed back to the system */
+        const unsigned char *against;  /**< the baseline it was made against */
+        int wanted;    /**< it worked once, so make it again after a grow */
+    } writeset;
+
     unsigned int free_substack; /**< one recycled save-record substack, or 0.
                                      Save-record stacks are raw file allocations,
                                      not table entities, so the collector cannot
@@ -484,6 +502,17 @@ int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img);
  * least as large as the image). No-op if @p img is not valid.
  */
 void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image *img);
+
+/**
+ * @brief Arrange for the boundary to put @p mem back by restoring only
+ *        the pages a job wrote, against the baseline at @p store.
+ *
+ * Answers 0 where the host cannot do it, or where the run turned it off,
+ * and the caller then copies the whole baseline instead. Asked for by the
+ * job baseline only.
+ */
+XPOST_TEST_VISIBLE int xpost_memory_revert_arm(Xpost_Memory_File *mem,
+                                               const void *store, size_t used);
 
 /**
  * @brief Release the copies an image holds and mark it invalid.

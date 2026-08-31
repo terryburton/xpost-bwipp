@@ -307,6 +307,7 @@ tests/global_vm_invariant_test.ps \
 tests/local_vm_invariant_test.ps \
 tests/vm_account_test.ps \
 tests/vm_page_return_test.c \
+tests/vm_writeset_test.c \
 tests/run-vm-page-return-test.sh \
 tests/run-local-vm-invariant-test.sh \
 tests/golden/manifest-large.sha256 \

@@ -90,6 +90,7 @@ loadpngalphadevice
 loadpngdevice
 loadrasterdevice
 loadrecorddevice
+loadwin32device
 loadxcbdevice
 
 # --- facts about the build, put here by the C so a program can know what

@@ -32,6 +32,7 @@
 # is not read the same way. It skips too where the build has no backing that
 # can hand pages back at all, which is a configuration and not a platform.
 set -u
+
 src=${1:?usage: check-page-return.sh <srcroot> <xpost> <builddir>}
 xpost=${2:?usage: check-page-return.sh <srcroot> <xpost> <builddir>}
 build=${3:?usage: check-page-return.sh <srcroot> <xpost> <builddir>}

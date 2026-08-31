@@ -93,8 +93,55 @@
 #include "xpost_compat.h"
 #include "xpost_error.h"
 #include "xpost_memory.h"
+#include "xpost_vm_writeset.h" /* putting a bank back by what changed */
 #include "xpost_free.h" /* the installed allocator's answer codes */
 #include "xpost_object.h"
+
+/* Whether this run wants a bank's writes tracked, so that a job boundary
+   can put back only what a job wrote. Asked once. The reservation has to
+   know as well as the boundary does: on some hosts the tracking is a
+   property of the address space, given when it is claimed and not
+   afterwards. */
+/* Whether every revert is to be held against the baseline it claims to
+   have put back. Asked once; a boundary must not pay for the question. */
+static int _xpost_revert_verify(void)
+{
+    static int asked = 0, on = 0;
+    if (!asked)
+    {
+        asked = 1;
+        on = getenv("XPOST_REVERT_VERIFY") != NULL;
+    }
+    return on;
+}
+
+/* Whether this run tracks what a job writes, so that a job boundary can
+   put back only that instead of copying the whole baseline over itself.
+   It does, unless the run says otherwise: copying is what the boundary
+   costs a concurrent workload, tracking is what removes it, and a host
+   with no way to answer the question declines on its own without having
+   to be told to.
+
+   XPOST_NO_REVERT_WRITTEN turns it off, which is worth having for two
+   reasons that are not hypothetical: which of the two ways of putting a
+   bank back is cheaper is a property of the machine, and it should stay
+   possible to measure that on a machine which is not this one; and a
+   fault suspected to be in the tracking has to be capable of being ruled
+   out of a diagnosis.
+
+   Asked once. The reservation has to know as well as the boundary does:
+   on some hosts the tracking is a property of the address space, given
+   when it is claimed and not afterwards. */
+int xpost_vm_writeset_wanted(void)
+{
+    static int asked = 0, on = 0;
+    if (!asked)
+    {
+        asked = 1;
+        on = getenv("XPOST_NO_REVERT_WRITTEN") == NULL;
+    }
+    return on;
+}
 
 
 
@@ -141,7 +188,10 @@ size_t xpost_memory_return_grain;
 static unsigned char *_xpost_memory_reserve(size_t len)
 {
 # ifdef _WIN32
-    return (unsigned char *)VirtualAlloc(NULL, len, MEM_RESERVE, PAGE_READWRITE);
+    return (unsigned char *)VirtualAlloc(NULL, len,
+                                         MEM_RESERVE | (xpost_vm_writeset_wanted()
+                                                        ? MEM_WRITE_WATCH : 0),
+                                         PAGE_READWRITE);
 # else
     void *p = mmap(NULL, len, PROT_NONE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
@@ -260,6 +310,14 @@ xpost_memory_file_init(Xpost_Memory_File *mem,
     mem->path_walk.sps = 0;
     mem->path_walk.last = 0;
     mem->path_walk.steps = 0;
+
+    /* No arrangement for tracking this bank's writes yet, and a
+       descriptor member that must not read as descriptor zero. */
+    mem->writeset.fd = -1;
+    mem->writeset.tracking = 0;
+    mem->writeset.len = 0;
+    mem->writeset.against = NULL;
+    mem->writeset.wanted = 0;
 
     if(fname)
     {
@@ -442,8 +500,36 @@ xpost_memory_file_release_range(Xpost_Memory_File *mem,
 
     from = (((size_t)adr + ps - 1) / ps) * ps;
     to = (((size_t)adr + len) / ps) * ps;
+
     if (to <= from)
         return 0;
+
+    /* Handing a page back changes what the bank holds with nothing having
+       written it, and that is exactly what a record of a job's writes
+       cannot see: the boundary would put back the pages the job wrote and
+       leave this storage as the system left it. Refusing to hand it back
+       would answer that, and it would cost the thing page return is for --
+       MEASURED, it takes the banded raster route's memory back to
+       following the height of the page, which is the bound banding exists
+       to hold. So the range is remembered instead, and the boundary
+       restores it along with what the job wrote. Only the part inside the
+       baseline matters; above it there is nothing the boundary would put
+       back anyway. */
+    if (mem->writeset.tracking && from < mem->writeset.used)
+    {
+        size_t hi = to < mem->writeset.used ? to : mem->writeset.used;
+
+        if (mem->writeset.back_hi == mem->writeset.back_lo)
+        {
+            mem->writeset.back_lo = from;
+            mem->writeset.back_hi = hi;
+        }
+        else
+        {
+            if (from < mem->writeset.back_lo) mem->writeset.back_lo = from;
+            if (hi > mem->writeset.back_hi) mem->writeset.back_hi = hi;
+        }
+    }
 
     /* a range of bytes rather than anything with a shape: what the calls
        below are told is where the storage is and how much of it there is */
@@ -535,6 +621,7 @@ xpost_memory_file_exit(Xpost_Memory_File *mem)
         XPOST_LOG_ERR("%d mem pointer is NULL", VMerror);
         return 0;
     }
+    xpost_vm_writeset_forget(mem);
 
     if (mem->base == NULL)
     {
@@ -630,6 +717,11 @@ xpost_memory_file_grow(Xpost_Memory_File *mem,
         XPOST_LOG_ERR("%d mem->base is NULL", VMerror);
         return 0;
     }
+
+    /* A bank whose writes are tracked may not be one mapping, and a
+       grow moves the whole extent, so the arrangement is given up here
+       and made again at the next boundary. */
+    xpost_vm_writeset_end(mem);
 
     /* every route below moves or rewrites the whole extent -- copying
        it forward, zeroing the part above the high-water mark -- so the
@@ -890,6 +982,32 @@ void xpost_memory_image_free(Xpost_Memory_Image *img)
    they are, and the counters a later allocation would be wrong
    without. What is copied is bounded by the high water mark rather
    than by the file's size, so the cost is what the job has touched. */
+
+int xpost_memory_revert_arm(Xpost_Memory_File *mem, const void *store,
+                            size_t used)
+{
+    (void)store; (void)used;
+    if (!mem || !xpost_vm_writeset_wanted())
+        return 0;
+
+    /* Asked for, and arranged at the first boundary rather than here.
+
+       Tracking what a job wrote saves the boundary a copy of the bank,
+       and there is nothing to save until a boundary has one to take: a
+       run that renders a page and exits crosses exactly one, and would
+       pay for the arrangement without ever reaching the copy it would
+       have avoided. What it pays is resident memory -- the baseline gains
+       a second home, and the pages a job writes gain private copies --
+       and MEASURED, that is enough to take the banded raster route above
+       the whole-page route it is required to stay under, at a margin of
+       under a percent. So the first boundary copies, as it always did,
+       and arranges the tracking on its way out; every boundary after it
+       puts back only what changed. A server crosses thousands and pays
+       the copy once. */
+    mem->writeset.wanted = 1;
+    return 1;
+}
+
 int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img)
 {
     size_t esz = sizeof *mem->table.tab;
@@ -963,7 +1081,53 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
        at the end of this function, once the table it is read from is the
        baseline's rather than the finished job's. */
     XPOST_VG_REOPEN_RANGE(mem->base, 0, img->used);
-    memcpy(mem->base, img->store, img->used);
+    /* Put back only what the job wrote, where the host can say what that
+       was; copying the whole baseline is what is always right and is what
+       every other host does. A bank that had the arrangement and lost it
+       to a grow gets it back here, now that the bank is the baseline
+       again. */
+    if (xpost_vm_writeset_restore(mem, img->store, img->used))
+    {
+        /* and the storage handed back to the system since the last
+           boundary, which no record of writes could have reported */
+        if (mem->writeset.back_hi > mem->writeset.back_lo)
+        {
+            size_t lo = mem->writeset.back_lo;
+            size_t hi = mem->writeset.back_hi < img->used
+                        ? mem->writeset.back_hi : img->used;
+            unsigned char *at = xpost_vm_ptr(mem, (unsigned int)lo);
+
+            if (hi > lo)
+                memcpy(at, img->store + lo, hi - lo);
+        }
+        mem->writeset.back_lo = mem->writeset.back_hi = 0;
+        /* The host was trusted to name every page the job wrote. Under
+           XPOST_REVERT_VERIFY the bank is held against the baseline it
+           has just been said to hold, which is the one check that would
+           catch a host naming too few -- the failure that leaves a job's
+           bytes in the next job's memory and shows up nowhere else. */
+        if (_xpost_revert_verify() &&
+            memcmp(mem->base, img->store, img->used) != 0)
+        {
+            unsigned int off;
+
+            for (off = 0; off < img->used; off++)
+                if (mem->base[off] != img->store[off])
+                    break;
+            XPOST_LOG_ERR("%d putting back only what was written left byte "
+                          "%u of %u unlike the baseline", VMerror,
+                          off, img->used);
+            memcpy(mem->base, img->store, img->used);
+        }
+    }
+    else
+    {
+        /* The whole baseline, which covers anything handed back too. */
+        memcpy(mem->base, img->store, img->used);
+        mem->writeset.back_lo = mem->writeset.back_hi = 0;
+        if (mem->writeset.wanted)
+            (void)xpost_vm_writeset_begin(mem, img->store, img->used);
+    }
     memcpy(mem->table.tab, img->tab, (size_t)img->nextent * esz);
 
     mem->high_water = img->used;

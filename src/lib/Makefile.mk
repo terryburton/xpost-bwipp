@@ -4,6 +4,7 @@ lib_LTLIBRARIES = src/lib/libxpost.la src/lib/libxpost_dsc.la
 includes_HEADERS = \
 src/lib/xpost.h \
 src/lib/xpost_memory.h \
+src/lib/xpost_vm_writeset.h \
 src/lib/xpost_object.h \
 src/lib/xpost_context.h \
 src/lib/xpost_interpreter.h
@@ -124,10 +125,23 @@ if HAVE_WIN32
 src_lib_libxpost_la_SOURCES += \
 src/lib/xpost_dev_win32.c \
 src/lib/xpost_dev_win32.h \
-src/lib/xpost_compat_win32.c
+src/lib/xpost_compat_win32.c \
+src/lib/xpost_vm_writeset_win32.c
 else
 src_lib_libxpost_la_SOURCES += \
 src/lib/xpost_compat_posix.c
+if HAVE_LINUX
+src_lib_libxpost_la_SOURCES += \
+src/lib/xpost_vm_writeset_linux.c
+else
+if HAVE_DARWIN
+src_lib_libxpost_la_SOURCES += \
+src/lib/xpost_vm_writeset_darwin.c
+else
+src_lib_libxpost_la_SOURCES += \
+src/lib/xpost_vm_writeset_none.c
+endif
+endif
 endif
 
 src_lib_libxpost_la_CPPFLAGS = \

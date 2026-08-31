@@ -327,6 +327,7 @@ xpost_memory_page_size
 xpost_memory_put
 xpost_memory_register_free_list_alloc_function
 xpost_memory_register_garbage_collect_function
+xpost_memory_revert_arm
 xpost_memory_return_grain
 xpost_memory_table_alloc
 xpost_memory_table_alloc_special
@@ -537,3 +538,8 @@ xpost_vm_image_refused
 xpost_vm_image_row_field_name
 xpost_vm_image_stamp_name
 xpost_vm_image_write
+xpost_vm_writeset_begin
+xpost_vm_writeset_end
+xpost_vm_writeset_forget
+xpost_vm_writeset_restore
+xpost_vm_writeset_wanted

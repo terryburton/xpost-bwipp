@@ -123,8 +123,19 @@ MEMW=1000
 MEMLO=1000
 MEMMID=2500
 MEMHI=4000
-RSSLO=2000
-RSSMID=5000
+# The resident-size sweep starts higher than the virtual-memory one, and
+# has to. What that meter reads is the whole process, so its floor is the
+# interpreter itself -- the loaded language, the device, the arena a job
+# begins from -- and a page is only visible above that floor. MEASURED at
+# two thousand rows the two routes read 22056 and 22024 KiB, which is the
+# floor twice over and says nothing about either; the tallest banded page
+# and the shortest whole one were then separated by less than the noise
+# between runs of the same binary, and which of them came out larger was
+# decided by the machine's mood. Four thousand rows puts the whole-page
+# route about ten mebibytes clear of the floor, which is the separation
+# the check below was written to rely on.
+RSSLO=4000
+RSSMID=6000
 RSSHI=8000
 
 # $1 the device selection, $2 the directory, $3 what to call the log,

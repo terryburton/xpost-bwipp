@@ -1623,6 +1623,32 @@ test('context-jobs',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# Putting a bank back by restoring only the pages a job wrote. The bank is
+# held to its baseline byte for byte after writes placed where a job's
+# would fall, including across a grow. A host that declines the whole idea
+# passes by copying, and the test says which route each boundary took so
+# that tracking nothing cannot read as tracking everything.
+vm_writeset_exe = executable('vm_writeset_test',
+  'tests/vm_writeset_test.c',
+  c_args: '-DHAVE_CONFIG_H',
+  dependencies: libxpost_dep,
+  link_args: internals_link_args,
+  include_directories: [ config_dir, include_directories('src/lib') ],
+  install: false)
+test('vm-writeset',
+  vm_writeset_exe,
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+# The same, with the tracking turned off: the copying revert is what every
+# host without an answer runs, and what this one falls back to, so it is
+# held to the same byte-for-byte standard rather than assumed correct
+# because it is the older path.
+test('vm-writeset-copying',
+  vm_writeset_exe,
+  suite: cost_fast,
+  env: { 'XPOST_NO_REVERT_WRITTEN': '1',
+         'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Job-to-job VM isolation: the adversarial battery. A hostile job1 poisons
 # the interpreter one way; a job2 asserts the interpreter it starts from is
 # pristine. Every poisoning vector, under each page semantics an embedder

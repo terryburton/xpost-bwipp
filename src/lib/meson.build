@@ -76,6 +76,18 @@ else
   ])
 endif
 
+# Which pages of a bank a job wrote: one answer per host, and the hosts
+# with no answer worth having share the one that declines.
+if sys_windows
+  libxpost_src += files([ 'xpost_vm_writeset_win32.c' ])
+elif host_os == 'linux'
+  libxpost_src += files([ 'xpost_vm_writeset_linux.c' ])
+elif host_os == 'darwin'
+  libxpost_src += files([ 'xpost_vm_writeset_darwin.c' ])
+else
+  libxpost_src += files([ 'xpost_vm_writeset_none.c' ])
+endif
+
 libxpost_deps = [
   fontconfig_dep,
   freetype_dep,
