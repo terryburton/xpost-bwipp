@@ -182,34 +182,48 @@ done
 # it flat, and without it the forty extra jobs cost about eleven hundred
 # pages.
 holds='1 1 2000 { /Courier findfont exch scalefont /F exch def } for'
-# What is asked here is whether the boundary gives the handle records up, and
-# no absolute figure answers it. How much a host keeps of what it was given
-# back is the host's own business and varies by more than a leak would:
+# The same jobs, reaching the same records by the other road. A record is
+# given up where the entity carrying it goes -- at a free, at a collection,
+# or at the end of the memory file -- so a job that collects before it ends
+# has already given its records up and leaves the boundary nothing to sweep.
+# Every other thing a job costs is identical, down to the allocation, so
+# whatever a host keeps of freed pages it keeps in both runs and cancels.
+# What does not cancel is the records the boundary was supposed to take.
+
+# What is asked is whether the boundary gives the handle records up, and no
+# reading of one run answers it. How much a host keeps of what it was given
+# back is the host's own business, and it varies by more than a leak would:
 # MEASURED, the same forty jobs grew resident memory by 470 pages on one
-# machine and 2040 on another, with the interpreter's own figures reading
-# zero on both -- so a threshold that passes the first fails the second while
-# nothing was retained either time.
+# machine and 2414 on another, with the interpreter's own figures reading
+# zero bytes on both. Nothing was retained either time.
 #
-# Telling the allocator to hand pages back does not settle it. That was tried
-# and it reads worse, not better: MEASURED, the arms below grew 8868 pages
-# with the allocator told to return what it could against 470 left alone, on
-# the same jobs -- forcing mid-sized blocks into mappings of their own rounds
-# every one of them up to a page, and a trim reaches only the top of the
-# heap. The tuning does not remove the allocator's discretion, it exchanges
-# it for a different one.
+# Telling that allocator to hand pages back does not settle it, and cannot
+# be asked for from here in any case. It was tried through the environment
+# and read worse, not better: MEASURED, 8868 pages against 470 left alone on
+# the same jobs, because forcing mid-sized blocks into mappings of their own
+# rounds every one of them up to a page while a trim reaches only the top of
+# the heap. That exchanges the allocator's discretion for another one rather
+# than removing it.
 #
-# What separates them is the shape. A record left behind costs the same on
-# every job, so a second run of forty jobs costs what the first did. A host
-# taking room for itself takes it once and then stops, so the second forty
-# cost a fraction of the first. Three readings are taken and the two
-# increments compared, which asks about the interpreter and not about the
-# machine.
-for spec in few:4 many:44 more:84; do
+# Nor does the shape separate them. A record kept costs the same on every
+# job; so, on a host whose allocator never settles, does the allocator --
+# MEASURED, a second forty jobs costing 1976 pages where the first forty
+# cost 2414, with nothing retained.
+#
+# What is left is to run the same jobs twice, once holding the records and
+# once not, and to read the difference. Whatever the host does with freed
+# pages it does in both runs, so it cancels; what does not cancel is the
+# records.
+for spec in few:4 many:44 ctlfew:4 ctlmany:44; do
     tag=${spec%:*}
     n=${spec#*:}
+    case $tag in
+        ctl*) body="$holds 2 vmreclaim" ;;
+        *)    body=$holds ;;
+    esac
     {
         i=0
-        while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$holds"; i=$((i + 1)); done
+        while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$body"; i=$((i + 1)); done
         printf '/rss { %s } def (HANDLE %s ) print rss 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
         # Beside the resident figure, what virtual memory itself says it is
         # holding. The two answer different questions and a report of one
@@ -227,7 +241,7 @@ done
 cat "$work/within.out" "$work/between.out" \
     "$work/device.few.out" "$work/device.many.out" \
     "$work/handle.few.out" "$work/handle.many.out" \
-    "$work/handle.more.out" > "$work/out"
+    "$work/handle.ctlfew.out" "$work/handle.ctlmany.out" > "$work/out"
 
 # Each pair must show resident memory fall by a clear margin. The growth is
 # about ten thousand pages; a return of a fifth of it is asked, which the
@@ -244,11 +258,11 @@ awk '
     # anchored, because the pair of lines the handle case prints share a
     # prefix and an unanchored match would read the second into the first
     /^HANDLE few/    { hf = $3 }
-    /^HANDLE more/   { hx = $3 }
+    /^HANDLE ctlfew/  { cf = $3 }
+    /^HANDLE ctlmany/ { cm = $3 }
     /^HANDLE many/   { hm = $3 }
     /^HANDLEVM few/  { vlf = $3; vgf = $4 }
     /^HANDLEVM many/ { vml = $3; vmg = $4 }
-    /^HANDLEVM more/ { vxl = $3; vxg = $4 }
     END {
         want = 5000     # pages, ~20MB, well under the ~39MB grown
         grew = 2000     # pages, ~8MB; 40 leaked 500x500x3 buffers is ~7300
@@ -274,30 +288,27 @@ awk '
             printf "resident grew %d pages over 40 extra setpagedevice jobs\n", dm - df
             bad = 1
         }
-        # A second forty jobs costing what the first did is a record left
-        # behind on each; costing a fraction of it is a host that took its
-        # room and stopped. Below the floor there is nothing to divide:
-        # forty jobs of records unswept cost about eleven hundred pages, so
-        # a second forty under three hundred is not that however the first
-        # forty read.
-        floor = 300     # pages
-        if (hf == "" || hm == "" || hx == "")
-            { print "the handle probe did not report all three figures"; bad = 1 }
-        else if (hx - hm > floor && hx - hm > (hm - hf) / 2) {
+        # What forty extra jobs cost with the records held, less what the
+        # same forty cost without them. Unswept records cost about eleven
+        # hundred pages over those forty, so half of that is well clear of
+        # what two runs of the same jobs differ by on their own.
+        held = 500      # pages
+        if (hf == "" || hm == "" || cf == "" || cm == "")
+            { print "the handle probe did not report all four figures"; bad = 1 }
+        else if ((hm - hf) - (cm - cf) > held) {
             printf "the job boundary did not give up the handle records of the\n"
-            printf "entities it dropped: a second forty jobs grew resident memory\n"
-            printf "by %d pages where the first forty grew it by %d -- a cost that\n", hx - hm, hm - hf
-            printf "does not fall away is a record kept on every job\n"
-            printf "      virtual memory over the first forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
-            printf "      and over the second: local %d bytes, global %d\n", vxl - vml, vxg - vmg
+            printf "entities it dropped: forty extra jobs holding records grew\n"
+            printf "resident memory by %d pages, and the same forty holding none\n", hm - hf
+            printf "grew it by %d -- the %d between them is the records\n", cm - cf, (hm - hf) - (cm - cf)
+            printf "      virtual memory over the forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
             bad = 1
         }
         if (bad) exit 1
         printf "within a job vmreclaim returned %d pages; between jobs the boundary\n", wp - wa
         printf "returned %d, held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
-        printf "and the handle records flat (%d pages over the first 40 jobs and\n", hm - hf
-        printf "%d over the second, virtual memory over the first: local %d bytes,\n", hx - hm, vml - vlf
-        printf "global %d)\n", vmg - vgf
+        printf "and the handle records flat (%d pages over 40 jobs against %d for\n", hm - hf, cm - cf
+        printf "the same forty holding none, virtual memory over them: local %d\n", vml - vlf
+        printf "bytes, global %d)\n", vmg - vgf
     }
 ' "$work/out" > "$work/problems" 2>&1
 rc=$?
