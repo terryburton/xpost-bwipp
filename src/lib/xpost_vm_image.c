@@ -508,7 +508,7 @@ static int _put_object(_Writer *w, Xpost_Object o)
 /* An operator row: what it states, what it is called, and the procedure
    it runs when it is one of the standard operators the boot files wrote
    in PostScript.
-   
+
    That procedure is the row's one piece of virtual memory. The rest of a
    row -- the C function implementing the operator and the one checking
    its operands -- is this process's and cannot be carried, which is why
@@ -517,7 +517,7 @@ static int _put_object(_Writer *w, Xpost_Object o)
    the procedure is an object in the arena the image is being taken of. A
    run that read an image and did not get it back would find every wrapped
    operator empty, which is exactly what happens if this is left out.
-   
+
    The name is padded out to a whole number of values so that everything
    after it keeps the alignment every other part of an image has. */
 static int _put_operators(_Writer *w, Xpost_Context *ctx, unsigned int count)

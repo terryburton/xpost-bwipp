@@ -951,7 +951,7 @@ int _path_is_rect(Xpost_Context *ctx, Xpost_Object path,
 
 /* Allocate an array the caller fills through the pointer it is handed,
    without the per-put save checks of the ordinary constructor.
-   
+
    Filled with null all the same, and not left as it was allocated. What
    a caller writes is what it turns out to need, which is not always
    every slot -- a run of points it decides to drop leaves the slots it

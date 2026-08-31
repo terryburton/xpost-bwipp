@@ -28,7 +28,7 @@
    by Tim Rentsch.
 
    Using simple inheritance (by composition), the Xpost_File*
-   functions are virtualized through this vtable. With the 
+   functions are virtualized through this vtable. With the
    specified inlining this should result in minimal overhead
    of simple pointer indirection.
 
