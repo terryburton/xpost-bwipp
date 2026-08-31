@@ -6008,12 +6008,18 @@ int _setcachelimit(Xpost_Context *ctx, Xpost_Object n)
    The capacity is the MaxFontCache system parameter, and PLRM 8.2
    setcacheparams allows it to be changed only in a system administrator
    job -- invalidaccess is among the operator's errors for exactly this.
-   An unencapsulated run is that job: it is what `exitserver` and `true
-   password startjob` leave behind, and what its boundary folds into the
-   state the jobs after it start from (PLRM 3.7.7). So a request that
-   states a capacity is refused while the run is encapsulated, and refused
+   Which runs are that job is PLRM C.3.1's question, answered by which
+   password startjob was given: the system parameter password starts one,
+   the start job password starts an ordinary unencapsulated job, and an
+   ordinary one may alter initial VM without being allowed to change a
+   limit every job after it will run under. So a request that states a
+   capacity is refused unless the run is an administrator job, and refused
    whole -- the per-glyph ceiling in the same request is not applied
    either, an operator that raises an error having done nothing.
+
+   Where no system parameter password is set the two tiers are one and
+   every unencapsulated run is an administrator job, which is the factory
+   default C.3.1 describes.
 
    A request that states NO capacity carries a zero here (data/font.ps
    fills the absent operands in) and is not a change to the cache size, so
@@ -6028,7 +6034,7 @@ int _setcacheparams(Xpost_Context *ctx,
                      Xpost_Object lower,
                      Xpost_Object upper)
 {
-    if (size.int_.val != 0 && ctx->job_encapsulated)
+    if (size.int_.val != 0 && !ctx->job_admin)
         return invalidaccess;
     ctx->maxfontitem =
         (integer)xpost_font_cache_setparams((long)size.int_.val,

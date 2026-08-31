@@ -362,6 +362,28 @@ _xpost_main_usage(FILE *out, const char *filename)
             fprintf(out, "\n\n");
         }
     }
+    /* The two job passwords. They are named here rather than among the
+       options because they are not options: a password on a command line
+       is readable by anything that can list processes, so the environment
+       is the channel, and an embedding caller sets them through the
+       library instead. */
+    fprintf(out, "  Environment:\n");
+    fprintf(out, "    XPOST_STARTJOB_PASSWORD        what a job presents to startjob or exitserver\n");
+    fprintf(out, "                                   to leave its work behind for the jobs after it\n");
+    fprintf(out, "    XPOST_SYSTEM_PARAMS_PASSWORD   what a job presents to do that AND change an\n");
+    fprintf(out, "                                   implementation limit every later job then runs under\n");
+    fprintf(out, "\n");
+    fprintf(out, "    A variable that is not set at all is not the same as one set to nothing:\n");
+    fprintf(out, "    set-and-empty is a password, presented by presenting nothing, while not set\n");
+    fprintf(out, "    is no password and no tier to reach.\n");
+    fprintf(out, "\n");
+    fprintf(out, "    That difference decides what the two modes do. One run of one job has\n");
+    fprintf(out, "    nobody to protect from the program it was started with, so with neither\n");
+    fprintf(out, "    variable set it admits at administrator level. A --jobserver run serves\n");
+    fprintf(out, "    jobs it did not choose, so a variable that is not set admits nobody there:\n");
+    fprintf(out, "    configure a stream before trusting it. Setting either one closes the tier\n");
+    fprintf(out, "    beside it rather than leaving it open.\n\n");
+
     fprintf(out, "  Supported devices:\n");
     i = 0;
     while (_xpost_main_devices[i])

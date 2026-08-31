@@ -57,6 +57,47 @@ static void expect(Xpost_Context *ctx, const char *what,
     }
 }
 
+
+/* What tier the presented password reaches, as the interpreter now stands:
+   REFUSED if startjob would not start a job, ORDINARY if it starts one that
+   may not state a cache capacity, ADMIN if it starts one that may. The
+   capacity stated is the one already in force, so asking the question does
+   not change the answer for the next asking. */
+static const char *tier_reached(Xpost_Context *ctx, const char *password)
+{
+    char prog[512];
+
+    snprintf(prog, sizeof prog,
+             "true (%s) startjob "
+             "{ { mark 1048576 4 32768 setcacheparams } stopped "
+             "    { (ORDINARY) }{ (ADMIN) } ifelse } "
+             "{ (REFUSED) } ifelse print flush",
+             password);
+    return run_job(ctx, prog);
+}
+
+/* one row of the matrix below */
+static void expect_tier(Xpost_Context *ctx, int jobserver,
+                        const char *admin_pw, const char *job_pw,
+                        const char *presented, const char *want)
+{
+    const char *got;
+
+    xpost_system_params_password_set(ctx, admin_pw);
+    xpost_startjob_password_set(ctx, job_pw);
+    xpost_jobserver_set(ctx, jobserver);
+    got = tier_reached(ctx, presented);
+    if (strcmp(got, want) != 0)
+        report_failure("%s, admin %s, job %s, presenting '%s': got %s, want %s",
+                       jobserver ? "job stream" : "single run",
+                       !admin_pw ? "unconfigured"
+                                 : (admin_pw[0] ? "set" : "set empty"),
+                       !job_pw ? "unconfigured"
+                               : (job_pw[0] ? "set" : "set empty"),
+                       presented, got, want);
+    xpost_jobserver_set(ctx, 0);
+}
+
 int main(void)
 {
     Xpost_Context *ctx;
@@ -143,7 +184,7 @@ int main(void)
            "/okpw where {pop(KEPT)}{(GONE)}ifelse print flush",
            "KEPT");
 
-    xpost_startjob_password_set(ctx, "");  /* reopen for tidiness */
+    xpost_startjob_password_set(ctx, NULL);  /* unconfigured again */
 
     /* exitserver removes serverdict from the dict stack (startjob resets it
        to the base depth) and announces on the standard output */
@@ -186,6 +227,139 @@ int main(void)
             report_failure("exitserver did not announce with binary absent:"
                            " '%s'", msg);
     }
+
+    /* PLRM C.3.1: the two passwords start two kinds of unencapsulated job,
+       and the difference is what a job may do to the jobs after it. An
+       ordinary one may alter initial VM -- install a prolog, install a font
+       -- and may not change an implementation limit; an administrator job
+       may do both. A host taking jobs from several submitters sets both
+       passwords, which is the only way to hand out the first without the
+       second. */
+    xpost_startjob_password_set(ctx, "jobpw");
+    xpost_system_params_password_set(ctx, "adminpw");
+
+    /* the start job password starts a job, and it is not an administrator:
+       a capacity stated to setcacheparams is refused */
+    if (strcmp(run_job(ctx,
+            "true (jobpw) startjob {(STARTED)}{(DENIED)}ifelse print flush"),
+            "STARTED") != 0)
+        report_failure("the start job password did not start a job: '%s'",
+                       out_buf);
+    if (strcmp(run_job(ctx,
+            "true (jobpw) startjob pop "
+            "{ mark 262144 4 32768 setcacheparams } stopped "
+            "{ $error /errorname get == }{ (ALLOWED) print } ifelse flush"),
+            "/invalidaccess\n") != 0)
+        report_failure("an ordinary unencapsulated job was allowed to change"
+                       " the cache capacity: '%s'", out_buf);
+
+    /* it may still alter initial VM, which is what it is for */
+    expect(ctx, "an ordinary unencapsulated job may install a prolog",
+           "true (jobpw) startjob pop /prologdef { 1 } def",
+           "/prologdef where {pop(KEPT)}{(GONE)}ifelse print flush",
+           "KEPT");
+
+    /* the system parameter password starts an administrator job, which may */
+    if (strcmp(run_job(ctx,
+            "true (adminpw) startjob pop "
+            "{ mark 262144 4 32768 setcacheparams (ALLOWED) print } stopped "
+            "{ $error /errorname get == } if flush"),
+            "ALLOWED") != 0)
+        report_failure("an administrator job could not change the cache"
+                       " capacity: '%s'", out_buf);
+
+    /* a password that is neither starts nothing */
+    if (strcmp(run_job(ctx,
+            "true (neither) startjob {(STARTED)}{(DENIED)}ifelse print flush"),
+            "DENIED") != 0)
+        report_failure("a password matching neither started a job: '%s'",
+                       out_buf);
+
+    /* An empty system parameter password collapses the two tiers, which is
+       the factory default C.3.1 describes: every startjob is then an
+       administrator job. Restored last so the check leaves the interpreter
+       as it found it. */
+    xpost_system_params_password_set(ctx, "");
+    xpost_startjob_password_set(ctx, "");
+    if (strcmp(run_job(ctx,
+            "true () startjob pop "
+            "{ mark 262144 4 32768 setcacheparams (ALLOWED) print } stopped "
+            "{ $error /errorname get == } if flush"),
+            "ALLOWED") != 0)
+        report_failure("with no system parameter password set, startjob did"
+                       " not start an administrator job: '%s'", out_buf);
+
+
+    /* Every combination of the two passwords against the two modes, because
+       what an unset password means is the whole of the difference between
+       them and nothing else states it.
+
+       A single run of a single job has nobody to protect from the program
+       it was started with, so with neither password set it admits at
+       administrator level -- the factory default PLRM C.3.1 describes. A
+       job stream is the opposite case: it serves jobs it did not choose,
+       from submitters that do not trust each other, and admits only what it
+       was configured to admit. An unset password there opens nothing.
+
+       In both, setting either password is a configuration someone made, and
+       a tier left unset beside it is closed rather than collapsed. */
+    {
+        static const struct {
+            int jobserver;
+            const char *admin_pw, *job_pw, *presented, *want;
+        } matrix[] = {
+            /* NULL is a password never configured; "" is one configured as
+               the empty string, which a job presents by presenting nothing.
+               They differ, and the difference is the whole of what a job
+               stream admits. */
+
+            /* --- a single run: an unconfigured password is an open door - */
+            { 0, NULL,   NULL,    "",       "ADMIN"    },
+            { 0, NULL,   NULL,    "junk",   "ADMIN"    },
+            /* configured empty is a password, and it is matched by nothing */
+            { 0, NULL,   "",      "",       "ORDINARY" },
+            { 0, NULL,   "",      "junk",   "REFUSED"  },
+            { 0, "",     NULL,    "",       "ADMIN"    },
+            /* a start job password set alone admits, and admits no
+               administrator: the tier beside it was left closed */
+            { 0, NULL,   "jobpw", "jobpw",  "ORDINARY" },
+            { 0, NULL,   "jobpw", "wrong",  "REFUSED"  },
+            /* an administrator password alone: the door is still open,
+               but reaching the tier takes the password */
+            { 0, "adpw", NULL,    "adpw",   "ADMIN"    },
+            { 0, "adpw", NULL,    "wrong",  "ORDINARY" },
+            /* both configured: each password reaches its own tier */
+            { 0, "adpw", "jobpw", "adpw",   "ADMIN"    },
+            { 0, "adpw", "jobpw", "jobpw",  "ORDINARY" },
+            { 0, "adpw", "jobpw", "wrong",  "REFUSED"  },
+
+            /* --- a job stream: unconfigured admits nobody --------------- */
+            { 1, NULL,   NULL,    "",       "REFUSED"  },
+            { 1, NULL,   NULL,    "junk",   "REFUSED"  },
+            /* but configured empty is configured, and admits */
+            { 1, NULL,   "",      "",       "ORDINARY" },
+            { 1, NULL,   "",      "junk",   "REFUSED"  },
+            { 1, "",     NULL,    "",       "ADMIN"    },
+            { 1, NULL,   "jobpw", "jobpw",  "ORDINARY" },
+            { 1, NULL,   "jobpw", "wrong",  "REFUSED"  },
+            { 1, "adpw", NULL,    "adpw",   "ADMIN"    },
+            { 1, "adpw", NULL,    "wrong",  "REFUSED"  },
+            { 1, "adpw", "jobpw", "adpw",   "ADMIN"    },
+            { 1, "adpw", "jobpw", "jobpw",  "ORDINARY" },
+            { 1, "adpw", "jobpw", "wrong",  "REFUSED"  }
+        };
+        size_t i;
+
+        for (i = 0; i < sizeof matrix / sizeof *matrix; i++)
+            expect_tier(ctx, matrix[i].jobserver, matrix[i].admin_pw,
+                        matrix[i].job_pw, matrix[i].presented,
+                        matrix[i].want);
+    }
+
+    /* left as it was found */
+    xpost_system_params_password_set(ctx, NULL);
+    xpost_startjob_password_set(ctx, NULL);
+    xpost_jobserver_set(ctx, 0);
 
     xpost_stdout_handler_set(ctx, NULL, NULL);
     xpost_destroy(ctx);

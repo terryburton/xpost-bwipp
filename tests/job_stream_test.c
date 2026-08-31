@@ -62,7 +62,7 @@ static void stream(Xpost_Showpage_Semantics semantics, const char *what)
         "/leaked 1 def\004"
         "userdict /leaked known {(LEAKED)}{(clean)} ifelse print flush\004"
         "nonexistent-name-raises-undefined\004"
-        "serverdict begin () exitserver /kept 42 def\004"
+        "serverdict begin (prologpw) exitserver /kept 42 def\004"
         "userdict /kept known {(kept)}{(lost)} ifelse print flush";
 
     ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
@@ -74,6 +74,12 @@ static void stream(Xpost_Showpage_Semantics semantics, const char *what)
     }
     xpost_job_snapshots_set(ctx, 1);
     xpost_jobserver_set(ctx, 1);
+    /* A job stream admits only what it was configured to admit: an unset
+       password there opens nothing, so a stream whose jobs are to be able
+       to leave a prolog behind is given the password those jobs present.
+       The stream below exercises that a job which presents it persists its
+       work across the delimiter, which is what the mechanism is for. */
+    xpost_startjob_password_set(ctx, "prologpw");
     xpost_stdout_handler_set(ctx, out_sink, NULL);
 
     outlen = 0;
@@ -350,6 +356,47 @@ static void stream_after_host_baseline(Xpost_Showpage_Semantics semantics,
     xpost_destroy(ctx);
 }
 
+
+/* The converse of the stream above, and the property the tiers exist for: a
+   job stream that was configured with no password admits nobody. A job that
+   tries to leave its work behind is refused, and the job after it starts
+   from the state it would have changed rather than from the state it wanted
+   to leave. A server is configured before it is trusted. */
+static void stream_unconfigured(Xpost_Showpage_Semantics semantics,
+                                const char *what)
+{
+    Xpost_Context *ctx;
+    static const char prog[] =
+        "serverdict begin () exitserver /kept 42 def\004"
+        "userdict /kept known {(LEAKED)}{(denied)} ifelse print flush";
+
+    ctx = xpost_create("null", XPOST_OUTPUT_DEFAULT, NULL, semantics,
+                       XPOST_OUTPUT_MESSAGE_QUIET, XPOST_USE_SIZE, 100, 100);
+    if (!ctx)
+    {
+        report_failure("%s: xpost_create", what);
+        return;
+    }
+    xpost_job_snapshots_set(ctx, 1);
+    xpost_jobserver_set(ctx, 1);
+    /* deliberately no password set */
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+
+    outlen = 0;
+    (void) xpost_run(ctx, XPOST_INPUT_STRING, prog, sizeof prog - 1);
+    outbuf[outlen < sizeof outbuf ? outlen : sizeof outbuf - 1] = '\0';
+
+    if (strstr(outbuf, "LEAKED"))
+        report_failure("%s: an unconfigured job stream let a job leave its"
+                       " work behind for the jobs after it", what);
+    if (!strstr(outbuf, "denied"))
+        report_failure("%s: the job after the refused one did not run: '%s'",
+                       what, outbuf);
+
+    xpost_stdout_handler_set(ctx, NULL, NULL);
+    xpost_destroy(ctx);
+}
+
 int main(void)
 {
     if (!xpost_init())
@@ -360,6 +407,8 @@ int main(void)
 
     stream(XPOST_SHOWPAGE_NOPAUSE, "nopause");
     stream(XPOST_SHOWPAGE_RETURN, "returning");
+    stream_unconfigured(XPOST_SHOWPAGE_NOPAUSE, "unconfigured-nopause");
+    stream_unconfigured(XPOST_SHOWPAGE_RETURN, "unconfigured-returning");
     stream_reclaim(XPOST_SHOWPAGE_NOPAUSE, "reclaim-nopause");
     stream_reclaim(XPOST_SHOWPAGE_RETURN, "reclaim-returning");
     stream_cache_params(XPOST_SHOWPAGE_NOPAUSE, "cacheparams-nopause");

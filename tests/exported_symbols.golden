@@ -511,6 +511,7 @@ xpost_stack_topdown_fetch
 xpost_stack_topdown_find_type
 xpost_stack_topdown_replace
 xpost_startjob_password_set
+xpost_system_params_password_set
 xpost_stderr_handler_set
 xpost_stdout_handler_set
 xpost_strbuf_appendf

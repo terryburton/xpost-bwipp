@@ -555,41 +555,64 @@ Interpreter parameters
  from currentsystemparams is that rule rather than a gap. What they do here
  differs, and differs between them:
 
- [ ] SystemParamsPassword. setsystemparams asks for no Password entry and
-     admits any dictionary. PLRM C.1.2 permits exactly this where the
-     system parameter password is the empty string, which is this
-     interpreter's state for the whole of a run; what a program cannot do
-     is set one. Since setsystemparams also applies nothing, an
-     unprotected door opens onto a room holding nothing writable. The two
-     belong together: what would make the password worth having is
-     something behind the door, and the password is the half that should
-     arrive first.
- [X] StartJobPassword. The password itself is kept and enforced: startjob
-     compares the presented value against it byte for byte, an integer
-     converted as if by cvs, and an empty password admits any job, as PLRM
-     C.3.1 describes. It is set by the program embedding this interpreter
-     rather than by setsystemparams, so a job stream can satisfy the
-     password but cannot change it.
+ [/] SystemParamsPassword. The password is kept and decides which kind of
+     unencapsulated job startjob starts, which is what PLRM C.3.1 has it
+     decide. What is not carried is a program's route to it:
+     setsystemparams reaches neither password, so a job stream can satisfy
+     one and cannot set or change one. The host sets it, beside the start
+     job password, through the interpreter's own interface.
+ [X] StartJobPassword. Kept and enforced: startjob compares the presented
+     value against it byte for byte, an integer converted as if by cvs, and
+     an empty password admits any job, as PLRM C.3.1 describes. Set by the
+     program embedding this interpreter, for the reason above.
 
- One password means one kind of unencapsulated job. PLRM C.3.1 has
- startjob start a system administrator job where the system parameters
- password is presented and an ordinary one where the start job password
- is, the first differing in that it may also set system and device
- parameters without presenting a password each time. C.3.1 settles which
- kind is started here: where the system parameters password is empty every
- startjob starts a system administrator job. So the authority the ordinary
- kind is meant not to have is held by every unencapsulated run. What that
- amounts to is the glyph cache's capacity, which PLRM 8.2 allows to be
- changed only in a system administrator job because it is equivalent to
- changing a system parameter -- the two parameter-setting operators the
- tier is named for applying nothing.
+ The two passwords are two tiers, and the difference between them is what a
+ job may do to the jobs after it. An ordinary unencapsulated job, started
+ with the start job password, may alter initial VM -- install a prolog,
+ install a font -- and its work outlives it. A system administrator job,
+ started with the system parameter password, may in addition change an
+ implementation limit, which every job after it then runs under. The glyph
+ cache's capacity is such a limit, and PLRM 8.2 allows setcacheparams to
+ state one only in an administrator job for exactly that reason.
 
- A locked door is held the other way, tighter than the specification asks.
- Where the embedding program has set a start job password, startjob
- refuses a run that does not present it, where C.3.1 would have startjob
- allowed whatever is presented for as long as the system parameters
- password is empty.
+ What an unset password means depends on what the interpreter is being used
+ as, because the safe answer differs. One run of one job has nobody to
+ protect from the program it was started with, so with neither password set
+ it admits at administrator level, which is the factory default C.3.1
+ describes. A run reading a job stream serves jobs it did not choose, one
+ after another, and admits only what it was configured to admit: an unset
+ password there opens nothing, and with neither set no job in the stream
+ becomes unencapsulated at all.
 
+ In both, setting either password closes the tier beside it rather than
+ leaving it open. A start job password with no system parameter password
+ beside it admits ordinary jobs and no administrator, because a password
+ that was set is a configuration someone made and a tier left unset beside
+ it was left closed rather than left to fall back into.
+
+ A password configured as the empty string is not the same as one never
+ configured, and the difference is what the paragraph above turns on. The
+ empty string is a password, presented by presenting nothing; never
+ configured is no password and no tier to reach. So a job stream told
+ nothing admits nobody, while one told that its password is empty admits
+ whoever presents nothing -- which is a choice someone made rather than a
+ default nobody looked at.
+
+ The passwords are the host's. A program embedding the interpreter sets them
+ through its interface, and not calling it leaves them unconfigured; a run
+ that is not embedded takes them from XPOST_STARTJOB_PASSWORD and
+ XPOST_SYSTEM_PARAMS_PASSWORD, where a variable that is absent is
+ unconfigured and one set to nothing is the empty password. Neither is on
+ the command line: an argument is readable by anything that can list
+ processes.
+
+ [/] One departure inside that, and it is the strict direction. C.3.1 has an
+     empty system parameter password admit any job whatever password it
+     presents. Here a start job password that is set is enforced whatever
+     the other password is, because a host that locked the door with the
+     start job password alone would otherwise find it open again, and a
+     lock that a second unset password quietly removes is worse than no
+     lock at all.
  RecordSpill, CurRecordSpill, MaxBandBytes and CurBandHeight are this
  interpreter's own rather than the language's, and doc/COMPAT records where
  they came from with the rest of the vocabulary that is not PLRM's.

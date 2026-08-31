@@ -591,6 +591,21 @@ XPAPI int xpost_new_job(Xpost_Context *ctx);
 XPAPI void xpost_startjob_password_set(Xpost_Context *ctx, const char *password);
 
 /**
+ * @brief Set the SystemParamsPassword (PLRM C.3.1).
+ *
+ * Decides which kind of unencapsulated job startjob starts. Presenting
+ * this password starts a system administrator job, which may change an
+ * implementation limit; presenting the start job password starts an
+ * ordinary unencapsulated job, which may alter initial VM and may not.
+ *
+ * Empty is the factory default and collapses the distinction: every
+ * startjob then starts an administrator job. A host serving jobs from
+ * more than one submitter sets both this and the start job password.
+ */
+XPAPI void xpost_system_params_password_set(Xpost_Context *ctx,
+                                           const char *password);
+
+/**
  * @brief File-access sandbox: permit directory trees, then engage.
  *
  * Before the sandbox is engaged, a program's disk access is

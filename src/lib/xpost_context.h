@@ -574,9 +574,42 @@ struct _Xpost_Context {
     /** The StartJobPassword (PLRM C.3.1). Empty (the factory default and
         the initial value here) disables the check, so a trusted prolog can
         use exitserver out of the box; a host serving untrusted jobs sets it
-        non-empty with xpost_startjob_password_set() to lock the door, since
-        a program cannot set it (setsystemparams is a no-op). */
+        non-empty with xpost_startjob_password_set() to lock the door. A
+        program cannot set it: setsystemparams carries no parameter that
+        reaches either password. */
     char startjob_password[128];
+
+    /** The SystemParamsPassword (PLRM C.3.1), which decides not whether a
+        job may start but which KIND it starts. Presenting this one starts
+        a system administrator job; presenting the start job password above
+        starts an ordinary unencapsulated job, which may alter initial VM
+        -- install a prolog, install a font -- and may not change an
+        implementation limit.
+
+        Empty is the factory default and disables the distinction: C.3.1
+        has an empty system parameter password make every startjob an
+        administrator job, which is the right default for one run of one
+        job and the wrong one for a server taking jobs from several
+        submitters. Such a host sets both with
+        xpost_system_params_password_set() and
+        xpost_startjob_password_set(). */
+    char system_params_password[128];
+
+    /** Whether each password above was configured at all, which is not the
+        same question as whether it is empty. A password configured as the
+        empty string is a tier a job reaches by presenting nothing; a
+        password never configured is a tier that is not there to reach. The
+        difference decides what a job stream admits, so it cannot be read
+        off the strings. */
+    int startjob_password_set;
+    int system_params_password_set;
+
+    /** Whether the run now executing is a system administrator job
+        (PLRM C.3.1), which is what an operator changing a system
+        parameter is allowed only in. Not the same question as
+        job_encapsulated: an ordinary unencapsulated job is not
+        encapsulated and is not an administrator either. */
+    int job_admin;
 
     int (*xpost_interpreter_cid_init)(unsigned int *cid);
     Xpost_Memory_File *(*xpost_interpreter_alloc_local_memory)(void);

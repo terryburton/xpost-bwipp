@@ -4778,6 +4778,11 @@ XPAPI Xpost_Run_Status xpost_run(Xpost_Context *ctx, Xpost_Input_Type input_type
     /* a fresh run is encapsulated until it executes exitserver / a `true`
        startjob; its boundary reverts unless one of those makes it persist */
     ctx->job_encapsulated = 1;
+    /* and is not an administrator job until one of those says which kind
+       it is. The authority does not outlive the run that was granted it:
+       were it to, one job in a stream could take it and every job after
+       would hold it (PLRM C.3.1). */
+    ctx->job_admin = 0;
 
     /* prime the exec stack
        so it starts with a 'start*' procedure,
@@ -4983,6 +4988,7 @@ run:
         ctx->run_error_info[0] = '\0';
         ctx->run_uncaught = 0;
         ctx->job_encapsulated = 1;
+        ctx->job_admin = 0;
         _prime_job_stream(ctx);
         goto run;
     }
@@ -5120,15 +5126,45 @@ XPAPI void xpost_job_baseline_set(Xpost_Context *ctx)
         XPOST_LOG_ERR("cannot capture the job baseline image");
 }
 
-/* set the StartJobPassword that startjob/exitserver check */
+/* Set the StartJobPassword that startjob/exitserver check. A NULL password
+   is not the empty one: it leaves the password unconfigured, which is a
+   tier a job stream does not admit to at all, where the empty string is a
+   password a job presents by presenting nothing. */
 XPAPI void xpost_startjob_password_set(Xpost_Context *ctx, const char *password)
 {
     if (!ctx)
         return;
     if (!password)
-        password = "";
+    {
+        ctx->startjob_password[0] = '\0';
+        ctx->startjob_password_set = 0;
+        return;
+    }
     /* truncation only lengthens a password, never opens the door */
     snprintf(ctx->startjob_password, sizeof ctx->startjob_password, "%s", password);
+    ctx->startjob_password_set = 1;
+}
+
+/* Set the SystemParamsPassword, which decides which KIND of unencapsulated
+   job startjob starts (PLRM C.3.1). A host taking jobs from more than one
+   submitter sets this as well as the start job password: leaving it empty
+   makes every startjob an administrator job, and an administrator job may
+   change an implementation limit for every job that follows it. */
+XPAPI void xpost_system_params_password_set(Xpost_Context *ctx,
+                                           const char *password)
+{
+    if (!ctx)
+        return;
+    if (!password)
+    {
+        ctx->system_params_password[0] = '\0';
+        ctx->system_params_password_set = 0;
+        return;
+    }
+    /* truncation only lengthens a password, never opens the door */
+    snprintf(ctx->system_params_password,
+             sizeof ctx->system_params_password, "%s", password);
+    ctx->system_params_password_set = 1;
 }
 
 /* revert the whole context to the baseline, readying a fresh job */

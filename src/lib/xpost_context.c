@@ -24,7 +24,7 @@
 #endif
 
 #include <stdio.h> /* FILE* */
-#include <stdlib.h> /* free */
+#include <stdlib.h> /* free getenv */
 #include <string.h> /* memset */
 
 #ifdef _WIN32
@@ -474,7 +474,45 @@ int xpost_context_init(Xpost_Context *ctx,
     ctx->job_boundary_failed = 0;
     ctx->job_encapsulated = 1;
     ctx->jobserver = 0;
+    /* The two job passwords, from the environment where it names them.
+       A host embedding the interpreter sets them through
+       xpost_startjob_password_set() and
+       xpost_system_params_password_set(), which run after this and so
+       override; the environment is how a run that is not embedded -- a job
+       stream on a socket, a service started by an init system -- is
+       configured, since there is no other channel for it.
+
+       An environment variable is readable by anything running as the same
+       user, so this is a way to configure a service, not a way to keep a
+       secret from the machine it runs on. */
     ctx->startjob_password[0] = '\0';
+    ctx->system_params_password[0] = '\0';
+    ctx->startjob_password_set = 0;
+    ctx->system_params_password_set = 0;
+    {
+        const char *e = getenv("XPOST_STARTJOB_PASSWORD");
+
+        /* Present and empty is a password: a job reaches that tier by
+           presenting nothing. Absent is no password at all, which in a job
+           stream is a tier nothing reaches. */
+        if (e)
+        {
+            snprintf(ctx->startjob_password,
+                     sizeof ctx->startjob_password, "%s", e);
+            ctx->startjob_password_set = 1;
+        }
+        e = getenv("XPOST_SYSTEM_PARAMS_PASSWORD");
+        if (e)
+        {
+            snprintf(ctx->system_params_password,
+                     sizeof ctx->system_params_password, "%s", e);
+            ctx->system_params_password_set = 1;
+        }
+    }
+    /* A run that has not asked to be one is not an administrator job.
+       What an empty system parameter password decides is which kind a
+       startjob starts, not whether a run begins as one. */
+    ctx->job_admin = 0;
     ctx->xpost_interpreter_cid_init = xpost_interpreter_cid_init;
     ctx->xpost_interpreter_alloc_local_memory = xpost_interpreter_alloc_local_memory;
     ctx->xpost_interpreter_alloc_global_memory = xpost_interpreter_alloc_global_memory;

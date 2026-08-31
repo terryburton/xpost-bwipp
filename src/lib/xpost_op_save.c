@@ -367,18 +367,15 @@ int Agcheck(Xpost_Context *ctx,
     return 0;
 }
 
-/* PLRM C.3.1: the password matches when the StartJobPassword is empty (the
-   factory default, so a trusted prolog works out of the box) or equals the
-   presented one, byte for byte, case-sensitively. An integer password is
-   compared as its decimal string, as if by cvs. */
+/* PLRM C.3.1: a password is compared byte for byte and case-sensitively,
+   and an integer one as its decimal string, as if by cvs. An empty stored
+   password is not compared here -- what an empty one means differs between
+   the two passwords, and _startjob_tier below says what each means. */
 static
-int _startjob_password_ok(Xpost_Context *ctx, Xpost_Object P)
+int _password_matches(Xpost_Context *ctx, const char *pw, Xpost_Object P)
 {
-    const char *pw = ctx->startjob_password;
     size_t pwlen = strlen(pw);
 
-    if (pwlen == 0)
-        return 1;
     switch (xpost_object_get_type(P))
     {
         case stringtype:
@@ -395,6 +392,77 @@ int _startjob_password_ok(Xpost_Context *ctx, Xpost_Object P)
         default:
             return 0;
     }
+}
+
+#define STARTJOB_REFUSED   (-1)
+#define STARTJOB_ORDINARY  0
+#define STARTJOB_ADMIN     1
+
+/* Which kind of unencapsulated job the presented password starts
+   (PLRM C.3.1), or that it starts none.
+
+   The two passwords are separate so that the authority to alter initial VM
+   -- to install a prolog or a font -- can be granted without the authority
+   to change an implementation limit for every job that follows. The system
+   parameter password starts a system administrator job, which has both; the
+   start job password starts an ordinary unencapsulated job, which has the
+   first only.
+
+   What an unset password means depends on what the interpreter is being
+   used as, because the safe answer differs.
+
+   Configured and empty is a password, and a job presents it by presenting
+   nothing; never configured is no password at all. The two look alike in
+   the stored string and are not alike here.
+
+   A job stream -- the interpreter serving jobs it did not choose, one after
+   another, from submitters that do not trust each other -- admits nobody it
+   was not configured to admit. A password that was never configured opens
+   nothing:
+   with neither set, no job in the stream becomes unencapsulated at all, and
+   with only the start job password set none becomes an administrator. A
+   server is configured before it is trusted, not after it is exploited.
+
+   A single run of a single job is the other case, and there is nobody to
+   protect: the program was chosen by whoever started the interpreter, and a
+   password would be a lock on a door they are already through. With neither
+   password set it admits at administrator level, which is the factory
+   default PLRM C.3.1 describes.
+
+   The two tiers are one only in that default. Once either password is set
+   someone has configured this, and a tier left unset is then a closed tier
+   rather than one to fall back into: a start job password with no
+   administrator password beside it admits ordinary jobs and no
+   administrator at all.
+
+   In both, a password that IS set is enforced. C.3.1 would have an empty
+   system parameter password admit any job whatever it presents; that is not
+   done here, because a host that locked the door with the start job
+   password alone would otherwise find it open again, and a lock a second
+   unset password quietly removes is worse than no lock. */
+static
+int _startjob_tier(Xpost_Context *ctx, Xpost_Object P)
+{
+    int admin_set = ctx->system_params_password_set;
+    int job_set = ctx->startjob_password_set;
+
+    if (admin_set && _password_matches(ctx, ctx->system_params_password, P))
+        return STARTJOB_ADMIN;
+    if (job_set && _password_matches(ctx, ctx->startjob_password, P))
+        /* Ordinary, and only ordinary. A start job password that is set is
+           a configuration someone made, and an administrator password that
+           is not set alongside it is a tier deliberately left closed rather
+           than one to fall back into. */
+        return STARTJOB_ORDINARY;
+
+    /* nothing matched. A job stream admits only what it was configured to */
+    if (ctx->jobserver)
+        return STARTJOB_REFUSED;
+
+    /* a set password is enforced whatever the mode */
+    if (job_set)
+        return STARTJOB_REFUSED;
+    return admin_set ? STARTJOB_ORDINARY : STARTJOB_ADMIN;
 }
 
 /* bool1 password  startjob  bool2
@@ -425,8 +493,9 @@ int Bstartjob(Xpost_Context *ctx,
 {
     unsigned int vs = xpost_memory_save_stack_ent(ctx->lo);
     unsigned int floor;
+    int tier = _startjob_tier(ctx, P);
 
-    if (!_startjob_password_ok(ctx, P)
+    if (tier == STARTJOB_REFUSED
         || xpost_stack_count(ctx->lo, vs) != 0)
     {
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
@@ -453,6 +522,10 @@ int Bstartjob(Xpost_Context *ctx,
        must persist is done the way the worker does it -- with the run left
        unencapsulated to its end, or through xpost_job_baseline_set. */
     ctx->job_encapsulated = B.int_.val ? 0 : 1;
+    /* The authority goes with being unencapsulated and no further: a run
+       put back to encapsulated is not an administrator, whichever password
+       it presented to get there. */
+    ctx->job_admin = B.int_.val ? (tier == STARTJOB_ADMIN) : 0;
     xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
     return 0;
 }

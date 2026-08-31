@@ -50,6 +50,9 @@ count    xpost_context.h:_Xpost_Context     job_baseline_optab_len
 count    xpost_context.h:_Xpost_Context     job_baseline_ds
 count    xpost_context.h:_Xpost_Context     job_boundary_failed
 count    xpost_context.h:_Xpost_Context     job_encapsulated
+count    xpost_context.h:_Xpost_Context     job_admin
+count    xpost_context.h:_Xpost_Context     startjob_password_set
+count    xpost_context.h:_Xpost_Context     system_params_password_set
 count    xpost_context.h:_Xpost_Context     job_packing
 count    xpost_context.h:_Xpost_Context     job_gcache_blimit
 count    xpost_context.h:_Xpost_Context     job_gcache_bmax
