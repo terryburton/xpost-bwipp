@@ -687,6 +687,11 @@
  * separate numbers -- @c xpost_memory_page_size and
  * @c xpost_memory_return_grain.
  *
+ * Handing a page back changes what a bank holds without anything having
+ * written it, so a boundary that puts back only the pages a job wrote
+ * would leave this storage as the system left it. The range given back
+ * is remembered for that boundary; see @ref design_jobs.
+ *
  * Compaction happens only at the interpreter's outermost loop, never
  * inside the operator that asked: moving the arena invalidates every
  * pointer derived from an entity's address, an operator runs
@@ -872,6 +877,25 @@
  * the revert is still total, and still cannot fail part way, and
  * XPOST_NO_REVERT_WRITTEN takes every host down that road, which is how
  * the two are compared on a machine that is not this one.
+ *
+ * Putting a written page back is not necessarily copying over it. Where
+ * the bank is a private view of the baseline, the page is discarded
+ * instead, and the baseline shows through again without any of it being
+ * moved. The difference is not speed but whether the storage ever comes
+ * back: a page copied over stays a private copy, so a bank that copied
+ * would hold every page it had ever written for as long as the run
+ * lasted, while discarding leaves it holding what one job wrote.
+ *
+ * Two things the record of writes cannot see are put back beside it. A
+ * page the arena handed to the operating system during the job -- the
+ * return described in @ref design_return -- changed what the bank holds
+ * with nothing having written it, so the range given back is remembered
+ * and restored with the rest; without that the boundary would put back
+ * what the job wrote and leave this storage as the system left it.
+ * And a host that named too few pages would leave a job's bytes in the
+ * next job's memory, which is a wrong answer no other check would see,
+ * so XPOST_REVERT_VERIFY holds the bank against the baseline it has just
+ * been said to hold and says which byte first differs.
  *
  * The bank's committed pages come back
  * with its cursor: the growth a large job forced on the arena is

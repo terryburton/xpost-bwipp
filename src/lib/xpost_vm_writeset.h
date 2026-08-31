@@ -12,40 +12,43 @@
  * The job boundary restores a whole bank from a copy of it. Copying is
  * memory-bandwidth work, and bandwidth is the one thing more concurrent
  * renders do not bring more of, so it is the copy that makes the boundary
- * cost rise with the number of them. Most of it is waste: MEASURED on a
- * page of dense two-dimensional barcode, a job writes 48 KiB of the
- * 1768 KiB the boundary puts back.
+ * cost rise with the number of them. Most of it is waste: a job writes a
+ * small part of the bank the boundary puts back.
  *
  * Where the host can say which pages a job wrote, the boundary puts back
- * only those. Whether it can, and which way is cheaper once it has,
- * differs by platform and was MEASURED on each rather than reasoned from
+ * only those. Whether it can, and what it costs once it has, differs by
+ * platform and was measured on each rather than reasoned from
  * documentation:
  *
  *   Linux    a private view of the baseline makes the written pages
  *            legible -- an untouched page is still the baseline's, a
  *            written one is a private copy -- and /proc/self/pagemap
- *            reports which is which. Discarding just those private
- *            copies shows the baseline again without moving any of it.
+ *            reports which is which. The written pages are discarded
+ *            rather than copied over, which shows the baseline again
+ *            without moving any of it and gives the page back; copying
+ *            leaves it a private copy for good, so a bank that copied
+ *            would never return a page. See the file for that
+ *            measurement, and XPOST_REVERT_COPY for the other road.
  *
- *   Windows  the same private view, over a section, with
- *            QueryWorkingSetEx reporting which pages stopped being
- *            shared. There the written pages are copied back rather than
- *            discarded, because a view can only be dropped whole: doing
- *            that costs eight times what copying the whole bank costs,
- *            since every page the next job reads faults again.
+ *   Windows  the memory manager keeps the record itself: a reservation
+ *            made with MEM_WRITE_WATCH has its written pages recorded,
+ *            and GetWriteWatch reports and clears them. Nothing is
+ *            mapped differently -- the bank stays the reservation it
+ *            was, and only the question is asked. A residency-based
+ *            answer was tried and refused: it does not survive the
+ *            working set being trimmed, and a revert that believes it
+ *            leaves a job's bytes in the next job's memory.
  *
- *   Darwin answers only where a run asks for it with XPOST_REVERT_WRITTEN,
- *   because there the query costs more than the copy until several renders
- *   are in flight; the file above says what was measured.
+ *   Darwin   can answer exactly -- the COPIED disposition
+ *            mach_vm_page_range_query reports names the written pages
+ *            and no others -- but asking costs more than the copy it
+ *            saves until several renders are in flight, so it answers
+ *            only where a run asks with XPOST_REVERT_WRITTEN. The
+ *            cheaper question, mincore's MINCORE_MODIFIED, reports every
+ *            page of a view nothing has written, and MADV_DONTNEED does
+ *            not restore the view, so there is no cheaper revert there.
  *
- *   others   nothing, and the caller copies. Darwin can answer the
- *            question exactly -- the COPIED disposition that
- *            mach_vm_page_range_query reports names the written pages and
- *            no others -- but MEASURED, asking costs three times the copy
- *            it would save, and mincore's MINCORE_MODIFIED, which is
- *            cheaper to ask, reports every page of a view nothing has
- *            written. Darwin's MADV_DONTNEED does not restore the view
- *            either, so there is no cheaper revert to reach for.
+ *   others   nothing, and the caller copies.
  *
  * So this is not an interface for mapping a bank a particular way. It is
  * "put this bank back", answered by each host the way that host is
