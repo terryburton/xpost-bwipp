@@ -17,10 +17,15 @@ primary; the wide build is equally important and neither is ever
 dropped. Set both up once and keep them:
 
 ```
-  meson setup build
-  meson setup blarge -Dlarge-object=true
+  meson setup build -Dwerror=true
+  meson setup blarge -Dlarge-object=true -Dwerror=true
   ninja -C build && ninja -C blarge
 ```
+
+`-Dwerror=true` because that is what the lanes build with. Without it a
+warning is a warning here and an error there, and the gate passes on a
+tree CI will refuse -- a declaration placed after a statement, which the
+C this tree is built as does not allow, has cost a round trip that way.
 
 The names matter only in that everything below defaults to them
 (`tests/gate.sh` reads `XPOST_NARROW_BUILD` and `XPOST_WIDE_BUILD` if
