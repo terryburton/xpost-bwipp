@@ -39,6 +39,10 @@
 #ifndef _WIN32
 # include <sys/time.h>
 # include <sys/resource.h>
+# include <unistd.h>          /* sysconf, for the page size /proc counts in */
+# ifdef __APPLE__
+#  include <mach/mach.h>      /* task_info, which says what is held now */
+# endif
 #endif
 
 #include "xpost_test.h"
@@ -58,22 +62,39 @@
    come to */
 #define GROWTH_UNITS 6
 
-/* the peak resident size of this process in KiB, or 0 where the
-   platform does not report it */
+/* What this process holds now, in KiB, or 0 where the platform does not say.
+
+   Not the high-water mark. ru_maxrss never falls, so it answers "how much
+   did this process ever have", which is the same as "how much does it hold"
+   only where the allocator gives back the address space it freed. Where it
+   does not, the mark climbs by about a context a cycle with nothing retained
+   at all, and this check reads that as exactly the leak it exists to catch:
+   MEASURED, a host reporting 104 MB of growth over twelve cycles against an
+   allowance of 91 MB, where the same test on two hosts whose allocators do
+   reuse reported 0 and under 3 MB. What is held now is the question, so it
+   is what is asked. */
 static long peak_resident_kib(void)
 {
-#ifdef _WIN32
+#if defined(_WIN32)
     return 0;
-#else
-    struct rusage ru;
+#elif defined(__APPLE__)
+    mach_task_basic_info_data_t info;
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
 
-    if (getrusage(RUSAGE_SELF, &ru) != 0)
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
+                  (task_info_t)&info, &count) != KERN_SUCCESS)
         return 0;
-# ifdef __APPLE__
-    return (long)(ru.ru_maxrss / 1024); /* bytes */
-# else
-    return (long)ru.ru_maxrss;          /* KiB */
-# endif
+    return (long)(info.resident_size / 1024);
+#else
+    FILE *f = fopen("/proc/self/statm", "r");
+    long pages = 0;
+
+    if (!f)
+        return 0;
+    if (fscanf(f, "%*s %ld", &pages) != 1)
+        pages = 0;
+    fclose(f);
+    return (long)((pages * (long)sysconf(_SC_PAGESIZE)) / 1024);
 #endif
 }
 
