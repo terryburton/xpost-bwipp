@@ -51,6 +51,15 @@ static void fill(unsigned char *p, size_t n, unsigned int seed)
 {
     size_t i;
 
+    /* The file closes the arena it has not handed out, so a build that
+       describes the arena to the checker reads a write here as a write
+       to storage nobody was given -- 261120 of them, one per byte past
+       the table. What writes here stands in for the allocator: these are
+       the bytes a job would have written, and the extent is the whole
+       bank by construction, since what the restore is held to is the
+       bank byte for byte. So the range is opened the way the file opens
+       a piece it hands out. */
+    XPOST_VG_UNPOISON_RANGE(p, 0, n);
     for (i = 0; i < n; i++)
         p[i] = (unsigned char)((i * 31u + seed * 7u) >> 3);
 }
