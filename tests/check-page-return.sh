@@ -182,9 +182,21 @@ done
 # it flat, and without it the forty extra jobs cost about eleven hundred
 # pages.
 holds='1 1 2000 { /Courier findfont exch scalefont /F exch def } for'
-for spec in few:4 many:44; do
+# A third arm, the same forty-four jobs with the host allocator told to give
+# pages back as soon as it can. Resident memory that grew while the arena did
+# not is memory the interpreter gave up and the host did not take back -- and
+# "did not" has two readings that want opposite fixes. If the records are
+# still live, this arm grows too. If they were freed and the allocator merely
+# kept the pages, this arm cannot grow. Reported either way, so a host where
+# this fails says which it is instead of leaving a reader one number to guess
+# from.
+for spec in few:4 many:44 trim:44; do
     tag=${spec%:*}
     n=${spec#*:}
+    case $tag in
+        trim) malloc_env="MALLOC_TRIM_THRESHOLD_=0 MALLOC_MMAP_THRESHOLD_=16384" ;;
+        *)    malloc_env="" ;;
+    esac
     {
         i=0
         while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$holds"; i=$((i + 1)); done
@@ -198,13 +210,14 @@ for spec in few:4 many:44; do
         # say which of the two it is.
         printf '/rss { %s } def (HANDLEVM %s ) print vmstatus pop exch pop 20 string cvs print ( ) print globalvmstatus pop exch pop 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
     } > "$work/handle.$tag"
-    "$xpost" -q --no-sandbox -d null --jobserver \
+    env $malloc_env "$xpost" -q --no-sandbox -d null --jobserver \
         < "$work/handle.$tag" > "$work/handle.$tag.out" 2>/dev/null
 done
 
 cat "$work/within.out" "$work/between.out" \
     "$work/device.few.out" "$work/device.many.out" \
-    "$work/handle.few.out" "$work/handle.many.out" > "$work/out"
+    "$work/handle.few.out" "$work/handle.many.out" \
+    "$work/handle.trim.out" > "$work/out"
 
 # Each pair must show resident memory fall by a clear margin. The growth is
 # about ten thousand pages; a return of a fifth of it is asked, which the
@@ -221,6 +234,7 @@ awk '
     # anchored, because the pair of lines the handle case prints share a
     # prefix and an unanchored match would read the second into the first
     /^HANDLE few/    { hf = $3 }
+    /^HANDLE trim/   { ht = $3 }
     /^HANDLE many/   { hm = $3 }
     /^HANDLEVM few/  { vlf = $3; vgf = $4 }
     /^HANDLEVM many/ { vml = $3; vmg = $4 }
@@ -259,6 +273,8 @@ awk '
             printf "      virtual memory over the same forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
             printf "      (a resident figure that grew while these did not is memory\n"
             printf "      the interpreter gave up and the host did not take back)\n"
+            if (ht != "")
+                printf "      the same forty with the allocator told to give pages back at\n      once: %d -- near the figure above means the records are still\n      live; far below it means they were freed and the allocator\n      kept the pages\n", ht - hf
             bad = 1
         }
         if (bad) exit 1
