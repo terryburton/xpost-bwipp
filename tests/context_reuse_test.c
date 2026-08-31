@@ -152,8 +152,21 @@ int main(void)
         printf("one context costs %ld KiB; the last %d cycles of %d "
                "added %ld KiB\n", unit, CYCLES - 1 - MEASURED_FROM, CYCLES,
                grown - settled);
-        check(grown - settled < unit * GROWTH_UNITS,
-              "a run of contexts keeps no context's worth per cycle");
+        /* The numbers go in the complaint, not only in the line above it.
+           What a harness keeps of a failing run is the lines that say they
+           are failures, so a measurement printed beside the verdict is a
+           measurement a reader of the log does not get -- and this verdict
+           cannot be acted on without it. Retention of a unit a cycle and
+           an allowance that came out near nothing read the same here and
+           want opposite fixes. */
+        if (grown - settled >= unit * GROWTH_UNITS)
+            report_failure("a run of contexts keeps no context's worth per"
+                           " cycle: one context costs %ld KiB, the last %d"
+                           " of %d cycles added %ld KiB, and the allowance"
+                           " is %d units of a context (%ld KiB)",
+                           unit, CYCLES - 1 - MEASURED_FROM, CYCLES,
+                           grown - settled, GROWTH_UNITS,
+                           (long)(unit * GROWTH_UNITS));
     }
     else
         printf("NOTE: peak resident size unavailable; growth not compared\n");
