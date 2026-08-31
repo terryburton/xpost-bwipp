@@ -154,6 +154,7 @@ int main(void)
     long settled = 0;
     long grown = 0;
     long read_at[CYCLES];   /* what each cycle left held, for the shape */
+    long held_live[CYCLES]; /* and what it held with its context still up */
     int done = 0;
     int i;
 
@@ -192,6 +193,12 @@ int main(void)
         check(strcmp(out_buf, "ok") == 0, "each context reaches its operators");
 
         xpost_stdout_handler_set(ctx, NULL, NULL);
+        /* what the process holds with the context still up, against what
+           it holds once the context has gone: a step that is taken here
+           and given back below is a context costing what a context costs,
+           and one that survives below is the context's own memory not
+           coming back */
+        held_live[i] = resident_kib();
         xpost_destroy(ctx);
 
         /* the first cycle carries one context's worth onto the reading,
@@ -256,6 +263,14 @@ int main(void)
                    " process:\n ");
             for (c = 0; c < done; c++)
                 printf(" %ld", read_at[c] - base);
+            printf("\n");
+            printf("and what it held with its context still up:\n ");
+            for (c = 0; c < done; c++)
+                printf(" %ld", held_live[c] - base);
+            printf("\n");
+            printf("so each context gave back, KiB:\n ");
+            for (c = 0; c < done; c++)
+                printf(" %ld", held_live[c] - read_at[c]);
             printf("\n");
         }
     }
