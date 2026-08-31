@@ -75,4 +75,4 @@ verdict_run "$status" "$(cat "$out")" "the interrupted job" || { cat "$out"; exi
 if grep -q AFTER "$out"; then
     echo "FAIL: execution continued past the interrupted loop"; cat "$out"; exit 1
 fi
-echo SUCCESS
+echo "SUCCESS"

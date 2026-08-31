@@ -84,5 +84,5 @@ for n in $lost; do
     fi
 done
 
-echo SUCCESS
+echo "SUCCESS"
 exit 0

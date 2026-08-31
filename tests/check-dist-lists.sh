@@ -302,5 +302,5 @@ if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the distribution lists and the tree disagree"
     exit 1
 fi
-echo SUCCESS
+echo "SUCCESS"
 exit 0

@@ -272,7 +272,4 @@ else
     fail=1
 fi
 
-if [ "$fail" -ne 0 ]; then
-    exit 1
-fi
-echo SUCCESS
+verdict_exit

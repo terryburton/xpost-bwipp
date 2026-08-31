@@ -216,5 +216,4 @@ if [ "$fleet_asked" -eq 0 ]; then
 fi
 echo "startup-page: held on $fleet_asked device(s)"
 
-[ "$fail" -eq 0 ] || exit 1
-echo SUCCESS
+verdict_exit

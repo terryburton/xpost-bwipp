@@ -440,4 +440,4 @@ if [ "$fleet_asked" -lt "$floor" ]; then
 fi
 [ "$fail" -eq 0 ] || exit 1
 echo "imaging-bbox: held on $fleet_asked device(s)"
-echo SUCCESS
+echo "SUCCESS"

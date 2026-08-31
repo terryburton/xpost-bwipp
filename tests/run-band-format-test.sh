@@ -284,6 +284,4 @@ for dev in $devices; do
     ndev=$((ndev + 1))
 done
 
-[ "$fail" -eq 0 ] || exit 1
-echo "SUCCESS ($ndev raster class(es) assembling the page they band)"
-exit 0
+verdict_exit "$ndev raster class(es) assembling the page they band"

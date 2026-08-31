@@ -184,5 +184,4 @@ if [ "$fleet_asked" -eq 0 ]; then
 fi
 echo "band-extent: held on $fleet_asked selection(s)"
 
-[ "$fail" -eq 0 ] || exit 1
-echo SUCCESS
+verdict_exit

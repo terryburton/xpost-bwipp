@@ -116,5 +116,5 @@ refuse "a value that is not a number" \
        'takes no value "abc"'                                       -p jpeg_quality=abc
 refuse "an operand with no value"     'key=value'                   -p png_filter
 
-echo SUCCESS
+echo "SUCCESS"
 exit 0

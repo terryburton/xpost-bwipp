@@ -370,5 +370,4 @@ for n in 1 2 3 4 5; do
     fi
 done
 
-[ "$fail" -eq 0 ] || exit 1
-echo SUCCESS
+verdict_exit

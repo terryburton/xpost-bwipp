@@ -119,7 +119,7 @@ echo "a blocked read let the forked context run"
 # that needs it is passed over rather than guessed at.
 if ! /usr/bin/time -f '%U %S %e' -o /dev/null true >/dev/null 2>&1; then
     echo "SKIP: time(1) here does not take the format this reads"
-    echo "SUCCESS: a blocked read yields when it can (the sleep half skipped)"
+    echo "SUCCESS (a blocked read yields when it can, the sleep half skipped)"
     exit 0
 fi
 
@@ -182,7 +182,7 @@ elapsed=$(awk '{ printf "%.2f", $3 }' "$work/cpu")
 short=$(awk -v e="$elapsed" 'BEGIN { print (e < 2.0) ? 1 : 0 }')
 if [ "$short" -eq 1 ]; then
     echo "SKIP: the byte arrived in ${elapsed}s, so nothing waited here"
-    echo "SUCCESS: a blocked read yields when it can (the sleep half skipped)"
+    echo "SUCCESS (a blocked read yields when it can, the sleep half skipped)"
     exit 0
 fi
 
@@ -199,5 +199,5 @@ fi
 echo "a lone context slept through its wait (${cost}s of processor over the control)"
 
 
-echo "SUCCESS: a blocked read yields when it can and sleeps when it cannot"
+echo "SUCCESS (a blocked read yields when it can and sleeps when it cannot)"
 exit 0

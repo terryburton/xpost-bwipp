@@ -397,5 +397,5 @@ ngrp=$(grep -c '<g clip-path="url(#xc' "$h")
 [ "$ncell" -gt 0 ] || fail "the tiling drew no cell at all"
 [ "$ncell" = "$ngrp" ] || fail "$ncell cell stencil(s) drawn against $ngrp clip group(s) -- a cell written without the region it was painted under covers the whole page (PLRM 4.8.1)"
 
-echo SUCCESS
+echo "SUCCESS"
 exit 0

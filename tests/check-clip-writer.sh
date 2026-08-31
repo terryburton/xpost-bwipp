@@ -137,5 +137,5 @@ if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the clip is written somewhere other than .setclipregion"
     exit 1
 fi
-echo "SUCCESS: $seen clip slot references, all reads ($ncsrc C sources read)"
+echo "SUCCESS ($seen clip slot references, all reads, $ncsrc C sources read)"
 exit 0

@@ -64,5 +64,5 @@ if [ "$fail" -ne 0 ]; then
     echo "FAILURES: startup is not silent"
     exit 1
 fi
-echo SUCCESS
+echo "SUCCESS"
 exit 0

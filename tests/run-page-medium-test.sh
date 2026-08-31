@@ -71,4 +71,4 @@ fi
 
 [ "$fail" -eq 0 ] || exit 1
 echo "page-medium: held on $fleet_asked device(s)"
-echo SUCCESS
+echo "SUCCESS"

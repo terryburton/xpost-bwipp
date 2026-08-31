@@ -197,5 +197,4 @@ if [ "$asked" -eq 0 ]; then
 fi
 echo "job-page: held on $asked device(s)"
 
-[ "$fail" -eq 0 ] || exit 1
-echo SUCCESS
+verdict_exit

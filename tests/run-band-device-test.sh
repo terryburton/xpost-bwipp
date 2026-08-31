@@ -312,6 +312,4 @@ for f in $formats; do
     fi
 done
 
-[ "$fail" -eq 0 ] || exit 1
-echo "SUCCESS ($nran device(s) a record was played into)"
-exit 0
+verdict_exit "$nran device(s) a record was played into"

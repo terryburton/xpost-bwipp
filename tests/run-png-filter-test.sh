@@ -157,5 +157,5 @@ esac
     echo "FAIL: a refused run wrote a page anyway"; exit 1; }
 echo "an unknown word is refused with the roster, and no page is written"
 
-echo SUCCESS
+echo "SUCCESS"
 exit 0

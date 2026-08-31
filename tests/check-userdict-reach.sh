@@ -144,5 +144,5 @@ if [ "$guard_held" -ne 0 ]; then
     echo "FAILURES: the reaches into userdict and their registers disagree"
     exit 1
 fi
-echo "SUCCESS: every reach into userdict is registered ($nline compiled sites)"
+echo "SUCCESS (every reach into userdict is registered, $nline compiled sites)"
 exit 0
