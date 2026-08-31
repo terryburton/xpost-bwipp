@@ -104,11 +104,7 @@ else
     sum() { shasum -a 256 "$1" | cut -d' ' -f1; }
 fi
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 fail=0

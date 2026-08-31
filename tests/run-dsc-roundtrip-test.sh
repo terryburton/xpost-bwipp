@@ -36,8 +36,7 @@ verdict_workdir
 [ -n "$work" ] && [ -d "$work" ] || {
     echo "FAILURES: could not make a scratch directory"; exit 1; }
 
-ns=''
-"$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox' && ns='--no-sandbox'
+ns=$(sandbox_flag "$xpost")
 
 fail=0
 

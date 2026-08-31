@@ -420,7 +420,7 @@ abspath() {
 BIN_A=$(abspath "$BIN_A")
 BIN_B=$(abspath "$BIN_B")
 
-if "$BIN_A" -h 2>/dev/null | grep -q -- '--no-sandbox'; then NS=--no-sandbox; else NS=; fi
+NS=$(sandbox_flag "$BIN_A")
 
 # Object width, read off each interpreter the way the golden render reads
 # it. The two personalities do not render alike, so a narrow build against

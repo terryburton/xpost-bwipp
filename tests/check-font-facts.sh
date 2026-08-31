@@ -43,10 +43,7 @@ guard_require_interpreter "$xpost"
 # the facts below are asked of text a face answers for: a build without
 # a face library cannot answer them, and says so rather than failing
 . "$(dirname "$0")/verdict.sh"
-if faceless_build "$xpost"; then
-    echo "SKIPPED: these facts are asked of text a face answers for, and this build carries no face library"
-    exit 77
-fi
+skip_if_faceless "$xpost" "these facts are asked of text a face answers for"
 guard_srcdata "$src"
 
 guard_workdir

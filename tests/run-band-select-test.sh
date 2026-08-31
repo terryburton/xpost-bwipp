@@ -72,15 +72,6 @@ case $xpost in /* | ?:/* | ?:\\*) ;; *) xpost=$PWD/$xpost ;; esac
 verdict_workdir
 fail=0
 
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
-
 # What the run says about the device it was given. A record names the
 # class it plays into and carries the budget it divides that class's rows
 # by; a device painting its own page carries neither. Both are read,

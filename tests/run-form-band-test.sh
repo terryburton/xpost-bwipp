@@ -62,11 +62,7 @@ xpost=$1
 script=$2
 . "$(dirname "$0")/verdict.sh"
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 fail=0

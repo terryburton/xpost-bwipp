@@ -80,11 +80,7 @@ xpost=$(path_anchor "$xpost")
 # Reach the interpreter's data directory outside any sandbox root: disable the
 # file-access sandbox when this build has one (detected from the usage text),
 # so the test is valid at every point in the series.
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 plain="$work/pages.ps"

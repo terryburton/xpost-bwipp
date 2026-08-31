@@ -29,11 +29,7 @@ xpost=$1
 # earlier builds have no such option and need nothing. Detect it from the
 # usage text rather than assuming, so the one test is valid at every point
 # in the series.
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 prog="$work/page.ps"

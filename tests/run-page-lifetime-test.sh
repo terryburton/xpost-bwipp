@@ -65,33 +65,17 @@ script=$2
 # a face answers for the text this run shows: a build without a face
 # library cannot ask this wrapper's question, and says so rather than
 # failing it
-if faceless_build "$xpost"; then
-    echo "SKIPPED: this run shows text through a face, and this build carries no face library"
-    exit 77
-fi
+skip_if_faceless "$xpost" "this run shows text through a face"
 
 # The runs below are started in the directory the pages are written to,
 # so what they were handed has to name the same thing from there.
 xpost=$(path_anchor "$xpost")
 script=$(path_anchor "$script")
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 fail=0
-
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
 
 render() {  # $1 device; sets out
     out=$( cd "$work" && "$xpost" -q $ns -d "$1" -o unused.ppm "$script" \

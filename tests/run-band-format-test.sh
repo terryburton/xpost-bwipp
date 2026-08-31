@@ -77,23 +77,10 @@ script=$2
 xpost=$(path_anchor "$xpost")
 script=$(path_anchor "$script")
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 fail=0
-
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
 
 check_device() {  # $1 device
     dev=$1

@@ -59,11 +59,7 @@ script=$2
 case $xpost in /* | ?:/* | ?:\\*) ;; *) xpost=$PWD/$xpost ;; esac
 case $script in /* | ?:/* | ?:\\*) ;; *) script=$PWD/$script ;; esac
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 

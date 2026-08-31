@@ -234,6 +234,49 @@ _verdict_complained() {
 # deserve different answers -- the first is a configuration this suite
 # may be meaningless in, the second is a host the run-time skip already
 # names.
+# The flag that lets a run reach what a shipped run seals, or nothing on a
+# build that has no such flag. Asked of the interpreter rather than assumed,
+# because a build without it must still be testable -- and because forty-one
+# guards were each carrying their own copy of the asking.
+sandbox_flag() {    # $1 the program under test; echoes the flag or nothing
+    if "$1" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
+        echo '--no-sandbox'
+    fi
+}
+
+# Report a failure and remember that one happened. The caller's own `fail`
+# is what is set, which is the contract every copy of this already had: a
+# guard says `note "what went wrong" "and the detail"` and tests `fail` at
+# the end; the detail lines are indented under the first, which is what a
+# reader of a failing run sees.
+#
+# Fourteen guards carried this verbatim. Five others define a `note` of
+# their own and still do: two report under a different word entirely and
+# one counts the check as well, so they are different helpers that happened
+# to share a name. A definition in a guard shadows this one, which is what
+# makes that divergence a choice rather than an accident.
+note() {
+    echo "FAILURES: $1"
+    shift
+    for n_line in "$@"; do
+        echo "      $n_line"
+    done
+    fail=1
+}
+
+# A build with no face library cannot show text, so a guard that reads text
+# skips rather than fails. What the guard needed a face FOR is asked for
+# here rather than fixed: the tree carries two wordings and both are right
+# about their own guard. What is not the guard's business -- that this is a
+# skip, that it leaves under status 77, and how the absence is described --
+# is settled once.
+skip_if_faceless() {    # $1 the program under test; $2 what needed a face
+    if faceless_build "$1"; then
+        echo "SKIPPED: $2, and this build carries no face library"
+        exit 77
+    fi
+}
+
 faceless_build() {    # $1 the program under test
     _fb_ps=${TMPDIR:-/tmp}/xpost-faceprobe.$$.ps
     printf 'systemdict /NOFACES known { (NOFACES) = } if\n' > "$_fb_ps" \

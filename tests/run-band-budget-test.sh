@@ -65,10 +65,7 @@ script=${2:?usage: run-band-budget-test.sh [--sabotage N] <xpost> <test.ps>}
 # a face answers for the text this run shows: a build without a face
 # library cannot ask this wrapper's question, and says so rather than
 # failing it
-if faceless_build "$xpost"; then
-    echo "SKIPPED: this run shows text through a face, and this build carries no face library"
-    exit 77
-fi
+skip_if_faceless "$xpost" "this run shows text through a face"
 self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 xpost=$(path_anchor "$xpost")
 script=$(path_anchor "$script")
@@ -76,15 +73,6 @@ data=${XPOST_DATA_DIR:-$(cd "$(dirname "$0")/../data" && pwd)}
 
 verdict_workdir
 fail=0
-
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
 
 # run PAGE MARKS DEVICE ARG... -- run the interpreter over the test
 # program, leaving what it printed in $out, how it ended in $st and its

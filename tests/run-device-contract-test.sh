@@ -46,11 +46,7 @@ readback=
 GROUND_READBACK='record'
 groundback=
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 devices=$DEVICE_FLEET_MARKING

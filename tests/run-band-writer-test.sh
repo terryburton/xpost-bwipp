@@ -85,24 +85,11 @@ done
 xpost=$(path_anchor "$xpost")
 script=$(path_anchor "$script")
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 fail=0
 ran=0
-
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
 
 # One run of the test program: the device, and the definitions the
 # program reads its page and band height out of. Sets out.

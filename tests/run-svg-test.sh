@@ -15,10 +15,7 @@ xpost=$1
 # a face answers for the text this run shows: a build without a face
 # library cannot ask this wrapper's question, and says so rather than
 # failing it
-if faceless_build "$xpost"; then
-    echo "SKIPPED: this run shows text through a face, and this build carries no face library"
-    exit 77
-fi
+skip_if_faceless "$xpost" "this run shows text through a face"
 # relative: the OutputFile paths are named inside the PS program the
 # interpreter runs, and a native interpreter under a POSIX shell need not
 # share the shell's view of an absolute path

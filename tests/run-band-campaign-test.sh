@@ -71,24 +71,11 @@ xpost=$(path_anchor "$xpost")
 script=$(path_anchor "$script")
 self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 verdict_workdir
 fail=0
 cells=0
-
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
 
 # A cell of the matrix that is wrong is usually every cell of it, and a
 # thousand lines of the same complaint hides the one that differs. What

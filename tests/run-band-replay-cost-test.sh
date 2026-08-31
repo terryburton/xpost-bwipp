@@ -90,20 +90,7 @@ self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 verdict_workdir
 fail=0
 
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
-
-if "$xpost" -h 2>/dev/null | grep -q -- '--no-sandbox'; then
-    ns='--no-sandbox'
-else
-    ns=''
-fi
+ns=$(sandbox_flag "$xpost")
 
 # What the banded run may cost against the direct one.
 #

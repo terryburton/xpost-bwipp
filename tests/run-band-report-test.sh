@@ -53,15 +53,6 @@ datadir=$(path_anchor "$datadir")
 verdict_workdir
 fail=0
 
-note() {
-    echo "FAILURES: $1"
-    shift
-    for n_line in "$@"; do
-        echo "      $n_line"
-    done
-    fail=1
-}
-
 # The page this run draws, which the PostScript states and everything
 # below is read against.
 PW=200

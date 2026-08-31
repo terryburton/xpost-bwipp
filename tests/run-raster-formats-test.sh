@@ -51,10 +51,7 @@ case $xpost in /* | ?:/* | ?:\\*) ;; *) xpost=$PWD/$xpost ;; esac
 # a face answers for the text this run shows: a build without a face
 # library cannot ask this wrapper's question, and says so rather than
 # failing it
-if faceless_build "$xpost"; then
-    echo "SKIPPED: this run shows text through a face, and this build carries no face library"
-    exit 77
-fi
+skip_if_faceless "$xpost" "this run shows text through a face"
 
 verdict_workdir
 
