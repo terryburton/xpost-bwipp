@@ -98,9 +98,9 @@ corpora have not been fetched it fails, and says which tests it failed
 over.
 
 They are meson suite selections, and the suites are two independent
-axes: what a test is about (`xpost`, `corpus`, `vendor`, `memacct`) and
-what it costs (`fast`, `slow`, `veryslow`). Either can be named without
-the other, so any crossing is available by hand -- the corpora that run
+axes: what a test is about (`xpost`, `corpus`, `vendor`, `memacct`,
+`vmlimit`) and what it costs (`fast`, `slow`, `veryslow`). Either can be
+named without the other, so any crossing is available by hand -- the corpora that run
 quickly, without the ones that take minutes, being the useful one:
 
 ```

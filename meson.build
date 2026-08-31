@@ -604,11 +604,11 @@ endif
 #             renders to this interpreter's own terms
 #   vendor    a downstream consumer's own test suite, run out of a
 #             checkout of its own, which skips until there is one
-#   memacct   the five that read the memory a run holds rather than
-#             the answers it gives -- two weighing the process at the
-#             end of it, three running it under a leak checker -- and so
-#             cannot answer under an allocator that quarantines or
-#             shadows
+#   memacct   the six that read the memory a run holds rather than
+#             the answers it gives -- three weighing what the process
+#             holds at the end of it, three running it under a leak
+#             checker -- and so cannot answer under an allocator that
+#             quarantines or shadows
 #   vmlimit   the two that run the interpreter under an address-space
 #             limit tight enough to deny an accumulator its next
 #             doubling, and so cannot answer in a build whose runtime
@@ -712,12 +712,14 @@ endif
 #
 # The memacct and vmlimit suites are outside every profile in a build
 # whose sanitizer carries a runtime, and are the exclusions that are
-# neither a cost nor something a machine has to supply. Two of those five weigh the process
-# through getrusage and three run it under valgrind, so a runtime that
-# holds freed memory in quarantine and maps shadow memory of its own
-# leaves them nothing to measure and all five fail. A developer running
-# the suite in such a build would otherwise read five failures that are
-# not faults, and the cure cannot be a skip: `everything` refuses to pass
+# neither a cost nor something a machine has to supply. Three of the six
+# in memacct read what the process holds and three run it under valgrind,
+# so a runtime holding freed memory in quarantine and mapping shadow
+# memory of its own leaves them nothing to measure; the two in vmlimit
+# ask for an address space smaller than such a runtime reserves. All
+# eight fail, and a developer running the suite in such a build would
+# otherwise read eight failures that are not faults. The cure cannot be
+# a skip: `everything` refuses to pass
 # on a skip, so a skip here would have to be excused by hand on every run,
 # which is the standing register of absences the excuse channel above
 # exists to avoid. It is instead read off `b_sanitize`, the build's own
