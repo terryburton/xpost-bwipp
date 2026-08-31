@@ -2421,9 +2421,9 @@ static int _play_call(Xpost_Context *ctx, Xpost_Object m,
  * record holds and says where that drawing's coordinates land, so the
  * walk descends into it and plays its marks against the offset,
  * returning to the entry after the placement when it runs out. What it
- * keeps is a level per placement descended into (@ref _Walk), so a
- * drawing placed at several depths is played wherever it was placed and
- * is written down once. The descent is bounded: a page nested deeper
+ * keeps is a level per placement descended into, in the walk state, so
+ * a drawing placed at several depths is played wherever it was placed
+ * and is written down once. The descent is bounded: a page nested deeper
  * than the levels there are is refused with a limitcheck rather than
  * followed until something runs out.
  *

@@ -535,6 +535,32 @@ typedef struct
 } Xpost_Dev_Page_Codec;
 
 /**
+ * @brief Retire an instance: finish the page it was writing, then give
+ *        up what it holds.
+ *
+ * A page still being written is finished rather than left truncated. The
+ * rows it was never given are the ones the device is not holding, which
+ * the ground stands for, and they are what the call at the end of a band
+ * loop would have written -- so a device retired part way through a page,
+ * by an error or by a restore past the setpagedevice that installed it,
+ * leaves an image a reader can open.
+ *
+ * What follows is the release the collector runs, which is why it is the
+ * codec's and stated once: a change to what a device owns cannot reach
+ * one path and not the other. Finishing the page is the difference
+ * between the two, and it is here because the collector cannot write
+ * rows.
+ *
+ * @param[in] priv The device's own instance state.
+ * @param[in,out] band The band state the page was being written across.
+ * @param[in] has_raster Whether there are rows to finish the page from.
+ * @param[in] height The page's height in rows.
+ * @param[in] codec What the device does that this does not.
+ */
+void xpost_dev_page_retire(void *priv, Xpost_Dev_Band *band, int has_raster,
+                           int height, const Xpost_Dev_Page_Codec *codec);
+
+/**
  * @brief Write as much of a page as this call can, and say what became
  *        of the raster.
  *
@@ -563,32 +589,6 @@ typedef struct
  *                        the caller answers for -- it holds the flag.
  * @return 0, or what the writing came to.
  */
-/**
- * @brief Retire an instance: finish the page it was writing, then give
- *        up what it holds.
- *
- * A page still being written is finished rather than left truncated. The
- * rows it was never given are the ones the device is not holding, which
- * the ground stands for, and they are what the call at the end of a band
- * loop would have written -- so a device retired part way through a page,
- * by an error or by a restore past the setpagedevice that installed it,
- * leaves an image a reader can open.
- *
- * What follows is the release the collector runs, which is why it is the
- * codec's and stated once: a change to what a device owns cannot reach
- * one path and not the other. Finishing the page is the difference
- * between the two, and it is here because the collector cannot write
- * rows.
- *
- * @param[in] priv The device's own instance state.
- * @param[in,out] band The band state the page was being written across.
- * @param[in] has_raster Whether there are rows to finish the page from.
- * @param[in] height The page's height in rows.
- * @param[in] codec What the device does that this does not.
- */
-void xpost_dev_page_retire(void *priv, Xpost_Dev_Band *band, int has_raster,
-                           int height, const Xpost_Dev_Page_Codec *codec);
-
 int xpost_dev_page_emit(Xpost_Context *ctx, Xpost_Object devdic,
                         void *priv, Xpost_Dev_Band *band, FILE **file,
                         int height, unsigned char *raster,

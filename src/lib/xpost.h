@@ -229,13 +229,16 @@ typedef enum
 /**
  * @brief Create a newly allocated context.
  *
- * @param device
- * @param output_type
- * @param outputptr
- * @param semantics
- * @param quiet
- * @param set_size
- * @param width The height of the context page.
+ * @param device The device to paint into, by name; the names this build
+ *               has are what @c --help lists.
+ * @param output_type How @p outputptr is to be read.
+ * @param outputptr What @p output_type names: a file name, a buffer, or
+ *                  nothing.
+ * @param semantics What @c showpage does at the end of a page.
+ * @param output_msg Which of the interpreter's own messages reach the
+ *                   output.
+ * @param set_size Whether @p width and @p height are used or ignored.
+ * @param width The width of the context page.
  * @param height The height of the context page.
  *
  * @return The interpreter's context, or @c NULL on failure.

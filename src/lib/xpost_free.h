@@ -17,7 +17,7 @@
 #define XPOST_FREE_H
 
 /**
- *  @file xpost_free
+ *  @file xpost_free.h
  *  @brief adds de-allocation and re-allocation capabilities to xpost_memory
  *
  *  The free list is implemented to permanently occupy ent 0 of the memory table.

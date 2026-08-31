@@ -17,7 +17,7 @@
 #include "xpost_error.h" /* the cow helper reports VMerror */
 
 /**
- *  @file xpost_save
+ *  @file xpost_save.h
  *
  *  Each mfile has a special entity (XPOST_MEMORY_TABLE_SPECIAL_SAVE_STACK)
  *  which holds the address of the "save stack". This stack holds save objects.

@@ -15,7 +15,7 @@
 #define XPOST_DI_H
 
 /**
- * @file di.h
+ * @file xpost_dict.h
  * @brief dictionary functions
  *
  * Return convention: the mutators of this module answer 0 for no-error

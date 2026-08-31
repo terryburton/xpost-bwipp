@@ -6,6 +6,7 @@
  * @section xpost_toc Table of Contents
  *
  * @li @ref xpost_intro
+ * @li @ref xpost_compilation
  * @li @ref xpost_design
  * @li @ref xpost_roots
  * @li @ref xpost_dicts
