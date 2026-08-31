@@ -459,24 +459,27 @@ Interpreter parameters
  CurDisplayList, GenericResourceDir, GenericResourcePathSep, RealFormat,
  ByteOrder, Revision, PrinterName, BuildTime.
 
- [/] setsystemparams recognises no parameter. It takes its dictionary,
-     raises no error and applies none of it, where PLRM C.1.2 makes it the
-     operator that sets system parameters.
+ [/] setsystemparams sets the one system parameter that has a setter, and
+     that is all there is to set. MaxFontCache is the glyph cache's
+     capacity, and a request for it goes to the same place setcacheparams'
+     request goes -- refused outside a system administrator job, as PLRM
+     8.2 requires -- so which door a program knocks at no longer decides
+     whether anything happens.
 
-     What it reports is not thereby fixed. Every value has an owner and is
-     set where that owner takes it: MaxFontCache is the glyph cache's
-     capacity, which setcacheparams changes and refuses outside a system
-     administrator job, as PLRM 8.2 requires of it; RealFormat and
+     The rest are not settable because there is nothing behind them to
+     set, rather than because the operator declines: RealFormat and
      ByteOrder describe the machine; the resource directory is the host's
-     search path; and PLRM Appendix G bars a page description from
-     choosing how its marks are held, so the band budget and the spill
-     policy are the invocation's. currentsystemparams reads each figure
-     back from the thing that owns it rather than from a second copy, so
-     no two operators can report one parameter differently.
+     search path; the revision and the build stamp are the build's; the
+     device is the one the run was started with; and PLRM Appendix G bars
+     a page description from choosing how its marks are held, so the
+     display list's bound and the spill policy are the invocation's. The
+     Cur- figures are consumption and read-only by definition.
 
-     What is left of the deviation is which door opens. PLRM C.3.2 makes
-     setcacheparams a convenience onto parameters setsystemparams sets;
-     here only the convenience works.
+     currentsystemparams reads each figure back from the thing that owns
+     it rather than from a second copy, so no two operators can report one
+     parameter differently, and the build stamp is read through a call
+     rather than frozen into the body -- a frozen one would be the stamp
+     of whichever build wrote the virtual memory image.
 
  The absent thirty, by the section that describes them. The other two
  the tables name are the passwords, which are dealt with below:
@@ -616,6 +619,13 @@ Interpreter parameters
      start job password alone would otherwise find it open again, and a
      lock that a second unset password quietly removes is worse than no
      lock at all.
+
  RecordSpill, CurRecordSpill, MaxBandBytes and CurBandHeight are this
  interpreter's own rather than the language's, and doc/COMPAT records where
  they came from with the rest of the vocabulary that is not PLRM's.
+ MaxBandBytes reports the same number as MaxDisplayList, because one figure
+ answers two questions -- what a band of raster may cost, and what the
+ record standing beside that band may cost. The specification names the
+ second and not the first, Appendix G having declared the band device
+ operators obsolete, so both names are kept rather than one being made to
+ mean the other.
