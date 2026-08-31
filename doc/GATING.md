@@ -1,6 +1,6 @@
 # What to run, and when
 
-The suite is 316 tests at two object widths. This page says which run
+The suite is 458 tests at two object widths. This page says which run
 answers which question, so that a piece of work can name one rather than
 describe one.
 
@@ -28,20 +28,20 @@ making it.
 
 | area | what a change to it reaches | tests |
 | --- | --- | --- |
-| `doc` | prose no program reads | 5 |
-| `suite` | a test's own source; the test itself is added from its registration | 4 |
-| `corpus` | the fetched programs and their harnesses | 10 |
-| `host` | what the interpreter asks of the platform, and the program a user starts | 13 |
-| `font` | glyphs, the cache, the files they come from | 18 |
-| `filter` | files, filters, the scanner's reading | 38 |
-| `guards` | the checks over the tree's own shape, and the path helper they share | 43 |
-| `graphics` | paths, paint, colour, clipping, images | 49 |
-| `record` | the recorded page, its spans, the band devices | 34 |
-| `device` | what a page is painted into and written out as | 63 |
-| `language` | operators, errors, names, the programs that install them | 103 |
-| `vm`, `build` | the object and its memory; the build description | all 316, both widths |
+| `doc` | prose no program reads | 17 |
+| `suite` | a test's own source; the test itself is added from its registration | 16 |
+| `corpus` | the fetched programs and their harnesses | 22 |
+| `host` | what the interpreter asks of the platform, and the program a user starts | 25 |
+| `font` | glyphs, the cache, the files they come from | 46 |
+| `filter` | files, filters, the scanner's reading | 62 |
+| `guards` | the checks over the tree's own shape, and the path helper they share | 100 |
+| `graphics` | paths, paint, colour, clipping, images | 74 |
+| `record` | the recorded page, its spans, the band devices | 50 |
+| `device` | what a page is painted into and written out as | 95 |
+| `language` | operators, errors, names, the programs that install them | 136 |
+| `vm`, `build` | the object and its memory; the build description | all 458, both widths |
 
-Counts include the four guards every gate runs whatever was touched, and
+Counts include the sixteen guards every gate runs whatever was touched, and
 overlap: a test may answer for several areas.
 
 A path that no rule classifies falls through to a catch-all and selects
@@ -58,10 +58,10 @@ change is gated against:
 * a change reaching the object, the memory it lives in, or the build
   description runs its whole selection at both widths;
 * every other change runs the wide build over the tests that read the
-  width directly -- twenty-seven of them, stated in the `width` area of
+  width directly -- twenty-eight of them, stated in the `width` area of
   the map.
 
-Those twenty-seven are a tripwire and not a verdict. Three further tests
+Those twenty-eight are a tripwire and not a verdict. Three further tests
 differ by width and are named in the map's prose rather than run on
 every edit, being too expensive for one: band-writer, band-replay-cost
 and band-campaign. The wide run of everything is the batch gate.
