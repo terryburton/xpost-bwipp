@@ -8,6 +8,16 @@
 #ifndef XPOST_H
 #define XPOST_H
 
+/**
+ * @def XPAPI
+ * @brief Marks a name the shared library exports.
+ *
+ * What it expands to is the host's way of saying so: an export or an
+ * import declaration where the library is a DLL, default visibility
+ * where the compiler hides symbols by default, and nothing where neither
+ * applies. A declaration in this header carries it; one that does not is
+ * not part of the library's surface.
+ */
 #ifdef XPAPI
 # undef XPAPI
 #endif
@@ -611,9 +621,39 @@ XPAPI void xpost_startjob_password_set(Xpost_Context *ctx, const char *password)
  * operating-system confinement of the host process.
  */
 XPAPI int xpost_path_permit_read(const char *dir);
+
+/**
+ * @brief Permit writing within a directory tree.
+ *
+ * The counterpart to xpost_path_permit_read(), whose description above
+ * covers both: when the permit set is frozen, what it answers, and why
+ * asking twice for the same tree costs nothing.
+ *
+ * @param[in] dir The directory whose tree may be written.
+ * @return 1 where the tree is permitted afterwards, 0 where it is not
+ *         and cannot be.
+ */
 XPAPI int xpost_path_permit_write(const char *dir);
+
+/**
+ * @brief Permit writing one file rather than a tree.
+ *
+ * For a host that knows the single path its job may write and does not
+ * want to open the directory around it. Answers as the tree permits do.
+ *
+ * @param[in] path The file that may be written.
+ * @return 1 where the file is permitted afterwards, 0 where it is not
+ *         and cannot be.
+ */
 XPAPI int xpost_path_permit_write_file(const char *path);
 
+/**
+ * @brief Engage the sandbox: deny every disk open not already permitted.
+ *
+ * Process-wide and one-way. What a host calls when it has permitted what
+ * the job needs; xpost_lockdown() does this and takes the configuring
+ * operators away as well.
+ */
 XPAPI void xpost_path_control_engage(void);
 
 /**
