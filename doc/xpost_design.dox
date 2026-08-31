@@ -856,7 +856,25 @@
  * stack contents revert with the objects), cannot fail part way (it
  * allocates nothing), and leaves no per-job garbage (the cursor
  * returns to the baseline), so one context can serve job after job
- * with encapsulation left on. The bank's committed pages come back
+ * with encapsulation left on.
+ *
+ * Putting a baseline back does not mean copying all of it. Most of a bank
+ * is untouched by any one job -- measured on a page of dense
+ * two-dimensional barcode, a job writes about 48 KiB of the 1768 KiB the
+ * boundary restores -- and copying the rest over itself is memory
+ * bandwidth, which is the one resource concurrent renders do not each
+ * bring more of. So where the host can say which pages a job wrote, the
+ * boundary puts back only those, and the first boundary of a context
+ * copies and arranges that for the ones after it. Each host is asked in
+ * its own way and none of that reaches the memory file, which says only
+ * what it wants; @c xpost_vm_writeset.h holds the three answers and what
+ * each was measured to cost. The properties above are unchanged, because
+ * copying the whole baseline remains the answer wherever a host has none:
+ * the revert is still total, and still cannot fail part way, and
+ * XPOST_NO_REVERT_WRITTEN takes every host down that road, which is how
+ * the two are compared on a machine that is not this one.
+ *
+ * The bank's committed pages come back
  * with its cursor: the growth a large job forced on the arena is
  * returned to the operating system at the boundary -- the page return
  * of @ref design_return -- and the arena's own bound comes down with

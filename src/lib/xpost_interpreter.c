@@ -4492,9 +4492,13 @@ static void _job_close_born_files(Xpost_Memory_File *mem,
      total       -- every byte of both arenas returns to the baseline, so
                      strings and stack contents revert with the objects and
                      nothing the job wrote survives;
-     infallible   -- the restore copies the baseline back into storage the
-                     file already owns and allocates nothing, so no VM state
-                     a job can arrange makes it fail;
+     infallible   -- the restore writes the baseline back into storage the
+                     file already owns, so no VM state a job can arrange
+                     makes it fail. Where the host can say which pages the
+                     job wrote, only those are written; where it cannot,
+                     the whole baseline is, and that answer is always
+                     available, so the property does not rest on the
+                     host having the other one;
      leak-free    -- the arena cursors return to the baseline, discarding
                      everything the job allocated in one stroke rather than
                      accumulating a save level or garbage per job.

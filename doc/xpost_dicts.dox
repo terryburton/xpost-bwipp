@@ -55,9 +55,22 @@
  *   leave it standing.
  *
  * Static and persistent state may live in **global VM**. Per-render mutable state
- * **must** live in **local VM**: `save`/`restore` bracket each job and revert local
- * VM, so a job's changes are isolated; global VM is *not* reverted, so a mutable
- * global dictionary leaks one job's changes into the next.
+ * **must** live in **local VM**, and the reason is worth stating exactly, because
+ * two different mechanisms put virtual memory back and they do not reach the same
+ * banks.
+ *
+ * `save`/`restore` is the one the language defines, and a `restore` does not reach
+ * global VM (PLRM 3.7.2). So a mutable global dictionary carries one job's changes
+ * into the next, and local VM is what isolates them. That is the guarantee a
+ * placement may rely on, because it is the one every run has.
+ *
+ * The job boundary is the other, and it is this interpreter's rather than the
+ * language's: where an embedder asks for job encapsulation, both banks are put
+ * back to the baseline captured before the stream's first job, so a mutable global
+ * dictionary is reverted too. It is the stronger guarantee and the wrong one to
+ * lean on -- whether it runs at all is the embedder's choice, and a program run
+ * without it sees only what `restore` gives. So the rule stands: per-render
+ * mutable state lives in local VM.
  *
  * One exception matters. `restore` resets composite objects in local VM **except
  * strings** (PLRM 3.7.3) -- a string's contents are never rolled back. So local VM

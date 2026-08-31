@@ -497,9 +497,12 @@ typedef struct Xpost_Memory_Image
 int xpost_memory_image_capture(Xpost_Memory_File *mem, Xpost_Memory_Image *img);
 
 /**
- * @brief Restore @p mem to the state captured in @p img. Allocates nothing
- * and cannot fail (the file only ever grows, so its store and table are at
- * least as large as the image). No-op if @p img is not valid.
+ * @brief Restore @p mem to the state captured in @p img. Cannot fail: the
+ * file only ever grows, so its store and table are at least as large as the
+ * image, and putting the baseline back needs no storage the file does not
+ * already own. It may arrange for the next restore to put back only what
+ * changed, which does allocate; that arrangement failing costs the speed
+ * and not the restore. No-op if @p img is not valid.
  */
 void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image *img);
 
