@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * Path construction is PLRM 4.4: the current path a program builds
+ * segment by segment, and the clipping path built from one (4.4.2).
+ * Each operator is defined in PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * newpath moveto rmoveto lineto rlineto curveto rcurveto arc arcn arct

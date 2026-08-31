@@ -1306,7 +1306,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 % A true polarity paints where the sample is one and a
                 % false one where it is zero, which the consumer is told
                 % as the decode [1 0] and [0 1] the language states those
-                % two are the same as (PLRM 4.10.4). The second is what a
+                % two are the same as (PLRM 4.10.6, Stencil Masking). The
+                % second is what a
                 % mask means by default, so only the first is written.
                 ( /ImageMask true /BitsPerComponent 1) .vw
                 ime /pol get { ( /Decode [1 0]) .vw } if

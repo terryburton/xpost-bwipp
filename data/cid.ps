@@ -866,6 +866,12 @@ end
 %  resource categories, the CMap decodes the codes, the descendants
 %  carry the glyphs.
 %
+%  PLRM 5.10 is the font this builds: a Type 0 whose CMap maps the codes
+%  in a string onto a descendant font and a character within it (5.10.1),
+%  and whose descendants may themselves be composite (5.10.3). The
+%  operator is 8.2, which takes the CMap by name, by string or as a
+%  dictionary -- the three forms the signature admits.
+%
 /composefont [ /anytype /anytype /arraytype ] {  % key cmap fonts  .  font
     1 index type dup /nametype ne exch dup /stringtype ne exch /dicttype ne and and
         { /composefont cvx /typecheck signalerror } if

@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * The types an object may have, and the conversions between them, are
+ * PLRM 3.3; what an attribute is and what changing one means is 3.3.2.
+ * Each operator is PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * type cvi cvr cvn cvs cvrs cvx cvlit xcheck

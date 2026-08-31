@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * The six numbers a matrix holds and what they do to a coordinate are
+ * PLRM 4.3.3; the current transformation these compose into is 4.3.2.
+ * Each operator is PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * matrix initmatrix identmatrix defaultmatrix currentmatrix setmatrix

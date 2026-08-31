@@ -781,6 +781,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  span machinery and serve every later paint the same way. The
 %  caller's path survives untouched, as with clip.
 %
+%  The rule is the even-odd rule of PLRM 4.5.2, applied to the clipping
+%  path rather than to a fill; 4.4.2 is what a clipping path does to
+%  every later painting operation.
+%
 /eoclip [ ] {  % -  .  -
     % The region a device that clips for itself is handed, and the rule
     % it reads it under. Where the existing region is a rectangle already
@@ -822,6 +826,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  and has to come back with it, or the restored clip would be enforced as
 %  one shape and written out as another.
 %
+%
+%  PLRM 8.2, clipsave and cliprestore: the clipping path has a stack of
+%  its own, separate from the graphics state stack, so a program can put
+%  a clip back without disturbing anything else it has set.
+%
+
 /clipsave [ ] {  % -  .  -
     graphicsdict /clipstack 2 copy known { get }{
         2 copy 32 array put get

@@ -74,6 +74,15 @@ internal mirrors another implementation):
                       edge coverage the device is sent
   - /WhiteIsOpaque    device feature making white marks opaque on the
                       transparent-page device
+  - setcustomcolor, findcmykcustomcolor, findrgbcustomcolor,
+    customcolorimage, separationimage
+                      the separation vocabulary job streams use to name
+                      a spot colour and paint with it; the colour itself
+                      is priced as a Separation space of PLRM 4.8.4
+  - setdistillerparams, currentdistillerparams
+                      parameters a job stream sets when it expects to be
+                      distilled; which of them act rather than being
+                      recorded and handed back is in COMPLIANCE
   - pdfwrite, pngalpha, bbox    device names job streams select
 
 Additions to this group should name the job-stream requirement that

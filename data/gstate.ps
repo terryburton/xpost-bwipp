@@ -4,6 +4,13 @@
 %
 % vim: set sw=4 sts=4 tw=72 et:
 %
+% The graphics state: the parameters PLRM 4.2 says the graphics operators
+% execute within, held rather than passed, saved and restored as a whole
+% by gsave and grestore. The transformation among them is the current one
+% of PLRM 4.3 -- what maps the user space a program works in onto the
+% device space a page is marked in (4.3.1), and which translate, rotate,
+% scale and concat compose into (4.3.2).
+%
 % The graphics state: the template every gstate is copied from, and the
 % parameters a program sets on it.
 %
@@ -265,6 +272,13 @@ setglobal
 %
 %  Push graphics state
 %
+%  PLRM 4.2: the graphics state is not an object a program can reach, and
+%  the stack these three manage is one of the two ways it is saved whole
+%  and put back. gsave pushes a copy of all of it; grestore pops one;
+%  grestoreall unwinds to the state the enclosing save left. What that
+%  copy has to include is the parameter list in the same section -- which
+%  is why a parameter added to the state has to be added here too.
+%
 /gsave [ ] {  % -  .  -
 graphicsdict begin
     % the refusal comes before the depth moves: a gsave that raises has
@@ -299,6 +313,10 @@ end
 
 %
 %  pop to bottommost graphics state
+%
+%
+%  PLRM 4.2: unwinds the graphics state stack to the state the enclosing
+%  save left, so a job that lost count of its gsaves has one way back.
 %
 /grestoreall [ ] {  % -  .  -
 graphicsdict begin
@@ -397,12 +415,24 @@ end
 %
 %  Return current font from the graphics state
 %
+%
+%  PLRM 8.2, currentfont: the font the graphics state holds now, which
+%  setfont put there and which show paints through.
+%
+
 /currentfont [ ] {  % -  .  dict
     graphicsdict /currgstate get /currfont get
 } .defop
 
 %
 %  Install the transfer procedure for every component
+%
+%  PLRM 7.3: a transfer function adjusts a device colour component to
+%  compensate for a device whose response is not proportional to the
+%  number it is given. settransfer installs one procedure for every
+%  component; setcolortransfer installs one per component, which is the
+%  Level 2 form, and the current-  operators answer with what is
+%  installed.
 %
 /settransfer [ /proctype ] {  % proc  .  -
     /settransfer exch //.xpostsys /.sampletransfer get exec
@@ -427,6 +457,12 @@ end
 %
 %  Each is a pair: the set operator records and the current operator
 %  reads back exactly what was recorded.
+%
+%  PLRM 7.2.3 is where the two procedures belong: converting a red-green-
+%  blue value to cyan, magenta and yellow leaves a mixed black that prints
+%  as a dark brown, so a black component is generated from the three and
+%  the three are reduced by what it replaces. Black generation computes
+%  the one; undercolour removal reduces the others.
 %
 /setblackgeneration [ /proctype ] {  % proc  .  -
     /setblackgeneration exch //.xpostsys /.sampletransfer get exec
@@ -481,6 +517,11 @@ end
     end
 } put
 
+%
+%  PLRM 7.1.1: the dictionary that says how a CIE-based colour is
+%  rendered to the device -- the conversion this interpreter reads when
+%  it prices such a colour.
+%
 /setcolorrendering [ /dicttype ] {  % dict  .  -
     dup //.crdvalidate exec
     graphicsdict /currgstate get exch /colorrendering exch put
@@ -755,6 +796,12 @@ end
               { exch pop exch pop }
               { pop exch get } ifelse } ifelse
 } put
+
+%
+%  PLRM 7.5.2: asks that stroke positions and widths be adjusted as they
+%  are rasterised, so strokes come out an even thickness where the device
+%  grid would otherwise make neighbours differ by a pixel.
+%
 /setstrokeadjust [ /booleantype ] {  % flag  .  -   (recorded only)
     graphicsdict /currgstate get exch /strokeadjust exch put
 } .defop
@@ -814,6 +861,12 @@ end
 %
 %  Return current line cap
 %
+%
+%  PLRM 4.2 lists the line parameters the graphics state holds; each
+%  current- operator answers with what its set- operator recorded, and
+%  the values themselves are the operator's own in 8.2.
+%
+
 /currentlinecap [ ] {  % -  .  int
     graphicsdict /currgstate get /linecap get
 } .defop
@@ -888,7 +941,9 @@ end
 
 %
 %  Whether painting leaves the separations it does not name alone rather
-%  than clearing them (PLRM 8.2). Recorded, and read by the devices that
+%  than clearing them. PLRM 4.8.5 is what that means and where it is
+%  useful -- a device producing true physical separations -- and the
+%  operator itself is PLRM 8.2. Recorded, and read by the devices that
 %  keep separations; a device that keeps none has nothing to leave
 %  alone.
 %
@@ -936,6 +991,12 @@ end
 %  nothing here combines source with destination by a raster operation,
 %  so the code round-trips and changes no page.
 %
+%
+%  A Display PostScript operator, recorded rather than acted on; that is
+%  written down with the rest of the Display PostScript surface in
+%  COMPLIANCE.
+%
+
 /currentrasteropcode [ ] {  % -  .  int
     graphicsdict /currgstate get /rasteropcode get
 } .defop

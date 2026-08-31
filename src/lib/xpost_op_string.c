@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * Strings are PLRM 3.3.7: a composite whose elements are integers in
+ * 0..255, shared by every object referring to it, and not wound back
+ * by a restore (3.7.3). Each operator is PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * string copy length get put getinterval putinterval forall

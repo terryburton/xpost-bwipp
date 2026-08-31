@@ -505,8 +505,10 @@ unsigned int addname(Xpost_Context *ctx,
    makes a name from an unquoted token executable and one written /name
    literal (xpost_op_token.c). A name built here was not scanned from
    anything -- it is a dictionary key, or a string a program handed to
-   cvn -- so it carries the attribute PLRM 3.3.4 gives such a name, and
-   a caller wanting the other one says so with xpost_object_cvx.
+   cvn -- so it is made literal, which is the attribute of PLRM 3.3.2 a
+   caller wanting the other one asks for with xpost_object_cvx. That is
+   what cvn does when it has to: PLRM 8.2 has the name it answers with
+   executable if the string it converted was.
 
    This is what a program sees: the key a dictionary hands back to
    forall is the object stored with the value, so a key minted here

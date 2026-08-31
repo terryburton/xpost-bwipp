@@ -13,6 +13,13 @@
  * @file xpost_array.h
  * @brief array functions
  *
+ * PLRM 3.3.5 is what an array has to be: a one-dimensional collection of
+ * objects of any types together, indexed from zero, every access bounds
+ * checked and an index outside the array a rangecheck. A procedure is
+ * such an array made executable. The length one can hold is an
+ * implementation limit, and this tree's is stated in COMPLIANCE against
+ * PLRM Appendix B.1.
+ *
  * An array object is 8 bytes,
  * consisting of 4 16bit fields common to all composite objects
  *   tag, type enum and flags

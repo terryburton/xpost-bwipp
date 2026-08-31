@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * Dictionaries are PLRM 3.3.9 -- a key may be any object except null,
+ * and a string key is converted to a name -- and the dictionary stack
+ * they are searched through is 3.3. Each operator is PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * dict begin end def load store get put known where copy forall
@@ -359,7 +363,7 @@ int xpost_op_any_where(Xpost_Context *ctx,
     int z;
     int isname;
 
-    /* a key may be any object except null (PLRM 3.3.5) */
+    /* a key may be any object except null (PLRM 3.3.9) */
     if (xpost_object_get_type(K) == nulltype)
         return typecheck;
 

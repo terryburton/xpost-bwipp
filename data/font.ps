@@ -6,6 +6,14 @@
 %
 % Type 3 font handling and the font operators over the C fontconfig/freetype access.
 %
+% A Type 3 font is the one whose behaviour is PostScript procedures rather
+% than a font program in an external format (PLRM 5.7): the interpreter
+% calls BuildGlyph, or BuildChar where the font has no BuildGlyph, with
+% the font dictionary and the glyph to paint (5.7.1, 5.7.2), and what the
+% procedure paints is the glyph. A composite font maps a string's bytes
+% to a descendant font and a character within it (5.10, 5.10.1), and may
+% nest (5.10.3).
+%
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
@@ -382,6 +390,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  time. This keeps fonts value-like (two sizes of one face coexist)
 %  and makes the CTM matter where PostScript says it does: when the
 %  glyphs are marked, not when the font is scaled.
+%
+%  PLRM 8.2, scalefont: a copy of the font is made and the copy's
+%  FontMatrix replaced by the existing one scaled -- which is why this
+%  produces a new font rather than altering the one it was given, and why
+%  two sizes of one face can be current in turn without disturbing each
+%  other.
 %
 /scalefont [ /dicttype /numbertype ] {  % font size  .  font'
     dup matrix scale makefont
@@ -1800,6 +1814,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  The encoding array a name stands for, which is the Encoding resource
 %  category under another name.
 %
+%
+%  PLRM 8.2, findencoding: answers the encoding array a standard name
+%  stands for -- the vectors PLRM 5.3 describes and Appendix E lists.
+%
+
 /findencoding [ /nametype ] { /Encoding findresource } .defop  % key  .  encoding
 
 %
@@ -1914,6 +1933,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  for an interpreter that does cache them is not turned away for
 %  asking.
 %
+%
+%  PLRM 8.2: the user-path cache parameters. What this interpreter does
+%  with the values it is given, rather than merely recording them, is in
+%  COMPLIANCE with the rest of the parameter sets.
+%
+
 /setucacheparams [ ] { cleartomark } .defop  % mark ...  .  -
 
 %

@@ -9,6 +9,10 @@
  * @file xpost_matrix.h
  * @brief matrix functions
  *
+ * The six numbers and what they do to a coordinate are PLRM 4.3.3. The
+ * operators that a program reaches them through, and the current
+ * transformation the graphics state holds, are 4.3.2 and PLRM 8.2.
+ *
  * @{
  */
 

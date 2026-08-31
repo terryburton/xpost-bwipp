@@ -15,7 +15,9 @@
  * pop exch dup copy index roll clear count mark cleartomark counttomark
  *
  * The only operators whose subject is the stack itself rather than what is
- * on it.
+ * on it. The stack they mean is the operand stack of PLRM 3.4 -- the one
+ * the manual calls "the stack" with no qualifier -- and each operator is
+ * defined in PLRM 8.2 under its own name.
  */
 
 #ifdef HAVE_CONFIG_H

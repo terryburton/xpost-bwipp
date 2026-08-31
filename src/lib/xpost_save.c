@@ -12,6 +12,13 @@
  * written since, so what was allocated after the save does not survive it.
  * What is saved is the old contents of anything overwritten, not a copy of
  * the whole arena.
+ *
+ * PLRM 3.7.3 is what this answers to: a save takes a snapshot of local
+ * virtual memory and a restore reverts to it, which is why a restore
+ * here walks one bank and not both -- global VM is outside a snapshot's
+ * reach, per PLRM 3.7.2. The same section excepts strings from what a
+ * restore puts back, so a string written after a save keeps what was
+ * written; the operators themselves are PLRM 8.2.
  */
 
 #ifdef HAVE_CONFIG_H

@@ -10,6 +10,13 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * A packed array is the compact representation of an array PLRM 3.3.6
+ * describes, carrying its own type and otherwise behaving as an array
+ * does. What follows from that is the reason these operators exist
+ * separately at all: executing one is indistinguishable from executing
+ * an ordinary procedure, and the two are told apart only when they are
+ * read as data. The operators themselves are PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * packedarray currentpacking setpacking

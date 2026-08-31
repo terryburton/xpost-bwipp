@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * The control constructs of PLRM 3.5.4, which is what makes them
+ * operators rather than syntax: a conditional takes procedures as
+ * operands and executes one. Each is defined in PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * exec if ifelse for repeat loop exit stop stopped quit execstack countexecstack

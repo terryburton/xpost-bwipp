@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * The user and system parameters of PLRM Appendix C: what each means
+ * is C.3, and which of them this interpreter carries rather than the
+ * whole set is written down in COMPLIANCE. The operators are PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * vmstatus globalvmstatus vmreclaim setvmthreshold

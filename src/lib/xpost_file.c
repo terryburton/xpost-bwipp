@@ -2332,6 +2332,11 @@ typedef struct Xpost_HexFile
 } Xpost_HexFile;
 
 /* --- the decoding filters --------------------------------------------
+
+   Each filter below is specified in PLRM 3.13.3, which documents them one
+   at a time: what the encoded form is, what ends the data, and what a
+   malformed input does. The comment on each says what it implements; the
+   section says what it owes.
    One per format the language names. Each is the same shape -- a refill
    that pulls from the source and a readch that hands out what it decoded
    -- so what differs between them is the format and nothing else. */
@@ -2901,7 +2906,10 @@ dct_readch(Xpost_File *f)
     {
         /* The library's error path lands here, and three unlike things
            arrive on it. A stream that opened as a JPEG and then ran out
-           is corrupt input, which PLRM 3.13 makes an ioerror. A stream
+           is corrupt input, and an ioerror is what PLRM 3.13.3 has a
+           decoding filter answer with where it settles the case at all;
+           it does not settle this filter's, so that reading is applied
+           here rather than quoted. A stream
            that was never a JPEG holds no image and nothing went wrong
            with it, so it decodes to nothing and raises nothing. A whole
            JPEG container with no image in it is the same kind of
@@ -4147,6 +4155,9 @@ struct Xpost_EncBase
 };
 
 /* --- the encoding filters --------------------------------------------
+
+   The other direction of the filters of PLRM 3.13.3, and the same
+   section details each.
    The other direction, and a different shape: an encoder is written to
    rather than read from, so what each provides is a byte-at-a-time encode
    and a finish that flushes whatever the format holds back. */

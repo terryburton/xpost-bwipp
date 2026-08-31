@@ -427,7 +427,14 @@ static int _stack_ceilings(Xpost_Context *ctx)
    One executable object per turn, dispatched by type. Between turns comes
    the work that must not happen inside one -- a pending collection, a
    pending compaction, an interrupt raised from a signal handler -- which
-   is what makes those safe points rather than interruptions. */
+   is what makes those safe points rather than interruptions.
+
+   Dispatching by type is the shape PLRM 3.5 requires: execution semantics
+   are the object's, one type at a time, and 3.5.5 gives them type by type.
+   What arrives here has already been through the other half of that
+   section -- 3.5.1 and 3.5.3, execution as the scanner produces an object
+   against execution deferred into a procedure -- so the loop sees only
+   the deferred kind and the literals a procedure carries. */
 
 /* quit the interpreter */
 static

@@ -808,7 +808,7 @@ int _dict_put_memory(Xpost_Context *ctx,
     dichead *dp;
     int ret;
 
-    /* a key may be any object except null (PLRM 3.3.5): null is what an
+    /* a key may be any object except null (PLRM 3.3.9): null is what an
        empty slot holds, so a null key names nothing */
     if (xpost_object_get_type(k) == nulltype)
         return typecheck;

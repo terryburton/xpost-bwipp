@@ -10,6 +10,11 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * Files are PLRM 3.8 and filters PLRM 3.13, which is where the
+ * semantics these implement are stated: what a data source or target
+ * may be, and what end-of-data means for each filter. The operators
+ * themselves are PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * file filter closefile read write readstring writestring readline

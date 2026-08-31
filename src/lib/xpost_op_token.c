@@ -10,6 +10,9 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * Reading a token is the syntax of PLRM 3.2, and the binary forms a
+ * token may arrive in are 3.14. The operators are PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * token
@@ -313,7 +316,8 @@ int grok(Xpost_Context *ctx,
                 num = strtoll(s, NULL, 10);
                 if (errno == ERANGE || (long long)(integer)num != num)
                 {
-                    /* beyond the integer range: PLRM 3.3.2 makes it a real */
+                    /* beyond the integer range: PLRM 3.2 has a number the scanner
+                       cannot hold as an integer converted to a real */
                     *retval = xpost_real_cons((real)strtod(s, NULL));
                     return 0;
                 }
@@ -335,7 +339,8 @@ int grok(Xpost_Context *ctx,
         num = strtoll(s, NULL, 10);
         if (errno == ERANGE || (long long)(integer)num != num)
         {
-            /* beyond the integer range: PLRM 3.3.2 makes it a real */
+            /* beyond the integer range: PLRM 3.2 has a number the scanner
+                       cannot hold as an integer converted to a real */
             *retval = xpost_real_cons((real)strtod(s, NULL));
             return 0;
         }
@@ -844,10 +849,11 @@ int puff(Xpost_Context *ctx,
    bodies; binary object sequences (128..131) and the composite forms
    are not accepted. */
 
-/* The standard system name table (PLRM 3rd ed. Appendix F):
-   binary name tokens carry an index into this table. Entries
-   match the encoding emitted by Level 2 producers; unassigned
-   indices are NULL. */
+/* The standard system name table. PLRM 3.14.3 is what a binary name
+   token carries: a system name index, which is a reference into a name
+   table the interpreter already holds rather than the text of the name,
+   and the table itself is the one Appendix F lists. Entries match the
+   encoding emitted by Level 2 producers; unassigned indices are NULL. */
 static const char * const _bin_sysname[256] =
 {
     "abs", "add", "aload", "anchorsearch",

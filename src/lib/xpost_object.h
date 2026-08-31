@@ -13,6 +13,13 @@
 /**
  * @file xpost_object.h
  * @brief The file defines the basic object structure, typically 8-bytes.
+ *
+ * The types it represents, and what distinguishes one from another, are
+ * PLRM 3.3: a simple object holds its value where a composite holds a
+ * reference to storage shared by every object referring to it (3.3.1),
+ * and the attributes each carries are 3.3.2. The representation below
+ * is this interpreter's own; what it has to represent is that section's.
+ *
  * @defgroup xpost_object Object structure
  *
  * @{

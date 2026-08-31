@@ -793,6 +793,11 @@ setglobal
 %
 % (5\n)print
 %
+%
+%  PLRM 8.2, stack: prints the operand stack without disturbing it, each
+%  object as == would write it.
+%
+
 /stack [ ] { count dup 1 add copy //= repeat pop } .defop  % -  .  -
 
 %
@@ -1388,6 +1393,12 @@ end
 %  digests the stack by type as well. This one stands for the run that
 %  never reaches prepr.ps.
 %
+%  PLRM 8.2, prompt: what an interactive executive calls to tell whoever
+%  is typing that it is ready for the next statement. It is a procedure
+%  in systemdict rather than something the executive does for itself,
+%  because the section has a program override it by defining prompt in
+%  userdict.
+%
 /prompt [ ] {  % -  .  -
     (PS) print
     count dup 0 eq { pop } { (<) print //=print exec } ifelse
@@ -1825,6 +1836,11 @@ setglobal
 
 %
 %  The user-object table lives in userdict, growing as indices demand.
+%
+%
+%  PLRM 3.7.6: a user object is an entry in an array the interpreter
+%  keeps, named by an index rather than by a name, so a program can hand
+%  one to another job or to a document that cannot see its dictionaries.
 %
 /defineuserobject [ /integertype /anytype ] {  % index any  .  -
     exch
@@ -2386,6 +2402,14 @@ currentglobal true setglobal
     end
 } put
 
+%
+%  The operators a user path may be built from, and how many numbers each
+%  takes. A user path is the encoded, self-contained path of PLRM 4.6: a
+%  procedure holding only these, which uappend and the painting operators
+%  that take one interpret without the path being built on the current
+%  path first. The set is closed, which is what lets a path be checked
+%  before any of it is run (4.6.1); the operators themselves are 8.2.
+%
 .xpostsys /.upathopset <<
     /setbbox 4 /moveto 2 /rmoveto 2 /lineto 2 /rlineto 2 /curveto 6
     /rcurveto 6 /arc 5 /arcn 5 /arct 5 /closepath 0 /ucache 0
@@ -2506,6 +2530,13 @@ setglobal
 %  reason rectfill does: a pattern's paint procedure may raise from
 %  inside that state, and the grestore written after the paint is not
 %  reached then.
+%
+%  PLRM 4.6.4: a user-path painting operator interprets the path and
+%  paints it in one step. 8.2 gives the equivalence exactly -- gsave,
+%  newpath, uappend, the painting operator, grestore -- which is why the
+%  caller's current path survives one of these, and why the shape below
+%  is that sequence rather than a fill of something built in place.
+%
 /ufill [ /arraytype ] {  % userpath  .  -
     { gsave newpath uappend fill grestore }
     null 0 //.xpostsys /.callout get exec } .defop
@@ -2607,6 +2638,11 @@ setglobal
 %  Record the distiller parameters a job asks for (an Adobe extension).
 %  The entries are kept and read back; the PDF writer consults the ones
 %  it implements and the rest are carried for the job's own sake.
+%
+%
+%  Not the language's either: distiller parameters are an extension, and
+%  which of them this interpreter acts on rather than merely recording is
+%  written down among the extensions in COMPLIANCE.
 %
 /setdistillerparams [ /dicttype ] {  % dict  .  -
     //.distillerparams /LockDistillerParams get {

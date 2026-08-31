@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * An array is the collection of PLRM 3.3.5 -- objects of any types
+ * together, indexed from zero, every access bounds checked -- and each
+ * operator below is defined in PLRM 8.2 under its own name.
+ *
  * Installed into systemdict as:
  *
  * array aload astore copy forall get getinterval length put putinterval

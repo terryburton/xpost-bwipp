@@ -440,7 +440,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } def
 
 %
-%  A CIEBasedDEF colour to device colour (PLRM 4.8.5): the DEF components
+%  A CIEBasedDEF colour to device colour (PLRM 4.8.3): the DEF components
 %  through DecodeDEF, then looked up in the three-dimensional Table with
 %  trilinear interpolation between the eight surrounding entries, which
 %  gives the ABC the stage above takes.
@@ -491,7 +491,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } def
 
 %
-%  A CIEBasedDEFG colour to device colour (PLRM 4.8.5): the same as
+%  A CIEBasedDEFG colour to device colour (PLRM 4.8.3): the same as
 %  CIEBasedDEF with a fourth input, so the table is four-dimensional and
 %  the interpolation is over sixteen surrounding entries.
 %
@@ -882,6 +882,11 @@ end
 %  The components beneath vary with the underlying space, so the
 %  pattern itself is the operand stated.
 %
+%
+%  PLRM 4.9.1: painting with a pattern is selecting a Pattern space and
+%  making a pattern dictionary the current colour; the ordinary painting
+%  operators then paint with it.
+%
 /setpattern [ /dicttype ] {
     % A pattern dictionary, which is one that has been through
     % makepattern. The same question makepattern asked, asked the same
@@ -963,6 +968,14 @@ end
     }{ pop null } ifelse
 } put
 
+%
+%  How many components a family takes, which is what a run of them is
+%  counted off the stack by. The device spaces are PLRM 4.8.2 and take a
+%  component per colorant -- the intensity of achromatic light, the three
+%  additive primaries of a display, the four subtractive inks of a press
+%  -- and the CIE-based spaces PLRM 4.8.3, which take theirs from the
+%  stage of the conversion each family enters at.
+%
 .xpostsys /.spacecomps <<
     /DeviceGray 1
     /DeviceRGB 3
@@ -1031,7 +1044,7 @@ end
 %  Which element carries that other space differs, and so does what may
 %  sit there: an Indexed base may not be a Pattern or another Indexed
 %  space (PLRM 4.8.4), a Separation or DeviceN alternative may not be any
-%  special space at all (PLRM 4.8.5), and the space underlying a Pattern
+%  special space at all (PLRM 4.8.4), and the space underlying a Pattern
 %  may not itself be a Pattern space (PLRM 4.9.2).
 %
 %  Three statements of one shape, so one table rather than a test at each
@@ -1058,7 +1071,7 @@ end
 %
 %  An Indexed space's base, a Separation or DeviceN space's alternative,
 %  a Pattern space's underlying space. A Pattern space may leave it out
-%  (PLRM 4.9.1) and any space given as a bare family name carries no
+%  (PLRM 4.9.2) and any space given as a bare family name carries no
 %  parameters at all, so an answer of null is an ordinary one and not a
 %  fault.
 %
@@ -1083,13 +1096,13 @@ end
 %
 %  Whether a colour set in this space can produce visible output at all.
 %
-%  PLRM 4.8.5 gives the colorant name None exactly this meaning: painting
+%  PLRM 4.8.4 gives the colorant name None exactly this meaning: painting
 %  in a Separation space named None "has no effect on the current page",
 %  and the space ignores its alternative space and tint transform. So the
 %  answer follows from the space and nothing else -- not from the tint, and
 %  not from what the transform would have returned, which is the reason
 %  this can be settled once when the space is set. The name arrives as a
-%  name or as a string, because PLRM 4.8.5 admits either.
+%  name or as a string, because PLRM 4.8.4 admits either.
 %
 %  The sibling special name All is NOT this: it paints in every available
 %  colorant, which is the opposite of painting in none.
@@ -1166,7 +1179,7 @@ end
 %
 %  A colorant name where the specification asks for one.
 %
-%  PLRM 4.8.5 states a Separation's name, and every entry of a DeviceN
+%  PLRM 4.8.4 states a Separation's name, and every entry of a DeviceN
 %  names array, as a name or a string object -- the two interchangeably,
 %  a string being the form for a colorant whose name carries spaces or
 %  other characters a name cannot hold. Nothing else is one.
@@ -1185,8 +1198,8 @@ end
 %  Where each tint family carries its colorants, and whether it carries
 %  one or many.
 %
-%  A Separation names a single colorant (PLRM 4.8.5) and a DeviceN an
-%  array of them (PLRM 4.8.5, DeviceN Color Spaces), both at the second
+%  A Separation names a single colorant (PLRM 4.8.4) and a DeviceN an
+%  array of them (PLRM 4.8.4, DeviceN Color Spaces), both at the second
 %  element. That difference is the whole of what separates the two
 %  families, and it is exactly the kind of thing a reader written for one
 %  and used for the other gets wrong -- a name has a length, so a bare
@@ -1211,7 +1224,7 @@ end
 %
 %  A DeviceN space names the colorants it paints with, and the length of
 %  that array is the number of components a colour in the space carries
-%  (PLRM 4.8.5). An empty array names no colorant and prices the space at
+%  (PLRM 4.8.4). An empty array names no colorant and prices the space at
 %  no components: setcolor would read nothing off the stack, the tint
 %  transform would be called with nothing, and the space would paint with
 %  no colorant at all. That is not a colour space, and the fault is in
@@ -1404,7 +1417,7 @@ end
 
     /sp load //.spaceispattern exec not {
         % A tint space reaches its alternative space by calling a
-        % procedure the program supplied (PLRM 4.8.5), so a fourth
+        % procedure the program supplied (PLRM 4.8.4), so a fourth
         % element that cannot be called is not a tint transform and the
         % array is not a colour space. The refusal is here because this
         % is the last moment the operator that supplied it is still the
@@ -1458,6 +1471,13 @@ end
 %  comp1..compN  .  -
 %       pattern  .  -
 %          null  .  -
+%
+%
+%  PLRM 4.8.1: what setcolor takes is whatever the current colour space
+%  says a colour in it is -- one number, three, four, or a pattern
+%  dictionary with the underlying space's components before it -- which
+%  is why the signature admits those shapes and the body reads the space
+%  before it reads the stack.
 %
 /setcolor [ [ /numbertype ] [ /dicttype ] [ /nulltype ] ] {
     currentcolorspace
@@ -1913,6 +1933,12 @@ end
 %  The object is what setcustomcolor and customcolorimage take; nothing
 %  else reads it.
 %
+%
+%  These five are not the language's: they are the separation extension
+%  the printer products defined, and they are listed among the extensions
+%  in COMPLIANCE rather than cited to a section. A separation colour
+%  reached through them is priced as PLRM 4.8.4's Separation space is.
+%
 /findcmykcustomcolor [ /numbertype /numbertype /numbertype /numbertype /stringtype ] {  % c m y k name  .  object
     5 array astore
 } .defop
@@ -1942,6 +1968,11 @@ end
 %  object comes last, over the same operands image takes; the space it
 %  installs is undone afterwards.
 %
+%
+%  Part of the same separation extension as the operators above, and
+%  listed with them among the extensions in COMPLIANCE.
+%
+
 /customcolorimage [ /integertype /integertype /integertype /arraytype /anytype /arraytype ] {  % w h bits matrix datasrc obj  .  -
     % w h bits matrix datasrc obj -- resolve the object's space first, before
     % any begin or gsave, so a malformed object leaves nothing to unwind.

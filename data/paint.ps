@@ -6,6 +6,10 @@
 %
 % The painting pipeline: colour folding, sampling, and the fill/stroke/image span machinery.
 %
+% The model these serve is PLRM 4.1: a program builds a page by placing
+% paint on it in selected areas, each mark covering what was there. The
+% general-purpose operators are stroke and fill (4.5).
+%
 % Copyright (c) 2013-2016 Michael Joshua Ryan
 % SPDX-License-Identifier: BSD-3-Clause
 
@@ -94,6 +98,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
 %
 %  Paint current page white
+%
+%  PLRM 8.2, erasepage: the whole page is painted with gray level 1.0,
+%  which is ordinarily white -- the page, not the area the clipping path
+%  admits, and a gray level rather than the current colour.
 %
 /erasepage [ ] {  % -  .  -
     % The page is being cleared, so whatever had been painted on it is
@@ -444,6 +452,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  intersection and the device FillPoly. A vector device consuming
 %  whole paths through FillPath carries the rule to its consumer.
 %
+%  The rule itself is PLRM 4.5.2's other one: a point is inside where a
+%  ray from it crosses the path an odd number of times, counted without
+%  regard to direction, where the nonzero rule counts direction and asks
+%  for a total other than zero.
+%
 /eofill [ ] {  % -  .  -
     //.xpostsys /.colorroute get exec
     dup /pattern eq { pop //.xpostsys /.patterneofill get exec }{
@@ -535,6 +548,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  user path filled by each rule, and inustroke of a user path's
 %  stroke.
 %
+%  PLRM 4.5.3 is what they answer: whether a point or an aperture would
+%  be painted, decided by the same rule the corresponding painting
+%  operator uses, and answered without marking the page.
+%
 /instroke [ [ /numbertype /numbertype ] [ /arraytype ] ]
     {  % x y | upath  .  bool
       gsave strokepath infill grestore }
@@ -598,6 +615,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
 %
 %  draw line along current path
+%
+%  PLRM 4.5.1: the stroked line is centred on each segment with its sides
+%  parallel to it, and each subpath is stroked on its own. What the line
+%  looks like at its ends and its corners is the graphics state's, which
+%  is why the parameters this reads are the ones 4.2 lists rather than
+%  operands.
+%
 %  A device with a StrokePath method consumes the whole path itself
 %  (vector devices stroke with true joins, caps and width); a raster
 %  device fills the stroked outline, except at a device-space width of
@@ -1770,6 +1794,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  The source count varies with multi and ncomp, so the effect states the
 %  two operands that are always there and shows the sources as a run; how
 %  many there are is the body's to check.
+%
+%  PLRM 4.10.2 is where the two trailing operands come from: colorimage
+%  states the component count itself as ncomp, and multi says whether the
+%  samples arrive interleaved from one source or from one source per
+%  component -- which is why the number of sources is not fixed by the
+%  signature.
 %
 /colorimage [ /booleantype /integertype ] {  % width height bits matrix datasrc... multi ncomp  .  -
     {

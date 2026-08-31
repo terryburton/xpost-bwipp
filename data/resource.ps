@@ -603,6 +603,11 @@ setglobal
 %  failing, and the operand stack goes back to what the procedure
 %  found rather than to resourceforall's four operands.
 %
+%  PLRM 3.9.1 is the operator: it enumerates the instances of a category
+%  whose names match a template, calling the procedure with each name and
+%  reusing the scratch string it was given -- which is why the string is
+%  an operand and not something the operator provides.
+%
 /resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
     % Merge the global table with any local instances over it
     dup /resourceforall //.instof exec exch

@@ -216,17 +216,11 @@ end
 } .defop
 
 %
-%  PLRM 3ed, 667:
-%  The offset operand can be thought of as the "phase" of the dash pattern relative to
-%  the start of the path. It is interpreted as the distance into the dash pattern
-%  (measured in user space units) at which to start the pattern. Before beginning to
-%  stroke a path, the stroke operator cycles through the elements of array, adding up
-%  distances and alternating dashes and gaps as usual, but without generating any
-%  output. When the accumulated distance reaches the value specified by offset, it
-%  begins stroking from the starting point of the path, using the dash pattern from
-%  the point that has been reached. Each subpath of a path is treated independently;
-%  the dash pattern is restarted and the offset reapplied at the beginning of each
-%  subpath.
+%  PLRM 8.2, setdash: the offset is the phase of the dash pattern -- a
+%  distance in user space into the pattern at which stroking begins, as
+%  though the pattern had been walked that far without marking. Every
+%  subpath is treated on its own, restarting the pattern and applying
+%  that offset again.
 %
 
 %

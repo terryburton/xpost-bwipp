@@ -10,6 +10,12 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * PLRM 5.1 is what these answer to: a character is the abstract symbol
+ * and a glyph one rendering of it, and showing text is selecting a font
+ * (5.1.2), then painting the glyphs its encoding names (5.1.1) at
+ * positions the font's metrics and the graphics state settle (5.1.4).
+ * The encoding that turns a string's bytes into glyph names is 5.3.
+ *
  * Installed into systemdict as:
  *
  * findfont setfont show ashow widthshow awidthshow stringwidth

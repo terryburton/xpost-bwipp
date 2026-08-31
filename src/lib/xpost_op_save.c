@@ -10,6 +10,10 @@
  *
  * The implementations, and the one function that installs them.
  *
+ * Save and restore are PLRM 3.7.3 -- a snapshot of local virtual
+ * memory and a reversion to it -- which is why these reach one bank
+ * and not both (3.7.2). The operators are PLRM 8.2.
+ *
  * Installed into systemdict as:
  *
  * save restore currentglobal setglobal gcheck startjob vmstatus

@@ -8,8 +8,10 @@
 % screening device paints through.
 %
 % A halftone says how a continuous tone becomes the marks a device can
-% actually make. This file holds the eight halftone types PLRM Table 7.5
-% defines and the screen triple setscreen takes, what each of them is
+% actually make. PLRM 7.4.1 gives three ways a program may say which one
+% it wants -- setscreen, setcolorscreen and sethalftone -- and this file
+% holds all three: the eight halftone types PLRM Table 7.5 defines and
+% the screen triple setscreen takes, what each of them is
 % validated against, the spot-function sampling that turns a procedure
 % into a threshold array, the cell geometry an angled screen resolves to,
 % and the transfer functions a screen carries.
@@ -474,6 +476,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  device pixel into its cell, and the whole repeating tile is ranked
 %  together so the lowest spot values whiten first.
 %
+%  The procedure and the order it whitens in are PLRM 7.4.4: a cell
+%  carries its own coordinate system, the centre at the origin and the
+%  corners at plus and minus one, and the spot function is asked for a
+%  value at each pixel centre in it. Ranking those values is what makes
+%  a lighter grey keep every white pixel a darker one had.
+%
 %  An axis-aligned screen falls out of the same arithmetic with the off-
 %  axis vector at zero.
 %
@@ -690,6 +698,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
 %
 %  Return the grey channel's screen parameters
+%
+%
+%  PLRM 7.4.2: the frequency, angle and spot function of the screen now
+%  in force. A halftone installed as a dictionary has no single screen to
+%  report, which is what the answer below has to account for.
 %
 /currentscreen [ ] {  % -  .  freq angle proc
     graphicsdict /currgstate get /screenfreq get
@@ -1145,6 +1158,11 @@ readonly put
 %  of it is recorded: a type this interpreter cannot screen with is a
 %  rangecheck, a required entry that is absent an undefined, and an
 %  entry of the wrong type a typecheck.
+%
+%  What a type must carry is PLRM 7.4.3, which has the dictionary be a
+%  self-contained description of a screening process and gives the
+%  entries of each type in Tables 7.5 to 7.9. Checking here is what lets
+%  the rest of the file read an entry without asking whether it is there.
 %
 .xpostsys /.htvalidate {  % ht  .  -
     1 dict begin
