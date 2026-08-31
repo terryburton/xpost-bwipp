@@ -298,9 +298,34 @@ for mk in src/lib/Makefile.mk src/bin/Makefile.mk data/Makefile.mk \
     fi
 done
 
+# ---- the two build descriptions name the same release
+#
+# A tree built two ways states its version twice, and a release bumped in
+# one of them ships a build that reports the other. Nothing else notices:
+# both builds compile, both suites pass, and the number is wrong only
+# where somebody reads it. The autotools version is assembled from three
+# m4 definitions and meson states it whole, so they are compared as
+# strings after joining.
+mver=$(sed -n "s/^ *version *: *'\([0-9.]*\)'.*/\1/p" "$src/meson.build" | head -1)
+amaj=$(sed -n 's/^m4_define(\[v_maj\], *\[\([0-9]*\)\]).*/\1/p' "$src/configure.ac")
+amin=$(sed -n 's/^m4_define(\[v_min\], *\[\([0-9]*\)\]).*/\1/p' "$src/configure.ac")
+amic=$(sed -n 's/^m4_define(\[v_mic\], *\[\([0-9]*\)\]).*/\1/p' "$src/configure.ac")
+aver="$amaj.$amin.$amic"
+if [ -z "$mver" ] || [ "$aver" = ".." ]; then
+    echo "FAIL: cannot read a version from meson.build ('$mver') or from"
+    echo "      configure.ac ('$aver'), so nothing here holds them together"
+    fail=1
+elif [ "$mver" != "$aver" ]; then
+    echo "FAIL: meson.build says version $mver and configure.ac says $aver."
+    echo "      A release carries whichever build made it, and the one that"
+    echo "      was not bumped reports the old number."
+    fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the distribution lists and the tree disagree"
     exit 1
 fi
-echo "SUCCESS"
+echo "SUCCESS (both build descriptions name version $mver)"
 exit 0
+
