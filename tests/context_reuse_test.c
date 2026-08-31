@@ -16,24 +16,26 @@
  * only the growth comparison is left out, which the test says so on its
  * output.
  *
- * An allocator that satisfies a request from fresh pages rather than
- * from the ones just returned makes the reading rise without anything
- * having been retained. What is read here is not how far it rose but how
- * often: retention costs a context's worth on every cycle, and an
- * allocator taking room for itself costs nothing on most cycles and a
- * region occasionally. So the reading is the middle one of the per-cycle
- * steps over the second half of the run -- for retention that is a
- * context's worth, and for a host taking regions it is nothing, whatever
- * the total came to.
+ * Two things move that reading and only one of them is retention. The
+ * other is the C allocator, which keeps what it has freed for as long as
+ * it likes -- so before each reading it is asked to hand back what it is
+ * holding and not using. What that leaves is what the process needs, and
+ * a leak is still there afterwards because memory still allocated is not
+ * the allocator's to give back. Without that step the reading is the
+ * host's to decide: MEASURED, the same interpreter over the same cycles
+ * reads no growth at all on one host, occasional regions on a second,
+ * and a level step every cycle on a third -- the very shape retention
+ * makes. Asked to release first, the second host's total falls from
+ * about 7800 KiB to a few hundred.
  *
- * A total cannot separate them, and that is not a shortcoming of the
- * allowance but of the question: MEASURED, a host that grew 7812 KiB
- * over twelve cycles grew it in three steps of about 3800 with nine
- * cycles adding nothing, and the same total spread a unit a cycle would
- * be a leak. A threshold on the total either passes the leak or fails
- * the host, and which it does depends on the size of a page there --
- * where pages are four times larger the same steps cost four times as
- * much, while what a context costs does not scale with them.
+ * What is then read is not how far the reading rose but how often:
+ * retention costs a context's worth on every cycle, where anything else
+ * is spent early and stops. So the figure is the middle one of the
+ * per-cycle steps over the second half of the run. A total cannot say
+ * which happened -- the same total is three steps of 3800 or a unit a
+ * cycle, and those want opposite fixes -- and a total is also read
+ * against the size of a page, where pages four times larger cost four
+ * times as much for the same steps while a context does not.
  *
  * The step allowed is half of what one context costs, which is measured
  * here rather than assumed: the reading before any context has been
@@ -42,8 +44,8 @@
  * a run keeping half of one reads the allowance exactly.
  *
  * A run that exceeds it prints what it read on every cycle, since the
- * shape is what says where to look: steps level to the end are
- * retention, and flat runs broken by jumps are the host taking room.
+ * shape says where to look: steps level to the end are a cost paid per
+ * context, and steps that shrink are something spending itself out.
  */
 
 #include <stdio.h>
@@ -56,6 +58,10 @@
 # include <unistd.h>          /* sysconf, for the page size /proc counts in */
 # ifdef __APPLE__
 #  include <mach/mach.h>      /* task_info, which says what is held now */
+#  include <malloc/malloc.h>  /* malloc_zone_pressure_relief */
+# endif
+# ifdef __GLIBC__
+#  include <malloc.h>         /* malloc_trim */
 # endif
 #endif
 
@@ -77,6 +83,29 @@
 #define STEP_NUMERATOR   1
 #define STEP_DENOMINATOR 2
 
+/* Hand back what the C allocator is holding but not using, so that what is
+   read next is what the process needs rather than what it has cached.
+
+   Without this the reading is the allocator's to decide. It keeps freed
+   pages at its own discretion, and how much it keeps is a property of the
+   machine: MEASURED, one host gives every cycle's memory straight back and
+   reads no growth at all, a second keeps it in occasional regions, and a
+   third keeps every cycle's worth and reads a level step a cycle -- the
+   very shape retention makes. Nothing about the interpreter differs across
+   the three. Asked to release first, all three answer about the
+   interpreter.
+
+   Where a host offers no such call the reading is what it was, and the
+   check is left reading the allocator on that host as it always did. */
+static void release_allocator_caches(void)
+{
+#if defined(__APPLE__)
+    malloc_zone_pressure_relief(NULL, 0);
+#elif defined(__GLIBC__)
+    malloc_trim(0);
+#endif
+}
+
 /* What this process holds now, in KiB, or 0 where the platform does not say.
 
    Not the high-water mark. A high-water mark never falls, so it answers
@@ -88,6 +117,7 @@
    held costs nothing there and is the right question everywhere else. */
 static long resident_kib(void)
 {
+    release_allocator_caches();
 #if defined(_WIN32)
     return 0;
 #elif defined(__APPLE__)
