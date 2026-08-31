@@ -213,6 +213,33 @@ int Pbind(Xpost_Context *ctx,
     return 0;
 }
 
+/* -  .buildtime  int
+   The stamp naming this build, which currentsystemparams reports as
+   BuildTime (PLRM Appendix C). XPOST_BUILD_TIME is taken from
+   SOURCE_DATE_EPOCH when the build is configured rather than read from the
+   clock, so two builds of one source agree; a build whose packager set no
+   epoch carries nought, which is no stamp rather than a wrong one.
+
+   An operator rather than the number itself, and the reason is the image of
+   virtual memory. A number would be frozen into currentsystemparams by the
+   // that reads it, and an image carrying that body would go on reporting
+   the stamp of the build that wrote the image. The image is stamped with a
+   build identifier, but that identifier is made from the sources and the
+   compiler flags, and two builds of one source configured with different
+   epochs are identical to it. An operator freezes the call instead, so what
+   is reported is the running build's own answer.
+
+   The name is private: Appendix C names the parameter and names nothing
+   underneath it. */
+static
+int buildtime(Xpost_Context *ctx)
+{
+    if (!xpost_stack_push(ctx->lo, ctx->os,
+                          xpost_int_cons((integer)XPOST_BUILD_TIME)))
+        return stackoverflow;
+    return 0;
+}
+
 /* -  realtime  int
    return real time in milliseconds */
 static
@@ -1965,6 +1992,8 @@ int xpost_oper_init_misc_ops(Xpost_Context *ctx,
     if (xpost_dict_put(ctx, sd, xpost_name_cons(ctx, "serialnumber"),
                        xpost_int_cons(serno)))
         return VMerror;
+    op = xpost_operator_cons(ctx, ".buildtime", (Xpost_Op_Func)buildtime, 0);
+    INSTALL;
     //executive: see init.ps
     //echo: see opf.c
     //prompt: see init.ps

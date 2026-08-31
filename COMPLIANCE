@@ -450,13 +450,13 @@ Interpreter parameters
 
  PLRM Appendix C tabulates fifty-one parameters: seventeen user parameters
  in Table C.1 and thirty-four system parameters in Table C.2. This
- interpreter answers with seventeen of them and adds four of its own.
+ interpreter answers with eighteen of them and adds four of its own.
 
  Carried, and reported by currentuserparams: MaxFontItem, MaxExecStack,
  MaxDictStack, MaxOpStack, VMThreshold, VMReclaim, IdiomRecognition. By
  currentsystemparams: MaxFontCache, CurFontCache, MaxDisplayList,
  CurDisplayList, GenericResourceDir, GenericResourcePathSep, RealFormat,
- ByteOrder, Revision, PrinterName.
+ ByteOrder, Revision, PrinterName, BuildTime.
 
  [/] setsystemparams recognises no parameter. It takes its dictionary,
      raises no error and applies none of it, where PLRM C.1.2 makes it the
@@ -477,7 +477,7 @@ Interpreter parameters
      setcacheparams a convenience onto parameters setsystemparams sets;
      here only the convenience works.
 
- The absent thirty-two, by the section that describes them. The other two
+ The absent thirty-one, by the section that describes them. The other two
  the tables name are the passwords, which are dealt with below:
 
  [/] C.3.2  MinFontCompress. Of the font cache's three parameters the two
@@ -515,11 +515,8 @@ Interpreter parameters
      none to report; PageCount counts the pages a device has printed
      since it was made, which wants a store that outlives a run and there
      is none; StartupMode governs a job run when a device is switched on,
-     and nothing here is switched on. BuildTime stands apart from those
-     three: a stamp naming this build is a true thing to report and only
-     wants somewhere to come from, so its absence is an omission.
-     FactoryDefaults waits on setsystemparams reaching more than the one
-     parameter it now sets.
+     and nothing here is switched on. FactoryDefaults waits on
+     setsystemparams reaching more than the one parameter it now sets.
  [ ] Table C.2, the source data a device holds beside its display list:
      MaxImageBuffer, MaxSourceList, CurSourceList, MaxDisplayAndSourceList.
      A source list holds an image's source data and the pixel arrays of

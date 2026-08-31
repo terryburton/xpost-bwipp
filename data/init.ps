@@ -1490,6 +1490,12 @@ end
        % and for the same reason. Of the seven figures it is the first.
        /CurFontCache //.cachestatus pop pop pop pop pop pop
 
+       % BuildTime is a stamp naming this build (PLRM C.2). It comes from
+       % SOURCE_DATE_EPOCH at configure time rather than from the clock,
+       % so two builds of one source agree; nought is a build whose
+       % packager set no epoch, which is no stamp rather than a wrong one.
+       /BuildTime //.buildtime exec
+
        % Revision is the revision level of the product, which PLRM C.2
        % states is the value the revision operator answers with. Read from
        % the operator rather than stated again here, so that the two

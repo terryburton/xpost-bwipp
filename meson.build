@@ -38,6 +38,19 @@ config_dir = [include_directories('.')]
 
 config_h = configuration_data()
 
+# BuildTime (PLRM Appendix C) is a stamp naming one build of the
+# interpreter. It is taken from SOURCE_DATE_EPOCH, the reproducible-builds
+# convention, rather than from the clock: a stamp read at compile time makes
+# two builds of one source differ, which is the thing that convention exists
+# to prevent. A build whose packager sets no epoch carries no stamp and says
+# so with nought, which a program can tell apart from any real one.
+source_date_epoch = run_command(
+  'sh', '-c', 'printf %s "${SOURCE_DATE_EPOCH:-0}"', check : false).stdout()
+if source_date_epoch == '' or not source_date_epoch.version_compare('>=0')
+  source_date_epoch = '0'
+endif
+config_h.set('XPOST_BUILD_TIME', source_date_epoch)
+
 # programs
 
 cc = meson.get_compiler('c')
