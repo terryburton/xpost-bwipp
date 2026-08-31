@@ -682,7 +682,7 @@ static int _stream_open(Xpost_Context *ctx, Xpost_Object devdic,
         compression_level = 3;
     else
         compression_level = compression_level_o.int_.val;
-    XPOST_LOG_INFO("PNG compresion level: %d", compression_level);
+    XPOST_LOG_INFO("PNG compression level: %d", compression_level);
 
     p->png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!p->png)

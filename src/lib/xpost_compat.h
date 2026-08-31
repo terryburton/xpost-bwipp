@@ -94,7 +94,7 @@ void xpost_fpurge(FILE *f);
  *
  * @return The number of milliseconds.
  *
- * @note The rate at which it changes is platform dependant.
+ * @note The rate at which it changes is platform dependent.
  */
 XPOST_TEST_VISIBLE long long xpost_get_realtime_ms(void);
 

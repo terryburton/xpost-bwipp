@@ -1081,7 +1081,7 @@ static int _xpost_garbage_mark_systemdict_exceptions(Xpost_Context *ctx,
    clear all marks,
    mark all root stacks,
    sweep.
-   return reclaimed size or -1 if error occured.
+   return reclaimed size or -1 if error occurred.
  */
 /* Which banks a collection that runs of its own accord reclaims.
 

@@ -69,7 +69,7 @@ void xpost_font_quit(void);
  * @return The font face.
  *
  * This function returns the font face of the font named @p name. On
- * error, it returs @c NULL.
+ * error, it returns @c NULL.
  *
  * @see xpost_font_face_free()
  */

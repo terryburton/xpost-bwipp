@@ -536,20 +536,20 @@ _xpost_dsc_header_version_get(Xpost_Dsc_Ctx *ctx, Xpost_Dsc *dsc, const unsigned
 
     if ((end - iter) < 14)
     {
-        XPOST_LOG_WARN("First comment erronoeus, size insufficient.");
+        XPOST_LOG_WARN("First comment erroneous, size insufficient.");
         return XPOST_DSC_STATUS_NO_DSC;
     }
 
     if (!XPOST_DSC_CMT_CHECK(HEADER_VERSION))
     {
-        XPOST_LOG_WARN("First comment erronoeus.");
+        XPOST_LOG_WARN("First comment erroneous.");
         return XPOST_DSC_STATUS_NO_DSC;
     }
 
     iter += XPOST_DSC_CMT_LEN(HEADER_VERSION);
     if (!_xpost_dsc_version_get(iter, &dsc->ps_vmaj, &dsc->ps_vmin))
     {
-        XPOST_LOG_WARN("First comment erronoeus (invalid version number).");
+        XPOST_LOG_WARN("First comment erroneous (invalid version number).");
         return XPOST_DSC_STATUS_NO_DSC;
     }
 
@@ -557,21 +557,21 @@ _xpost_dsc_header_version_get(Xpost_Dsc_Ctx *ctx, Xpost_Dsc *dsc, const unsigned
 
     if ((dsc->ps_vmaj == 0) || (dsc->ps_vmaj > 3))
     {
-        XPOST_LOG_WARN("First comment erronoeus (invalid vmaj).");
+        XPOST_LOG_WARN("First comment erroneous (invalid vmaj).");
         return XPOST_DSC_STATUS_NO_DSC;
     }
 
     /* known versions of the conventions: 1.0, 2.0, 2.1 and 3.0 */
     if ((dsc->ps_vmaj == 2) ? (dsc->ps_vmin > 1) : (dsc->ps_vmin > 0))
     {
-        XPOST_LOG_WARN("First comment erronoeus (invalid vmin).");
+        XPOST_LOG_WARN("First comment erroneous (invalid vmin).");
         return XPOST_DSC_STATUS_NO_DSC;
     }
 
     if ((dsc->ps_vmaj == 1) &&
         !XPOST_DSC_EOL((ctx->cur_loc + sizeof(XPOST_DSC_CMT(HEADER_VERSION)) + 2)))
     {
-        XPOST_LOG_WARN("First comment erronoeus (level 1).");
+        XPOST_LOG_WARN("First comment erroneous (level 1).");
         return XPOST_DSC_STATUS_NO_DSC;
 
     }
@@ -596,7 +596,7 @@ _xpost_dsc_header_version_get(Xpost_Dsc_Ctx *ctx, Xpost_Dsc *dsc, const unsigned
             iter += 5;
             if (!_xpost_dsc_version_get(iter, &dsc->eps_vmaj, &dsc->eps_vmin))
             {
-                XPOST_LOG_WARN("First comment erronoeus (invalid EPS version number).");
+                XPOST_LOG_WARN("First comment erroneous (invalid EPS version number).");
                 return XPOST_DSC_STATUS_NO_DSC;
             }
             if (((dsc->eps_vmaj == 1) && (dsc->eps_vmin == 2)) ||
@@ -605,7 +605,7 @@ _xpost_dsc_header_version_get(Xpost_Dsc_Ctx *ctx, Xpost_Dsc *dsc, const unsigned
                 dsc->job = XPOST_DSC_JOB_EPS;
             else
             {
-                XPOST_LOG_WARN("First comment erronoeus (invalid EPS version number).");
+                XPOST_LOG_WARN("First comment erroneous (invalid EPS version number).");
                 return XPOST_DSC_STATUS_NO_DSC;
             }
         }

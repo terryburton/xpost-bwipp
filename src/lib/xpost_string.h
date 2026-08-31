@@ -36,7 +36,7 @@ Xpost_Object xpost_string_cons_memory(Xpost_Memory_File *mem,
                                       /*@NULL@*/ const char *ini);
 
 /**
- * @brief construct a string object in currectly selected memory
+ * @brief construct a string object in correctly selected memory
  */
 XPOST_TEST_VISIBLE Xpost_Object xpost_string_cons(Xpost_Context *ctx,
                                                   unsigned sz,

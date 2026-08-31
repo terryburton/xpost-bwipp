@@ -112,7 +112,7 @@ XPAPI void xpost_log_print_cb_set(Xpost_Log_Print_Cb cb, void *data);
  * @param file The file which is logged.
  * @param fct The function which is logged.
  * @param line The line which is logged.
- * @param fmt The ouptut format to use.
+ * @param fmt The output format to use.
  * @param data Not used.
  * @param args The arguments needed by the format.
  *
@@ -134,7 +134,7 @@ XPAPI void xpost_log_print_cb_stderr(Xpost_Log_Level level,
  * @param file The file which is logged.
  * @param fct The function which is logged.
  * @param line The line which is logged.
- * @param fmt The ouptut format to use.
+ * @param fmt The output format to use.
  * @param data Not used.
  * @param args The arguments needed by the format.
  *

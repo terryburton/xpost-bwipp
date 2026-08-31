@@ -1620,7 +1620,7 @@ int eval(Xpost_Context *ctx)
     else
         t = xpost_stack_pop(ctx->lo, ctx->es);
 
-    ctx->currentobject = t; /* for _onerror to determine if hold stack contents are restoreable.
+    ctx->currentobject = t; /* for _onerror to determine if hold stack contents are restorable.
                                if opexec(opcode) discovers opcode != ctx->currentobject.mark_.padw
                                it sets a flag indicating the hold stack does not contain
                                ctx->currentobject's arguments.
