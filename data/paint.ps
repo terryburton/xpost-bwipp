@@ -108,7 +108,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     }{
     gsave
         1 setgray
-        [ //CurrentColorDict DEVICE /nativecolorspace get
+        [ //.currentcolordict DEVICE /nativecolorspace get
         get exec
         //.applytransfer exec
 
@@ -352,7 +352,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.fillparts {  % [ spans ... ]  .  -
     {
         dup length 2 gt {
-            [ //CurrentColorDict DEVICE /nativecolorspace get get exec
+            [ //.currentcolordict DEVICE /nativecolorspace get get exec
             //.applytransfer exec
             counttomark 2 add -1 roll
             DEVICE dup /FillPoly get exec
@@ -392,7 +392,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     //.devtakespath exec {
     .clipmisses { flushpage newpath }{
         //.devsendclip exec
-        [ //CurrentColorDict DEVICE /nativecolorspace get get exec
+        [ //.currentcolordict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
         DEVICE dup /FillPath get exec
         true //.setpagemarked exec
@@ -632,7 +632,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             //.dashpath exec
             //.doclip exec
         } if
-        [ //CurrentColorDict DEVICE /nativecolorspace get get exec
+        [ //.currentcolordict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
         DEVICE dup /StrokePath get exec
         true //.setpagemarked exec
@@ -660,7 +660,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         {          % ... xN-1 yN-1 xN yN
             4 copy  % ... xN-1 yN-1 xN yN xN-1 yN-1 xN yN
             .gscratch /.hairrect get //.hairsegclip exec {
-                [ //CurrentColorDict DEVICE /nativecolorspace get get exec
+                [ //.currentcolordict DEVICE /nativecolorspace get get exec
                 //.applytransfer exec
                 counttomark 5 add -4 roll
 
@@ -676,7 +676,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         {            % x0 y0 xN yN
             4 2 roll  % XN yN x0 y0
             .gscratch /.hairrect get //.hairsegclip exec {
-                [ //CurrentColorDict DEVICE /nativecolorspace get get exec
+                [ //.currentcolordict DEVICE /nativecolorspace get get exec
                 //.applytransfer exec
                 counttomark 5 add -4 roll
 
@@ -1115,7 +1115,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 /lut 256 nat mul string def
                 0 1 255 { /v exch def
                     v dscale 0 get mul dbase 0 get add setcolor
-                    //CurrentColorDict DEVICE /nativecolorspace get get exec
+                    //.currentcolordict DEVICE /nativecolorspace get get exec
                     nat 3 eq {
                         /bb exch def /gg exch def /rr exch def
                         lut v 3 mul       tlutr rr //.c255 exec get put

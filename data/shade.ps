@@ -783,7 +783,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     DEVICE /FillPoly 2 copy known { get xcheck not }{ pop pop true } ifelse or
     //.xpostsys /.colorroute get exec /direct ne or
     { null null null false }{
-        //CurrentColorDict DEVICE /nativecolorspace get
+        //.currentcolordict DEVICE /nativecolorspace get
         2 copy known { get }{ pop pop null } ifelse
 
         % The conversion is registered as the name of the operator that

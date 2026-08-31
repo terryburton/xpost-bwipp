@@ -997,7 +997,7 @@ end } bind put
     } ifelse
 } put
 
-.xpostsys /ShowpageSemanticsDict <<
+.xpostsys /.showpagesemanticsdict <<
 
     % XPOST_SHOWPAGE_DEFAULT
     0 {
@@ -1028,7 +1028,7 @@ end } bind put
 %  a page for the embedder's purposes but not for the program's: it takes
 %  the same three behaviours, less the page number and the erasure.
 %
-.xpostsys /CopypageSemanticsDict <<
+.xpostsys /.copypagesemanticsdict <<
     0 { (----copypage----) //.pagepause exec }
     1 { }
     2 { returntocaller }
@@ -1551,7 +1551,7 @@ end } bind put
     0 0 //.endpage exec {
         DEVICE //.transmitpage exec
         true //.setpagesent exec
-        //ShowpageSemanticsDict /ShowpageSemantics //.hostvalue exec get exec
+        //.showpagesemanticsdict /ShowpageSemantics //.hostvalue exec get exec
     } if
 
     % a page ended by showpage is counted whether or not it was transmitted
@@ -1571,7 +1571,7 @@ end } bind put
         DEVICE //.transmitpage exec
         true //.setpagesent exec
         flushpage
-        //CopypageSemanticsDict /ShowpageSemantics //.hostvalue exec get exec
+        //.copypagesemanticsdict /ShowpageSemantics //.hostvalue exec get exec
     } if
 
     % copypage ends a page without counting it (PLRM 6.2.6).
