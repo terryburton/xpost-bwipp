@@ -762,6 +762,17 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 end } bind put
 
 %
+%  What one record costs, in bytes. .recordcost answers with three
+%  figures -- the marks, the images among them, and the bytes -- and the
+%  bytes are the last of them; every caller here wants that one and no
+%  other, so the reaching past the first two is written once.
+%
+.xpostsys /.recordbytes {  % devdic  .  bytes
+    //.internaldict /.recordcost get exec
+    exch pop exch pop
+} put
+
+%
 %  How many bytes the marks of the page now being painted come to. PLRM
 %  Appendix C calls this the display list, and CurDisplayList reports it.
 %
@@ -778,8 +789,8 @@ end } bind put
     graphicsdict /currgstate get /device get
     dup type /dicttype eq {
             dup /.playclass known {
-                dup //.internaldict /.recordcost get exec
-                /bytes exch def pop pop
+                dup //.xpostsys /.recordbytes get exec
+                /bytes exch def
             } if
         } if
     pop
@@ -811,8 +822,7 @@ end } bind put
         get {
             exch pop
             dup /drawing known {
-                /drawing get //.internaldict /.recordcost get exec
-                exch pop exch pop
+                /drawing get //.xpostsys /.recordbytes get exec
                 total add /total exch def
             }{ pop } ifelse
         } forall

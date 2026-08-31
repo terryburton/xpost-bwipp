@@ -2378,8 +2378,7 @@ setglobal
                 % the whole of what bounds it.
                 held {
                     //.formlimits exch pop
-                    cap //.internaldict /.recordcost get exec
-                    exch pop exch pop
+                    cap //.xpostsys /.recordbytes get exec
                     lt { /held false def } if
                 } if
 
