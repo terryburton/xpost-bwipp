@@ -6034,7 +6034,7 @@ int _setcacheparams(Xpost_Context *ctx,
                      Xpost_Object lower,
                      Xpost_Object upper)
 {
-    if (size.int_.val != 0 && !ctx->job_admin)
+    if (size.int_.val != 0 && !XPOST_MAY_SET_SYSTEM_PARAM(ctx))
         return invalidaccess;
     ctx->maxfontitem =
         (integer)xpost_font_cache_setparams((long)size.int_.val,

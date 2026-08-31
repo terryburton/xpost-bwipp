@@ -635,7 +635,7 @@ int op_privatedict(Xpost_Context *ctx)
 static
 int op_setmaxformcache(Xpost_Context *ctx, Xpost_Object N)
 {
-    if (!ctx->job_admin)
+    if (!XPOST_MAY_SET_SYSTEM_PARAM(ctx))
         return invalidaccess;
     ctx->maxformcache = N.int_.val < 0 ? 0 : N.int_.val;
     return 0;

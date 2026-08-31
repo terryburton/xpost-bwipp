@@ -140,6 +140,22 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
  */
 #define XPOST_OP_CODE(ctx, ref) ((ctx)->opcode_shortcuts.ref)
 
+/**
+ * Whether the run now executing may change a system parameter.
+ *
+ * Only a system administrator job may (PLRM C.3.1), and PLRM 8.2 has
+ * setcacheparams answer invalidaccess to any other job stating a cache
+ * capacity. What such a parameter bounds is not this job's to spend: it is
+ * a limit every job after this one will run under, and the value lives
+ * outside virtual memory so no job boundary puts it back.
+ *
+ * Asked by every operator that sets one, so the rule is written here once
+ * and each of them says only which request it guards. It is not the same
+ * question as whether the run is unencapsulated: an ordinary
+ * unencapsulated job may alter initial VM and may not do this.
+ */
+#define XPOST_MAY_SET_SYSTEM_PARAM(ctx) ((ctx)->job_admin)
+
 #define XPOST_OP_REF_MEMBER(ref, name) int ref;
 
 /**
