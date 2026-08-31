@@ -273,6 +273,7 @@ xpost_handle_block
 xpost_handle_block_at
 xpost_handle_block_of
 xpost_handle_cons
+xpost_handle_count
 xpost_handle_device_release
 xpost_handle_drop
 xpost_handle_hold

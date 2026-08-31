@@ -374,6 +374,7 @@ vm test local-vm-invariant
 vm test check-vm-address-fields
 vm test vm-account
 vm test vm-page-return
+vm test handle-records
 vm test vm-writeset
 vm test vm-writeset-copying
 vm test special-entity-slots

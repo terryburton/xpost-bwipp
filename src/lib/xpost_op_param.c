@@ -41,6 +41,7 @@
 #include "xpost_error.h"
 
 #include "xpost_garbage.h"
+#include "xpost_handle.h" /* the blocks held outside the arena */
 #include "xpost_font.h" /* the glyph cache MaxFontItem governs */
 #include "xpost_interpreter.h" /* the stack capacities the parameters name */
 #include "xpost_operator.h"
@@ -167,6 +168,27 @@ int vmfreebytes (Xpost_Context *ctx)
         return stackoverflow;
     if (!xpost_stack_push(ctx->lo, ctx->os,
                           xpost_int_cons((int)xpost_free_bytes(ctx->gl))))
+        return stackoverflow;
+    return 0;
+}
+
+/* -  .vmhandlecount  n
+   The number of blocks the process holds outside virtual memory that an
+   entity names through a handle: a device's instance state, a vector
+   writer's accumulated content, a font's face, a file's stream.
+
+   It is the one figure that says whether such a block was given up.
+   Neither vmstatus nor the figures above can say: the block is not in
+   the arena, so nothing they count moves when it is allocated or freed,
+   and a leak checker calls it reachable for as long as the record
+   points at it. So a caller that takes a population of entities away --
+   a collection, a job boundary's revert -- is held to the blocks going
+   with them by this number coming back to what it was. */
+static
+int vmhandlecount (Xpost_Context *ctx)
+{
+    if (!xpost_stack_push(ctx->lo, ctx->os,
+                          xpost_int_cons((int)xpost_handle_count())))
         return stackoverflow;
     return 0;
 }
@@ -619,6 +641,8 @@ int xpost_oper_init_param_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".vmfreebytes", (Xpost_Op_Func)vmfreebytes, 0);
     INSTALL;
     op = xpost_operator_cons(ctx, ".vmfreescan", (Xpost_Op_Func)vmfreescan, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".vmhandlecount", (Xpost_Op_Func)vmhandlecount, 0);
     INSTALL;
     op = xpost_operator_cons(ctx, ".vmcollect", (Xpost_Op_Func)vmcollect, 0);
     INSTALL;

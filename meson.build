@@ -5736,6 +5736,22 @@ test('check-page-return',
   args: [ meson.current_source_dir(), xpost_exe, meson.current_build_dir() ],
   timeout: 300)
 
+# The blocks held outside virtual memory, held to the job boundary. A
+# device's state, a writer's content, a face, a stream: each is this
+# process's memory named by an entity, and the boundary's revert takes
+# the entity away without walking it. Neither the arena figures nor a
+# leak checker can see such a block go unreleased, and resident memory
+# cannot see one either -- a record is too small to read against what a
+# host under load does with freed pages. The count of them is exact, so
+# this holds every job to beginning with the count the first began with,
+# which catches a single record left behind.
+test('handle-records',
+  find_program('tests/check-handle-records.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 180)
+
 # One device roster. -d and setpagedevice are two spellings of one
 # selection, so the option parser's list, the interpreter's maker table
 # and the .devicemakers dictionary name the same devices -- and the test

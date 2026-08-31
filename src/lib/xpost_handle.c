@@ -381,6 +381,17 @@ void xpost_handle_release_orphans(Xpost_Memory_File *mem)
     }
 }
 
+unsigned int xpost_handle_count(void)
+{
+    unsigned int i;
+    unsigned int n = 0;
+
+    for (i = 1; i < _nslots; i++)
+        if (_slots[i].ent != 0)
+            n++;
+    return n;
+}
+
 void xpost_handle_release_memory_file(Xpost_Memory_File *mem)
 {
     unsigned int i;

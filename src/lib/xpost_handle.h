@@ -246,4 +246,18 @@ void xpost_handle_release_memory_file(Xpost_Memory_File *mem);
  */
 void xpost_handle_release_orphans(Xpost_Memory_File *mem);
 
+/**
+ * @brief How many blocks are recorded: the count of live handles.
+ *
+ * A recorded block is held by this process and named from virtual
+ * memory, and it is that pairing which makes it hard to account for:
+ * the arena figures do not count it, because it is not in the arena,
+ * and a leak checker calls it reachable, because the record still
+ * points at it. What says whether a block was given up is therefore
+ * the number of records, and this is it -- so that a caller which has
+ * just taken a whole population of entities away can be held to the
+ * blocks going with them.
+ */
+unsigned int xpost_handle_count(void);
+
 #endif

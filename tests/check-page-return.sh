@@ -11,12 +11,22 @@
 # The boundary has more than the arena to give back, and what it does not
 # give back is invisible to every other measure: a block held outside the
 # arena is reached through the entity that carries its handle, and the
-# revert takes the whole arena away at once without walking an entity. Both
-# such blocks are held here by the same reading of resident memory -- the
-# raster a page device holds, and the record a handle itself is -- because
-# neither the arena figures nor a leak checker can see them: the arena is
-# back at its baseline either way, and the block stays reachable from the
-# table that records it.
+# revert takes the whole arena away at once without walking an entity. The
+# raster a page device holds is such a block and is held here, because
+# neither the arena figures nor a leak checker can see it go: the arena is
+# back at its baseline either way, and the buffer stays reachable from the
+# table that records it. It is big enough to read -- a buffer a job is
+# three quarters of a megabyte.
+#
+# The handle record itself is the other such block and is NOT held here.
+# It is small, forty jobs of them coming to about eighty kilobytes a job,
+# which is inside what two runs of the same jobs differ by on a host under
+# load: MEASURED, a reading of exactly that population passed three times
+# and failed once on one machine in one sitting. Resident memory is the
+# wrong instrument for a block that size, and there is a right one -- the
+# records can be counted, and tests/check-handle-records.sh holds every
+# job to beginning with the count the first began with, which catches a
+# single record left behind where this could not have caught a hundred.
 #
 # Neither can be watched through vmstatus. The reported size falls whether or
 # not the pages were returned -- a boundary that renamed the arena to the
@@ -171,77 +181,8 @@ for spec in few:4 many:44; do
         < "$work/device.$tag" > "$work/device.$tag.out" 2>/dev/null
 done
 
-# Between jobs, the handle record: a font dictionary names the face it was
-# built over through a handle, which is a record kept outside the arena and
-# given up where the entity carrying it goes -- at a free, at a collection,
-# at the end of the memory file. The revert is none of those: it puts the
-# whole arena back without walking an entity, so a job that ends with a font
-# dictionary still reachable leaves the record behind unless the boundary
-# sweeps for it. One record is small, so the probe makes many per job and
-# counts on the difference between four jobs and forty-four: the sweep holds
-# it flat, and without it the forty extra jobs cost about eleven hundred
-# pages.
-holds='1 1 2000 { /Courier findfont exch scalefont /F exch def } for'
-# The same jobs, reaching the same records by the other road. A record is
-# given up where the entity carrying it goes -- at a free, at a collection,
-# or at the end of the memory file -- so a job that collects before it ends
-# has already given its records up and leaves the boundary nothing to sweep.
-# Every other thing a job costs is identical, down to the allocation, so
-# whatever a host keeps of freed pages it keeps in both runs and cancels.
-# What does not cancel is the records the boundary was supposed to take.
-
-# What is asked is whether the boundary gives the handle records up, and no
-# reading of one run answers it. How much a host keeps of what it was given
-# back is the host's own business, and it varies by more than a leak would:
-# MEASURED, the same forty jobs grew resident memory by 470 pages on one
-# machine and 2414 on another, with the interpreter's own figures reading
-# zero bytes on both. Nothing was retained either time.
-#
-# Telling that allocator to hand pages back does not settle it, and cannot
-# be asked for from here in any case. It was tried through the environment
-# and read worse, not better: MEASURED, 8868 pages against 470 left alone on
-# the same jobs, because forcing mid-sized blocks into mappings of their own
-# rounds every one of them up to a page while a trim reaches only the top of
-# the heap. That exchanges the allocator's discretion for another one rather
-# than removing it.
-#
-# Nor does the shape separate them. A record kept costs the same on every
-# job; so, on a host whose allocator never settles, does the allocator --
-# MEASURED, a second forty jobs costing 1976 pages where the first forty
-# cost 2414, with nothing retained.
-#
-# What is left is to run the same jobs twice, once holding the records and
-# once not, and to read the difference. Whatever the host does with freed
-# pages it does in both runs, so it cancels; what does not cancel is the
-# records.
-for spec in few:4 many:44 ctlfew:4 ctlmany:44; do
-    tag=${spec%:*}
-    n=${spec#*:}
-    case $tag in
-        ctl*) body="$holds 2 vmreclaim" ;;
-        *)    body=$holds ;;
-    esac
-    {
-        i=0
-        while [ "$i" -lt "$n" ]; do printf '%s\n\004' "$body"; i=$((i + 1)); done
-        printf '/rss { %s } def (HANDLE %s ) print rss 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
-        # Beside the resident figure, what virtual memory itself says it is
-        # holding. The two answer different questions and a report of one
-        # without the other cannot be acted on: resident memory that grew
-        # while the arena did not is memory the interpreter gave up and the
-        # host did not take back, and an arena that grew is a job carrying
-        # something across the boundary. A host where this case fails will
-        # say which of the two it is.
-        printf '/rss { %s } def (HANDLEVM %s ) print vmstatus pop exch pop 20 string cvs print ( ) print globalvmstatus pop exch pop 20 string cvs print (\\n) print flush\004' "$rss" "$tag"
-    } > "$work/handle.$tag"
-    "$xpost" -q --no-sandbox -d null --jobserver \
-        < "$work/handle.$tag" > "$work/handle.$tag.out" 2>/dev/null
-done
-
 cat "$work/within.out" "$work/between.out" \
-    "$work/device.few.out" "$work/device.many.out" \
-    "$work/handle.few.out" "$work/handle.many.out" \
-    "$work/handle.ctlfew.out" "$work/handle.ctlmany.out" > "$work/out"
+    "$work/device.few.out" "$work/device.many.out" > "$work/out"
 
 # Each pair must show resident memory fall by a clear margin. The growth is
 # about ten thousand pages; a return of a fifth of it is asked, which the
@@ -255,14 +196,6 @@ awk '
     /BETWEEN after/ { ba = $3 }
     /DEVICE few/    { df = $3 }
     /DEVICE many/   { dm = $3 }
-    # anchored, because the pair of lines the handle case prints share a
-    # prefix and an unanchored match would read the second into the first
-    /^HANDLE few/    { hf = $3 }
-    /^HANDLE ctlfew/  { cf = $3 }
-    /^HANDLE ctlmany/ { cm = $3 }
-    /^HANDLE many/   { hm = $3 }
-    /^HANDLEVM few/  { vlf = $3; vgf = $4 }
-    /^HANDLEVM many/ { vml = $3; vmg = $4 }
     END {
         want = 5000     # pages, ~20MB, well under the ~39MB grown
         grew = 2000     # pages, ~8MB; 40 leaked 500x500x3 buffers is ~7300
@@ -288,27 +221,9 @@ awk '
             printf "resident grew %d pages over 40 extra setpagedevice jobs\n", dm - df
             bad = 1
         }
-        # What forty extra jobs cost with the records held, less what the
-        # same forty cost without them. Unswept records cost about eleven
-        # hundred pages over those forty, so half of that is well clear of
-        # what two runs of the same jobs differ by on their own.
-        held = 500      # pages
-        if (hf == "" || hm == "" || cf == "" || cm == "")
-            { print "the handle probe did not report all four figures"; bad = 1 }
-        else if ((hm - hf) - (cm - cf) > held) {
-            printf "the job boundary did not give up the handle records of the\n"
-            printf "entities it dropped: forty extra jobs holding records grew\n"
-            printf "resident memory by %d pages, and the same forty holding none\n", hm - hf
-            printf "grew it by %d -- the %d between them is the records\n", cm - cf, (hm - hf) - (cm - cf)
-            printf "      virtual memory over the forty: local %d bytes, global %d\n", vml - vlf, vmg - vgf
-            bad = 1
-        }
         if (bad) exit 1
         printf "within a job vmreclaim returned %d pages; between jobs the boundary\n", wp - wa
-        printf "returned %d, held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
-        printf "and the handle records flat (%d pages over 40 jobs against %d for\n", hm - hf, cm - cf
-        printf "the same forty holding none, virtual memory over them: local %d\n", vml - vlf
-        printf "bytes, global %d)\n", vmg - vgf
+        printf "returned %d and held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
     }
 ' "$work/out" > "$work/problems" 2>&1
 rc=$?

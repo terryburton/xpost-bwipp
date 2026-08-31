@@ -56,6 +56,7 @@ tests/serial-caches \
 tests/check-counter-register.sh \
 tests/check-vm-growth.sh \
 tests/check-page-return.sh \
+tests/check-handle-records.sh \
 tests/check-device-roster.sh \
 tests/check-device-facts.sh \
 tests/device-facts \
