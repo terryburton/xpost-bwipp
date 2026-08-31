@@ -450,10 +450,11 @@ Interpreter parameters
 
  PLRM Appendix C tabulates fifty-one parameters: seventeen user parameters
  in Table C.1 and thirty-four system parameters in Table C.2. This
- interpreter answers with eighteen of them and adds four of its own.
+ interpreter answers with nineteen of them and adds four of its own.
 
  Carried, and reported by currentuserparams: MaxFontItem, MaxExecStack,
- MaxDictStack, MaxOpStack, VMThreshold, VMReclaim, IdiomRecognition. By
+ MaxDictStack, MaxOpStack, VMThreshold, VMReclaim, IdiomRecognition,
+ HalftoneMode. By
  currentsystemparams: MaxFontCache, CurFontCache, MaxDisplayList,
  CurDisplayList, GenericResourceDir, GenericResourcePathSep, RealFormat,
  ByteOrder, Revision, PrinterName, BuildTime.
@@ -477,7 +478,7 @@ Interpreter parameters
      setcacheparams a convenience onto parameters setsystemparams sets;
      here only the convenience works.
 
- The absent thirty-one, by the section that describes them. The other two
+ The absent thirty, by the section that describes them. The other two
  the tables name are the passwords, which are dealt with below:
 
  [/] C.3.2  MinFontCompress. Of the font cache's three parameters the two
@@ -498,9 +499,14 @@ Interpreter parameters
      given up whole, never weighed in bytes. There is no user path cache
      and no pattern cache -- a pattern repaints its cell every tile, which
      is recorded above -- so for those four there is nothing yet to bound.
- [ ] C.3.4  AccurateScreens, HalftoneMode, MaxScreenItem, MaxScreenStorage,
+ [ ] C.3.4  AccurateScreens, MaxScreenItem, MaxScreenStorage,
      MaxSuperScreen, MaxStoredScreenCache. A screen is built as asked and
-     is not tuned by parameter.
+     is not tuned by parameter. HalftoneMode is the one of the group that
+     is carried, and carried as the mode that is true: mode 0 has the
+     halftone-setting operators behave as usual rather than put a product's
+     own screen in place of the one asked for, which is what happens here.
+     A request for either of the other modes is answered with 0, the rule
+     the fixed stack sizes are answered by.
  [ ] C.3.5  MaxLocalVM. Local VM grows as a job needs it, bounded by the
      machine rather than by a parameter.
  [ ] C.3.6  FontResourceDir. It locates the files of the Font category,

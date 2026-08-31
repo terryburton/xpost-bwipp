@@ -394,6 +394,7 @@ static const char *_userparam_maxdictstack = "MaxDictStack";
 static const char *_userparam_maxexecstack = "MaxExecStack";
 static const char *_userparam_idiomrecognition = "IdiomRecognition";
 static const char *_userparam_maxfontitem = "MaxFontItem";
+static const char *_userparam_halftonemode = "HalftoneMode";
 
 /* one parameter's present value, into the dictionary being reported */
 static
@@ -428,7 +429,7 @@ int currentuserparams(Xpost_Context *ctx)
     Xpost_Object d;
     int ret;
 
-    d = xpost_dict_cons(ctx, 7);
+    d = xpost_dict_cons(ctx, 8);
     if (xpost_object_get_type(d) == invalidtype)
         return VMerror;
 
@@ -456,6 +457,18 @@ int currentuserparams(Xpost_Context *ctx)
        currentcacheparams reports as its upper bound, read from the one
        place it is held, so the three cannot name three numbers. */
     ret = _param_report(ctx, d, _userparam_maxfontitem, ctx->maxfontitem);
+    if (ret)
+        return ret;
+    /* HalftoneMode says whether the halftone-setting operators may put a
+       product's own screen in place of the one asked for (PLRM C.2). Mode
+       0 is "operators will behave as usual", and that is what happens
+       here: the screen a program describes is the screen it gets, and
+       there is no product screen to substitute. So the mode is reported as
+       the one that is true, and a request for either of the others is
+       answered with it -- the same rule the fixed stack sizes are answered
+       by, a value this interpreter cannot achieve replaced by the nearest
+       it can. */
+    ret = _param_report(ctx, d, _userparam_halftonemode, 0);
     if (ret)
         return ret;
 
@@ -562,6 +575,11 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
         return ret;
     ret = _param_request(ctx, D, _userparam_maxfontitem,
                          &fontitem, &have_fontitem);
+    if (ret)
+        return ret;
+    /* read and type-checked like the rest, and applied by nothing: the
+       only mode this interpreter achieves is the one it reports */
+    ret = _param_request(ctx, D, _userparam_halftonemode, NULL, NULL);
     if (ret)
         return ret;
 
