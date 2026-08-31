@@ -1265,6 +1265,4 @@ if [ "$sab" -eq 0 ]; then
     echo "OK   $cells page(s) compared, $memcells device route(s) weighed"
 fi
 
-[ "$fail" -eq 0 ] || exit 1
-echo "SUCCESS"
-exit 0
+verdict_exit

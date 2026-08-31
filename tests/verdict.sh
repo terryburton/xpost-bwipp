@@ -244,6 +244,31 @@ sandbox_flag() {    # $1 the program under test; echoes the flag or nothing
     fi
 }
 
+# The end of a guard: the status taken from the same `fail` that note()
+# sets, and the word a passing run prints.
+#
+# A guard reports two ways at once -- a line on its output and a status --
+# and the two have to agree. Written out per guard they are two chances
+# to disagree, and the disagreement that matters is silent: a guard that
+# prints SUCCESS and leaves a zero status having already complained is a
+# guard whose complaint nothing acts on. Read from one place they cannot
+# come apart, because the word is only printed on the path that also
+# exits zero.
+#
+# What a guard counted is its own to say, so a detail passed here is
+# printed inside the SUCCESS line. A guard whose closing line is built
+# from several values keeps building it for itself; this is for the ones
+# whose ending is the ending every guard has.
+verdict_exit() {    # $1 what the run counted (optional)
+    [ "${fail:-0}" -eq 0 ] || exit 1
+    if [ $# -gt 0 ] && [ -n "$1" ]; then
+        echo "SUCCESS ($1)"
+    else
+        echo "SUCCESS"
+    fi
+    exit 0
+}
+
 # Report a failure and remember that one happened. The caller's own `fail`
 # is what is set, which is the contract every copy of this already had: a
 # guard says `note "what went wrong" "and the detail"` and tests `fail` at

@@ -354,6 +354,4 @@ if [ "$checks" -lt 8 ]; then
          "more, so it was not asking what it says it asks"
 fi
 
-[ "$fail" -eq 0 ] || exit 1
-echo "SUCCESS"
-exit 0
+verdict_exit

@@ -215,6 +215,4 @@ for kind in sparse full; do
     done
 done
 
-[ "$fail" -eq 0 ] || exit 1
-echo "SUCCESS"
-exit 0
+verdict_exit
