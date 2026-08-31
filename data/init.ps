@@ -1074,6 +1074,37 @@ end
 } put
 
 %
+%  Bringing a run up.
+%
+%  Every entry point below starts a run, and each has to bring the
+%  interpreter up before it reads a program. What that means is not the
+%  entry point's business and is the same for all of them that have
+%  graphics: load the language, lock the machinery down, make the device.
+%  Written out per entry point it is a step one of them can come to be
+%  missing, and what that costs is not an error -- it is a run that
+%  behaves differently according to how it was started.
+%
+.xpostsys /.bootrun {  % -  .  -
+    //.xpostsys /.loadgraphics get exec
+    //.xpostsys /.finalize get exec
+    //.xpostsys /.startdevice get exec
+} put
+
+%
+%  The same where the build has no graphics: there is no language to load
+%  and no device to make, so the lockdown is the whole of it. The recovery
+%  is here rather than at the entry points because every one of them
+%  recovers identically -- a run that cannot lock down is not a run.
+%
+.xpostsys /.bootnographics {  % -  .  -
+    { //.xpostsys /.finalize get exec } stopped {
+        (unable to lock down interpreter\n)print flush
+        //.internaldict /.rundied get exec
+        quit
+    } if
+} put
+
+%
 %  Initiate an interactive session with prompt a postscript 'executive'
 %  session.
 %
@@ -1081,9 +1112,7 @@ end
     currentglobal
     false setglobal
     {
-        //.xpostsys /.loadgraphics get exec
-        //.xpostsys /.finalize get exec
-        //.xpostsys /.startdevice get exec
+        //.xpostsys /.bootrun get exec
     } stopped {
         //.reportloadfailure exec
         handleerror
@@ -1189,9 +1218,7 @@ end
 %
 /startstdin {  % -  .  -
     {
-        //.xpostsys /.loadgraphics get exec
-        //.xpostsys /.finalize get exec
-        //.xpostsys /.startdevice get exec
+        //.xpostsys /.bootrun get exec
     } stopped {
         //.reportloadfailure exec
         quit
@@ -1220,9 +1247,7 @@ end
 %
 /startfilename {  % string  .  -
     {
-        //.xpostsys /.loadgraphics get exec
-        //.xpostsys /.finalize get exec
-        //.xpostsys /.startdevice get exec
+        //.xpostsys /.bootrun get exec
     } stopped {
         //.reportloadfailure exec
         quit
@@ -1250,9 +1275,7 @@ end
 /startfile {  % file  .  -
     //.internaldict /QUIET known { }{ (startfile\n)print } ifelse
     {
-        //.xpostsys /.loadgraphics get exec
-        //.xpostsys /.finalize get exec
-        //.xpostsys /.startdevice get exec
+        //.xpostsys /.bootrun get exec
     } stopped {
         //.reportloadfailure exec
         quit
@@ -1284,11 +1307,7 @@ end
 %  the same for a host that only wants the language built.
 %
 /startstdinnographics {  % -  .  -
-    { //.xpostsys /.finalize get exec } stopped {
-        (unable to lock down interpreter\n)print flush
-        //.internaldict /.rundied get exec
-        quit
-    } if
+    //.xpostsys /.bootnographics get exec
     {
         (%stdin) run
     } stopped {
@@ -1298,11 +1317,7 @@ end
 } def
 
 /startfilenamenographics {  % string  .  -
-    { //.xpostsys /.finalize get exec } stopped {
-        (unable to lock down interpreter\n)print flush
-        //.internaldict /.rundied get exec
-        quit
-    } if
+    //.xpostsys /.bootnographics get exec
     {
         (r) file cvx exec        % (filename) has stayed on the stack
         /.interactive //.hostvalue exec { executive } if
@@ -1313,11 +1328,7 @@ end
 } def
 
 /startfilenographics {  % file  .  -
-    { //.xpostsys /.finalize get exec } stopped {
-        (unable to lock down interpreter\n)print flush
-        //.internaldict /.rundied get exec
-        quit
-    } if
+    //.xpostsys /.bootnographics get exec
     {
         cvx exec        % The file object has stayed on the stack
     } stopped {
