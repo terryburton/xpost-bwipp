@@ -4,6 +4,23 @@
 # Two invariants, both about the same thing -- what a name in a helper
 # body resolves to once the interpreter is sealed.
 #
+# A helper is never bound where it is defined -- and never, whichever way
+# the definition closes: "} bind put", "end } bind put" after a dictionary,
+# and a bare "}" with "bind put" on the line after are one thing to the
+# interpreter, so they are one thing here.
+#
+# A definition nested inside a block is not asked. // resolves as the file
+# is READ and bind resolves when the enclosing block RUNS, so a helper
+# defined inside something that runs later -- when graphics has loaded, say
+# -- can only have bind: the name // would splice does not exist yet. The
+# anchor below is what leaves those alone, and that is the reason for it.
+#
+# A body needing the reference to something the lockdown takes away asks
+# for that one reference with //, which splices the object and leaves every
+# other name alone. Binding the whole body to keep one name is what this
+# forbids: it freezes them all, and makes the body read-only so .bindscope
+# cannot come back for the ones bind could not substitute yet.
+#
 # A helper is never bound where it is defined. bind substitutes an
 # operator only where the name already answers with one, and the standard
 # operators written in PostScript do not answer with one until .finalize
@@ -75,9 +92,25 @@ FNR == 1 { inx = 0; depth = 0 }
     if (open) {
         depth += gsub(/\{/, "{", t) - gsub(/\}/, "}", t)
         if (depth <= 0) {
-            if ($0 ~ /^\} bind (put|def)[ \t]*$/)
-                printf "%s\t%d\t%s\n", FILENAME, start, name
-            open = 0
+            # The install may finish on this line or on the next ones: "}
+            # bind put", "end } bind put" and a bare "}" followed by "bind
+            # put" are one thing to the interpreter, so they are one thing
+            # here. Read on to whichever line carries the put or def.
+            if (t ~ /(put|def)[ \t]*$/) {
+                if (t ~ /bind/)
+                    printf "%s\t%d\t%s\n", FILENAME, start, name
+                open = 0
+            } else {
+                tail = 1
+            }
+        }
+        if (tail) {
+            if (t ~ /bind/) sawbind = 1
+            if (t ~ /(put|def)[ \t]*$/) {
+                if (sawbind)
+                    printf "%s\t%d\t%s\n", FILENAME, start, name
+                tail = 0; sawbind = 0; open = 0
+            }
         }
         next
     }
@@ -86,7 +119,7 @@ FNR == 1 { inx = 0; depth = 0 }
         name = substr($0, RSTART, RLENGTH)
         sub(/^\.xpostsys[ \t]+/, "", name); sub(/^\//, "", name)
         sub(/[ \t]+\{$/, "", name)
-        start = FNR; open = 1
+        start = FNR; open = 1; tail = 0; sawbind = 0
         depth = gsub(/\{/, "{", t) - gsub(/\}/, "}", t)
         if (depth <= 0) open = 0
     }

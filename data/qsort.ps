@@ -30,29 +30,30 @@ currentglobal true setglobal
 %  out of qsortdict, so it runs only while that dictionary is current --
 %  which is to say only inside a .qsort, never on its own.
 %
-%  The exchange is .swap, a private C operator that bind freezes into
-%  this body as the file loads. That timing is the whole of why it works:
+%  The exchange is .swap, a private C operator asked for with // as the
+%  file loads. That timing is the whole of why it works:
 %  the private operators are relocated out of systemdict into
 %  .internaldict near the end of graphics loading, after this file has
-%  been read, so the frozen operator goes on running once the name has
-%  stopped resolving.
+%  been read, so the spliced operator goes on running once the name has
+%  stopped resolving. It is asked for by itself rather than by binding the
+%  body, which would freeze every other name here as well.
 %
 /partition {  % array left right pivotIndex  .  storeIndex
     3 index 1 index get  % A l r pI p
     4 index 3 index 3 index  % A l r pI p  a r pI
-    .swap
+    //.swap
     3 index  % A l r pI p sI
     dup 1 5 index 1 sub {  % a l r pI p sI  i
         6 index 1 index get 3 index cmp {  % a l r pI p sI  i
             6 index exch 2 index  % A l r pI p sI  a i sI
-            .swap
+            //.swap
             1 add  % A l r pI p sI+1
         }{ pop } ifelse
     } for  % A l r pI p sI
     5 index 1 index 5 index  % A l r pI p sI  a sI r
-    .swap
+    //.swap
     6 1 roll pop pop pop pop pop
-} bind def
+} def
 
 %
 %  Sort the range in place: partition it, then sort each side.
@@ -74,7 +75,7 @@ currentglobal true setglobal
         quicksort
         quicksort
     } ifelse
-} bind def
+} def
 
 %
 %       array  .  -
@@ -112,7 +113,7 @@ currentglobal true setglobal
     0 1 index length 1 sub quicksort
     end
     end
-} bind
+}
 end  % Qsortdict
 .xpostsys 3 1 roll put
 setglobal

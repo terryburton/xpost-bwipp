@@ -122,7 +122,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /defaultmatrix 2 copy known {
         get dup 0 get exch 3 get neg
     }{ pop pop 1 1 } ifelse
-} bind put
+} put
 
 %
 %  The one class-to-instance copy, stored under /.copydict by every
@@ -358,7 +358,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         end
         /.completedevice cvx /rangecheck signalerror
     } if
-} //.indict exec } bind put
+} //.indict exec } put
 
 %
 %  Finish a freshly created device, on every path that creates one: the
@@ -747,10 +747,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % No /graphicsdict where. The lockdown sweeps the name -- it answers
     % with the live graphics state -- so a run-time search for it is
     % always false and everything behind it is dead, which left this
-    % answering nought rows however the device was banding. The bare
-    % graphicsdict below is the operator bind froze in when this body was
-    % bound, before the sweep runs.
-    graphicsdict /currgstate get /device get
+    % answering nought rows however the device was banding. The // below
+    % is what survives that: it splices the operator into this body as it
+    % is read, while the name still answers, and asks for that one name
+    % and no other. Binding the whole body would keep this name too, and
+    % would also freeze every other name here and make the body read-only,
+    % so the sweep that binds .xpostsys could never come back for the
+    % operators this interpreter implements in PostScript.
+    //graphicsdict /currgstate get /device get
     dup type /dicttype eq {
             /dev exch def
             dev /height known {
@@ -759,7 +763,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } if
         }{ pop } ifelse
     rows
-end } bind put
+end } put
 
 %
 %  What one record costs, in bytes. .recordcost answers with three
@@ -785,8 +789,9 @@ end } bind put
 .xpostsys /.curdisplaylist {  % -  .  bytes
 2 dict begin
     /bytes 0 def
-    % No /graphicsdict where -- see .curbandheight above.
-    graphicsdict /currgstate get /device get
+    % No /graphicsdict where, and // for the same reason -- see
+    % .curbandheight above.
+    //graphicsdict /currgstate get /device get
     dup type /dicttype eq {
             dup /.playclass known {
                 dup //.xpostsys /.recordbytes get exec
@@ -795,7 +800,7 @@ end } bind put
         } if
     pop
     bytes
-end } bind put
+end } put
 
 %
 %  What the drawings the form cache now holds come to, in bytes, which
@@ -817,8 +822,9 @@ end } bind put
 .xpostsys /.formcachebytes {  % -  .  bytes
 2 dict begin
     /total 0 def
-    % No /graphicsdict where -- see .curbandheight above.
-    graphicsdict /.formcache 2 copy known {
+    % No /graphicsdict where, and // for the same reason -- see
+    % .curbandheight above.
+    //graphicsdict /.formcache 2 copy known {
         get {
             exch pop
             dup /drawing known {
@@ -828,7 +834,7 @@ end } bind put
         } forall
     }{ pop pop } ifelse
     total
-end } bind put
+end } put
 
 %
 %  Where this run wants a retained page's marks held, and where the marks
@@ -864,8 +870,9 @@ end } bind put
     % Not /where: bind bakes the operator of that name into this body,
     % and a local of the same name would never be the one read back.
     /held /memory def
-    % No /graphicsdict where -- see .curbandheight above.
-    graphicsdict /currgstate get /device get
+    % No /graphicsdict where, and // for the same reason -- see
+    % .curbandheight above.
+    //graphicsdict /currgstate get /device get
     dup type /dicttype eq {
             % a device holding a record is the one to ask; one painting
             % its own page holds its marks nowhere and answers /memory,
@@ -877,7 +884,7 @@ end } bind put
         } if
         pop
     asked held
-end } bind put
+end } put
 
 %
 %  Name what is about to become of one page: the device the page was
@@ -902,13 +909,14 @@ end } bind put
     /out (%stderr) (w) file def
     /n 20 string def
     /asked
-        graphicsdict /.pagedevice 2 copy known {
+        //graphicsdict /.pagedevice 2 copy known {
             get /OutputDevice 2 copy known
                 { get }{ pop pop null } ifelse
         }{ pop pop null } ifelse
         dup null eq {
-            % No /graphicsdict where -- see .curbandheight above.
-            pop graphicsdict /.outputdevice 2 copy known
+            % No /graphicsdict where, and // for the same reason -- see
+    % .curbandheight above.
+            pop //graphicsdict /.outputdevice 2 copy known
                 { get }{ pop pop null } ifelse
         } if def
     /paints dev /.playclass known { dev /.playclass get }{ asked } ifelse def
@@ -929,7 +937,7 @@ end } bind put
     out ph n cvs writestring
     out ( page\n) writestring
     out flushfile
-end } bind put
+end } put
 
 %
 %  Make the device this run was started with and install it in the

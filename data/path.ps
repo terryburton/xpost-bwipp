@@ -63,13 +63,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /str //.cpath exec def
     /off 0 def  % .pathnext starts at the first element
     {  % loop
-        str off .pathnext not { exit } if  % Coords... cmd nextoff
+        str off //.pathnext not { exit } if  % Coords... cmd nextoff
         /off exch def                     % Coords... cmd
         procs exch get exec
     } loop
 } //.indict exec
 }
-bind put
+put
 
 %
 %  Enumerate current path in user coordinates. The caller's

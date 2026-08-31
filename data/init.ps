@@ -3012,6 +3012,11 @@ currentglobal true setglobal
             % onto the class -- becoming a device's defaults -- and the
             % instance they were asked for would never see them. A maker asked
             % for with nothing pending arms nothing.
+            % Bound here, and it has to be. This definition is inside a
+            % block that runs when graphics loads, and // resolves as the
+            % file is READ -- before graphicsdict exists. bind resolves
+            % when the block runs, which is after. The two are not
+            % interchangeable where the definition is deferred.
             .xpostsys /.armdevrequest {  % -  .  -
                 graphicsdict /.devpending 2 copy known {
                     2 copy get 3 1 roll undef
@@ -3910,6 +3915,44 @@ currentglobal true setglobal
             % nothing to bind and this step is simply skipped
             /graphicsdict where { pop graphicsdict //.bindscope exec } if
             errordict //.bindscope exec
+
+            % Every helper is still writable at this point, and each has to
+            % be. bind makes what it binds read-only, so a helper bound
+            % where it was defined is one the sweep below can never come
+            % back for: its calls to the operators this interpreter
+            % implements in PostScript were not substituted -- those names
+            % did not answer with operators yet -- and now never will be.
+            % Such a helper reaches them by name for the whole run, and a
+            % name is what a program can shadow.
+            %
+            % Asked of the running interpreter, because the text cannot
+            % show it. tests/check-helper-bind reads the files and catches
+            % what it can see; a body made read-only some other way, or a
+            % definition written in a shape the reader does not know, is
+            % invisible there and plain here. Whether the procedure can
+            % still be written to is the whole of the question.
+            %
+            % The exception is a helper defined inside a block that runs
+            % later, which can only have bind: // resolves as a file is
+            % READ and bind when the block RUNS, so the name // would
+            % splice does not exist yet. .armdevrequest is that case --
+            % it names graphicsdict, which the file defining it is read
+            % before. Such a helper is named here rather than left to make
+            % the check say nothing.
+            .xpostsys {
+                dup xcheck
+                1 index type dup /arraytype eq exch /packedarraytype eq or
+                and {
+                    dup wcheck
+                        { pop pop }
+                        { pop
+                          dup /.armdevrequest eq
+                              { pop }
+                              { (%%[ a helper is bound where it was defined: )
+                                print dup == flush
+                                cvx /invalidaccess signalerror } ifelse } ifelse
+                }{ pop pop } ifelse
+            } forall
 
             % The private helper namespace too, so a helper's own operator references
             % (the get and exec of //.xpostsys /.h get exec, and everything else) freeze

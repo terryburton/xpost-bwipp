@@ -125,9 +125,9 @@ currentglobal true setglobal
     /dev exch def
     2 dict begin
         /width dev /width get def
-        .privatedict dev /.playclass get get /.rowcost get exec
+        //.privatedict dev /.playclass get get /.rowcost get exec
     end exch pop
-end } bind put
+end } put
 
 %
 %  How many rows of its page a device holds at once: the whole height
@@ -147,7 +147,7 @@ end } bind put
     /held dev /.state 2 copy known { get }{ pop pop 0 dict } ifelse
         /.playrun 2 copy known { get 1 get }{ pop pop ph } ifelse def
     dev /.playclass known ph 0 gt and {
-        /cls .privatedict dev /.playclass get get def
+        /cls //.privatedict dev /.playclass get get def
         /rowbytes dev //.rowbytes exec def
 
         % A row whose bytes are past what an integer counts is a row no
@@ -163,7 +163,7 @@ end } bind put
             held ph lt { held 2 copy gt { exch } if pop } if
         }{ held } ifelse
     }{ held } ifelse
-end } bind put
+end } put
 
 %
 %  What holding this device's page a band at a time saves over holding it
@@ -191,7 +191,7 @@ end } bind put
     rows held lt
         { held rows sub dev //.rowbytes exec mul }
         { 0 } ifelse
-end } bind put
+end } put
 
 %
 %  Whether a run of this many rows, at this width, painted by the named
@@ -220,7 +220,7 @@ end } bind put
     /ph exch def
     /pw exch def
     /tgt exch def
-    /rec .privatedict /.xpost_RECORD get def
+    /rec //.privatedict /.xpost_RECORD get def
     /targets rec /.playtargets get def
     targets tgt known {
         % A class a C driver brings is not in the private dictionary
@@ -230,19 +230,19 @@ end } bind put
         % again, and a build without it registers no loader and answers
         % nothing here.
         /cls targets tgt get def
-        .privatedict cls known not {
+        //.privatedict cls known not {
             rec /.playloaders get tgt 2 copy known
                 { get dup where { pop cvx exec }{ pop } ifelse }
                 { pop pop } ifelse
         } if
-        .privatedict cls known {
+        //.privatedict cls known {
             << /width pw /height ph
                /.playclass cls
                /.bandbytes //.xpostsys /.bandbudget get exec >>
             //.bandheight exec ph lt
         }{ true } ifelse
     }{ true } ifelse
-end } bind put
+end } put
 
 %
 %  Which device a selection is made through at a page of this extent.
@@ -327,7 +327,7 @@ end } bind put
 
     % The rows the device being made would hold of this page
     /held ph def
-    graphicsdict /.rasterband 2 copy known { get }{ pop pop null } ifelse
+    //graphicsdict /.rasterband 2 copy known { get }{ pop pop null } ifelse
     dup type dup /arraytype eq exch /packedarraytype eq or
         { dup length 2 ge }{ false } ifelse
         { 1 get /held exch def }{ pop } ifelse
@@ -340,7 +340,7 @@ end } bind put
                 { /record }{ nm } ifelse }
         ifelse
     }{ nm } ifelse
-end } bind put
+end } put
 
 %
 %  Give up the device a record paints through.
@@ -364,7 +364,7 @@ end } bind put
         pd.rec /.state get /.playrows undef
         dup /Destroy 2 copy known { get exec }{ pop pop pop } ifelse
     } if
-} //.indict exec } bind put
+} //.indict exec } put
 
 %
 %  The page-device parameters a program asked of a record, put onto the
@@ -399,7 +399,7 @@ end } bind put
 2 dict {
     /pp.page exch def
     /pp.rec exch def
-    graphicsdict /.pagedevice 2 copy known {
+    //graphicsdict /.pagedevice 2 copy known {
         get {
             pop
             dup /Private eq
@@ -411,7 +411,7 @@ end } bind put
             ifelse
         } forall
     }{ pop pop } ifelse
-} //.indict exec } bind put
+} //.indict exec } put
 setglobal
 
 /.xpost_RECORD <<
