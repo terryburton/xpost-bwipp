@@ -2774,6 +2774,38 @@ void _face_setup(Xpost_Context *ctx,
     xpost_font_face_transform(face, mat);
 }
 
+/* The font data a dict names, with its face made current, or nothing.
+ *
+ * The two go together. A face is shared through the findfont cache, so
+ * every text operator has to set it up for this dict before touching a
+ * glyph -- and every one of them has to answer the dict that names no
+ * usable face, which is the ordinary case of a font whose program never
+ * loaded. Eight operators did both by hand, in the same eight lines, and
+ * a ninth written from the same shape would have had to remember the
+ * setup as well as the check. Here it cannot be had without the other.
+ *
+ * Answers zero where the dict names no face, leaving *data untouched;
+ * the caller raises invalidfont, which is its own to raise because only
+ * the caller knows what it was asked to do. */
+static
+int _font_data_current(Xpost_Context *ctx,
+                       Xpost_Object gs,
+                       Xpost_Object fontdict,
+                       fontdata *data)
+{
+    fontdata *fd = _font_data(ctx, fontdict);
+
+    if (!fd || fd->face == NULL)
+    {
+        XPOST_LOG_INFO("face is NULL");
+        return 0;
+    }
+    *data = *fd;
+    _face_setup(ctx, gs, fontdict, data->face);
+    return 1;
+}
+
+
 /* Resolve the current colour into the device's native space, applying
    the same source-to-destination conversions as the ColorConversionDict
    table in color.ps (gray by NTSC luminosity, CMYK composed by
@@ -3708,7 +3740,6 @@ int _show(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     char *cstr;
     real xpos, ypos;
     char *ch;
@@ -3737,14 +3768,8 @@ int _show(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
     XPOST_LOG_INFO("loaded font data from dict");
 
     /* get a c-style nul-terminated string */
@@ -3818,7 +3843,6 @@ int _glyphshow_common(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     real xpos, ypos;
     Xpost_Object devdic;
     Xpost_Object putpix;
@@ -3840,14 +3864,8 @@ int _glyphshow_common(Xpost_Context *ctx,
     putpix = xpost_dict_get(ctx, devdic, name_PutPix);
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
 
     ret = _get_current_point(ctx, gs, &xpos, &ypos);
     if (ret)
@@ -5188,7 +5206,6 @@ int _ashow(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     char *cstr;
     real xpos, ypos;
     char *ch;
@@ -5217,14 +5234,8 @@ int _ashow(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
     XPOST_LOG_INFO("loaded font data from dict");
 
     /* get a c-style nul-terminated string */
@@ -5291,7 +5302,6 @@ int _widthshow(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     char *cstr;
     real xpos, ypos;
     char *ch;
@@ -5320,14 +5330,8 @@ int _widthshow(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
     XPOST_LOG_INFO("loaded font data from dict");
 
     /* get a c-style nul-terminated string */
@@ -5399,7 +5403,6 @@ int _awidthshow(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     char *cstr;
     real xpos, ypos;
     char *ch;
@@ -5428,14 +5431,8 @@ int _awidthshow(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
     XPOST_LOG_INFO("loaded font data from dict");
 
     /* get a c-style nul-terminated string */
@@ -5506,7 +5503,6 @@ int _stringwidth(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     char *cstr;
     real xpos = 0, ypos = 0;
     char *ch;
@@ -5523,14 +5519,8 @@ int _stringwidth(Xpost_Context *ctx,
     XPOST_LOG_INFO("loaded graphicsdict, graphics state, and current font");
 
     /* get the font data from the font dict */
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
     encoding = xpost_dict_get(ctx, fontdict, name_Encoding);
     charstrings = xpost_dict_get(ctx, fontdict, name_CharStrings);
     /* only the /Metrics fields matter here: stringwidth accumulates the
@@ -5737,7 +5727,6 @@ int _stringoutline(Xpost_Context *ctx,
     Xpost_Object gs;
     Xpost_Object fontdict;
     struct fontdata data;
-    fontdata *fd;
     Xpost_Object encoding;
     Xpost_Object charstrings;
     textstate mts;
@@ -5753,14 +5742,8 @@ int _stringoutline(Xpost_Context *ctx,
     if (xpost_object_get_type(fontdict) == invalidtype)
         return invalidfont;
 
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
     encoding = xpost_dict_get(ctx, fontdict, name_Encoding);
     charstrings = xpost_dict_get(ctx, fontdict, name_CharStrings);
     /* only the /Metrics fields matter here: the glyphs are placed and
@@ -5857,7 +5840,6 @@ int _glyphoutline_common(Xpost_Context *ctx,
     Xpost_Object fontdict;
     Xpost_Object devdic;
     struct fontdata data;
-    fontdata *fd;
     textstate ts;
     outlinecollect oc;
     Xpost_Object arr;
@@ -5871,14 +5853,8 @@ int _glyphoutline_common(Xpost_Context *ctx,
     devdic = xpost_dict_get(ctx, gs, name_device);
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
-    fd = _font_data(ctx, fontdict);
-    if (!fd || fd->face == NULL)
-    {
-        XPOST_LOG_INFO("face is NULL");
+    if (!_font_data_current(ctx, gs, fontdict, &data))
         return invalidfont;
-    }
-    data = *fd;
-    _face_setup(ctx, gs, fontdict, data.face);
 
     memset(&oc, 0, sizeof oc);
     oc.ctx = ctx;

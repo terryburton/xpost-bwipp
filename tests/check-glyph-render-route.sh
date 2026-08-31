@@ -36,6 +36,13 @@ guard_workdir
 render=xpost_font_face_glyph_render
 setup=_face_setup
 
+# A function that runs the setup on its caller's behalf counts as running
+# it, and is named here rather than derived: the walk asks whether a call
+# is preceded by the setup, and a wrapper is the one way that can be true
+# without the name appearing. Each name is held to actually calling the
+# setup below, so an exemption cannot outlive the fact it stands on.
+establishers='_font_data_current'
+
 # Read the sources as C -- comments and strings removed, one line each of
 # "<path><tab><line><tab><code>" -- and attribute every line to the
 # function whose body it is in, named by the last column-zero line that
@@ -70,8 +77,27 @@ guard_c_source "$src"/src/lib/*.c "$src"/src/bin/*.c \
 # Where the setup is run: every call to it, with the function and line it
 # sits in. Column-zero openers are its definition and declarations, not
 # calls.
-awk -F'\t' -v setup="$setup" '
-    $4 == "B" && $5 ~ ("(^|[^A-Za-z0-9_])" setup "[ \t]*\\(") {
+# Each name that stands in for the setup has to run it. A wrapper that
+# stopped calling the setup would otherwise go on covering every route
+# through it, which is the one way this guard could come to say nothing
+# while reporting success.
+for fn in $establishers; do
+    if ! awk -F'\t' -v fn="$fn" -v setup="$setup" '
+             $2 == fn && $4 == "B" &&
+             $5 ~ ("(^|[^A-Za-z0-9_])" setup "[ \t]*\\(") { found = 1 }
+             END { exit !found }' "$work/annot"; then
+        echo "FAIL: $fn is named here as running $setup for its callers"
+        echo "      and does not call it, so every route through it is"
+        echo "      covered by nothing."
+        exit 1
+    fi
+done
+
+setups_re=$setup
+for fn in $establishers; do setups_re="$setups_re|$fn"; done
+
+awk -F'\t' -v setup="$setups_re" '
+    $4 == "B" && $5 ~ ("(^|[^A-Za-z0-9_])(" setup ")[ \t]*\\(") {
         print $1 "\t" $2 "\t" $3
     }' "$work/annot" > "$work/setups"
 
