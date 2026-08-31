@@ -275,11 +275,11 @@ verdict_exit() {    # $1 what the run counted (optional)
 # the end; the detail lines are indented under the first, which is what a
 # reader of a failing run sees.
 #
-# Fourteen guards carried this verbatim. Five others define a `note` of
-# their own and still do: two report under a different word entirely and
-# one counts the check as well, so they are different helpers that happened
-# to share a name. A definition in a guard shadows this one, which is what
-# makes that divergence a choice rather than an accident.
+# A guard may define a `note` of its own, and some do: one reporting under
+# a different word, another counting the checks as well, are different
+# helpers that happen to share a name. A definition in a guard shadows
+# this one, which is what makes that divergence a choice rather than an
+# accident.
 note() {
     echo "FAILURES: $1"
     shift

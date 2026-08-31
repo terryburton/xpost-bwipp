@@ -202,7 +202,7 @@
  *             xpost_client       drives the interpreter as a library
  * @endverbatim
  *
- * The PostScript side is twenty-eight files in the data directory, loaded
+ * The PostScript side is the files in the data directory, loaded
  * through one module loader. init.ps builds the machinery and loads
  * err.ps, the sort and resource machinery (qsort.ps, resource.ps) and the
  * job layer; callout.ps, when first asked for, loads the graphics
@@ -765,11 +765,11 @@
  * range-preserving arithmetic, the same comparison -- and any
  * precondition failure falls through to the generic path, keeping
  * error behaviour identical; a structural test extracts the fused
- * list from the source and requires an equivalence case for each
- * (152 cases), so an operator cannot join the fast path without
- * joining the proof. The walker re-derives its cached pointers
- * whenever either arena has moved, roots the element being executed
- * so an anonymous procedure is not swept mid-element, and repeats
+ * list from the source and requires an equivalence case for each, so an
+ * operator cannot join the fast path without joining the proof. The
+ * walker re-derives its cached pointers whenever either arena has moved,
+ * roots the element being executed so an anonymous procedure is not
+ * swept mid-element, and repeats
  * the collection safe point and the push-refusal check inside the
  * loop so a long fused stretch starves neither.
  *
@@ -858,13 +858,12 @@
  * returns to the baseline), so one context can serve job after job
  * with encapsulation left on.
  *
- * Putting a baseline back does not mean copying all of it. Most of a bank
- * is untouched by any one job -- measured on a page of dense
- * two-dimensional barcode, a job writes about 48 KiB of the 1768 KiB the
- * boundary restores -- and copying the rest over itself is memory
- * bandwidth, which is the one resource concurrent renders do not each
- * bring more of. So where the host can say which pages a job wrote, the
- * boundary puts back only those, and the first boundary of a context
+ * Putting a baseline back does not mean copying all of it. A job commonly
+ * writes a small fraction of the bank the boundary restores, and copying
+ * the rest over itself is memory bandwidth, which is the one resource
+ * concurrent renders do not each bring more of. So where the host can say
+ * which pages a job wrote, the boundary puts back only those, and the
+ * first boundary of a context
  * copies and arranges that for the ones after it. Each host is asked in
  * its own way and none of that reaches the memory file, which says only
  * what it wants; @c xpost_vm_writeset.h holds the three answers and what

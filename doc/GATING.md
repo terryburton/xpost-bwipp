@@ -1,14 +1,8 @@
 # What to run, and when
 
-The suite is about 460 tests at two object widths. This page says which
-run answers which question, so that a piece of work can name one rather
-than describe one.
-
-Every count here is for a build that found every optional library. A
-build without one carries fewer -- there is no png device to test where
-there is no libpng -- so these are the shape of a selection and not a
-figure to check against. `meson test --list | wc -l` says what the build
-in front of you has.
+The suite runs at two object widths. This page says which run answers
+which question, so that a piece of work can name one rather than
+describe one.
 
 ## The per-change gate
 
@@ -32,23 +26,29 @@ making it.
 
 ## The areas
 
-| area | what a change to it reaches | tests |
-| --- | --- | --- |
-| `doc` | prose no program reads | 17 |
-| `suite` | a test's own source; the test itself is added from its registration | 16 |
-| `corpus` | the fetched programs and their harnesses | 22 |
-| `host` | what the interpreter asks of the platform, and the program a user starts | 25 |
-| `font` | glyphs, the cache, the files they come from | 46 |
-| `filter` | files, filters, the scanner's reading | 62 |
-| `guards` | the checks over the tree's own shape, and the path helper they share | 100 |
-| `graphics` | paths, paint, colour, clipping, images | 74 |
-| `record` | the recorded page, its spans, the band devices | 50 |
-| `device` | what a page is painted into and written out as | 95 |
-| `language` | operators, errors, names, the programs that install them | 136 |
-| `vm`, `build` | the object and its memory; the build description | all of it, both widths |
+| area | what a change to it reaches |
+| --- | --- |
+| `doc` | prose no program reads |
+| `suite` | a test's own source; the test itself is added from its registration |
+| `corpus` | the fetched programs and their harnesses |
+| `host` | what the interpreter asks of the platform, and the program a user starts |
+| `font` | glyphs, the cache, the files they come from |
+| `filter` | files, filters, the scanner's reading |
+| `guards` | the checks over the tree's own shape, and the path helper they share |
+| `graphics` | paths, paint, colour, clipping, images |
+| `record` | the recorded page, its spans, the band devices |
+| `device` | what a page is painted into and written out as |
+| `language` | operators, errors, names, the programs that install them |
+| `vm`, `build` | the object and its memory; the build description -- all of it, both widths |
 
-Counts include the sixteen guards every gate runs whatever was touched, and
-overlap: a test may answer for several areas.
+Every gate also runs the guards that answer whatever was touched, and the
+areas overlap: a test may answer for several.
+
+How much each area selects is not written here. It depends on what the
+build configured -- there is no png device to test where there is no
+libpng -- and it moves as tests are added. `tests/gate.sh --area NAME
+--list` says what would run, for the build in front of you, without
+running it.
 
 A path that no rule classifies falls through to a catch-all and selects
 the whole suite at both widths. The failure mode of an incomplete map is
