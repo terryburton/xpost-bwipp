@@ -395,6 +395,7 @@ static const char *_userparam_maxexecstack = "MaxExecStack";
 static const char *_userparam_idiomrecognition = "IdiomRecognition";
 static const char *_userparam_maxfontitem = "MaxFontItem";
 static const char *_userparam_halftonemode = "HalftoneMode";
+static const char *_userparam_maxformitem = "MaxFormItem";
 
 /* one parameter's present value, into the dictionary being reported */
 static
@@ -429,7 +430,7 @@ int currentuserparams(Xpost_Context *ctx)
     Xpost_Object d;
     int ret;
 
-    d = xpost_dict_cons(ctx, 8);
+    d = xpost_dict_cons(ctx, 9);
     if (xpost_object_get_type(d) == invalidtype)
         return VMerror;
 
@@ -469,6 +470,12 @@ int currentuserparams(Xpost_Context *ctx)
        by, a value this interpreter cannot achieve replaced by the nearest
        it can. */
     ret = _param_report(ctx, d, _userparam_halftonemode, 0);
+    if (ret)
+        return ret;
+    /* MaxFormItem is the largest drawing the form cache keeps, in bytes
+       (PLRM C.3.3). The cache is data/init.ps's, in graphicsdict, and this
+       is the number it asks before keeping a capture. */
+    ret = _param_report(ctx, d, _userparam_maxformitem, ctx->maxformitem);
     if (ret)
         return ret;
 
@@ -544,8 +551,9 @@ int _param_request_bool(Xpost_Context *ctx, Xpost_Object D, const char *key,
 static
 int setuserparams(Xpost_Context *ctx, Xpost_Object D)
 {
-    integer reclaim = 0, threshold = 0, fontitem = 0;
+    integer reclaim = 0, threshold = 0, fontitem = 0, formitem = 0;
     int have_reclaim = 0, have_threshold = 0, have_fontitem = 0;
+    int have_formitem = 0;
     int idiom = 0, have_idiom = 0;
     int ret;
 
@@ -582,6 +590,10 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
     ret = _param_request(ctx, D, _userparam_halftonemode, NULL, NULL);
     if (ret)
         return ret;
+    ret = _param_request(ctx, D, _userparam_maxformitem,
+                         &formitem, &have_formitem);
+    if (ret)
+        return ret;
 
     if (have_reclaim && (reclaim == 0 || reclaim == -1 || reclaim == -2))
     {
@@ -602,6 +614,12 @@ int setuserparams(Xpost_Context *ctx, Xpost_Object D)
        nearest it can without an error indication (PLRM 8.2 setuserparams) */
     if (have_fontitem)
         ctx->maxfontitem = (integer)xpost_font_cache_setlimit(fontitem);
+    /* A ceiling below nothing is not achievable and is replaced by the
+       nearest that is, which is nothing: a cache that keeps no drawing.
+       That is a usable setting -- it turns the cache off -- rather than an
+       error (PLRM 8.2 setuserparams). */
+    if (have_formitem)
+        ctx->maxformitem = formitem < 0 ? 0 : formitem;
     return 0;
 }
 

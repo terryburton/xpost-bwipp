@@ -311,6 +311,22 @@ struct _Xpost_Context {
         cache is actually using. */
     integer maxfontitem;
     integer maxfontitem_hist[256];
+    integer maxformitem_hist[256];
+
+    /** The form cache's two byte parameters: the whole cache's ceiling
+        (MaxFormCache, a system parameter) and the largest drawing it will
+        keep (MaxFormItem, a user parameter). PLRM C.3.3 gives the pair,
+        and they answer for the cache data/init.ps keeps in graphicsdict.
+
+        The cache is bounded by a count of entries as well, which is what
+        bounded it alone before these: thirty-two drawings, the one
+        captured longest ago giving up its place. A count says nothing
+        about what a drawing costs, and a drawing captured for a device
+        that holds no record of its own is not weighed against anything --
+        so a run painting directly could hold thirty-two drawings of any
+        size at all. These bound that. */
+    integer maxformcache;
+    integer maxformitem;
 
     /** Whether bind replaces a bound procedure that matches an IdiomSet
         template with the paired substitute (PLRM 3.12.1). The
@@ -546,6 +562,14 @@ struct _Xpost_Context {
         rendering every glyph afresh. */
     long job_gcache_bmax;
     long job_gcache_blimit;
+
+    /** The form cache's two byte parameters at the baseline, put back for
+        the reason the glyph cache's are: PLRM C.1.1 has an encapsulated
+        job's change to a user parameter not reach the jobs after it, and a
+        job that set the per-drawing ceiling to nothing would otherwise
+        leave every later job capturing every form afresh. */
+    integer job_maxformcache;
+    integer job_maxformitem;
     unsigned int job_saved_pagedevice_depth; /**< pagedevice_depth at
                                        baseline capture, to retire a
                                        job-installed device at the boundary */

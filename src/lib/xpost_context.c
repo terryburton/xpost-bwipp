@@ -460,6 +460,14 @@ int xpost_context_init(Xpost_Context *ctx,
        context left rather than where the first one started. */
     ctx->maxfontitem = (integer)xpost_font_cache_setlimit(
                             XPOST_FONT_ITEM_LIMIT_DEFAULT);
+    /* The form cache's two byte parameters. A drawing is a page's worth of
+       marks at most, so the per-drawing ceiling is a megabyte and the whole
+       cache four of them: enough that a run reusing a few forms keeps them
+       all, and little enough that a run capturing large ones cannot fill
+       memory with drawings nothing weighs. PLRM C.3.3 leaves both to the
+       implementation. */
+    ctx->maxformitem = 1048576;
+    ctx->maxformcache = 4194304;
     ctx->idiomrecognition = 1;
     ctx->globs = NULL;
     ctx->globs_size = 0;

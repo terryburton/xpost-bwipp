@@ -787,6 +787,40 @@ end } bind put
 end } bind put
 
 %
+%  What the drawings the form cache now holds come to, in bytes, which
+%  currentsystemparams reports as CurFormCache.
+%
+%  Each drawing is held by a recorder, and a recorder already weighs what
+%  it holds -- the same number the spill decision goes by. So this asks
+%  the recorders rather than keeping a tally beside them: a tally would be
+%  a second answer to one question, and the two would part company the
+%  first time a restore wound the table back without winding the tally
+%  with it.
+%
+%  Here rather than beside the cache itself in init.ps, and the reason is
+%  graphicsdict: the name is an operator this file's bodies can have bind
+%  freeze, and init.ps is read before the file that defines it. An entry
+%  naming no drawing is one that says a form cannot be held, and is passed
+%  over as it is everywhere else.
+%
+.xpostsys /.formcachebytes {  % -  .  bytes
+2 dict begin
+    /total 0 def
+    % No /graphicsdict where -- see .curbandheight above.
+    graphicsdict /.formcache 2 copy known {
+        get {
+            exch pop
+            dup /drawing known {
+                /drawing get //.internaldict /.recordcost get exec
+                exch pop exch pop
+                total add /total exch def
+            }{ pop } ifelse
+        } forall
+    }{ pop pop } ifelse
+    total
+end } bind put
+
+%
 %  Where this run wants a retained page's marks held, and where the marks
 %  of the page now being painted actually are. These are the values
 %  currentsystemparams reports as RecordSpill and CurRecordSpill.

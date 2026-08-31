@@ -1496,6 +1496,16 @@ end
        % packager set no epoch, which is no stamp rather than a wrong one.
        /BuildTime //.buildtime exec
 
+       % The form cache's ceiling and what it now holds (PLRM C.3.3).
+       % The ceiling is the context's, asked of it rather than stated
+       % here; what is held is asked of the recorders holding the
+       % drawings, for the reason MaxFontCache is asked of the glyph
+       % cache -- one question, one answer.
+       /MaxFormCache //.formlimits exec pop
+       /CurFormCache
+           //.xpostsys /.formcachebytes 2 copy known
+               { get exec }{ pop pop 0 } ifelse
+
        % Revision is the revision level of the product, which PLRM C.2
        % states is the value the revision operator answers with. Read from
        % the operator rather than stated again here, so that the two
@@ -1584,6 +1594,8 @@ end
         //.cachestatus 6 { exch pop } repeat
         .setcacheparams
     }{ pop pop } ifelse
+    dup /MaxFormCache 2 copy known
+        { get cvi .setmaxformcache }{ pop pop } ifelse
     pop
 } .defop
 
@@ -2057,6 +2069,37 @@ currentglobal true setglobal
 %  space -- placing it in another would be a colour nobody named, and is
 %  refused rather than painted.
 %
+%
+%  Give up the entry captured longest ago, and its drawing with it -- what
+%  a recorder holds is not virtual memory and nothing else would give it
+%  back. Each entry carries seq, its place in the order of capture, which
+%  is how the oldest is known: the stamps live in the entries themselves,
+%  so a restore that winds the table back winds the order back with it.
+%
+%  Asked by both bounds the cache has. The table is full by count at
+%  thirty-two entries, and full by weight when the drawings come to more
+%  than MaxFormCache; either way what gives way is the oldest, and a run
+%  using more forms than fit keeps the ones it captured most recently
+%  instead of paying every capture again from nothing.
+%
+%  (a key is an executable name, so it is read back with load rather than
+%  by its name, which would run it)
+%
+.xpostsys /.formcacheoldest {  % fc  .  -
+2 dict begin
+    /fc exch def
+    /ek null def /es 0 def
+    fc { /seq get /ek load null eq 1 index es lt or
+         { /es exch def /ek exch def }{ pop pop } ifelse
+    } forall
+    /ek load null ne {
+        fc /ek load get dup /drawing known
+            { /drawing get dup /Destroy get exec }
+            { pop } ifelse
+        fc /ek load undef
+    } if
+end } put
+
 .xpostsys /.formcachedrop {  % -  .  -
     graphicsdict /.formcache 2 copy known {
         get { exch pop dup /drawing known
@@ -2064,6 +2107,7 @@ currentglobal true setglobal
         graphicsdict /.formcache undef
     }{ pop pop } ifelse
 } put
+
 setglobal
 
 %
@@ -2243,18 +2287,7 @@ setglobal
                 % it.
                 % (a key is an executable name, so it is read back with
                 % load rather than by its name, which would run it)
-                fc length 32 ge {
-                    /ek null def /es 0 def
-                    fc { /seq get /ek load null eq 1 index es lt or
-                         { /es exch def /ek exch def }{ pop pop } ifelse
-                    } forall
-                    /ek load null ne {
-                        fc /ek load get dup /drawing known
-                            { /drawing get dup /Destroy get exec }
-                            { pop } ifelse
-                        fc /ek load undef
-                    } if
-                } if
+                fc length 32 ge { fc //.formcacheoldest exec } if
 
                 % The graphics state opened here is execform's own,
                 % and it holds the recorder standing in for the device.
@@ -2329,6 +2362,27 @@ setglobal
                         bx1 fbx fw add le and by1 fby fh add le and
                     }{ true } ifelse and def
 
+                % And what it costs. MaxFormItem is the largest drawing
+                % the cache keeps (PLRM C.3.3): a capture worth more than
+                % that is given back rather than kept, and the form is
+                % painted afresh at every placement, which is what it
+                % costs a run that holds no drawings at all. The entry
+                % still records that the form was tried, so the paint
+                % procedure is not run a second time to learn the same
+                % thing.
+                %
+                % A drawing captured for a device that holds a record of
+                % its own is weighed against that record's budget too and
+                % may be spilt; one captured for a device painting its
+                % page directly is weighed by nothing else, and this is
+                % the whole of what bounds it.
+                held {
+                    //.formlimits exch pop
+                    cap //.internaldict /.recordcost get exec
+                    exch pop exch pop
+                    lt { /held false def } if
+                } if
+
                 % One past the newest capture held, so the entries read
                 % out in the order they were made. Read after the
                 % capture, since a form painting forms captures theirs
@@ -2343,6 +2397,24 @@ setglobal
                     { cap dup /Destroy get exec
                       fc key << /seq seq >> put }
                 ifelse
+
+                % And the cache as a whole. MaxFormCache bounds what the
+                % drawings come to together (PLRM C.3.3), and past it the
+                % oldest gives way until what is left is within the bound
+                % -- the same entry the count bound gives up, so a run
+                % keeps the drawings it captured most recently whichever
+                % bound it reached.
+                %
+                % A cache holding one drawing worth more than the bound
+                % keeps it: there is nothing else left to give up, and
+                % painting that form afresh at every placement is the
+                % worse answer. The per-drawing ceiling is what refuses
+                % such a capture, and it is asked before this.
+                { //.formlimits pop
+                  //.xpostsys /.formcachebytes get exec ge { exit } if
+                  fc length 1 le { exit } if
+                  fc //.formcacheoldest exec
+                } loop
             } if
         } if
         fits fc key known and { fc key get /drawing known }{ false } ifelse {

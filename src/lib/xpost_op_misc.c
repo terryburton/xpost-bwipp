@@ -621,6 +621,43 @@ int op_privatedict(Xpost_Context *ctx)
     return 0;
 }
 
+/* int  .setmaxformcache  -
+   Set MaxFormCache, the form cache's ceiling (PLRM C.3.3).
+
+   A system parameter, so a system administrator job and no other may
+   change it: what it bounds is a cache the jobs after this one will run
+   under, and PLRM 8.2 refuses a capacity stated outside such a job for the
+   glyph cache for exactly that reason. The refusal is the same one, asked
+   the same way.
+
+   A ceiling below nothing is not achievable and is replaced by the nearest
+   that is, which is nothing: a cache that keeps no drawing. */
+static
+int op_setmaxformcache(Xpost_Context *ctx, Xpost_Object N)
+{
+    if (!ctx->job_admin)
+        return invalidaccess;
+    ctx->maxformcache = N.int_.val < 0 ? 0 : N.int_.val;
+    return 0;
+}
+
+/* -  .formlimits  wholecache peritem
+   The form cache's two byte parameters, for the cache itself to ask
+   (data/init.ps). MaxFormCache bounds what the cache holds altogether and
+   MaxFormItem the largest drawing it will keep (PLRM C.3.3).
+
+   Both together, because the capture path wants both at the same moment
+   and a second lookup could be answered from a different job's state. */
+static
+int op_formlimits(Xpost_Context *ctx)
+{
+    if (!xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(ctx->maxformcache)))
+        return stackoverflow;
+    if (!xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(ctx->maxformitem)))
+        return stackoverflow;
+    return 0;
+}
+
 /* --- sealing the machinery ------------------------------------------
 
    A machinery object in global virtual memory has to be read-only. A
@@ -1968,6 +2005,11 @@ int xpost_oper_init_misc_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".setglobalprivatedict", (Xpost_Op_Func)op_setglobalprivatedict, 1, dicttype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".privatedict", (Xpost_Op_Func)op_privatedict, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".formlimits", (Xpost_Op_Func)op_formlimits, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".setmaxformcache",
+                             (Xpost_Op_Func)op_setmaxformcache, 1, integertype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".sysdictrelock", (Xpost_Op_Func)op_sysdictrelock, 0);
     INSTALL;

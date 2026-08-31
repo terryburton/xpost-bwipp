@@ -20,6 +20,38 @@ type /dicttype eq (currentsystemparams returns a dictionary) assert
 { << /VMReclaim 0 /ThisIsNotAParam 123 >> setuserparams true }
 stopped { pop false } if (setuserparams accepts a mixed dictionary) assert
 
+% A user parameter is subject to save and restore (PLRM 3.7.2), so what a
+% level set goes back when that level is discarded. Asked of the two cache
+% ceilings together, because they are the same sentence's parameters and
+% one of them reverting is no evidence about the other: MaxFontItem writes
+% its number through to the glyph cache and MaxFormItem is read from the
+% context where it sits, so the two arrive at the same rule by different
+% routes and a test of one alone would not notice the other standing still.
+/uplevels 0 def
+[ /MaxFontItem /MaxFormItem ] {
+    /upname exch def
+    /upwas currentuserparams upname get def
+    save
+    << upname upwas 2 idiv 1 add >> setuserparams
+    currentuserparams upname get upwas ne
+        (a level can set the parameter) assert
+    restore
+    currentuserparams upname get upwas eq
+        (and discarding that level puts it back) assert
+    /uplevels uplevels 1 add def
+} forall
+uplevels 2 eq (both parameters were asked) assert
+
+% and nested levels unwind one at a time rather than all at once
+/upwas currentuserparams /MaxFormItem get def
+save << /MaxFormItem 100 >> setuserparams
+  save << /MaxFormItem 200 >> setuserparams
+  currentuserparams /MaxFormItem get 200 eq (the inner level holds) assert
+  restore
+  currentuserparams /MaxFormItem get 100 eq (the outer level is what is left) assert
+restore
+currentuserparams /MaxFormItem get upwas eq (and then what was there before) assert
+
 % setsystemparams accepts a dictionary without error
 { << /ThisIsNotAParam 1 >> setsystemparams true }
 stopped { pop false } if (setsystemparams accepts a dictionary) assert

@@ -144,6 +144,8 @@ int Zsave(Xpost_Context *ctx)
             (unsigned char)ctx->idiomrecognition;
     if (v.save_.lev < sizeof ctx->maxfontitem_hist / sizeof ctx->maxfontitem_hist[0])
         ctx->maxfontitem_hist[v.save_.lev] = ctx->maxfontitem;
+    if (v.save_.lev < sizeof ctx->maxformitem_hist / sizeof ctx->maxformitem_hist[0])
+        ctx->maxformitem_hist[v.save_.lev] = ctx->maxformitem;
     if (!xpost_stack_push(ctx->lo, ctx->os, v))
         return stackoverflow;
     return 0;
@@ -316,6 +318,12 @@ int Vrestore(Xpost_Context *ctx,
         ctx->maxfontitem = ctx->maxfontitem_hist[V.save_.lev];
         (void) xpost_font_cache_setlimit(ctx->maxfontitem);
     }
+    /* MaxFormItem is the same sentence's parameter for the form cache and
+       is reverted the same way. Nothing outside the context goes by it --
+       the cache asks the context for the ceiling as it weighs a capture --
+       so giving the number back is the whole of it (PLRM C.3.3). */
+    if (V.save_.lev < sizeof ctx->maxformitem_hist / sizeof ctx->maxformitem_hist[0])
+        ctx->maxformitem = ctx->maxformitem_hist[V.save_.lev];
 
     return 0;
 }

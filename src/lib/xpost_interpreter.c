@@ -4443,6 +4443,8 @@ static int _job_capture_baseline(Xpost_Context *ctx)
            context writes it through to */
         ctx->job_gcache_blimit = ctx->maxfontitem;
     }
+    ctx->job_maxformcache = ctx->maxformcache;
+    ctx->job_maxformitem = ctx->maxformitem;
     XPOST_CONTEXT_OBJECT_ROOTS(XPOST_JOB_SAVE_ROOT)
     return 1;
 }
@@ -4585,6 +4587,11 @@ static void _job_revert_to_baseline(Xpost_Context *ctx)
     ctx->maxfontitem = (integer)ctx->job_gcache_blimit;
     (void) xpost_font_cache_setparams(ctx->job_gcache_bmax, 0,
                                       ctx->job_gcache_blimit);
+    /* The form cache's pair go back for the same reason, and the cache
+       they bound has gone back with virtual memory already: it lives in
+       graphicsdict, unlike the glyph cache above. */
+    ctx->maxformcache = ctx->job_maxformcache;
+    ctx->maxformitem = ctx->job_maxformitem;
     ++ctx->namebind_gen;
     ctx->es_over = ctx->os_over = ctx->ds_over = 0;
     ctx->onerr_run = 0;

@@ -450,14 +450,15 @@ Interpreter parameters
 
  PLRM Appendix C tabulates fifty-one parameters: seventeen user parameters
  in Table C.1 and thirty-four system parameters in Table C.2. This
- interpreter answers with nineteen of them and adds four of its own.
+ interpreter answers with twenty-two of them and adds four of its own.
 
  Carried, and reported by currentuserparams: MaxFontItem, MaxExecStack,
  MaxDictStack, MaxOpStack, VMThreshold, VMReclaim, IdiomRecognition,
- HalftoneMode. By
+ HalftoneMode, MaxFormItem. By
  currentsystemparams: MaxFontCache, CurFontCache, MaxDisplayList,
  CurDisplayList, GenericResourceDir, GenericResourcePathSep, RealFormat,
- ByteOrder, Revision, PrinterName, BuildTime.
+ ByteOrder, Revision, PrinterName, BuildTime, MaxFormCache,
+ CurFormCache.
 
  [/] setsystemparams sets the one system parameter that has a setter, and
      that is all there is to set. MaxFontCache is the glyph cache's
@@ -481,7 +482,7 @@ Interpreter parameters
      rather than frozen into the body -- a frozen one would be the stamp
      of whichever build wrote the virtual memory image.
 
- The absent thirty, by the section that describes them. The other two
+ The absent twenty-seven, by the section that describes them. The other two
  the tables name are the passwords, which are dealt with below:
 
  [/] C.3.2  MinFontCompress. Of the font cache's three parameters the two
@@ -495,13 +496,13 @@ Interpreter parameters
      PLRM C.3.2 makes a value above MaxFontItem the way to say exactly
      that, so the figure reported is true even though the parameter
      itself is not carried and cannot be moved.
- [ ] C.3.3  MaxUPathItem, MaxUPathCache, MaxFormItem, MaxFormCache,
-     MaxPatternItem, MaxPatternCache. Only one of the three caches these
-     bound is here at all. Forms are cached, and what a program cannot do
-     is bound that cache: it is kept by drawing and transformation and
-     given up whole, never weighed in bytes. There is no user path cache
-     and no pattern cache -- a pattern repaints its cell every tile, which
-     is recorded above -- so for those four there is nothing yet to bound.
+ [ ] C.3.3  MaxUPathItem, MaxUPathCache, MaxPatternItem, MaxPatternCache.
+     Two of the three caches these bound are not here at all. There is no
+     user path cache and no pattern cache -- a pattern repaints its cell
+     every tile, which is recorded above -- so for these four there is
+     nothing to bound. The form cache is the third and is bounded:
+     MaxFormCache and MaxFormItem are carried, and CurFormCache reports
+     what its drawings come to.
  [ ] C.3.4  AccurateScreens, MaxScreenItem, MaxScreenStorage,
      MaxSuperScreen, MaxStoredScreenCache. A screen is built as asked and
      is not tuned by parameter. HalftoneMode is the one of the group that
@@ -537,8 +538,7 @@ Interpreter parameters
      section details: MaxOutlineCache, CurOutlineCache.
  [ ] Table C.2, the consumption figures for the caches above, which
      cannot be reported where the store they measure is not there to
-     measure: CurFormCache, CurPatternCache, CurUPathCache,
-     CurStoredScreenCache. CurScreenStorage is the near miss of the group:
+     measure: CurPatternCache, CurUPathCache, CurStoredScreenCache. CurScreenStorage is the near miss of the group:
      the current screen cell is held and could be weighed, where the store
      of screens the other figures assume is not.
 
