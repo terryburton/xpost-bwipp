@@ -57,6 +57,12 @@ classifying it costs a saving rather than a test.
 
 ## The two widths
 
+Configure both with `-Dwerror=true`, which is what CI does. Without it a
+warning is a warning here and an error there, and the gate passes on a
+tree the lane will refuse -- MEASURED, a declaration after a statement,
+which this tree's C does not allow, compiled here and stopped the linux
+lane.
+
 The narrow build is primary and the wide build is equally important.
 Neither is ever dropped. What varies is how much of the wide build one
 change is gated against:
