@@ -28,16 +28,26 @@ def h_text(h, s):
 def main():
     out = sys.argv[1]
     root = sys.argv[2]
-    extra = sys.argv[3:]          # compiler id, version, flags
+    config = sys.argv[3]          # the generated config.h, in the build tree
+    extra = sys.argv[4:]          # compiler id, version, flags
     total = 0
     files = 0
+    paths = []
     for pat in ("src/**/*.c", "src/**/*.h", "meson.build"):
-        for path in sorted(glob.glob(os.path.join(root, pat), recursive=True)):
-            h = h_text(SEED, os.path.basename(path))
-            with open(path, "rb") as f:
-                h = h_bytes(h, f.read())
-            total = (total + h) & 0xFFFFFFFF
-            files += 1
+        paths += sorted(glob.glob(os.path.join(root, pat), recursive=True))
+    # The generated configuration answers for everything the build was
+    # configured with -- which options are on, what the host has, and any
+    # value taken from the environment at configure time. Two builds of one
+    # source can differ in nothing else, and a stamp that could not tell
+    # them apart let an image written by one be read by the other.
+    if os.path.exists(config):
+        paths.append(config)
+    for path in paths:
+        h = h_text(SEED, os.path.basename(path))
+        with open(path, "rb") as f:
+            h = h_bytes(h, f.read())
+        total = (total + h) & 0xFFFFFFFF
+        files += 1
     total = h_bytes(total, str(files).encode())
     for e in extra:
         total = h_text(total, e)

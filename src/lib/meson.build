@@ -121,6 +121,11 @@ xpost_build_id_h = custom_target('xpost_build_id.h',
              meson.project_source_root() / 'tools' / 'build-id.py',
              '@OUTPUT@',
              meson.project_source_root(),
+             # The generated configuration is part of what this build is made
+             # out of, and it is not under the source root: two builds of one
+             # source configured differently produce different code, and an
+             # image written by one must not be read by the other.
+             meson.project_build_root() / 'config.h',
              cc.get_id(), cc.version(),
              ' '.join(get_option('c_args')),
              get_option('buildtype') ],
