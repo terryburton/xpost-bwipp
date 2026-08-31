@@ -837,10 +837,22 @@ int xpost_memory_init(void);
  * @param[in,out] mem The memory file.
  * @param[in] fname The file name.
  * @param[in] fd The file descriptor.
+ * @param[in] xpost_interpreter_cid_get_context How to reach a context
+ *            from the identifier an object carries.
+ * @param[in] xpost_interpreter_get_initializing Whether the interpreter
+ *            is still being brought up.
+ * @param[in] xpost_interpreter_set_initializing How to say that it is,
+ *            or is no longer.
  * @return 1 on success, 0 on failure.
  *
  * This function initializes the memory file @p mem, possibly from
  * file specified by the file descriptor @p fd, if not -1.
+ *
+ * The three functions are handed in rather than called directly, so that
+ * this module does not depend on the one that runs programs. What the
+ * file wants of them is narrow: which context an object belongs to, and
+ * whether the interpreter is still coming up -- a collection may not run
+ * before the roots it would mark from exist.
  */
 XPOST_MUST_CHECK XPOST_TEST_VISIBLE int xpost_memory_file_init(Xpost_Memory_File *mem,
                                       const char *fname,
