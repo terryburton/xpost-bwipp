@@ -35,19 +35,7 @@
 #include "xpost.h"
 #include "xpost_test.h"
 
-static char out_buf[256];
-static size_t out_len;
-
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof(out_buf))
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
+XPOST_TEST_SINK(out, 256)
 
 /* One whole library lifetime, showing text through a font found by
    name. Answers 1 where the run completed and printed its word, which

@@ -91,19 +91,8 @@
 #define STOPPING_SIDE 2000000000
 #define ORDINARY_SIDE 200
 
-static char out_buf[4096];
-static size_t out_len;
+XPOST_TEST_SINK(out, 4096)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 static const char *collect_run(Xpost_Context *ctx, const char *prog,
                                Xpost_Run_Status *st)

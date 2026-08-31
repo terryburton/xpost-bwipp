@@ -70,19 +70,8 @@ static const char *const probe_nodevice =
     "graphicsdict /currgstate get /device xpdev put "
     "( andback\n) print flush";
 
-static char out_buf[512];
-static size_t out_len;
+XPOST_TEST_SINK(out, 512)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf - 1)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 static Xpost_Run_Status run_job(Xpost_Context *ctx, const char *prog)
 {

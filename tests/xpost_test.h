@@ -93,4 +93,41 @@ static int verdict(void)
     return 0;
 }
 
+/* The sink a test installs to keep what a program printed, declared with
+   the buffer it fills and the length it fills it to.
+
+   A test that reads a program's output needs three things that have to
+   agree: somewhere to put it, how much is there, and a handler that
+   guards the first against the second. Written out per test they are
+   three chances to disagree -- and a handler guarding a bound the test
+   does not read is a test that passes on a truncated answer without
+   saying so. Declared together they cannot disagree, and the size, which
+   is the one part that is properly the test's own business, is what the
+   test says.
+
+   Everything printed past the buffer is dropped, and the sink keeps the
+   room to terminate what it did take, so what the test reads is always a
+   string. A test needing more than this -- a sink that records what the
+   interpreter held at each byte, or one that counts writes rather than
+   keeping them -- writes its own; this is for the ones that only want
+   the text back.
+
+   The name is the test's too, since a test that keeps what went to the
+   output apart from what went to the error stream needs two of these and
+   has to say which is which. */
+#define XPOST_TEST_SINK(name, size)                                     \
+    static char name##_buf[size];                                       \
+    static size_t name##_len;                                           \
+    static size_t name##_sink(void *user, const char *buf, size_t len)  \
+    {                                                                   \
+        (void)user;                                                     \
+        if (name##_len + len < sizeof name##_buf)                       \
+        {                                                               \
+            memcpy(name##_buf + name##_len, buf, len);                  \
+            name##_len += len;                                          \
+        }                                                               \
+        name##_buf[name##_len] = '\0';                                  \
+        return len;                                                     \
+    }
+
 #endif

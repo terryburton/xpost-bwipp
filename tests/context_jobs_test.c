@@ -86,19 +86,8 @@ static const char *const probe_page =
     "/xpjobseen true def "
     "0 0 moveto 5 5 lineto stroke showpage (+drew) print flush";
 
-static char out_buf[512];
-static size_t out_len;
+XPOST_TEST_SINK(out, 512)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf - 1)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 static int global_save_depth(Xpost_Context *ctx)
 {

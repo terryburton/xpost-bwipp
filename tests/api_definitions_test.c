@@ -44,19 +44,8 @@
 # define test_mkdir(p) mkdir((p), 0700)
 #endif
 
-static char out_buf[512];
-static size_t out_len = 0;
+XPOST_TEST_SINK(out, 512)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 /* run a program and answer what it printed */
 static const char *ran(Xpost_Context *ctx, const char *prog)

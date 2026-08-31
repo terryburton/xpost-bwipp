@@ -66,19 +66,8 @@
    operands and yields the local scratch dictionary */
 static const char *const probe = "0 .gscratch pop pop";
 
-static char out_buf[256];
-static size_t out_len;
+XPOST_TEST_SINK(out, 256)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 int main(void)
 {

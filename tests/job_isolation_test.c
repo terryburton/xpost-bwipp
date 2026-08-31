@@ -36,19 +36,8 @@
 
 #include "xpost_test.h"
 
-static char out_buf[1024];
-static size_t out_len;
+XPOST_TEST_SINK(out, 1024)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf - 1)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 /* Run one job to completion. Under the returning semantics a job yields
    at each page boundary and is resumed until it finishes; the guard

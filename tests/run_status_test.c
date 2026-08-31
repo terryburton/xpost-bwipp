@@ -13,32 +13,10 @@
 
 #include "xpost_test.h"
 
-static char out_buf[256];
-static size_t out_len = 0;
-static char err_buf[256];
-static size_t err_len = 0;
+XPOST_TEST_SINK(out, 256)
+XPOST_TEST_SINK(err, 256)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
-static size_t err_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (err_len + len < sizeof err_buf)
-    {
-        memcpy(err_buf + err_len, buf, len);
-        err_len += len;
-    }
-    return len;
-}
 
 int main(void)
 {

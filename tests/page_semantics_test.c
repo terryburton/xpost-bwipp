@@ -18,19 +18,8 @@
 
 #include "xpost_test.h"
 
-static char out_buf[512];
-static size_t out_len = 0;
+XPOST_TEST_SINK(out, 512)
 
-static size_t out_sink(void *user, const char *buf, size_t len)
-{
-    (void)user;
-    if (out_len + len < sizeof out_buf)
-    {
-        memcpy(out_buf + out_len, buf, len);
-        out_len += len;
-    }
-    return len;
-}
 
 /* run one program with the standard output captured; the captured text
    is left in out_buf, terminated */
