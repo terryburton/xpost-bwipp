@@ -58,6 +58,27 @@
 #include "xpost_memory.h"
 
 /**
+ * @brief Put a bank's write record back to holding nothing.
+ *
+ * Every host ends its tracking the same way, whatever it used to do the
+ * tracking: the record says nothing is arranged and names no baseline.
+ * Said once because the cost of saying it per host is not the lines --
+ * it is that a field added to the record has to be cleared everywhere it
+ * is cleared now, and a host that forgets one carries the last job's
+ * answer into a run that is no longer tracking. The file descriptor is
+ * not cleared here: only the hosts that open one know they have one.
+ */
+static inline void
+xpost_vm_writeset_record_clear(Xpost_Memory_File *mem)
+{
+    mem->writeset.tracking = 0;
+    mem->writeset.len = 0;
+    mem->writeset.used = 0;
+    mem->writeset.back_lo = mem->writeset.back_hi = 0;
+    mem->writeset.against = NULL;
+}
+
+/**
  * @brief Whether this run asked for a bank's writes to be tracked.
  *
  * Where the tracking is a property of the address space rather than

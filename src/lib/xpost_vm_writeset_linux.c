@@ -298,11 +298,7 @@ void xpost_vm_writeset_end(Xpost_Memory_File *mem)
 
     close(mem->writeset.fd);
     mem->writeset.fd = -1;
-    mem->writeset.tracking = 0;
-    mem->writeset.len = 0;
-    mem->writeset.used = 0;
-    mem->writeset.back_lo = mem->writeset.back_hi = 0;
-    mem->writeset.against = NULL;
+    xpost_vm_writeset_record_clear(mem);
 }
 
 void xpost_vm_writeset_forget(Xpost_Memory_File *mem)
@@ -313,11 +309,7 @@ void xpost_vm_writeset_forget(Xpost_Memory_File *mem)
        is this file's to give back. */
     close(mem->writeset.fd);
     mem->writeset.fd = -1;
-    mem->writeset.tracking = 0;
-    mem->writeset.len = 0;
-    mem->writeset.used = 0;
-    mem->writeset.back_lo = mem->writeset.back_hi = 0;
-    mem->writeset.against = NULL;
+    xpost_vm_writeset_record_clear(mem);
 }
 
 #endif /* HAVE_MMAP */
