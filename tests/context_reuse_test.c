@@ -117,21 +117,24 @@ static void release_allocator_caches(void)
    held costs nothing there and is the right question everywhere else. */
 static long resident_kib(void)
 {
-    release_allocator_caches();
 #if defined(_WIN32)
+    release_allocator_caches();
     return 0;
 #elif defined(__APPLE__)
     mach_task_basic_info_data_t info;
     mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
 
+    release_allocator_caches();
     if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
                   (task_info_t)&info, &count) != KERN_SUCCESS)
         return 0;
     return (long)(info.resident_size / 1024);
 #else
-    FILE *f = fopen("/proc/self/statm", "r");
+    FILE *f;
     long pages = 0;
 
+    release_allocator_caches();
+    f = fopen("/proc/self/statm", "r");
     if (!f)
         return 0;
     if (fscanf(f, "%*s %ld", &pages) != 1)

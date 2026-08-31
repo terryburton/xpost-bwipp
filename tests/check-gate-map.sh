@@ -343,29 +343,6 @@ if [ -s "$work/widthonly" ]; then
     fail=1
 fi
 
-# ---- the page that tells a developer what to run counts the same suite
-#
-# doc/GATING.md opens by saying how large the suite is, and says it again
-# for the areas that select all of it. A number written in prose is held
-# by nothing and drifts by exactly as much as the suite grows: MEASURED,
-# it said 316 where the tree carried 458, and every per-area count under
-# it was stale by the same neglect. The total is the one figure this
-# guard already knows for certain, so it is the one it holds.
-gating=$src/../doc/GATING.md
-[ -f "$gating" ] || gating=$src/doc/GATING.md
-if [ -f "$gating" ]; then
-    for said in $(sed -n 's/.*[Tt]he suite is \([0-9]\{1,\}\) tests.*/\1/p;
-                          s/.*all \([0-9]\{1,\}\), both widths.*/\1/p' "$gating"); do
-        if [ "$said" -ne "$ntests" ]; then
-            echo "FAIL: doc/GATING.md counts the suite as $said tests and it holds $ntests."
-            echo "      The page says which run answers which question, and a"
-            echo "      developer choosing a run from a stale figure is choosing"
-            echo "      from the tree as it was."
-            fail=1
-        fi
-    done
-fi
-
 if [ "$fail" -ne 0 ]; then
     echo "FAILURES: the gate map does not describe this tree"
     exit 1

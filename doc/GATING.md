@@ -1,8 +1,14 @@
 # What to run, and when
 
-The suite is 458 tests at two object widths. This page says which run
-answers which question, so that a piece of work can name one rather than
-describe one.
+The suite is about 460 tests at two object widths. This page says which
+run answers which question, so that a piece of work can name one rather
+than describe one.
+
+Every count here is for a build that found every optional library. A
+build without one carries fewer -- there is no png device to test where
+there is no libpng -- so these are the shape of a selection and not a
+figure to check against. `meson test --list | wc -l` says what the build
+in front of you has.
 
 ## The per-change gate
 
@@ -39,7 +45,7 @@ making it.
 | `record` | the recorded page, its spans, the band devices | 50 |
 | `device` | what a page is painted into and written out as | 95 |
 | `language` | operators, errors, names, the programs that install them | 136 |
-| `vm`, `build` | the object and its memory; the build description | all 458, both widths |
+| `vm`, `build` | the object and its memory; the build description | all of it, both widths |
 
 Counts include the sixteen guards every gate runs whatever was touched, and
 overlap: a test may answer for several areas.
