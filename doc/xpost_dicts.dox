@@ -272,13 +272,16 @@
  *
  * Reading is closed too, and by the means this document once recorded as
  * impossible. Every procedure body stored under a name in a machinery
- * namespace is made execute-only at the lockdown -- 326 of the 414 members of
- * `.xpostsys`; the rest are data, which stays readable because the machinery
- * reads it. Nothing in either namespace is writable. The objection recorded
- * here was that `executeonly` everywhere would break the
- * `1183615869 internaldict` path; that path no longer runs through the
- * machinery's dictionary at all, which is what made the rest of it possible.
- * See @ref dicts_password.
+ * namespace is made execute-only at the lockdown; what stays readable is
+ * the data, because the machinery reads it. Nothing in either namespace
+ * is writable. How many are of each kind is not stated here: the
+ * namespace cannot be named by a program, so no run can be asked to
+ * confirm a figure written in prose. `tests/dict_homes.golden` registers
+ * the membership and is held to the sources in both directions. The
+ * objection recorded here was that `executeonly` everywhere would break
+ * the `1183615869 internaldict` path; that path no longer runs through
+ * the machinery's dictionary at all, which is what made the rest of it
+ * possible. See @ref dicts_password.
  *
  * @subsection dicts_password What the password opens, and what it does not
  *
