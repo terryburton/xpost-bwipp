@@ -6155,6 +6155,19 @@ test('check-no-machinery-returned',
   suite: cost_fast,
   timeout: 240)
 
+# And that no boot file asks the dictionary stack for a name the lockdown
+# has taken away. bind freezes the operator a bare name stands for; it
+# cannot bake a SEARCH, so a body whose bare uses keep working can still
+# have `/NAME where` answer false and everything behind it go dead with
+# every suite still passing. Five guards stood that way on graphicsdict and
+# DEVICE, one of them answering nought rows however the device was banding.
+test('check-where-guards',
+  find_program('tests/check-where-guards.sh'),
+  priority: guard_priority,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  suite: cost_fast,
+  timeout: 240)
+
 # And that none of it comes back inside a save. The lockdown runs before any
 # save a program can take, so a restore has no earlier state to put back --
 # which is the reasoning, and this is the test of it.

@@ -43,6 +43,7 @@ tests/machinery_reachable.golden \
 tests/nonplrm-names \
 tests/machinery_reachable_test.ps \
 tests/check-no-machinery-returned.sh \
+tests/check-where-guards.sh \
 tests/no_machinery_returned_test.ps \
 tests/check-plrm-entitlements.sh \
 tests/plrm_entitlements_test.ps \

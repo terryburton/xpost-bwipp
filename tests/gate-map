@@ -537,6 +537,7 @@ guards test check-skip-verdict
 guards test check-vm-forbidden
 guards test check-machinery-reachable
 guards test check-no-machinery-returned
+guards test check-where-guards
 guards test check-reach-survives-restore
 guards test check-plrm-entitlements
 guards test check-context-executes-own
