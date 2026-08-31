@@ -141,10 +141,11 @@ Level 2 operators
      the composite raster devices paint opaque)
  [X] setsystemparams, currentsystemparams, setuserparams,
      currentuserparams, setdevparams, currentdevparams (the parameter
-     sets are minimal. setdevparams and currentdevparams answer for
-     %stdin, %stdout, %stderr, %lineedit and %statementedit and refuse
-     any other name; they hold no writable parameters, so the one
-     answers an empty dictionary and the other applies nothing. MaxOpStack, MaxDictStack and
+     sets are a subset, named one at a time under Interpreter parameters
+     below. setdevparams and currentdevparams answer for %stdin, %stdout,
+     %stderr, %lineedit and %statementedit and refuse any other name; they
+     hold no writable parameters, so the one answers an empty dictionary
+     and the other applies nothing. MaxOpStack, MaxDictStack and
      MaxExecStack report capacities this interpreter fixes: a program
      may ask for a smaller stack, and is answered with the capacity it
      will actually get. VMThreshold is recorded and reported back but
@@ -217,6 +218,11 @@ Level 3 operators
 
 Extensions
 ----------
+
+ What these do, and how completely, is here. Where their names came from
+ -- adopted from the vocabulary job streams in the field already use, not
+ invented -- is doc/COMPAT, which keeps that question and defers this one
+ back to this file.
 
  [X] pdfmark (DOCINFO reaches the pdfwrite device; other mark types
      are consumed without effect)
@@ -438,3 +444,152 @@ Implementation limits
  Display PostScript Client Library manual puts a server's on the order of 50
  to 100. The table is allocated once with the interpreter, so an idle slot
  costs only its structure.
+
+Interpreter parameters
+----------------------
+
+ PLRM Appendix C tabulates fifty-one parameters: seventeen user parameters
+ in Table C.1 and thirty-four system parameters in Table C.2. This
+ interpreter answers with seventeen of them and adds four of its own.
+
+ Carried, and reported by currentuserparams: MaxFontItem, MaxExecStack,
+ MaxDictStack, MaxOpStack, VMThreshold, VMReclaim, IdiomRecognition. By
+ currentsystemparams: MaxFontCache, CurFontCache, MaxDisplayList,
+ CurDisplayList, GenericResourceDir, GenericResourcePathSep, RealFormat,
+ ByteOrder, Revision, PrinterName.
+
+ [/] setsystemparams recognises no parameter. It takes its dictionary,
+     raises no error and applies none of it, where PLRM C.1.2 makes it the
+     operator that sets system parameters.
+
+     What it reports is not thereby fixed. Every value has an owner and is
+     set where that owner takes it: MaxFontCache is the glyph cache's
+     capacity, which setcacheparams changes and refuses outside a system
+     administrator job, as PLRM 8.2 requires of it; RealFormat and
+     ByteOrder describe the machine; the resource directory is the host's
+     search path; and PLRM Appendix G bars a page description from
+     choosing how its marks are held, so the band budget and the spill
+     policy are the invocation's. currentsystemparams reads each figure
+     back from the thing that owns it rather than from a second copy, so
+     no two operators can report one parameter differently.
+
+     What is left of the deviation is which door opens. PLRM C.3.2 makes
+     setcacheparams a convenience onto parameters setsystemparams sets;
+     here only the convenience works.
+
+ The absent thirty-two, by the section that describes them. The other two
+ the tables name are the passwords, which are dealt with below:
+
+ [/] C.3.2  MinFontCompress. Of the font cache's three parameters the two
+     that bound it are carried -- MaxFontItem, what may be cached, and
+     MaxFontCache, how much cache there is. The third is not carried as a
+     user parameter and currentuserparams does not report it, but neither
+     is it quite absent: it is the middle operand of setcacheparams, which
+     takes a value for it and records it nowhere, and currentcacheparams
+     answers with one above MaxFontItem. Nothing here is compressed -- a
+     cached glyph is held as the flat raster it was drawn into -- and
+     PLRM C.3.2 makes a value above MaxFontItem the way to say exactly
+     that, so the figure reported is true even though the parameter
+     itself is not carried and cannot be moved.
+ [ ] C.3.3  MaxUPathItem, MaxUPathCache, MaxFormItem, MaxFormCache,
+     MaxPatternItem, MaxPatternCache. Only one of the three caches these
+     bound is here at all. Forms are cached, and what a program cannot do
+     is bound that cache: it is kept by drawing and transformation and
+     given up whole, never weighed in bytes. There is no user path cache
+     and no pattern cache -- a pattern repaints its cell every tile, which
+     is recorded above -- so for those four there is nothing yet to bound.
+ [ ] C.3.4  AccurateScreens, HalftoneMode, MaxScreenItem, MaxScreenStorage,
+     MaxSuperScreen, MaxStoredScreenCache. A screen is built as asked and
+     is not tuned by parameter.
+ [ ] C.3.5  MaxLocalVM. Local VM grows as a job needs it, bounded by the
+     machine rather than by a parameter.
+ [ ] C.3.6  FontResourceDir. It locates the files of the Font category,
+     the one category the generic resource directory does not answer for.
+     No font is found that way here: a face comes from the host's font
+     configuration, so there is no directory of font resource files for
+     this to be the name of.
+ [ ] Table C.1  JobName, which names the current job for the status
+     messages this interpreter does not display.
+ [ ] Table C.2, identifying an installation this interpreter is not.
+     LicenseID is an identifier Adobe assigns to a product, and there is
+     none to report; PageCount counts the pages a device has printed
+     since it was made, which wants a store that outlives a run and there
+     is none; StartupMode governs a job run when a device is switched on,
+     and nothing here is switched on. BuildTime stands apart from those
+     three: a stamp naming this build is a true thing to report and only
+     wants somewhere to come from, so its absence is an omission.
+     FactoryDefaults waits on setsystemparams reaching more than the one
+     parameter it now sets.
+ [ ] Table C.2, the source data a device holds beside its display list:
+     MaxImageBuffer, MaxSourceList, CurSourceList, MaxDisplayAndSourceList.
+     A source list holds an image's source data and the pixel arrays of
+     uncached glyphs; nothing is held that way here -- image data goes
+     through the filters to the raster as it is read -- so there is no
+     store to bound and none to report. The last of the four is a ceiling
+     over that store together with the display list, which is carried.
+ [ ] Table C.2, the font outline cache, which the tables name and no
+     section details: MaxOutlineCache, CurOutlineCache.
+ [ ] Table C.2, the consumption figures for the caches above, which
+     cannot be reported where the store they measure is not there to
+     measure: CurFormCache, CurPatternCache, CurUPathCache,
+     CurStoredScreenCache. CurScreenStorage is the near miss of the group:
+     the current screen cell is held and could be weighed, where the store
+     of screens the other figures assume is not.
+
+ Setting a name that is not carried is accepted and has no effect, by
+ either operator.
+
+ [ ] ucachestatus, setucacheparams. PLRM C.3.3 gives these as the
+     convenience operators for the user path cache, and 8.2 defines what
+     they report. There is no such cache, and rather than say so the two
+     answer for one: setucacheparams discards its request, and
+     ucachestatus reports nought for every figure, which is a cache
+     nothing can be kept in and is what is actually the case. What it
+     does not do is refuse: PLRM has the operators answer, so they
+     answer, and what they answer is the truth about a store that is not
+     there.
+
+ The two passwords are not among the absent: PLRM C.1.2 makes
+ SystemParamsPassword and StartJobPassword write-only, settable by
+ setsystemparams and not returned by currentsystemparams, and their absence
+ from currentsystemparams is that rule rather than a gap. What they do here
+ differs, and differs between them:
+
+ [ ] SystemParamsPassword. setsystemparams asks for no Password entry and
+     admits any dictionary. PLRM C.1.2 permits exactly this where the
+     system parameter password is the empty string, which is this
+     interpreter's state for the whole of a run; what a program cannot do
+     is set one. Since setsystemparams also applies nothing, an
+     unprotected door opens onto a room holding nothing writable. The two
+     belong together: what would make the password worth having is
+     something behind the door, and the password is the half that should
+     arrive first.
+ [X] StartJobPassword. The password itself is kept and enforced: startjob
+     compares the presented value against it byte for byte, an integer
+     converted as if by cvs, and an empty password admits any job, as PLRM
+     C.3.1 describes. It is set by the program embedding this interpreter
+     rather than by setsystemparams, so a job stream can satisfy the
+     password but cannot change it.
+
+ One password means one kind of unencapsulated job. PLRM C.3.1 has
+ startjob start a system administrator job where the system parameters
+ password is presented and an ordinary one where the start job password
+ is, the first differing in that it may also set system and device
+ parameters without presenting a password each time. C.3.1 settles which
+ kind is started here: where the system parameters password is empty every
+ startjob starts a system administrator job. So the authority the ordinary
+ kind is meant not to have is held by every unencapsulated run. What that
+ amounts to is the glyph cache's capacity, which PLRM 8.2 allows to be
+ changed only in a system administrator job because it is equivalent to
+ changing a system parameter -- the two parameter-setting operators the
+ tier is named for applying nothing.
+
+ A locked door is held the other way, tighter than the specification asks.
+ Where the embedding program has set a start job password, startjob
+ refuses a run that does not present it, where C.3.1 would have startjob
+ allowed whatever is presented for as long as the system parameters
+ password is empty.
+
+ RecordSpill, CurRecordSpill, MaxBandBytes and CurBandHeight are this
+ interpreter's own rather than the language's, and doc/COMPAT records where
+ they came from with the rest of the vocabulary that is not PLRM's.

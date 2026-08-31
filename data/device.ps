@@ -762,6 +762,31 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 end } bind put
 
 %
+%  How many bytes the marks of the page now being painted come to. PLRM
+%  Appendix C calls this the display list, and CurDisplayList reports it.
+%
+%  Read from the device holding the record, for the reason MaxFontCache
+%  is read from the cache: the figure the spill decision goes by is the
+%  one a program is told, rather than a second tally that could disagree
+%  with it. A device painting its own page holds no record and answers
+%  nought, and so does a run whose graphics never loaded.
+%
+.xpostsys /.curdisplaylist {  % -  .  bytes
+2 dict begin
+    /bytes 0 def
+    % No /graphicsdict where -- see .curbandheight above.
+    graphicsdict /currgstate get /device get
+    dup type /dicttype eq {
+            dup /.playclass known {
+                dup //.internaldict /.recordcost get exec
+                /bytes exch def pop pop
+            } if
+        } if
+    pop
+    bytes
+end } bind put
+
+%
 %  Where this run wants a retained page's marks held, and where the marks
 %  of the page now being painted actually are. These are the values
 %  currentsystemparams reports as RecordSpill and CurRecordSpill.

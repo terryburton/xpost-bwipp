@@ -1923,7 +1923,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     2 dict begin
     mark cachestatus
     /bl exch def pop pop pop pop
-    exch pop 4 bl
+    exch pop bl 1 add bl
     end
 } .defop
 
@@ -1943,10 +1943,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
 %
 %  The user-path cache figures, in the shape PLRM 8.2 gives them.
-%  Nothing is cached, so they are the nominal limits of a cache holding
-%  nothing rather than a measurement.
 %
-/ucachestatus [ ] { mark 0 32768 0 4096 32768 } .defop  % -  .  mark bsize bmax rsize rmax blimit
+%  There is no user path cache. The figures say so: a capacity of nought
+%  is a cache nothing can be kept in, which is what a program asking is
+%  entitled to be told. Ceilings invented for a store that does not exist
+%  would read as a cache holding nothing at the moment of asking, and a
+%  program sizing a path against them would be sizing it against nothing.
+%
+/ucachestatus [ ] { mark 0 0 0 0 0 } .defop  % -  .  mark bsize bmax rsize rmax blimit
 
 %
 %  The required instances of the Encoding resource category, copied

@@ -84,6 +84,26 @@ internal mirrors another implementation):
                       distilled; which of them act rather than being
                       recorded and handed back is in COMPLIANCE
   - pdfwrite, pngalpha, bbox    device names job streams select
+  - MaxBandBytes, CurBandHeight, RecordSpill, CurRecordSpill
+                      what one band of a page may cost, how deep a band
+                      the budget bought, where a retained page's marks
+                      are to be held and where the page in hand has
+                      them. Reported by currentsystemparams beside the
+                      parameters of PLRM Appendix C, and set by the
+                      invocation rather than by a page description,
+                      since Appendix G bars a program from choosing how
+                      its marks are held.
+
+                      The marks themselves are group 1: a held record is
+                      what Appendix C calls a display list, and it is
+                      reported as MaxDisplayList and CurDisplayList
+                      under the names the specification gives. What is
+                      left here is the raster band, which the
+                      specification does not name because the band
+                      device operators are obsolete -- so one figure is
+                      reported twice, as the bytes a band of raster may
+                      cost and as the bytes of display list that may be
+                      held beside it.
 
 Additions to this group should name the job-stream requirement that
 forces them and should stay out of internal interfaces; anything a

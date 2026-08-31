@@ -1486,10 +1486,50 @@ end
        % where they are.
        /MaxFontCache //.cachestatus pop pop pop pop pop exch pop
 
+       % CurFontCache is the same store's consumption, read the same way
+       % and for the same reason. Of the seven figures it is the first.
+       /CurFontCache //.cachestatus pop pop pop pop pop pop
+
+       % Revision is the revision level of the product, which PLRM C.2
+       % states is the value the revision operator answers with. Read from
+       % the operator rather than stated again here, so that the two
+       % cannot tell a program two different numbers.
+       /Revision revision
+
+       % PrinterName is the name of the output device (PLRM C.2): the
+       % device this run was asked for, which is the one to name back at a
+       % program asking what it is painting to, rather than the device
+       % that was substituted where the one asked for could not be built.
+       % Reported and not set, for the reason the band budget is: what
+       % device a run paints to is the invocation's to choose.
+       /PrinterName
+           /StartDeviceAsked //.hostvalue exec
+           dup type /nametype eq
+               { dup length string cvs }
+               { pop () } ifelse
+
        % Where external resources are found: the first resource directory,
        % separated by /. Reported, not set -- the search path is the host's.
        /GenericResourceDir //.xpostsys /.genericresourcedir get exec
        /GenericResourcePathSep (/)
+       % MaxDisplayList and CurDisplayList are what PLRM Appendix C calls
+       % the marks a device holds for a page it has not yet painted, and
+       % this interpreter holds exactly that: a record, weighed in bytes,
+       % put in a file once it comes to more than the budget its device
+       % was made to. So the budget is the bytes of display list that may
+       % be held in memory, and the record's own weight is what is held.
+       %
+       % MaxBandBytes reports the same number under the name this
+       % interpreter gave it, because one figure answers two questions:
+       % what a band of raster may cost, and what the record standing
+       % beside that band may cost. PLRM names the second and not the
+       % first, so both names are kept and doc/COMPAT says why.
+       /MaxDisplayList
+           //.xpostsys /.bandbudget 2 copy known
+               { get exec }{ pop pop 0 } ifelse
+       /CurDisplayList
+           //.xpostsys /.curdisplaylist 2 copy known
+               { get exec }{ pop pop 0 } ifelse
        /MaxBandBytes
            //.xpostsys /.bandbudget 2 copy known
                { get exec }{ pop pop 0 } ifelse
@@ -1508,7 +1548,38 @@ end
        exch /RecordSpill exch 3 -1 roll /CurRecordSpill exch
     >>
 } .defop
-/setsystemparams [ /dicttype ] { pop } .defop  % dict  .  -
+
+%
+%  PLRM C.1.2: set system parameters. A parameter this interpreter
+%  carries goes to whatever owns it, so that a program is answered the
+%  same whichever operator it reaches the value by; a name not carried is
+%  taken and does nothing, which is what the operator's description asks
+%  for and what setuserparams does with the same.
+%
+%  MaxFontCache is the glyph cache's capacity. setcacheparams states it
+%  too, and PLRM 8.2 allows it to be changed only in a system
+%  administrator job, so the request goes to the same operator rather than
+%  to a second door with a rule of its own: .setcacheparams is what
+%  refuses an encapsulated run, and refuses it here identically.
+%
+%  The per-glyph ceiling now in force is carried into that call because
+%  the operator always takes one, and a call that left it out would set
+%  the ceiling to nothing while setting the capacity -- MaxFontItem is a
+%  user parameter and is not this operator's to move.
+%
+%  A Password entry is taken and not examined. PLRM C.1.2 disables
+%  password checking where the system parameter password is the empty
+%  string, which is this interpreter's state for the whole of a run.
+%
+/setsystemparams [ /dicttype ] {  % dict  .  -
+    dup /MaxFontCache 2 copy known {
+        get cvi
+        0
+        //.cachestatus 6 { exch pop } repeat
+        .setcacheparams
+    }{ pop pop } ifelse
+    pop
+} .defop
 
 %
 %  Display PostScript synchronisation (PLRM 2nd ed 7.1). lock and condition are
