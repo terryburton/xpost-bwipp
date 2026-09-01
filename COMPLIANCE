@@ -587,9 +587,17 @@ Interpreter parameters
      section details: MaxOutlineCache, CurOutlineCache.
  [ ] Table C.2, the consumption figures for the caches above, which
      cannot be reported where the store they measure is not there to
-     measure: CurPatternCache, CurUPathCache, CurStoredScreenCache. CurScreenStorage is the near miss of the group:
-     the current screen cell is held and could be weighed, where the store
-     of screens the other figures assume is not.
+     measure: CurPatternCache, CurUPathCache, CurStoredScreenCache.
+ [X] Table C.2, CurScreenStorage, which reports one screen. PLRM C.3.3
+     has it count the bytes all active halftone screens occupy, and
+     C.3.4 says what an interpreter that builds and holds one screen at a
+     time reports: the others "do not consume memory and are thus ignored
+     when the current screen storage amount is calculated". A screen a
+     gsave or a gstate saved is held here as the parameters it was set
+     from and is built only on becoming current; a screen marks were made
+     under is held inside the record of those marks, which CurDisplayList
+     reports. The figure is the cell's own extent and not the length of a
+     threshold array a program supplied, which may be longer.
 
  Setting a name that is not carried is accepted and has no effect, by
  either operator.

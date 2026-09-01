@@ -623,6 +623,64 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  What the halftone screens now active come to, in bytes, which
+%  currentsystemparams reports as CurScreenStorage.
+%
+%  PLRM C.3.3 defines the figure as the bytes all active halftone screens
+%  occupy, and C.3.4 says which screens are active: the current one, the
+%  ones a gsave or a gstate saved, and the ones marks were made under. It
+%  goes on to say what an interpreter that builds one screen at a time
+%  reports -- the others "do not consume memory and are thus ignored when
+%  the current screen storage amount is calculated" -- and that is this
+%  interpreter. A screen saved on the graphics state stack or in a gstate
+%  is held there as the parameters it was set from, a spot procedure or a
+%  halftone dictionary, and is built into a cell only when it becomes
+%  current; a screen marks were made under is copied into the record that
+%  holds those marks, and the record's bytes are what CurDisplayList
+%  reports. So the one built screen is the whole of what is occupied.
+%
+%  The cell is weighed by its own extent rather than by the string
+%  carrying it, because those differ: a Thresholds string may be longer
+%  than the cell it describes (PLRM 7.4.5), and the excess is the
+%  program's string and not the screen. It is the weighing a record
+%  already gives a screen it holds, so the two figures a program is told
+%  about one cell agree.
+%
+%  Read off the device that would paint through it, which is where the
+%  one cell is installed, so this and the screening itself cannot go by
+%  different cells. A device that screens nothing has none and answers
+%  nought, and so does a run whose graphics never loaded.
+%
+.xpostsys /.screenstoragebytes {  % -  .  bytes
+3 dict begin
+    /bytes 0 def
+
+    % The cell in force is the device's state where a page installed one
+    % and the device's own where a replay handed it the screen a record
+    % was made under, which is the reading .screenpix takes; whichever
+    % holds it answers.
+    /weigh {  % dict  .  -
+        dup type /dicttype eq {
+            dup /.htcell known {
+                dup /.htw 2 copy known { get }{ pop pop 0 } ifelse
+                exch /.hth 2 copy known { get }{ pop pop 0 } ifelse
+                mul /bytes exch def
+            }{ pop } ifelse
+        }{ pop } ifelse
+    } def
+
+    % No /graphicsdict where, and // for the same reason -- see
+    % .curbandheight in data/device.ps.
+    //graphicsdict /currgstate get /device get
+    dup type /dicttype eq {
+        dup /.state 2 copy known { get }{ pop pop null } ifelse
+        weigh
+    } if
+    weigh
+    bytes
+end } put
+
+%
 %  Bring a screening device's cell up to the screen in force: the
 %  installed halftone dictionary's thresholds or spot function, else
 %  the screen triple, rebuilt only when it has changed.

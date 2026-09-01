@@ -1584,6 +1584,16 @@ end
            //.xpostsys /.curbandheight 2 copy known
                { get exec }{ pop pop 0 } ifelse
 
+       % CurScreenStorage is what the halftone screens now active occupy
+       % (PLRM C.3.3). Asked of the machinery that installs the cell a
+       % device screens through, for the reason MaxFontCache is asked of
+       % the glyph cache: the screen a program is told the size of is the
+       % one it is being painted through. A run whose graphics never
+       % loaded has no screen to weigh and answers nought.
+       /CurScreenStorage
+           //.xpostsys /.screenstoragebytes 2 copy known
+               { get exec }{ pop pop 0 } ifelse
+
        % RecordSpill says where a retained page's marks are to be held
        % and CurRecordSpill where the page in hand has them. Reported and
        % never set, for the reason CurBandHeight is: PLRM Appendix G bars

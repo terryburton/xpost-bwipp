@@ -720,6 +720,94 @@ while read -r what disp rest; do
     fi
 done < "$work/div"
 
+# ---- what the screen in force is reported to weigh
+#
+# currentsystemparams reports CurScreenStorage, which PLRM C.3.3 defines
+# as the bytes the active halftone screens occupy. The figure is asked
+# for on a screening device, which is where a cell is built at all, and
+# the questions asked of it are the ones an absolute reading cannot
+# answer:
+#
+#   it is the CELL and not the string carrying it. The first screen is a
+#   threshold array of eighty bytes describing an eight by eight cell, so
+#   the two possible answers are sixty-four and eighty and they are told
+#   apart. A figure that weighed the string would be counting the
+#   program's own storage.
+#
+#   it MOVES with the screen. Three screens of three sizes are set, each
+#   with a mark made under it, and each is asked what it weighs: an
+#   absolute value that never changed would satisfy any one of these
+#   readings on its own.
+#
+#   a device that screens nothing weighs nothing, and the same program on
+#   the screening device is the control that says so -- without it, zero
+#   everywhere reads exactly like a figure that is never reported.
+th80=$(awk 'BEGIN { for (i = 0; i < 80; i++) printf "%02X", (i * 3) % 256 }')
+th16=$(awk 'BEGIN { for (i = 0; i < 16; i++) printf "%02X", (i * 16) % 256 }')
+cat > "$work/screenstore.ps" <<PSEOF
+/S 40 string def
+/css { currentsystemparams /CurScreenStorage get } def
+/say { (SS ) print print ( ) print css S cvs print (\n) print flush } def
+<< /PageSize [40 40] >> setpagedevice
+<< /HalftoneType 3 /Width 8 /Height 8 /Thresholds <$th80> >> sethalftone
+0.5 setgray 0 0 20 20 rectfill
+(eight) say
+<< /HalftoneType 3 /Width 4 /Height 4 /Thresholds <$th16> >> sethalftone
+0.5 setgray 0 0 20 20 rectfill
+(four) say
+<< /HalftoneType 1 /Frequency 5 /Angle 15
+   /SpotFunction { exch dup mul exch dup mul add 1 exch sub } >> sethalftone
+0.5 setgray 0 0 20 20 rectfill
+(spot) say
+showpage
+PSEOF
+
+screenstore() {     # <device> <output> -> "<label> <bytes>" per line
+    XPOST_DATA_DIR="$src/data" \
+      "$xpost" -q --no-sandbox -d "$1" -o "$2" "$work/screenstore.ps" \
+      </dev/null 2>/dev/null \
+      | tr -d "$cr" | awk '$1 == "SS" && NF == 3 { print $2 " " $3 }'
+}
+screenstore pbm "$work/ss.pbm" > "$work/ss-screened"
+screenstore null /dev/null > "$work/ss-plain"
+
+if [ "$(grep -c . "$work/ss-screened")" -ne 3 ] \
+   || [ "$(grep -c . "$work/ss-plain")" -ne 3 ]; then
+    echo "FAILURES: the screen storage probe did not report three screens on"
+    echo "      both devices (screening $(grep -c . "$work/ss-screened"), plain"
+    echo "      $(grep -c . "$work/ss-plain")), so its readings mean nothing"
+    exit 1
+fi
+
+ss_eight=$(awk '$1 == "eight" { print $2 }' "$work/ss-screened")
+ss_four=$(awk  '$1 == "four"  { print $2 }' "$work/ss-screened")
+ss_spot=$(awk  '$1 == "spot"  { print $2 }' "$work/ss-screened")
+
+if [ "$ss_eight" != 64 ]; then
+    echo "FAIL: an eight by eight cell described by an eighty byte threshold"
+    echo "      array is reported as $ss_eight bytes of screen storage, and"
+    echo "      the cell is sixty-four. Eighty would be the program's string"
+    echo "      rather than the screen built from it."
+    fail=1
+fi
+if [ "$ss_four" != 16 ]; then
+    echo "FAIL: a four by four cell is reported as $ss_four bytes of screen"
+    echo "      storage, and it is sixteen"
+    fail=1
+fi
+if [ "$ss_eight" = "$ss_four" ] || [ "$ss_four" = "$ss_spot" ] \
+   || [ "$ss_eight" = "$ss_spot" ]; then
+    echo "FAIL: three screens of three sizes are reported as the same storage"
+    echo "      ($ss_eight, $ss_four, $ss_spot). A figure that does not move"
+    echo "      with the screen is not reporting the screen."
+    fail=1
+fi
+if awk '$2 != 0 { bad = 1 } END { exit !bad }' "$work/ss-plain"; then
+    echo "FAIL: a device that screens nothing reports screen storage:"
+    sed 's/^/        /' "$work/ss-plain"
+    fail=1
+fi
+
 # ---- the counts, so retiring a type or a difference is two edits
 entries=$(awk '/^entries /{ print $2; found = 1 } END { if (!found) print "" }' \
     "$src/tests/halftone-facts")
@@ -761,5 +849,6 @@ case $ndivsaid in
 esac
 
 [ "$fail" = 0 ] || exit 1
-printf 'SUCCESS (%s types classified, %s screened, %s normalised, %s optional entr(y|ies) typed, %s differences named)\n' \
-    "$nreg" "$nscr" "$(grep -c . "$work/reg-pairs")" "$nopt" "$ndiv"
+printf 'SUCCESS (%s types classified, %s screened, %s normalised, %s optional entr(y|ies) typed, %s screen(s) weighed and reported, %s differences named)\n' \
+    "$nreg" "$nscr" "$(grep -c . "$work/reg-pairs")" "$nopt" \
+    "$(grep -c . "$work/ss-screened")" "$ndiv"
