@@ -1,8 +1,6 @@
+%!testlib
 % cvi / cvr number conversion (PLRM 8.2), run through `xpost -d null` by
 % run-ps-test.sh.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % cvr/cvi of a string interpret PostScript number syntax; a C-style 0x hex
 % prefix or a non-number is a typecheck
@@ -31,4 +29,4 @@
 { 1e200 1e200 mul dup sub cvi } stopped { $error /errorname get /undefinedresult eq }{ pop false } ifelse
 (cvi of a NaN is undefinedresult, not a wrap) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

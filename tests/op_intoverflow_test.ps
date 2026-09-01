@@ -1,12 +1,10 @@
+%!testlib
 % Integer-literal range (PLRM 3.3.2), run through `xpost -d null` by
 % run-ps-test.sh.
 %
 % An integer constant beyond the implementation's integer range is converted to
 % a real, not wrapped. The value is checked rather than the type, since the
 % integer range itself is implementation-defined.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % in-range values remain integers on any implementation
 42 type /integertype eq (small literal is an integer) assert
@@ -76,4 +74,4 @@ mx 2 mul 0 gt (a mul past the range stays positive) assert
 /ovval { mx 1 add 2147483648.0 sub abs 1 lt } def
 ovval (an add past the range keeps its value) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

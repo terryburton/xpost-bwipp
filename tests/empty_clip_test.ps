@@ -1,3 +1,4 @@
+%!testlib
 % What the painting operators do when the clip region covers no pixels.
 % a face answers for this suite's text: a build without a face library
 % cannot ask its questions, and says so rather than failing them
@@ -27,20 +28,9 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % while asserting nothing. Then under a region covering no pixels, where
 % it has to return quietly and leave the page as it found it.
 
-/faildict 2 dict def
-faildict /n 0 put
 /p.name () def
 /check { % bool (what)  .  -   (reported against the painter named in p.name)
-    exch { pop }{
-        (FAIL: ) print p.name print ( ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
-/assert { % bool (name)  .  -
-    exch { pop }{
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
+    p.name exch assert2
 } bind def
 
 /.fillpoly     1183615869 internaldict /.fillpoly get def
@@ -141,7 +131,7 @@ PAINTERS {
     { p.proc } stopped
         { (FAIL: ) print p.name print ( raised ) print
           $error /errorname get 40 string cvs print (\n) print
-          faildict /n 2 copy get 1 add put }
+          /failcount failcount 1 add store }
         { inkcount 0 gt (marks the page under a region that covers it) check }
     ifelse
 } forall
@@ -154,7 +144,7 @@ PAINTERS {
         { (FAIL: ) print p.name print ( raised ) print
           $error /errorname get 40 string cvs print
           ( under a region covering no pixels\n) print
-          faildict /n 2 copy get 1 add put }
+          /failcount failcount 1 add store }
         { p.gov
           { inkcount 0 eq (marks nothing under a region covering no pixels) check }
           if }
@@ -173,7 +163,7 @@ setpat
 { newpath 0 40.1 96 0.3 rectfill } stopped
     { (FAIL: ) print p.name print ( raised ) print
       $error /errorname get 40 string cvs print (\n) print
-      faildict /n 2 copy get 1 add put }
+      /failcount failcount 1 add store }
     { inkcount 0 eq (marks nothing) check }
 ifelse
 
@@ -307,5 +297,5 @@ clear
 
 initclip newpath
 count 0 eq (the suite leaves the operand stack empty) assert
-faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
+verdict
 quit

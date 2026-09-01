@@ -1,3 +1,4 @@
+%!testlib
 % What an encoding filter holds between writes, run through
 % `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
@@ -16,10 +17,6 @@
 % the program is still free to write more and then close.
 %
 % Prints SUCCESS iff every coding satisfies both.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print
-    /failcount failcount 1 add store } ifelse } def
 
 /nm (encpad.scratch) def
 /src 64 string def
@@ -110,11 +107,11 @@ nm deletefile
 /same 2048 string def
 0 1 same length 1 sub { /i exch def same i 65 put } for
 
-/refuses false def
+/targetrefuses false def
 mark {
     /t0 (/dev/full) (w) file def
     { 8 { t0 vary writestring } repeat t0 flushfile } stopped {
-        $error /errorname get /ioerror eq { /refuses true def } if
+        $error /errorname get /ioerror eq { /targetrefuses true def } if
     } if
     { t0 closefile } stopped pop
 } stopped pop cleartomark
@@ -137,7 +134,7 @@ mark {
     dr.ok dr.w assert
 } bind def
 
-refuses {
+targetrefuses {
     null /ASCIIHexEncode vary (ASCIIHex closes over a refusing target) drive
     null /ASCII85Encode vary (ASCII85 closes over a refusing target) drive
     null /RunLengthEncode same (RunLength closes over a refusing target) drive
@@ -160,5 +157,5 @@ refuses {
     nm deletefile
 } if
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict
 flush

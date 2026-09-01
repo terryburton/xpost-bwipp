@@ -1,12 +1,10 @@
+%!testlib
 % User and system parameter operators (PLRM 8.2), run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
 % currentuserparams and currentsystemparams each return a dictionary of the
 % current parameters; setuserparams and setsystemparams accept a dictionary and
 % apply the parameters they recognise, ignoring any they do not.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 currentuserparams
 dup type /dicttype eq (currentuserparams returns a dictionary) assert
@@ -56,4 +54,4 @@ currentuserparams /MaxFormItem get upwas eq (and then what was there before) ass
 { << /ThisIsNotAParam 1 >> setsystemparams true }
 stopped { pop false } if (setsystemparams accepts a dictionary) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

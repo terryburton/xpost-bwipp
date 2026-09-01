@@ -1,3 +1,4 @@
+%!testlib
 % Render-class coverage, run through `xpost -d null` by run-ps-test.sh: prints
 % a face answers for this suite's text: a build without a face library
 % cannot ask its questions, and says so rather than failing them
@@ -5,15 +6,6 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % SUCCESS iff every construct runs without error. Covers Type 3 and composite
 % (Type 0) fonts, the shading types, tiling and shading patterns, and screen
 % and halftone setup.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 % --- Type 3 procedural font ---
 {
@@ -240,6 +232,6 @@ pop 40 sub 600 sfm mul sub abs 0.01 lt
 } stopped not (screen and halftone setup complete) assert
 
 count 0 eq (operand stack is balanced) assert
-faildict /n get 0 eq { (\nSUCCESS\n) print } { (\n) print faildict /n get =print ( failures\n) print } ifelse
+verdict
 flush
 quit

@@ -1,3 +1,4 @@
+%!testlib
 % Where a number stops and a name starts.
 %
 % A sign and a decimal point are characters a number begins with and also
@@ -18,7 +19,6 @@
 % Read with `token` rather than by executing the text, so a token that
 % scans as a name is examined instead of being looked up and run.
 
-/failures 0 def
 /concatstrings { % a b . ab
     /cs.b exch def
     /cs.a exch def
@@ -27,12 +27,8 @@
     dup cs.a length cs.b putinterval
 } bind def
 
-/fail { /failures failures 1 add store (FAIL: ) print print (\n) print flush }
+/fail { /failcount failcount 1 add store (FAIL: ) print print (\n) print flush }
 bind def
-
-/assert { % bool (name)  .  -
-    exch { pop }{ fail } ifelse
-} bind def
 
 /istype { % (text) /wanted  .  -
     /istype.want exch def
@@ -98,4 +94,4 @@ bind def
 turned 2 eq (a sign names a procedure the program can call) assert
 -45 -45 eq (a signed number beside it is still a number) assert
 
-failures 0 eq { (SUCCESS) = } { (FAILURES: ) print failures = } ifelse
+verdict

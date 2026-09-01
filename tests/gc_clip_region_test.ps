@@ -1,3 +1,4 @@
+%!testlib
 % Building one clipping region after another, where each region is
 % divided finely enough to cost tens of thousands of entities. Run
 % through `xpost -d null` by run-ps-test.sh: prints SUCCESS iff every
@@ -26,15 +27,6 @@
 % rarely climbs through both. The second round is held to one region's
 % growth, which is the room the first region of the round may need
 % before the collector is next asked.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 /entcount { 1183615869 internaldict /.vmentcount get exec pop } bind def
 
@@ -114,5 +106,5 @@ strayed 0 eq (the last region's fill stays inside the teeth) assert
 marked 30000 eq (the last region's fill marks every pixel of them) assert
 
 count 0 eq (the suite leaves the operand stack empty) assert
-faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
+verdict
 quit

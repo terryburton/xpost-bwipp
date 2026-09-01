@@ -1,3 +1,4 @@
+%!testlib
 % Dictionary capacity against dictionary length (PLRM 8.2 maxlength: the
 % value returned is "at least as large as that returned by length"), run
 % through `xpost -d null` by run-ps-test.sh.
@@ -6,9 +7,6 @@
 % for, so it accepts entries past that capacity before it grows. Between
 % the two, a capacity reported as the number originally asked for is a
 % number smaller than the dictionary's own length.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % A dictionary that has not outgrown the capacity it was asked for
 % reports exactly that capacity, whatever the table beneath it holds.
@@ -81,4 +79,4 @@ A H copy pop
 H length 13 eq (copy moves every entry) assert
 H maxlength 300 eq (a copy keeps the capacity of its destination) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

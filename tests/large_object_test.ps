@@ -1,3 +1,4 @@
+%!testlib
 % Composite-size limits, run through `xpost -d null` by run-ps-test.sh.
 %
 % The small-object build holds composites to 65,535 elements -- the
@@ -6,9 +7,6 @@
 % composites grow to memory, matching the interpreters that exceed the
 % appendix's typical limits. The build is probed, and each personality
 % is held to its own contract.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 /widesz { 70000 array pop true } stopped { pop false } if def
 
@@ -54,4 +52,4 @@ widesz {
     65535 array length 65535 eq (the limit itself is reachable) assert
 } ifelse
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

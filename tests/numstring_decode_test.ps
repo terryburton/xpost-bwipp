@@ -1,3 +1,4 @@
+%!testlib
 %!
 % An encoded number string (PLRM 3.14.5) is decoded into a fresh array,
 % and the array is made in virtual memory while the string is being
@@ -14,12 +15,6 @@
 %
 % The relocation is what the sizes below are for. A small decode fits
 % the file as it stands, takes no growth, and passes either way.
-
-/failcount 0 def
-/note { print (\n) print } def
-/assert {
-  exch { pop } { (FAIL: ) print note /failcount failcount 1 add store } ifelse
-} def
 
 /n2a 1183615869 internaldict /.numstring2array get def
 
@@ -78,5 +73,5 @@ ok32 (a 32-bit decode reads every value from the string) assert
   { $error /errorname get /rangecheck eq }{ false } ifelse
   (a string that is not an encoded number string is a rangecheck) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict
 quit

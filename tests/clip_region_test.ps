@@ -1,3 +1,4 @@
+%!testlib
 % The clip region: what a program may do to it, and what the machinery
 % says about it. Run through `xpost -d null` by run-ps-test.sh: prints
 % SUCCESS iff every assertion holds.
@@ -7,14 +8,6 @@
 % itself is handed. The faces have to agree, and neither of them may be
 % reachable for a program to write.
 
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 /assertnear { % val expected (name) . -
     3 1 roll sub abs 0.01 lt exch assert
 } bind def
@@ -927,5 +920,5 @@ grestore
 initclip
 
 count 0 eq (the suite leaves the operand stack empty) assert
-faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
+verdict
 quit

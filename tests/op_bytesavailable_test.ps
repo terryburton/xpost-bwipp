@@ -1,11 +1,9 @@
+%!testlib
 % bytesavailable operator (PLRM 8.2), run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
 % For a seekable file bytesavailable is the number of bytes remaining; for a
 % filter, whose remaining count cannot be determined, it is -1.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 /f (bytesavail.scratch) (w) file def
 f (0123456789) writestring
@@ -20,4 +18,4 @@ closefile
 (bytesavail.scratch) (r) file /ASCIIHexDecode filter
 bytesavailable -1 eq (a filter reports -1) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

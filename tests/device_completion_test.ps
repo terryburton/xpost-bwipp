@@ -1,3 +1,4 @@
+%!testlib
 % What device completion installs on a fresh device, and what it must
 % leave alone.
 %
@@ -18,15 +19,6 @@
 % DeviceRGB, so the grey side of the rule is unreached by the fleet and
 % reachable here: a device is a dictionary, and a dictionary is
 % something a program can build.
-
-/faildict 1 dict def
-faildict /n 0 put
-/assert { % bool (name)  .  -
-    exch { pop }{
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 /id 1183615869 internaldict def
 /frgray id /.fillrectgray get def
@@ -274,5 +266,5 @@ painted /Buf get length eq
     (the clearing reached every pixel of the device's own buffer) assert
 
 count 0 eq (the suite leaves the operand stack empty) assert
-faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
+verdict
 quit

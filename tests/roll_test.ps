@@ -1,3 +1,4 @@
+%!testlib
 % roll and copy operators: correctness + O(n) performance guard, run through
 % `xpost -d null` by run-ps-test.sh; prints SUCCESS iff every assertion
 % holds. Both shuffle or duplicate the top n operands and are inherently
@@ -7,15 +8,6 @@
 % or copy then dominated any job that built a deep operand stack. The
 % big-roll and big-copy cases below must stay fast; a return to O(n^2)
 % surfaces as a run-time timeout in meson/make-check.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 % 5 2 roll: 0 1 2 3 4 -> 3 4 0 1 2 (top-to-bottom 2 1 0 4 3)
 0 1 2 3 4  5 2 roll
@@ -69,6 +61,6 @@ clear
 200000 { 0 } repeat  200000 copy  clear
 
 count 0 eq (operand stack is balanced) assert
-faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse
+verdict
 flush
 quit

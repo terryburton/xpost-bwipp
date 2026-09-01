@@ -1,3 +1,4 @@
+%!testlib
 % What an allocation costs, run through `xpost -q --no-sandbox -d null`
 % by run-ps-test.sh.
 %
@@ -22,14 +23,6 @@
 % The two arms release four times as much between them, and the cost of
 % allocating afterwards must be the same in both -- that is the whole
 % property, and it is what the count can say and a wall clock cannot.
-
-/failcount 0 def
-/checks 0 def
-/assert { % bool (name)  .  -
-    exch { pop }{ (FAIL: ) print print (\n) print
-        /failcount failcount 1 add store } ifelse
-    /checks checks 1 add store
-} def
 
 /.vmfreescan 1183615869 internaldict /.vmfreescan get def
 /.vmcollect 1183615869 internaldict /.vmcollect get def
@@ -98,6 +91,6 @@ deltalarge ALLOCS CEILING mul le
 deltalarge deltasmall 2 mul le
     (the cost of allocating does not follow the volume released) assert
 
-checks 4 eq (every check was reached) assert
+checkcount 4 eq (every check was reached) assert
 
-failcount 0 eq { (SUCCESS) = }{ (FAILURES: ) print failcount = } ifelse
+verdict

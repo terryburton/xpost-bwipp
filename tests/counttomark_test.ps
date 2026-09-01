@@ -1,3 +1,4 @@
+%!testlib
 % counttomark and the [ ] / << >> constructors: correctness + O(n)
 % performance guard, run through `xpost -d null` by run-ps-test.sh; prints
 % SUCCESS iff every assertion holds. counttomark reports how many operands
@@ -8,15 +9,6 @@
 % of elements above the mark. A large array or dictionary literal then
 % dominated any job that assembled one. The big-build cases below must stay
 % fast; a return to O(n^2) surfaces as a run-time timeout in meson/make-check.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 % --- counttomark counts only the elements above the topmost mark ---
 mark 10 20 30 counttomark 3 eq (counttomark counts 3) assert
@@ -88,6 +80,6 @@ mark 200000 { 0 } repeat
 cleartomark
 
 count 0 eq (operand stack is balanced) assert
-faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse
+verdict
 flush
 quit

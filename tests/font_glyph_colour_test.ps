@@ -1,3 +1,4 @@
+%!testlib
 % What a cached glyph does with a colour its own description set, run
 % through `xpost -d null` by run-ps-test.sh: prints SUCCESS iff every
 % assertion holds.
@@ -37,15 +38,6 @@
 
 /.fillpoly     1183615869 internaldict /.fillpoly get def
 /.fillrectgray 1183615869 internaldict /.fillrectgray get def
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 % --- a raster to draw into and read back ---
 /DEV 64 64 .privatedict /newPGMIMAGEdevice get exec def
@@ -169,4 +161,4 @@ pdb 0 count AREA eq
 pk 204 count pd 204 count eq
     (so the two routes agree wherever the description stays within PLRM 5.5) assert
 
-faildict /n get 0 eq { (SUCCESS) = } { (FAILURES: ) print faildict /n get = } ifelse
+verdict

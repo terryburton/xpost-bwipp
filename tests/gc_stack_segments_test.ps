@@ -1,3 +1,4 @@
+%!testlib
 % Collecting while a stack is segmented, run through `xpost -d null`
 % by run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
@@ -17,12 +18,6 @@
 % Each fixture is read back after the collection, so a segment handed
 % away and written over shows up as a lost value and not only as a
 % process that died.
-
-/failcount 0 def
-/assert { % bool (name)  .  -
-    exch { pop } { (FAIL: ) print print (\n) print
-        /failcount failcount 1 add store } ifelse
-} def
 
 % --- grow past several segments, shrink below one, grow again ---
 %
@@ -83,6 +78,6 @@ d 100 get 200 eq
 zzzmarker 12345 eq
     (a name interned after a collection resolves to its value) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict
 flush
 quit

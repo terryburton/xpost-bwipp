@@ -1,3 +1,4 @@
+%!testlib
 % What a subinterval keeps alive, run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
@@ -23,8 +24,6 @@
 % is where a request that exhausts the count meets storage that has just
 % been given back.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /used { vmstatus pop exch pop } bind def
 
 % --- a composite nothing refers to is reclaimed and reused ----------------
@@ -111,4 +110,4 @@ used mark4 sub 1000 lt
 th0 setvmthreshold
 1 vmreclaim
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

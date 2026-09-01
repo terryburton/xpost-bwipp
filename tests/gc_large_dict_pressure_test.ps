@@ -1,3 +1,4 @@
+%!testlib
 % A collection the interpreter starts for itself, over a dictionary whose
 % hash table is larger than a composite's size field can count. Run
 % through `xpost -d null` by run-ps-test.sh with the collector's
@@ -10,11 +11,6 @@
 % test would have to allocate a gigabyte to provoke a collection, so a
 % section that allocated a little and then asserted would be asserting
 % over a collection that never happened.
-
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 
 % the table of a dict asked for at this size spans 65537 records: one
 % more than the default build's size field can count
@@ -47,6 +43,6 @@ D /probe get 42 eq (the pre-save dict is intact after restore) assert
 churn
 D /probe get 42 eq (and after the collections that follow the restore) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict
 flush
 quit

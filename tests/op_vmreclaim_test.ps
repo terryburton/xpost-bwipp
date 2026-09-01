@@ -1,3 +1,4 @@
+%!testlib
 % vmreclaim (PLRM 8.2), run through `xpost -d null` by run-ps-test.sh.
 %
 % 2 vmreclaim (local and global) must reclaim the local VM at least as well as
@@ -7,8 +8,6 @@
 % COLLECTION: this file's subject IS collection. Turning it off would
 % be turning off what is under test, so it must not be disabled here.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /vmused { vmstatus pop exch pop } def
 /churn { 1 1 120 { pop /d 30 dict def 0 1 40 { d exch dup put } for 100 array pop } for } def
 
@@ -26,4 +25,4 @@ grow2 grow1 sub 300000 lt (2 vmreclaim reclaims local VM like 1 does) assert
 { 5 array pop 1 vmreclaim 5 array pop 2 vmreclaim true } stopped { pop false } if
 (vmreclaim 1 and 2 run without error) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

@@ -1,3 +1,4 @@
+%!testlib
 % What resolving a name costs the work that resolves one, run through
 % a face answers for this suite's text: a build without a face library
 % cannot ask its questions, and says so rather than failing them
@@ -27,21 +28,13 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % the whole property, and it is what the count can say and a wall clock
 % cannot.
 
-/failcount 0 def
-/checks 0 def
-/assert { % bool (name)  .  -
-    exch { pop }{ (FAIL: ) print print (\n) print
-        /failcount failcount 1 add store } ifelse
-    /checks checks 1 add store
-} def
-
-% the same verdict, for a check that names which member of a family
-% failed rather than only that one did
+% A check that names which member of a family failed rather than only
+% that one did, recorded through the framework's own counters.
 /assertn { % bool (label) (name)  .  -
     /nm exch def /lb exch def
     { }{ (FAIL: ) print lb print nm print (\n) print
          /failcount failcount 1 add store } ifelse
-    /checks checks 1 add store
+    /checkcount checkcount 1 add store
 } def
 
 /.namelookups 1183615869 internaldict /.namelookups get def
@@ -177,6 +170,6 @@ initgraphics
         (this operator resolves a name per call: ) pn assertn
 } for
 
-checks 3 PROBES length add TPROBES length add eq (every check was reached) assert
+checkcount 3 PROBES length add TPROBES length add eq (every check was reached) assert
 
-failcount 0 eq { (SUCCESS) = }{ (FAILURES: ) print failcount = } ifelse
+verdict

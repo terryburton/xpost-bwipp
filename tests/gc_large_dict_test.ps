@@ -1,3 +1,4 @@
+%!testlib
 % Collecting over a dictionary whose hash table is larger than a
 % composite's size field can count, run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
@@ -18,11 +19,6 @@
 % starts for itself takes the same walk, and gc_large_dict_pressure_test
 % provokes one -- the ordinary threshold is far too high to reach from a
 % test, so a section here that merely allocated would assert nothing.
-
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 
 % The table of a dict asked for at this size spans 65537 records: one
 % more than the default build's size field can count.
@@ -84,6 +80,6 @@ CD length naccept eq (a dict reports every entry it took) assert
 CD 0 get 0 eq (the first entry survives a collection) assert
 CD 20000 get 20000 eq (and so does one from the middle) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict
 flush
 quit

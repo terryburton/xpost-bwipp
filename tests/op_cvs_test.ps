@@ -1,10 +1,9 @@
+%!testlib
 % cvs produces a real string for integer, real, boolean, string, name and
 % operator objects; every other type yields --nostringval--. The debugging
 % == operator keeps its own -mark- rendering. Run through `xpost -d null` by
 % run-ps-test.sh.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /streq { 2 copy length exch length eq { eq } { pop pop false } ifelse } def
 /cvseq { 64 string cvs exch streq } def
 
@@ -24,4 +23,4 @@
 (--nostringval--) 1 dict cvseq (cvs dict) assert
 (--nostringval--) null cvseq (cvs null) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

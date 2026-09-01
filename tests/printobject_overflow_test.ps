@@ -1,3 +1,4 @@
+%!testlib
 % Writing a binary object sequence must measure its size in a width the
 % size cannot overflow, and must not walk a shared reference graph without
 % end, run through `xpost -d null` by run-ps-test.sh: prints SUCCESS iff
@@ -19,10 +20,6 @@
 % overflow nor the endless walk should reach the interpreter; each is a
 % limitcheck the measure raises before a buffer is ever sized.
 
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 /errname { % {proc} . name-or-null
     stopped { $error /errorname get }{ null } ifelse
 } def
@@ -44,4 +41,4 @@
 { a 0 printobject } errname /limitcheck eq
     (a print whose measure would walk a graph without end is refused) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict

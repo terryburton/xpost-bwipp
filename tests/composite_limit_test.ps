@@ -1,3 +1,4 @@
+%!testlib
 % Composite construction and extension at the ceiling the size field
 % describes, run through `xpost -d null` by run-ps-test.sh: prints
 % SUCCESS iff every assertion holds.
@@ -35,11 +36,6 @@
 % count, with no error raised. A composite shorter than the program
 % wrote is not a thing any later operator can detect, so the error is
 % raised where the length is decided.
-
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 
 % Run a procedure and answer with what it left on top, with null where
 % it left nothing, or with the name of the error it raised. The stack is
@@ -241,4 +237,4 @@ wide {
     { 4294967280 string } result /VMerror eq (across the rest of that rounding window) assert
 } if
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict

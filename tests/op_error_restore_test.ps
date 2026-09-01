@@ -1,10 +1,9 @@
+%!testlib
 % Operand restoration on error (PLRM 3.11): after an operator errors, the operand
 % stack is restored to the state it was in when the operator began -- including
 % the integer types the program pushed, not the reals the dispatcher coerces them
 % to. Run through `xpost -d null` by run-ps-test.sh.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /isint { type /integertype eq } def
 /isreal { type /realtype eq } def
 
@@ -101,4 +100,4 @@ count /depth exch def
 count depth eq (a timeout leaves the operand stack alone) assert
 clear
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

@@ -1,3 +1,4 @@
+%!testlib
 % Enumerating a composite whose extent is larger than the object's own
 % cursor field can count, run through `xpost -d null` by run-ps-test.sh:
 % prints SUCCESS iff every assertion holds.
@@ -27,13 +28,6 @@
 % The sizes below straddle the boundary in the default build and are
 % unremarkable in the large-object build, so the same assertions hold in
 % both.
-
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop }
-    { (FAIL: ) print print (\n) print flush /failcount failcount 1 add store }
-    ifelse
-} def
 
 % The table of a dict asked for at this size spans 65537 records: one
 % more than the default build's composite fields can count. One less --
@@ -180,6 +174,6 @@ G { pop pop /gseen gseen 1 add store 0 1 99 { G exch undef } for } forall
 gseen 1 eq (an entry removed by the procedure is not enumerated) assert
 G length 0 eq (and the removals took) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict
 flush
 quit

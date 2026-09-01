@@ -1,3 +1,4 @@
+%!testlib
 % An operator leaves nothing behind when it refuses, and its caller has
 % a face answers for this suite's text: a build without a face library
 % cannot ask its questions, and says so rather than failing them
@@ -39,16 +40,12 @@ systemdict /NOFACES known { (SKIPPED: this suite shows text through a face, and 
 % alongside them, so that both halves are known to reach real ones.
 
 /ID 1183615869 internaldict def
-/fail false def
-/assert { % bool (name)  .  -
-    exch { pop }{ (FAIL: ) print print (\n) print /fail true def } ifelse
-} def
 
 % depth left behind by a procedure that is expected to fail
 /leftby { % {proc}  .  int
     count 1 sub /lb.d exch def
     /lb.p exch def
-    /lb.p load stopped not { (FAIL: the probe did not fail\n) print /fail true def } if
+    /lb.p load stopped not { (FAIL: the probe did not fail\n) print /failcount failcount 1 add store } if
     count lb.d sub
     dup 0 gt { dup { exch pop } repeat }{ } ifelse
 } def
@@ -828,4 +825,4 @@ count d0 sub 2 eq
     { 2 eq exch 1 eq and }{ d0 wrongdepth } ifelse
     (and the copies are still there for a call that does fail) assert
 
-fail { (FAILURES\n) print }{ (SUCCESS\n) print } ifelse
+verdict

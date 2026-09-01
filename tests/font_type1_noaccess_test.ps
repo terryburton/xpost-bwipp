@@ -1,3 +1,4 @@
+%!testlib
 % Regression: definefont on an embedded Type 1 font whose Private dictionary is
 % no-access must not raise invalidaccess. A Type 1 font program seals its Private
 % dictionary no-access (via the standard ND/NP procedures); the interpreter's
@@ -7,11 +8,6 @@
 % every embedded Type 1 font -- all of the casselman corpus -- failed with
 % invalidaccess on definefont. Run through `xpost -d null` by run-ps-test.sh;
 % prints SUCCESS iff definefont does not raise invalidaccess.
-
-/faildict 1 dict def faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop }{ (FAIL: )print print (\n)print faildict /n 2 copy get 1 add put } ifelse
-} bind def
 
 % a minimally shaped Type 1 font: FontType 1, CharStrings and a no-access Private
 % holding Subrs -- enough to reach the loader down the definefont Type 1 branch.
@@ -43,6 +39,6 @@ mark /RegrTestT1 mkfont
 cleartomark
 result /invalidaccess ne (definefont did not raise invalidaccess on no-access Private) assert
 
-faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse
+verdict
 flush
 quit

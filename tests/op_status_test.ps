@@ -1,3 +1,4 @@
+%!testlib
 % status operator, both forms (PLRM 8.2), run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
@@ -5,9 +6,6 @@
 % "(filename) status pages bytes referred created true | false" form raised
 % typecheck. The byte size is checked exactly; pages and the timestamps are
 % implementation-defined, so only their type and presence are asserted.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % create a file of known size (10 bytes)
 /f (status.scratch) (w) file def
@@ -33,4 +31,4 @@ ifelse
 (status.scratch) (r) file dup status exch closefile
 (status of an open file object is true) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

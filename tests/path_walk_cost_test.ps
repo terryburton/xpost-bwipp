@@ -1,3 +1,4 @@
+%!testlib
 % What reading the current path costs, run through
 % `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
@@ -23,14 +24,6 @@
 % segments, and what the second walks may not be the square of what the
 % first does -- that is the whole property, and it is what the count can
 % say and a wall clock cannot.
-
-/failcount 0 def
-/checks 0 def
-/assert { % bool (name)  .  -
-    exch { pop }{ (FAIL: ) print print (\n) print
-        /failcount failcount 1 add store } ifelse
-    /checks checks 1 add store
-} def
 
 /.pathwalksteps 1183615869 internaldict /.pathwalksteps get def
 
@@ -120,6 +113,6 @@ gs /currpath get 8 hdr 1 add put32
     (a checked path is checked again after its header is written) assert
 initgraphics
 
-checks 5 eq (every check was reached) assert
+checkcount 5 eq (every check was reached) assert
 
-failcount 0 eq { (SUCCESS) = }{ (FAILURES: ) print failcount = } ifelse
+verdict

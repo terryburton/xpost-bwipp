@@ -1,3 +1,4 @@
+%!testlib
 % In-RIP trapping procedure set (PLRM 6.3), run through `xpost -d null` by
 % run-ps-test.sh; prints SUCCESS iff every assertion holds. The trapping
 % operators live in the Trapping procedure set: a program reaches them with
@@ -9,15 +10,6 @@
 % in-RIP trapping. A Trapping procedure set is not commonly shipped at all, so
 % this is a conformant superset that lets trap-aware jobs run instead of
 % erroring.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 /Trapping /ProcSet findresource type /dicttype eq (Trapping ProcSet is defined) assert
 /Trapping /ProcSet findresource begin
@@ -51,6 +43,6 @@ newpath 0 0 moveto 100 0 lineto 100 100 lineto closepath
 end
 
 count 0 eq (operand stack is balanced) assert
-faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse
+verdict
 flush
 quit

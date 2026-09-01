@@ -1,3 +1,4 @@
+%!testlib
 % setdash refuses a dash whose period or offset is not a finite number
 % in range, run through `xpost -d null` by run-ps-test.sh: prints SUCCESS
 % iff every assertion holds.
@@ -16,10 +17,6 @@
 % by arithmetic so they read the same on the wide build, whose reals are
 % doubles.
 
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 /result { % {proc} . any
     count 1 sub /r.depth exch def
     stopped { $error /errorname get }{ count r.depth eq { null } if } ifelse
@@ -64,4 +61,4 @@
 { [ 0 0 ] 0 setdash } result /rangecheck eq
     (an all-zero dash array is still rangecheck) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict

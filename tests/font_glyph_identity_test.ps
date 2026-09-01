@@ -1,3 +1,4 @@
+%!testlib
 % What identifies a glyph in the font cache, run through
 % `xpost -d null` by run-ps-test.sh: prints SUCCESS iff every
 % assertion holds.
@@ -41,15 +42,6 @@
 
 /.fillpoly     1183615869 internaldict /.fillpoly get def
 /.fillrectgray 1183615869 internaldict /.fillrectgray get def
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 % --- a raster to draw into and read back ---
 /DEV 64 64 .privatedict /newPGMIMAGEdevice get exec def
@@ -245,4 +237,4 @@ GIown /.fontid 4242 put
 GIown /.fontid get 4242 eq
     (a serial the program wrote is left as it stands) assert
 
-faildict /n get 0 eq { (SUCCESS) = } { (FAILURES: ) print faildict /n get = } ifelse
+verdict

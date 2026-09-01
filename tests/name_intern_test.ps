@@ -1,3 +1,4 @@
+%!testlib
 % Interning a name must not recurse once per character, run through
 % `xpost -d null` by run-ps-test.sh: prints SUCCESS iff the run returns.
 %
@@ -17,10 +18,6 @@
 % recursive insert crashes here instead of returning, and a crash reaches
 % neither the assertion nor SUCCESS.
 
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 /result { % {proc} . any
     count 1 sub /r.depth exch def
     stopped { $error /errorname get }{ count r.depth eq { null } if } ifelse
@@ -42,4 +39,4 @@
 { 60000 internlong } result null eq
     (interning a very long name returns rather than overflowing the stack) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict

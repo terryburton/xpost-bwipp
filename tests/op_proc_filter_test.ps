@@ -1,11 +1,9 @@
+%!testlib
 % Procedure data sources for filters (PLRM 3.8.4), run through `xpost -d null` by
 % run-ps-test.sh.
 %
 % A filter may read from a procedure that returns successive strings and a
 % zero-length string at end of data.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % one chunk then end of data
 /st1 0 def
@@ -27,4 +25,4 @@
 { st3 0 eq { /st3 1 def (\001AB\200) }{ () } ifelse } /RunLengthDecode filter
 8 string readstring pop (AB) eq (procedure source through RunLengthDecode) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

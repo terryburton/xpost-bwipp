@@ -1,3 +1,4 @@
+%!testlib
 % Where a pattern's tiles land, run through
 % `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
@@ -20,12 +21,6 @@
 % an 8-unit square -- so that a tile landing half a period out is visible
 % rather than self-similar. With the default pattern matrix and no
 % transformation, ink is at (x,y) exactly when x mod 8 < 4 and y mod 8 < 4.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { exch { pop } {
-    (FAIL: ) print print (\n) print
-    faildict /n 2 copy get 1 add put } ifelse } bind def
 
 % the rasterisers are the interpreter's own operators, and live in
 % internaldict rather than where a program would find them by name
@@ -161,4 +156,4 @@ grestore
  5  5 inkat not (and leaves the rest of its square) assert
  9  9 inkat (on the same phase as a coloured one) assert
 
-faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
+verdict

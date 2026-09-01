@@ -1,3 +1,4 @@
+%!testlib
 % Save/restore VM regression checks, run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
@@ -13,15 +14,6 @@
 % restore "resets the values of all composite objects in local VM, except
 % strings, to their state at the time of the save", so a put'd string
 % character is meant to survive restore.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name) . -
-    exch { pop } {
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 
 % --- drive the entity counter past 65536 with reachable allocations ---
 % (unreachable ones would be collected and their entity numbers reused)
@@ -145,6 +137,6 @@ save [ (45>) /ASCIIHexDecode filter ] exch restore
 0 get dup status pop closefile
 
 count 0 eq (operand stack is balanced) assert
-faildict /n get 0 eq { (SUCCESS\n) print } { faildict /n get =print ( failures\n) print } ifelse
+verdict
 flush
 quit

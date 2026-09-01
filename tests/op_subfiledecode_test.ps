@@ -1,3 +1,4 @@
+%!testlib
 % SubFileDecode EOD semantics (PLRM 3.13.3), run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
@@ -7,8 +8,6 @@
 % occurrence without passing it, and an empty EOD string passes exactly that
 % many bytes.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /mkfile { (subfiledecode.scratch) (w) file dup 3 -1 roll writestring closefile
           (subfiledecode.scratch) (r) file } def
 
@@ -32,4 +31,4 @@
 (0123456789) mkfile 4 () /SubFileDecode filter 40 string readstring pop
 (0123) eq (empty EOD string passes exactly count bytes) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

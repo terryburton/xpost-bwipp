@@ -1,10 +1,8 @@
+%!testlib
 % String data sources for filters (PLRM 3.8.4), run through `xpost -d null` by
 % run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
 % A filter's data source may be a string; the filter reads a private copy of it.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % ASCIIHexDecode from a string
 (48656C6C6F>) /ASCIIHexDecode filter 12 string readstring pop
@@ -26,4 +24,4 @@
 { (48656C6C6F>) /ASCIIHexDecode filter closefile true } stopped { pop false } if
 (a string-sourced filter closes cleanly) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

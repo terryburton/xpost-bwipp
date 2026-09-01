@@ -1,3 +1,4 @@
+%!testlib
 % What a conclusion about an entity is worth once the number is reused,
 % run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
@@ -43,14 +44,6 @@
 % the round it was asked to reclaim it, the number would not be reused
 % that round, and every assertion below would be reached with nothing
 % weighing on it.
-
-/failcount 0 def
-/checks 0 def
-/assert { % bool (name)  .  -
-    exch { pop }{ (FAIL: ) print print (\n) print
-        /failcount failcount 1 add store } ifelse
-    /checks checks 1 add store
-} def
 
 /.vmentcount 1183615869 internaldict /.vmentcount get def
 
@@ -137,6 +130,6 @@ currentpoint 2 copy
 200 sub abs 0.01 lt exch 200 sub abs 0.01 lt and 3 1 roll pop pop
     (a real path still answers its current point) assert
 
-checks 3 eq (every check was reached) assert
+checkcount 3 eq (every check was reached) assert
 
-failcount 0 eq { (SUCCESS) = }{ (FAILURES: ) print failcount = } ifelse
+verdict

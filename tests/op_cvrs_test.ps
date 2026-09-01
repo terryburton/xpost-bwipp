@@ -1,3 +1,4 @@
+%!testlib
 % cvrs at radix ten is cvs, reals keeping real syntax; at every other
 % radix the value is truncated toward zero and rendered unsigned at the
 % integer's own width, a negative number arriving as its
@@ -5,23 +6,8 @@
 % radix outside 2..36 and a string the digits do not fit are refused
 % with rangecheck. Run through `xpost -d null` by run-ps-test.sh.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /streq { 2 copy length exch length eq { eq } { pop pop false } ifelse } def
 /cvrseq { 70 string cvrs exch streq } def
-% a refusal restores the operator's operands, so the probe runs above a
-% mark and everything down to it is dropped once the verdict is taken
-/raises {
-    4 dict begin /r.want exch def /r.label exch def
-    mark exch
-    { stopped } exec
-    { $error /errorname get r.want eq
-      $error /newerror false put }
-    { false } ifelse
-    /r.ok exch def cleartomark
-    r.ok r.label assert
-    end
-} def
 
 % the integer's width decides how many digits an unsigned rendering has
 /wide 2147483647 1 add type /integertype eq def
@@ -57,11 +43,11 @@ wide { (FFFFFFFFFFFFFFFD) } { (FFFFFFFD) } ifelse
     -3.7 16 cvrseq (negative real truncates toward zero) assert
 
 % the refusals
-{ 1e30 16 70 string cvrs } (real beyond the integer) /rangecheck raises
-{ 5 1 70 string cvrs } (radix below two) /rangecheck raises
-{ 5 37 70 string cvrs } (radix above thirty-six) /rangecheck raises
-{ 255 16 1 string cvrs } (string the digits do not fit) /rangecheck raises
-{ 5 16 70 string readonly cvrs } (read-only string) /invalidaccess raises
+{ 1e30 16 70 string cvrs } /rangecheck (real beyond the integer) raises
+{ 5 1 70 string cvrs } /rangecheck (radix below two) raises
+{ 5 37 70 string cvrs } /rangecheck (radix above thirty-six) raises
+{ 255 16 1 string cvrs } /rangecheck (string the digits do not fit) raises
+{ 5 16 70 string readonly cvrs } /invalidaccess (read-only string) raises
 
 % the answer aliases the front of the caller's string: a write through
 % the result shows in the argument
@@ -69,4 +55,4 @@ wide { (FFFFFFFFFFFFFFFD) } { (FFFFFFFD) } ifelse
 dup 0 65 put pop
 0 get 65 eq (result aliases the argument) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

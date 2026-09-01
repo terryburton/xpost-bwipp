@@ -1,3 +1,4 @@
+%!testlib
 % Reducing a colour space to its device space must not follow a space
 % that names itself, run through `xpost -d null` by run-ps-test.sh:
 % prints SUCCESS iff every assertion holds.
@@ -21,10 +22,6 @@
 % unknown family is still undefined, not refused as though it were a
 % cycle, and every ordinary nested space still reduces and is accepted.
 
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
 /errname { % {proc} . name-or-null
     stopped { $error /errorname get }{ null } ifelse
 } def
@@ -64,4 +61,4 @@
 { [ /Bogus /DeviceRGB ] setcolorspace } errname
     /undefined eq (a space naming an unknown family is undefined, not refused as a cycle) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict

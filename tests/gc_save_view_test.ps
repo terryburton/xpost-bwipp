@@ -1,3 +1,4 @@
+%!testlib
 % The collector must trace a shared array's whole extent from a save
 % record, not the length of the object the record was made for, run
 % through `xpost -d null` by run-ps-test.sh: prints SUCCESS iff it holds.
@@ -16,11 +17,6 @@
 % not cover -- to still be readable. The verdict is left on the operand
 % stack so it survives the restore, and judged after restoring.
 
-/failcount 0 def
-/assert { % bool (name) . -
-    exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse
-} def
-
 /parent 8 array def
 0 1 7 { parent exch 2 array put } for    % parent[i] = a distinct two-element child
 /view parent 0 1 getinterval def         % a one-element view of the eight
@@ -35,4 +31,4 @@ save
 exch restore
     (a shared array's tail children survive a collection after a view write under save) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict

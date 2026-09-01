@@ -1,8 +1,7 @@
+%!testlib
 % Graphics-state number parameters are reals (PLRM: these are real-valued).
 % Run through `xpost -d null` by run-ps-test.sh.
 
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 /isreal { type /realtype eq } def
 
 initgraphics
@@ -36,4 +35,4 @@ initgraphics 0.5 setgray currentgray 0.5 sub abs 1e-6 lt (gray value preserved) 
 -0.25 1 1 sethsbcolor currentrgbcolor pop pop 1.0 eq (a negative hue clamps to red) assert
 1.25 1 1 sethsbcolor currentrgbcolor pop pop 1.0 eq (an over-range hue clamps to red) assert
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

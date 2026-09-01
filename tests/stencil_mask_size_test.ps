@@ -1,3 +1,4 @@
+%!testlib
 % The bounds the anti-aliased stencil painter puts on its mask, run
 % through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
@@ -18,12 +19,6 @@
 % overflowing case below is that one; the rest pin the boundary either
 % side of it so that a capacity test cannot be made safe by refusing
 % every mask.
-
-/faildict 2 dict def
-faildict /n 0 put
-/assert { exch { pop } {
-    (FAIL: ) print print (\n) print
-    faildict /n 2 copy get 1 add put } ifelse } bind def
 
 % the painter is one of the interpreter's own operators, and lives in
 % internaldict rather than where a program would find it by name
@@ -94,5 +89,4 @@ DEV /BlendPix known DEV /TextAlphaBits known and
 16 8 16 unit paint
     (a mask still paints after the refusals) assert
 
-faildict /n get 0 eq { (SUCCESS) = }
-    { (FAILURES: ) print faildict /n get 20 string cvs print (\n) print } ifelse
+verdict

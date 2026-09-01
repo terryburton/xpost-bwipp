@@ -1,3 +1,4 @@
+%!testlib
 %!
 % A page whose held rows are not a run.
 %
@@ -19,12 +20,6 @@
 %
 % The page is written and read as raw PGM (P5), whose rows are the bytes
 % themselves, so what the file carries at a row is read without decoding.
-
-/fails 0 def
-/note { print (\n) print } def
-/assert { % bool (what)  .  -
-    exch { pop }{ /fails fails 1 add def (FAIL: ) print note } ifelse
-} bind def
 
 /device? { DEVICE } bind def
 
@@ -125,5 +120,5 @@ off 0 ge {
     } if
 } if
 
-fails 0 eq { (SUCCESS) = }{ (FAILURES: ) print fails 20 string cvs note } ifelse
+verdict
 quit

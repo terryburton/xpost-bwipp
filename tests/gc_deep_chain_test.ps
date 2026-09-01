@@ -1,3 +1,4 @@
+%!testlib
 % Collecting over deeply nested composites, run through `xpost -d null`
 % by run-ps-test.sh: prints SUCCESS iff every assertion holds.
 %
@@ -28,12 +29,6 @@
 % composites allocated after a release of larger ones are served from a
 % free list they do not fit, which costs more than the assertions here
 % are worth.
-
-/failcount 0 def
-/assert { % bool (name)  .  -
-    exch { pop } { (FAIL: ) print print (\n) print
-        /failcount failcount 1 add store } ifelse
-} def
 
 % --- a frontier wider than the worklist holds at once ---
 %
@@ -134,6 +129,6 @@ dbottom /marker (deepest) put
 dprobe /marker get (deepest) eq
     (a collection walks a dictionary chain to the far end of it) assert
 
-failcount 0 eq { (SUCCESS\n) print } { (FAILURES: ) print failcount 20 string cvs print (\n) print } ifelse
+verdict
 flush
 quit

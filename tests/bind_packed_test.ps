@@ -1,12 +1,10 @@
+%!testlib
 % bind on packed vs read-only procedures (PLRM 8.2, `bind`), run through
 % `xpost -d null` by run-ps-test.sh. A PACKED array is bindable -- bind
 % rewrites its executable operator names and descends into nested packed
 % procedures -- while an ordinary read-only array (one made read-only after
 % the fact) is left completely untouched. xpost tags a packed array so it can draw
 % the same distinction even though a packed array is stored as a read-only array.
-
-/failcount 0 def
-/assert { exch { pop } { (FAIL: ) print print (\n) print /failcount failcount 1 add store } ifelse } def
 
 % -- bind rewrites operator names in a packed procedure ----------------------
 true setpacking /pk { 2 3 add } def false setpacking
@@ -79,4 +77,4 @@ false setpacking
   (a program's write to that same packed procedure is refused) assert
 clear
 
-failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse
+verdict

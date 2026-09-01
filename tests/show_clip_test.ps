@@ -1,3 +1,4 @@
+%!testlib
 % What the text operators mark under a clipping region.
 % Run through `xpost -d null` by run-ps-test.sh: prints SUCCESS iff every
 % assertion holds.
@@ -32,20 +33,9 @@
 % part that does carry over: nothing outside the region, and something
 % inside it.
 
-/faildict 2 dict def
-faildict /n 0 put
-/assert { % bool (name)  .  -
-    exch { pop }{
-        (FAIL: ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
-} bind def
 /p.name () def
 /check { % bool (what)  .  -   (reported against the case named in p.name)
-    exch { pop }{
-        (FAIL: ) print p.name print ( ) print print (\n) print
-        faildict /n 2 copy get 1 add put
-    } ifelse
+    p.name exch assert2
 } bind def
 
 /DEV 96 96 .privatedict /newPGMIMAGEdevice get exec def
@@ -381,5 +371,5 @@ FAMILY {
 
 initclip newpath
 count 0 eq (the suite leaves the operand stack empty) assert
-faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
+verdict
 quit
