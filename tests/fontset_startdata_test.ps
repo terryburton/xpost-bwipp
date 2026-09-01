@@ -1,0 +1,219 @@
+%!testlib
+% What a font set sent through StartData reaches, and what it does not.
+%
+% PLRM 8.2 gives StartData as the one operator of the FontSetInit
+% procedure set that belongs to the language, and PLRM 5.8 ("FontSet
+% Resources", p.345) gives the file it arrives in: a short PostScript
+% program around a block of binary font data, whose length the program
+% states and whose bytes StartData reads. What follows the block is the
+% program again, so the reading is not optional -- an interpreter that
+% left the bytes in the file would go on scanning font data as
+% PostScript and lose the rest of the job with it.
+%
+% THE CONTAINER BELOW IS GENERATED, and it is a compact font format
+% container carrying a set of two fonts. Each font holds .notdef, a
+% filled square and a filled triangle on an advance of 800, which are
+% the glyphs the suites beside this one draw from a TrueType program;
+% the two fonts differ in which of the two shapes stands under A and
+% which under B, so a set that was read would paint different pages
+% from its two members. Every piece of it is written out below against
+% the field it is, at the offset it lies at.
+%
+% Its being well formed is what the assertions rest on. The recorded
+% answer is that nothing comes out of it, and a container this
+% interpreter could not read for reasons of its own would produce that
+% same answer while measuring nothing. Nothing this build does with the
+% bytes depends on what they are, so no case here would notice them
+% changing: the length and the check value below are what does, and
+% they are a seal on every byte. A container that no longer meets them
+% is a different container, and belongs in front of a reader of the
+% format before either number is moved to match it.
+%
+% WHAT IS ASSERTED, AND WHAT HAS TO CHANGE WHEN IT STOPS HOLDING.
+% doc/COMPLIANCE records that StartData reads its data and defines no
+% FontSet, so a font a document sends this way is unavailable and
+% findresource reports the set undefined. The case marked RECORDED
+% DEVIATION says exactly that, and it is written as an assertion rather
+% than as a remark so that it FAILS on the day a set does come out of
+% the container. When it does: replace it with its two neighbours, which
+% are written out beside it -- the set is found, and the fonts it holds
+% are found through it -- and take the deviation out of doc/COMPLIANCE.
+% Deleting the case instead would leave the reading half unwatched.
+%
+% The suite says so both ways. A check that only shows a refusal cannot
+% tell a working question from one that refuses everything, so a set
+% defined by hand is looked for by the same operator that fails to find
+% this one, and the reading is asserted through a program that runs
+% after the block and could not have if the bytes had not been taken.
+
+% a face answers for nothing here -- no glyph is painted -- so this
+% suite runs in every build
+
+% ---- the container ---------------------------------------------------
+%
+% One string per structure, in the order they lie in the file. The
+% offsets a top dictionary names are the ones written beside its
+% neighbours below, so the two can be read against each other.
+/xg.join {                              % [ s1 s2 ... ]  .  s
+    3 dict begin
+    /a exch def
+    /n 0 def
+    a { length n add /n exch store } forall
+    /s n string def
+    /at 0 def
+    a { dup s exch at exch putinterval at exch length add /at exch store } forall
+    s
+    end
+} bind def
+
+/CFF [
+    <01000404>                          % 0: header -- major 1, minor 0, hdrSize 4, offSize 4
+    <000201011222>                      % 4: Name INDEX -- count 2, offSize 1, offsets 1/18/34
+    <466F6E7453657450726F6265416C706861>  % 10: the first font's name, FontSetProbeAlpha
+    <466F6E7453657450726F626542657461>    % 27: the second font's name, FontSetProbeBeta
+    <00020101203F>                      % 43: Top DICT INDEX -- count 2, offSize 1, offsets 1/32/63
+    <8BFB5CF9B4F9B405>                  % 49: top dictionary of font 0 -- FontBBox 0 -200 800 800
+    <1D000000730F>                      %     charset at 115
+    <1D0000007811>                      %     CharStrings at 120
+    <1D000000051D0000009E12>            %     Private, 5 bytes at 158
+    <8BFB5CF9B4F9B405>                  % 80: top dictionary of font 1 -- FontBBox 0 -200 800 800
+    <1D000000A30F>                      %     charset at 163
+    <1D000000A811>                      %     CharStrings at 168
+    <1D000000051D000000CE12>            %     Private, 5 bytes at 206
+    <0000>                              % 111: String INDEX -- empty, every name it needs is standard
+    <0000>                              % 113: Global Subr INDEX -- empty
+    <0000220023>                        % 115: charset of font 0 -- format 0, then A and B
+    <00030101021220>                    % 120: CharStrings INDEX of font 0 -- count 3, offSize 1
+    <0E>                                % 127: .notdef -- endchar
+    <EF8B158BF8EC05F8EC8B058BFCEC050E>  % 128: A, the square (100,0)-(100,600)-(700,600)-(700,0)
+    <EF8B15F7C0F8EC05F7C0FCEC050E>      % 144: B, the triangle (100,0)-(400,600)-(700,0)
+    <F9B4148B15>                        % 158: Private of font 0 -- defaultWidthX 800, nominalWidthX 0
+    <0000220023>                        % 163: charset of font 1 -- format 0, then A and B
+    <00030101021020>                    % 168: CharStrings INDEX of font 1 -- count 3, offSize 1
+    <0E>                                % 175: .notdef -- endchar
+    <EF8B15F7C0F8EC05F7C0FCEC050E>      % 176: A, the triangle -- the two shapes stand the other way round
+    <EF8B158BF8EC05F8EC8B058BFCEC050E>  % 190: B, the square
+    <F9B4148B15>                        % 206: Private of font 1 -- defaultWidthX 800, nominalWidthX 0
+] xg.join def
+
+CFF length 211 eq
+    (the container is the 211 bytes its pieces were read against) assert
+
+% The seal on the bytes themselves: the running sum of the bytes, and
+% the running sum of that, both to a modulus, so a byte that changed
+% value and a pair that changed places are each caught.
+/xg.seal {                             % s  .  s1 s2
+    3 dict begin
+    /s1 0 def /s2 0 def
+    { s1 add 65535 mod /s1 exch def s2 s1 add 65535 mod /s2 exch def } forall
+    s1 s2
+    end
+} bind def
+
+CFF xg.seal 8691 eq exch 18058 eq and
+    (and is byte for byte the container those pieces describe) assert
+
+% ---- the resource file the container arrives in ----------------------
+%
+% PLRM 5.8's shape, written out and run: the set is named, its length
+% declared, the bytes follow the declaration, and the program carries on
+% afterwards. The line after the block is what says the block was taken
+% -- it cannot run unless the reading stopped where the count said.
+/SETNAME (XpostGenFontSet) def
+/SCRATCH (fontset.scratch) def
+
+SCRATCH (w) file
+dup (%!PS-Adobe-3.0 Resource-FontSet\n) writestring
+dup (%%DocumentNeededResources: ProcSet \(FontSetInit\)\n) writestring
+dup (%%EndComments\n) writestring
+dup (%%IncludeResource: ProcSet \(FontSetInit\)\n) writestring
+dup (/FontSetInit /ProcSet findresource begin\n) writestring
+dup (%%BeginResource: FontSet \() writestring
+dup SETNAME writestring
+dup (\)\n) writestring
+dup (/) writestring
+dup SETNAME writestring
+dup ( ) writestring
+dup CFF length 12 string cvs writestring
+dup ( StartData ) writestring
+dup CFF writestring
+dup (\n%%EndResource\nend\n) writestring
+dup (/xg.tail \(read past the block\) def\n) writestring
+dup (%%EOF\n) writestring
+closefile
+
+{ SCRATCH run } (the font set resource file runs to its end) works
+
+% The positive half of the reading: this name is defined by the line
+% after the block, so it is here only if StartData took the bytes the
+% count declared and left the file scanning PostScript again.
+userdict /xg.tail known
+    (the program after the block runs, so the block was read) assert
+userdict /xg.tail known { xg.tail (read past the block) eq }{ false } ifelse
+    (and runs whole, so exactly the declared bytes were taken) assert
+
+% ---- the question can produce a presence ------------------------------
+%
+% A set defined by hand is found by the operator that is asked about the
+% one the container was sent as. Without this the case below would pass
+% against an interpreter that had no FontSet category at all.
+/XpostGenHandSet 1 dict dup /Alpha (a font, if this were a real set) put
+    /FontSet defineresource pop
+{ /XpostGenHandSet /FontSet findresource pop }
+    (a font set defined by hand is found again) works
+
+% ---- RECORDED DEVIATION -----------------------------------------------
+%
+% The set the container was sent as is not there. When the container is
+% read this case FAILS, which is what it is for. Replace it then with
+% the two written below it, and take the deviation out of doc/COMPLIANCE.
+{ SETNAME cvn /FontSet findresource }
+    /undefinedresource
+    (RECORDED DEVIATION: the set sent through StartData is not defined)
+    raises
+%
+% What replaces it when the container is read:
+%   { SETNAME cvn /FontSet findresource pop }
+%       (the set sent through StartData is defined) works
+%   { SETNAME cvn /FontSet findresource /FontSetProbeAlpha get pop }
+%       (and carries the fonts the container named) works
+
+% Where the absence is visible, and where it is not. findfont substitutes
+% for a name the host cannot resolve (PLRM 5.2) and /Font findresource is
+% that same operation (PLRM 3.9.2), so asking for one of the container's
+% fonts by name is answered with a font rather than with the absence. The
+% set is the level a program is told at.
+{ /FontSetProbeAlpha /Font findresource pop }
+    (a font named by the container is substituted for rather than refused)
+    works
+
+% ---- what StartData holds to whatever it does with the data -----------
+%
+% None of these reaches the file: each is refused, or declares nothing to
+% read, before the reading starts, so the suite goes on being a program.
+/FontSetInit /ProcSet findresource /StartData known
+    (the procedure set carries StartData) assert
+/xg.startdata /FontSetInit /ProcSet findresource /StartData get def
+
+{ /XpostGenEmpty 0 xg.startdata }
+    (a set declaring no bytes reads none and refuses nothing) works
+{ /XpostGenEmpty /FontSet findresource }
+    /undefinedresource
+    (RECORDED DEVIATION: nor does a set that declared no bytes appear)
+    raises
+
+{ /XpostGenBad (twelve) /XpostGenMaster xg.startdata }
+    /typecheck
+    (a length that is not an integer is refused) raises
+{ /XpostGenBad -1 xg.startdata }
+    /rangecheck
+    (a negative length is refused) raises
+
+% The three-operand form names the master font a Chameleon descriptor is
+% cut from (PLRM 8.2). The name is read and goes the way of the data.
+{ /XpostGenChameleon 0 /XpostGenMaster xg.startdata }
+    (the form that names a master font is taken) works
+
+count 0 eq (the suite leaves the operand stack empty) assert
+verdict
+quit

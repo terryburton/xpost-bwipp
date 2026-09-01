@@ -271,6 +271,7 @@ tests/filter_predictor_test.ps \
 tests/fillpoly_arity_test.ps \
 tests/filter_proc_test.ps \
 tests/filter_source_life_test.ps \
+tests/fontset_startdata_test.ps \
 tests/font_bigbuf_test.ps \
 tests/font_cache_bound_test.ps \
 tests/font_cache_evict_test.ps \

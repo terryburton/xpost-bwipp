@@ -209,6 +209,7 @@ font path data/cid.ps
 font test cid-show
 font test execform-cache
 font test font-*
+font test fontset-startdata
 font test font-serial
 font test glyph-page
 font test op-fontcache

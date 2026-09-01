@@ -2148,6 +2148,16 @@ test('cid-show',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A font set sent through StartData, in the file PLRM 5.8 gives for one.
+# The container is well formed, so what the suite measures is this
+# interpreter and not a container it could not have read: the bytes are
+# taken, and no set comes of them.
+test('fontset-startdata',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/fontset_startdata_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # What an operator leaves on the operand stack when it refuses. An error
 # raised in PostScript with signalerror ends in a stop and never reaches
 # the interpreter's handler, so the unwinding every other error gets has
