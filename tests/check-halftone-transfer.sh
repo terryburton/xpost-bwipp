@@ -16,9 +16,13 @@
 #     graphics state's own function back
 #
 # The numbers below are not this interpreter's own output recorded as a
-# baseline. They were measured on two other implementations first, which
-# agreed with each other on every case, and this interpreter was changed
-# until it agreed with them; the counts are theirs.
+# baseline. A baseline taken that way locks in whatever the interpreter did,
+# a fault included, and can no longer report one. Each count is what the case
+# must come to for the rule above it to hold, worked out from the cell and
+# the grey the case paints, as the paragraph below sets out -- so a count
+# that moves is a rule broken rather than a baseline gone stale, and
+# regenerating them from what this interpreter prints would take exactly
+# that property away.
 #
 # Every case paints the same quarter grey through the same sixteen-place
 # threshold cell onto the same sixteen by sixteen page, so a count is
