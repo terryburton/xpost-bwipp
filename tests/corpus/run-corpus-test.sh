@@ -75,6 +75,8 @@ printf '%s\n' "$out" | grep -q 'NOT EVALUATED' && {
     echo "corpus: part of the corpus was never evaluated -- see above"; exit 1; }
 printf '%s\n' "$out" | grep -q 'NO-PAGE SET DIFFERS' && {
     echo "corpus: what drew no page is not what the corpus declares -- see above"; exit 1; }
+printf '%s\n' "$out" | grep -q 'DISPLACED SET DIFFERS' && {
+    echo "corpus: what displaced ink is not what the corpus declares -- see above"; exit 1; }
 printf '%s\n' "$out" | grep -q 'REGISTER NAMES NOTHING' && {
     echo "corpus: a register names a program the corpus does not hold -- see above"; exit 1; }
 printf '%s\n' "$out" | grep -q 'REGISTER GIVES NO REASON' && {

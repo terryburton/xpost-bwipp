@@ -84,6 +84,56 @@ summary is otherwise the evaluator's account of itself -- it agrees with
 the work the run did and says nothing about the work the run was given,
 so a run that named half the programs reports honestly on that half.
 
+A register of a different kind holds what the difference between two
+renderings cannot be. Every page reports two numbers rather than one:
+how much of it differs at all, and how much of it is ink one engine put
+where the other put none. The second is what a difference in the drawing
+looks like, because it is the one thing two correct renderings of a page
+never produce -- a pixel one engine marked solidly with no mark of any
+strength from the other within two pixels of it, counted both ways. Two
+pixels is the reach of an anti-aliased edge and of the half-pixel either
+engine may place a stem to one side of; something that moved leaves its
+whole ink outside that reach twice over, once where it went and once
+where it is no longer.
+
+The first number alone cannot say. A page of text differs by thousands
+of pixels between two correct renderings of it, because one engine
+anti-aliases its glyphs and the other does not: the edge of every stem
+is a differing pixel. A single line of forty-eight point Times trims to
+the same width at the same column in both engines and still differs by
+fifteen hundred pixels, where the same two engines on a filled path
+differ by none. So every text-bearing page carries a four-figure count
+measuring anti-aliasing, and a page whose text had moved would carry one
+too, of about the same size -- which is a corpus that cannot report the
+fault it exists to find.
+
+A corpus names in a `displaced` file every page that displaces ink, with
+the reason, keyed as `nopage` is: a basename and ` pN`. It is held both
+ways like the others, so a page that displaces ink and is not named
+fails the corpus, and a named page that stops displacing fails it too.
+
+A corpus is held to that once it carries the file, and until it does the
+run counts the pages that displace ink and says so, in the log and in
+the summary line, without failing. A corpus whose displacements nobody
+has read through yet is work outstanding rather than a broken tree, and
+reddening it would teach its reader to pass over the line rather than to
+do the work. The count is there so that the outstanding work is a number
+somebody can see. Today `adobe` carries the register; `ghostscript` and
+`eps` displace nothing at all; `bwipp` has six pages and `casselman`
+eighty-five, and neither has been read through.
+The evaluator prints the number for every page and names only those at
+or above a floor of thirty pixels, which is half the ink of a character
+of ten-point text at this resolution -- below it the two rasterisers are
+disagreeing about the edge of a glyph, a pixel at a time and in single
+figures over a whole page.
+
+A page the two engines drew at different sizes is reported as `MEDIA`
+and declared the same way. It is not compared at all: a count of
+differing pixels reads only the overlap of two such pages, so a
+paper-size selection that draws no marks reports a perfect match between
+two different sheets of paper. Comparing the geometry first is what
+makes that visible.
+
 A last register covers the programs whose output is not a function of
 this tree at all. A program that seeds a generator from the execution
 it has had, or prints its own elapsed time onto the page it is timing,
@@ -250,7 +300,9 @@ through Ghostscript, and the two rasters are compared page by page.
 Colour pages compare by pixel count at a small fuzz (structural
 difference, tolerant of sub-pixel edges); halftone and pattern pages
 compare by tint at a coarse resize, because two correct screens differ
-dot for dot but hold the same tone.
+dot for dot but hold the same tone. Every page also reports its
+displaced ink, which is the number that discriminates on text (see the
+`displaced` register above).
 
 A difference is a lead, not a verdict. Ghostscript is informative;
 where a deviation matters, Adobe Distiller is authoritative. Some

@@ -182,6 +182,7 @@ tests/context_jobs_test.c \
 tests/context_reuse_test.c \
 tests/corpus/.gitignore \
 tests/corpus/README.md \
+tests/corpus/adobe/displaced \
 tests/corpus/adobe/heldout \
 tests/corpus/adobe/nopage \
 tests/corpus/adobe/pages \

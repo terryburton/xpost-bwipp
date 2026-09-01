@@ -1,0 +1,87 @@
+# Pages where one engine put ink the other put none near, each with the
+# reason. An entry is a basename and " pN", as nopage's are, and it is
+# removed the day its reason stops holding.
+#
+# Two correct renderings of a page of text differ by thousands of
+# pixels, because one engine anti-aliases its glyphs and the other does
+# not. The evaluator therefore counts something else as well: ink one
+# engine marked solidly with no mark of any strength from the other
+# within two pixels of it. Anti-aliasing cannot produce any of that, and
+# neither can a half-pixel of stem placement; what can is a mark in a
+# place the other engine left blank, which is either something that
+# moved, something that was drawn and should not have been, or two
+# renderings that were never of the same page.
+#
+# So an entry here is a difference nobody can attribute to the
+# rasterisers, and every one of them has to be attributed to something
+# else in writing. The file is read both ways every run: a page that
+# displaces ink and is not named here fails the corpus, and so does a
+# page named here that no longer displaces any. The second direction is
+# the one that keeps the file true -- a reason nothing measures again
+# goes on being read as a known cost long after it has stopped being
+# one.
+#
+# The evaluator reports the number for every page and names only the
+# ones at or above a floor, which is thirty pixels: below it the two
+# rasterisers are disagreeing about the edge of a glyph, which they do a
+# pixel at a time and in single figures over a whole page, and above it
+# the ink of something the size of a character has moved. A character of
+# ten-point text at seventy-two dots to the inch marks about thirty
+# pixels and a character that moved is counted twice, once where it went
+# and once where it no longer is, so the floor is half of the smallest
+# thing this corpus can move. Two pages sit under it today, gb_04-01 at
+# seven pixels and gb_04-02 at eight, and both are the dot of an i
+# placed a row apart by the two glyph rasterisers.
+#
+# Nothing here is xpost declining to draw something. A page this
+# interpreter draws blank or draws wrongly is a defect and belongs in a
+# commit, not in this file.
+#
+# gb_07-04-listing p1, gb_07-05-listing p1, gb_08-02-listing p1 --
+#           three listings from the chapters on font selection and
+#           re-encoding, and all three set text in StoneSerif or
+#           StoneSerif-Italic, which is a typeface neither engine has.
+#           Each substitutes what it has, and they do not choose the
+#           same face: the two pages then carry the same words in
+#           different letterforms at different widths, and past the
+#           first few characters of a line nothing sits where the other
+#           engine put it. gb_08-02 sets a single 300-point word, so
+#           almost the whole of its ink is displaced; the other two set
+#           a line and a paragraph at fifty and ninety point. This is a
+#           property of what the two engines were installed with rather
+#           than of either of them, and no comparison of these pages
+#           says anything about the renderer until the typeface is
+#           present on both sides. gb_06-01 asks for a font by name in
+#           the same way and does not appear here: its substitution
+#           happens to land close enough that no ink is displaced,
+#           which is luck and not agreement.
+#
+# gb_10-02-listing p1, gb_10-04-listing p1 -- neither page is compared
+#           at all, because the two engines did not draw the same sheet
+#           of paper. Both listings ask for ledger paper the way a
+#           document of their period does, by testing whether the
+#           product dictionary defines a tray for it and calling the
+#           tray operator if it does; the alternative branch scales a
+#           letter sheet down for proofing instead. The dictionary they
+#           test is a product's, not the language's -- PLRM 8.2 gives
+#           statusdict no contents of its own and leaves what is in it
+#           to the product -- so the two engines take opposite branches
+#           by design, and one renders 1224 by 792 while the other
+#           renders 612 by 792. The evaluator reports MEDIA for these
+#           rather than a difference, because a count of differing
+#           pixels reads only the overlap of two such pages and would
+#           report gb_10-04 -- which draws no marks at all, being a
+#           paper-size selection and a bare showpage -- as a perfect
+#           match between two different sheets.
+#
+#           These go when the corpus can say that a program selects its
+#           medium outside the language, which is a thing to declare
+#           about the program rather than about the difference it
+#           produces: the pages are not comparable, and that is true
+#           before either engine is run.
+#
+gb_07-04-listing p1
+gb_07-05-listing p1
+gb_08-02-listing p1
+gb_10-02-listing p1
+gb_10-04-listing p1

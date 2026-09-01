@@ -49,6 +49,55 @@ device_for() {   # corpus base -> "ppm" | "pbm"
     esac
 }
 
+# Ink one engine put where the other put none.
+#
+# Two correct renderings of a page of text differ by thousands of pixels,
+# because one engine anti-aliases its glyphs and the other does not: the
+# edge of every stem is a differing pixel, and a count of differing
+# pixels then says how much anti-aliasing there was rather than whether
+# the page is right. Measured on a single line of forty-eight point
+# Times, the two renderings trim to the same width at the same column and
+# still differ by fifteen hundred pixels; the same two engines on a
+# filled path differ by none. So a page that has moved a line of text and
+# a page that has not report the same four-figure number, and the corpus
+# cannot tell them apart.
+#
+# What no two renderings of the same page produce is ink with nothing
+# near it. That is what this counts: a pixel one engine marked solidly
+# with no mark of any strength from the other within two pixels of it,
+# in both directions. Two pixels is the reach of an anti-aliased edge
+# and of the half-pixel either engine may place a stem to either side
+# of; anything that moved leaves its whole ink outside that reach twice
+# over, once where it went and once where it is no longer. It is
+# asymmetric on purpose -- solid ink against a mark of any strength --
+# because the thin stems one engine renders at a fraction of full
+# coverage are the same stems, and a rule reading both sides at half
+# intensity counts them as absent.
+#
+#   $1 the reference page  $2 this interpreter's page
+displaced() {
+    one() {   # solid  anymark  -> pixels of the first with none of the second near
+        convert \( "$1" -colorspace Gray -threshold 50% -negate \) \
+                \( "$2" -colorspace Gray -threshold 98% -negate \
+                   -morphology Dilate Square:2 -negate \) \
+                -compose Multiply -composite \
+                -format '%[fx:mean*w*h]' info: 2>/dev/null
+    }
+    printf '%s %s\n' "$(one "$2" "$1")" "$(one "$1" "$2")" \
+    | awk '{ printf "%.0f\n", $1 + $2 }'
+}
+
+# The displacement a page is reported for. Below it a difference is the
+# two rasterisers disagreeing about the edge of a glyph, which they do a
+# pixel at a time and in single figures over a page; at it or above, the
+# ink of something the size of a character of body text has moved. A
+# character of ten point text at seventy-two dots to the inch marks
+# about thirty pixels, and a character that moved is counted twice --
+# where it went and where it no longer is -- so thirty pixels of
+# displacement is half a character and less than anything this corpus
+# draws.
+DISPLACED_FLOOR=30
+
 # One program, rendered by both engines in a directory of its own so that
 # any number of these may run at once.
 #   $1 corpus  $2 base name  $3 path to the program  $4 work directory
@@ -66,6 +115,7 @@ evaluate_one() {
     # against what the corpus declares, and it reads these rather than
     # the report, so that the wording of a line is not also a protocol.
     : > "$work.miss"
+    : > "$work.disp"
     echo 0 > "$work.cmp"
     (
         dev=$(device_for "$corpus" "$b")
@@ -194,16 +244,41 @@ evaluate_one() {
             [ -f "$gp" ] || { echo "  $b p$i  no reference page"
                               printf '%s p%s\n' "$b" "$i" >> "$work.miss"
                               i=$((i+1)); continue; }
+            # The two engines' pages, held to being pages of the same
+            # thing before anything is read off them. A program that
+            # selects its medium through a product dictionary gets a
+            # different sheet from each engine, and the two renderings
+            # then answer different questions: the comparison below
+            # reads the overlap and reports a perfect match for two
+            # pages that have nothing to do with each other, which is
+            # the one difference a count of differing pixels cannot
+            # see. Such a page is compared -- both engines drew it --
+            # and its whole ink is displaced, so it is reported and
+            # declared like any other displacement.
+            gwh=$(identify -format '%wx%h' "$gp" 2>/dev/null)
+            xwh=$(identify -format '%wx%h' "$xp" 2>/dev/null)
+            if [ "$gwh" != "$xwh" ]; then
+                printf "  %-16s p%-2s  MEDIA %s and %s\n" "$b" "$i" \
+                       "${gwh:-?}" "${xwh:-?}"
+                printf '%s p%s\n' "$b" "$i" >> "$work.disp"
+                compared=$((compared + 1))
+                i=$((i+1)); continue
+            fi
+            d=$(displaced "$gp" "$xp")
+            case ${d:-} in ''|*[!0-9]*) d=0 ;; esac
             if [ "$dev" = pbm ]; then
                 convert "$gp" -resize 12.5% "$work/a.png" 2>/dev/null
                 convert "$xp" -resize 12.5% "$work/b.png" 2>/dev/null
                 m=$(compare -metric RMSE "$work/a.png" "$work/b.png" null: 2>&1 \
                     | grep -oE '\([0-9.]+\)' | tr -d '()')
-                printf "  %-16s p%-2s  tintRMSE %s\n" "$b" "$i" "${m:-?}"
+                printf "  %-16s p%-2s  tintRMSE %-11s displaced %s\n" \
+                       "$b" "$i" "${m:-?}" "$d"
             else
                 m=$(compare -metric AE -fuzz 5% "$gp" "$xp" null: 2>&1 | grep -oE '^[0-9]+')
-                printf "  %-16s p%-2s  AE %s\n" "$b" "$i" "${m:-?}"
+                printf "  %-16s p%-2s  AE %-11s displaced %s\n" \
+                       "$b" "$i" "${m:-?}" "$d"
             fi
+            [ "$d" -ge "$DISPLACED_FLOOR" ] && printf '%s p%s\n' "$b" "$i" >> "$work.disp"
             compared=$((compared + 1))
             i=$((i+1))
         done
@@ -325,11 +400,13 @@ evaluate_corpus() {
     absent=0
     miscount=0
     : > "$cwork/missing"
+    : > "$cwork/displaced"
     : > "$cwork/ran"
     while read -r c && read -r b && read -r p && read -r d && read -r want; do
         if [ -s "$d.out" ]; then
             cat "$d.out"
             [ -f "$d.miss" ] && cat "$d.miss" >> "$cwork/missing"
+            [ -f "$d.disp" ] && cat "$d.disp" >> "$cwork/displaced"
             got=0
             [ -s "$d.cmp" ] && got=$(cat "$d.cmp")
             pages=$((pages + got))
@@ -412,13 +489,65 @@ evaluate_corpus() {
         lapsed=$((lapsed + 1))
     done < "$cwork/declared"
 
+    # What displaced ink, against what the corpus says displaces some.
+    # Anti-aliasing accounts for thousands of differing pixels on a page
+    # of text and for none of these, so a page here differs by something
+    # that moved, or was drawn in a place the other engine drew nothing,
+    # or was not the same page at all. Some of those are this
+    # interpreter's to close and some are not -- a font neither engine
+    # has, substituted differently by each; a medium selected through a
+    # dictionary only one of them carries -- and the ones that are not
+    # are written down with the reason, in a "displaced" file keyed as
+    # nopage is: a basename and " pN".
+    #
+    # Both directions are news, as they are for nopage. An undeclared
+    # displacement is a difference nobody has looked at, sitting in the
+    # log beside the ones that have been; a declared one that no longer
+    # displaces is a reason that has lapsed, and a file saying something
+    # untrue about the corpus is read as a known cost and stops the next
+    # reader looking.
+    #
+    # A corpus is held to this once it carries the file. Until it does,
+    # the pages that displace ink are counted and said, at the end of
+    # the run and in the summary line, and nothing fails: a corpus whose
+    # displacements have not been read through yet is work outstanding
+    # rather than a tree that is broken, and turning it red would only
+    # teach its reader to pass over the line. What the count is for is
+    # to make the outstanding work a number somebody can see rather than
+    # an absence nobody meets.
+    : > "$cwork/dispdeclared"
+    undisplaced=0
+    unmoved=0
+    unheld=0
+    if [ -f "$dir/displaced" ]; then
+        sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+            "$dir/displaced" | grep -v '^$' > "$cwork/dispdeclared"
+        while read -r u; do
+            grep -qxF "$u" "$cwork/dispdeclared" && continue
+            echo "  $u  displaced ink, and $corpus/displaced does not say why"
+            undisplaced=$((undisplaced + 1))
+        done < "$cwork/displaced"
+        while read -r u; do
+            grep -qxF "${u%% *}" "$cwork/ran" || continue
+            grep -qxF "$u" "$cwork/displaced" && continue
+            echo "  $u  declared in $corpus/displaced as displacing ink, but it does not"
+            unmoved=$((unmoved + 1))
+        done < "$cwork/dispdeclared"
+    else
+        unheld=$(grep -c . "$cwork/displaced" 2>/dev/null || echo 0)
+        case ${unheld:-} in ''|*[!0-9]*) unheld=0 ;; esac
+        if [ "$unheld" != 0 ]; then
+            echo "  $unheld pages displaced ink and there is no $corpus/displaced to say why"
+        fi
+    fi
+
     # The registers, against the corpus they describe. An entry naming a
     # program that is not there excuses nothing and measures nothing,
     # and the reason written beside it is read as a known cost by
     # whoever finds it: a name that has outlived its program keeps a
     # question closed that nothing is asking any more.
     stale=0
-    for reg in heldout nondeterministic pages; do
+    for reg in heldout nondeterministic pages displaced; do
         [ -f "$dir/$reg" ] || continue
         while read -r u; do
             case $u in ''|'#'*) continue ;; esac
@@ -486,6 +615,7 @@ evaluate_corpus() {
     # arrive at the same three numbers the corpus on disk gives, so a
     # reader outside this script can work them out for itself and hold
     # this line to them.
+    [ "$unheld" = 0 ] || note="$note, $unheld displacing and unheld"
     note="$note, $declared pages declared, $pages compared, $absent absent"
     if [ "$seen" != "$n" ]; then
         echo "$corpus: NOT EVALUATED -- $seen of $n programs reported$note"
@@ -499,6 +629,8 @@ evaluate_corpus() {
         echo "$corpus: PAGES NOT DECLARED -- $uncounted programs have no count in $corpus/pages; $n programs evaluated$note"
     elif [ "$undeclared" != 0 ] || [ "$lapsed" != 0 ]; then
         echo "$corpus: NO-PAGE SET DIFFERS -- $undeclared undeclared, $lapsed lapsed; $n programs evaluated$note"
+    elif [ "$undisplaced" != 0 ] || [ "$unmoved" != 0 ]; then
+        echo "$corpus: DISPLACED SET DIFFERS -- $undisplaced undeclared, $unmoved lapsed; $n programs evaluated$note"
     elif [ "$miscount" != 0 ]; then
         echo "$corpus: PAGE COUNT DIFFERS -- $miscount programs drew other than the pages declared for them; $n programs evaluated$note"
     else
