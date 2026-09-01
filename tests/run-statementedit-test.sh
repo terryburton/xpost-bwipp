@@ -1,6 +1,8 @@
 #!/bin/sh
 # Meson test wrapper: %statementedit reads a whole PostScript statement
-# from the standard input, however many lines it takes.
+# from the standard input, however many lines it takes, and hands back a
+# file holding it -- the newline that terminated it included, which PLRM
+# 3.8.3 makes part of what the file contains.
 #
 # The special file gathers input until what it has is syntactically
 # complete: a statement that opens a procedure, a string or a hexadecimal
@@ -85,22 +87,26 @@ check() { # description  input  expected
     fi
 }
 
-check "a statement on one line is that line" \
-      '1 2 add\n' '1 2 add'
+check "a statement on one line is that line, with the newline that ended it" \
+      '1 2 add\n' '1 2 add\n'
 check "a procedure is read until its brace closes" \
-      '{ 1 2\nadd }\n' '{ 1 2\nadd }'
+      '{ 1 2\nadd }\n' '{ 1 2\nadd }\n'
 check "nested procedures close from the inside out" \
-      '{ { 1 }\n2 }\n' '{ { 1 }\n2 }'
+      '{ { 1 }\n2 }\n' '{ { 1 }\n2 }\n'
 check "a string is read until its parenthesis closes" \
-      '(abc\ndef)\n' '(abc\ndef)'
+      '(abc\ndef)\n' '(abc\ndef)\n'
 # The escape matters at the end of a line: an escaped parenthesis leaves
 # the string open, so reading continues onto the next line. Taken as a
 # closing parenthesis it would end the statement there instead.
 check "an escaped parenthesis leaves the string open across a line" \
-      '(a\\)\nb)\n' '(a\\)\nb)'
+      '(a\\)\nb)\n' '(a\\)\nb)\n'
 check "a hexadecimal string is read until its bracket closes" \
-      '<0102\n0304>\n' '<0102\n0304>'
-check "input that ends mid-statement yields what there was" \
+      '<0102\n0304>\n' '<0102\n0304>\n'
+# The one statement with no terminating newline to carry: the standard
+# input ended in the middle of it. PLRM 3.8.3 raises undefinedfilename
+# only where end-of-file comes before ANY characters were entered, so
+# what was entered is what comes back -- and it comes back as it stands.
+check "input that ends mid-statement yields what there was, and no newline it never had" \
       '{ 1 2' '{ 1 2'
 
 # %lineedit is the other half of the pair: it reads one line and stops
@@ -114,6 +120,18 @@ lcheck "the line editor stops at the line even with a procedure open" \
        '{ 1 2\nadd }\n' '{ 1 2'
 lcheck "the line editor yields what there was without a final newline" \
        'no newline' 'no newline'
+
+# The pair differ on the newline, and only one of them is legislated.
+# PLRM 3.8.3 says the file %statementedit returns holds the statement
+# "including the terminating end-of-line character", and says nothing of
+# the sort about %lineedit, which is described only as returning after a
+# single line. So the two are asked the same question here and are
+# expected to answer differently: what makes that a rule rather than an
+# accident is that the same input goes to both.
+check "the statement carries the newline that terminated it" \
+      'x\n' 'x\n'
+lcheck "the line does not" \
+       'x\n' 'x'
 
 [ "$fail" = 0 ] || { echo "FAILURES: the statements above"; exit 1; }
 echo "SUCCESS"

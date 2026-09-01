@@ -6253,7 +6253,21 @@ int statementedit(FILE *in, FILE **out)
             }
         if (c == '\n')
         {
-            if (defer == -1) goto done;
+            if (defer == -1)
+            {
+                /* The newline that ended the statement belongs to what
+                   the file holds: PLRM 3.8.3 has the temporary file
+                   contain the statement that was entered "including the
+                   terminating end-of-line character". A statement the
+                   standard input ends without one has none to carry, and
+                   the loop below leaves it as it is. */
+                if (fputc(c, fp) == EOF)
+                {
+                    ret = ioerror;
+                    goto give_up;
+                }
+                goto done;
+            }
             { /* sub-prompt */
                 int i;
                 for (i = 0; i <= defer; i++)
