@@ -1,0 +1,93 @@
+%!testlib
+% The character collection a CIDFont is numbered in, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM Table 5.12 requires CIDSystemInfo of a CIDFont dictionary: a CID is a
+% number, and the collection is what says which glyph that number names, so
+% a CIDFont without one names nothing in particular. The table requires it
+% of every CIDFontType but 4, whose glyphs come from its descendants and
+% which carries no collection of its own.
+%
+% What is asked for is the entry, and that it is the type the table gives
+% it. What the collection dictionary holds is not read: PLRM 8.2 has
+% definefont verify that a dictionary contains the entries its type
+% requires, which is a question about the entries and not about their
+% contents, and the entries of the collection itself are PLRM Table 5.10's
+% subject rather than this operator's. So a sparse collection is registered
+% and the suite says so, rather than leaving the reader to guess how far the
+% check reaches.
+
+/M [0.001 0 0 0.001 0 0] def
+/B [0 0 1 1] def
+/CSI << /Registry (Adobe) /Ordering (Japan1) /Supplement 2 >> def
+
+% ---- the entry is required, whichever route registers the font ----
+% Both routes reach the same place: PLRM 5.9 has definefont and
+% defineresource both stamp a CIDFont, and this interpreter stamps it in
+% one procedure that each of them calls.
+
+{ << /CIDFontType 0 /FontMatrix M /FontBBox B >> /ci.a exch definefont }
+    /invalidfont (a CIDFontType 0 with no CIDSystemInfo) raises
+{ << /CIDFontType 1 /FontMatrix M /FontBBox B >> /ci.b exch definefont }
+    /invalidfont (a CIDFontType 1 with no CIDSystemInfo) raises
+{ << /CIDFontType 2 /FontMatrix M /FontBBox B >> /ci.c exch definefont }
+    /invalidfont (a CIDFontType 2 with no CIDSystemInfo) raises
+{ << /CIDFontType 0 /FontMatrix M /FontBBox B >> /ci.d exch
+  /CIDFont defineresource }
+    /invalidfont (defineresource of a CIDFont with no CIDSystemInfo) raises
+
+% and the entry is held to being the type the table gives it
+{ << /CIDFontType 0 /FontMatrix M /FontBBox B /CIDSystemInfo (Adobe) >>
+  /ci.e exch definefont }
+    /invalidfont (a CIDSystemInfo that is not a dictionary) raises
+
+% ---- and a CIDFont carrying one is registered ----
+% A test that only proved the refusal could not tell this check from one
+% that refuses every CIDFont.
+
+{ << /CIDFontType 0 /FontMatrix M /FontBBox B /CIDSystemInfo CSI >>
+  /ci.ok exch definefont pop }
+    (a CIDFontType 0 carrying a CIDSystemInfo) works
+{ << /CIDFontType 2 /FontMatrix M /FontBBox B /CIDSystemInfo CSI >>
+  /ci.ok2 exch definefont pop }
+    (a CIDFontType 2 carrying a CIDSystemInfo) works
+{ << /CIDFontType 0 /FontMatrix M /FontBBox B /CIDSystemInfo CSI >>
+  /ci.ok3 exch /CIDFont defineresource pop }
+    (defineresource of a CIDFont carrying a CIDSystemInfo) works
+
+% what is registered is a CIDFont, and it keeps its collection
+/ci.ok findfont /CIDSystemInfo get /Ordering get (Japan1) eq
+    (the collection the font was registered with is the one it keeps) assert
+
+% the entry is asked for, not read: a collection short of what PLRM Table
+% 5.10 lists is still a collection as far as definefont is concerned
+{ << /CIDFontType 0 /FontMatrix M /FontBBox B
+     /CIDSystemInfo << /Registry (Adobe) >> >> /ci.sparse exch definefont pop }
+    (a CIDSystemInfo missing entries of its own) works
+
+% ---- CIDFontType 4 is exempt, as the table says ----
+
+{ << /CIDFontType 4 /FontMatrix M /FontBBox B >> /ci.t4 exch definefont pop }
+    (a CIDFontType 4 with no CIDSystemInfo) works
+{ << /CIDFontType 4 /FontMatrix M /FontBBox B /CIDSystemInfo CSI >>
+  /ci.t4b exch definefont pop }
+    (a CIDFontType 4 carrying one anyway) works
+
+% ---- a base font is not a CIDFont and is not asked ----
+
+{ << /FontType 3 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /BuildChar { pop pop } >> /ci.base exch definefont pop }
+    (a Type 3 base font is untouched by this) works
+
+% ---- and the refusals that were already here still stand ----
+
+{ << /FontMatrix M /FontBBox B /CIDSystemInfo CSI >> /ci.nt exch definefont }
+    /invalidfont (a CIDFont with no CIDFontType) raises
+{ << /CIDFontType 9 /FontMatrix M /FontBBox B /CIDSystemInfo CSI >>
+  /ci.bt exch definefont }
+    /invalidfont (a CIDFontType this interpreter does not build) raises
+{ << /CIDFontType (0) /FontMatrix M /FontBBox B /CIDSystemInfo CSI >>
+  /ci.st exch definefont }
+    /typecheck (a CIDFontType that is not an integer) raises
+
+verdict

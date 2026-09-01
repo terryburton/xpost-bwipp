@@ -166,6 +166,7 @@ tests/vm_host_state.register \
 tests/check-wrapped-bind.sh \
 tests/check-helper-bind.sh \
 tests/cid_show_test.ps \
+tests/cidsysteminfo_test.ps \
 tests/clip_region_test.ps \
 tests/qsort_test.ps \
 tests/clock_test.c \

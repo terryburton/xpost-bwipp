@@ -3505,6 +3505,16 @@ test('font-definefont-entries',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The character collection a CIDFont is numbered in: PLRM Table 5.12
+# requires the entry of every CIDFontType but 4, and the suite holds both
+# the refusal and the registration, since a check that refused every
+# CIDFont would satisfy the refusal alone.
+test('font-cidsysteminfo',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/cidsysteminfo_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('font-directory',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/font_directory_test.ps') ],

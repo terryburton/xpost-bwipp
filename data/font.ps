@@ -212,6 +212,26 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     get
     dup type /integertype ne
         { pop pop cvx /typecheck signalerror } if
+
+    % PLRM Table 5.12 requires CIDSystemInfo of a CIDFont dictionary: the
+    % character collection its CIDs are numbered in, without which a CID
+    % names nothing in particular. The table requires it of every
+    % CIDFontType but 4, whose glyphs are its descendants' and which
+    % carries no collection of its own, so that one is not asked.
+    %
+    % What is asked is that the entry is there and is a dictionary, which
+    % is the type the table gives it. What it holds is not read here.
+    % PLRM 8.2 has definefont verify that a dictionary contains the
+    % entries its type requires, and the entries of the collection
+    % dictionary itself (PLRM Table 5.10) are the collection's business
+    % rather than this operator's.
+    dup 4 ne {
+        1 index /CIDSystemInfo 2 copy known
+            { get type /dicttype ne }
+            { pop pop true } ifelse
+        { pop pop cvx /invalidfont signalerror } if
+    } if
+
     //.cidtypemap exch 2 copy known not
         { pop pop pop cvx /invalidfont signalerror } if
     get
