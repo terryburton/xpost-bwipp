@@ -61,6 +61,7 @@ rows are fine for a different reason: .endpage names
 .htextent                   sethalftone
 .htoptional                 sethalftone
 .htrequire                  sethalftone
+.htthresholds               sethalftone
 .htvalidate                 sethalftone
 .imagetype3                 image
 .imagetype4                 image

@@ -225,7 +225,8 @@ PATNAMES { { (PROGRAM-OWNED) } def } forall
 % The halftone/screen family lives in .xpostsys, so redefining the names
 % cannot disturb screen or halftone setup (public ops reach it by frozen get).
 /HTNAMES [ /.spreadgrayscreen /.samplespot /.gcd /.screenlattice
-    /.installscreencell /.refreshscreencell /.ht5component /.htreadthresholds ] def
+    /.installscreencell /.refreshscreencell /.ht5component /.htthresholds
+    /.htresolve /.htarrayfile /.htwith ] def
 HTNAMES {
     dup where { pop (HT-VISIBLE: ) print == false }{ pop true } ifelse
     (halftone helper name is hidden) assert

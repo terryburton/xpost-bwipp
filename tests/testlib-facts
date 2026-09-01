@@ -126,7 +126,7 @@ own    global_vm_invariant_test.ps            4
 own    graphics_regression_test.ps            37
 own    gstate_object_test.ps                  1
 own    halftone_cell_test.ps                  3
-own    halftone_matrix_test.ps                2
+own    halftone_matrix_test.ps                3
 own    idiom_test.ps                          1
 own    imaging_bbox_test.ps                   5
 own    internal_debug_ops_test.ps             1

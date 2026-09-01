@@ -630,7 +630,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.refreshscreencell {  % -  .  -
     DEVICE /ScreenPaint known {
         4 dict begin
-        /ht graphicsdict /currgstate get /halftone get //.xpostsys /.ht5component get exec def
+        % The dictionary a cell is built from is the component the
+        % halftone was installed as, which is the screen slot's own
+        % value: the halftone slot answers currenthalftone and carries a
+        % threshold array as a file, which is not what a cell reads.
+        /ht graphicsdict /currgstate get /halftone get null eq
+            { null }{ graphicsdict /currgstate get /screenproc get } ifelse def
         ht null ne {
             ht /Thresholds 2 copy known { get }{ pop pop null } ifelse
             dup type /stringtype eq {
@@ -874,77 +879,193 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
-%  a threshold-array halftone may deliver its thresholds through a
-%  file (a filter over the program stream): sethalftone consumes
-%  that data, so read it -- into a string put back in the
-%  dictionary, where a screening device's cell can find it, or
-%  drained when it exceeds a string.
+%  a threshold-array halftone delivers its thresholds through a file: a
+%  filter over the program stream, or a file of the program's own.
+%  sethalftone consumes that data, so read it here -- all of it, and
+%  before any of the halftone is recorded.
 %
-.xpostsys /.htreadthresholds {  % ht  .  -
+%  Two strings come back and both are wanted. The RAW bytes are the array
+%  as the file spells it, and they are what the dictionary
+%  currenthalftone answers with hands out again. The SCREEN string is one
+%  byte a sample, which is what a cell holds in C and in the PostScript
+%  screens alike, so a type 16's 16-bit threshold is kept to the
+%  precision the cell carries: its high byte. The reduction is stated
+%  rather than silent -- a type 16 and a type 6 built from the same
+%  values screen alike here. Every other type spells one byte a sample
+%  already, and its two strings are one string.
+%
+%  A file that ends before the array does is a rangecheck (PLRM 7.4.5);
+%  an array too large to be held in a string is a limitcheck, as an
+%  angled cell whose tile will not fit one is.
+%
+%  The read disregards the file's access attribute, which PLRM 7.4.5 asks
+%  of sethalftone alone: an execute-only or no-access file still delivers
+%  its array. That is what lets the dictionary currenthalftone answers a
+%  type 16 with, whose file is no-access, be presented back here.
+%
+.xpostsys /.htthresholds {  % ht  .  raw screen
     10 dict begin
     /ht exch def
-    ht /Thresholds 2 copy known {
-        get dup type /filetype eq {
-            /htw ht /Width 2 copy known { get }{ pop pop 0 } ifelse def
-            /hth ht /Height 2 copy known { get }{ pop pop 0 } ifelse def
+    /src ht /Thresholds get def
+    /htw ht /Width 2 copy known { get }{ pop pop 0 } ifelse def
+    /hth ht /Height 2 copy known { get }{ pop pop 0 } ifelse def
 
-            % a type 16 spends two bytes on each threshold; every other
-            % type spends one.
-            /wide ht /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse
-                  16 eq def
-            /httype ht /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse def
+    % a type 16 spends two bytes on each threshold; every other type
+    % spends one.
+    /httype ht /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse def
+    /wide httype 16 eq def
 
-            % The four sides the type names, in whatever shape it names
-            % them: two squares are two square rectangles, and a type
-            % that describes no second rectangle has none.
-            /hw2 0 def /hh2 0 def
-            httype 10 eq {
-                /htw ht /Xsquare get def /hth htw def
-                /hw2 ht /Ysquare get def /hh2 hw2 def
+    % The four sides the type names, in whatever shape it names them: two
+    % squares are two square rectangles, and a type that describes no
+    % second rectangle has none.
+    /hw2 0 def /hh2 0 def
+    httype 10 eq {
+        /htw ht /Xsquare get def /hth htw def
+        /hw2 ht /Ysquare get def /hh2 hw2 def
+    }{
+        httype 16 eq ht /Width2 known and {
+            /hw2 ht /Width2 get def /hh2 ht /Height2 get def
+        } if
+    } ifelse
+    /nsamp htw hth hw2 hh2 //.celldet exec def
+    /nbytes nsamp wide { 2 mul } if def
+    nsamp 0 le
+        { /sethalftone cvx /rangecheck signalerror } if
+    nbytes 65535 gt
+        { /sethalftone cvx /limitcheck signalerror } if
+
+    % The two strings are made where the dictionary is, so that the copies
+    % below -- which are made there too -- are allowed to hold them. They
+    % stay on the operand stack rather than in this dictionary, which is
+    % wherever the caller was allocating.
+    currentglobal
+    ht gcheck setglobal
+    nbytes string
+    wide { nsamp string }{ dup } ifelse
+    3 -1 roll setglobal                     % raw screen
+
+    src 2 index //.readstringanyaccess exec
+        not { /sethalftone cvx /rangecheck signalerror } if
+    pop
+
+    wide {
+        0 1 nsamp 1 sub {
+            /i exch def
+            dup i  3 index i 2 mul get  put
+        } for
+    } if
+
+    % Drain whatever the array did not need: sethalftone consumes the
+    % file. A read leaves the piece it took whether or not it filled the
+    % string, so the last piece is dropped on the way out as well as on
+    % the way round -- but not without bound. A source that ends where the
+    % cell's samples do drains to nothing; one that goes on decoding far
+    % more than any cell can hold is a decompression bomb, not thresholds,
+    % so the drain stops at a cap the largest cell is already well inside
+    % rather than following the source to the end of an arbitrary stream.
+    0
+    { src 4096 string //.readstringanyaccess exec
+      not { pop exit } if pop
+      1 add dup 16 gt { exit } if } loop
+    pop
+    end
+} put
+
+%
+%  The threshold array presented as a file, which is what the dictionary
+%  currenthalftone answers with carries in place of the file sethalftone
+%  was given (PLRM 7.4.5). It is a different file object from that one,
+%  and its access attribute is the original's -- except for a type 16,
+%  whose file is no-access whatever the original's was, so that a program
+%  cannot read the array through it. Either way the dictionary goes back
+%  to sethalftone and reinstalls the same array.
+%
+.xpostsys /.htarrayfile {  % raw src noaccess  .  file
+    3 dict begin
+    /noacc exch def
+    /src exch def
+    /raw exch def
+    currentglobal
+    raw gcheck setglobal
+    raw << >> /ReusableStreamDecode filter
+    exch setglobal
+    noacc src rcheck not or { noaccess } if
+    end
+} put
+
+%
+%  A copy of a halftone dictionary carrying a different threshold array.
+%  The copy is made where the dictionary is, so that it may hold the
+%  dictionary's own entries.
+%
+.xpostsys /.htwith {  % ht value  .  ht'
+    2 dict begin
+    /v exch def
+    /ht exch def
+    currentglobal
+    ht gcheck setglobal
+    ht ht length dict copy
+    exch setglobal
+    dup /Thresholds v put
+    end
+} put
+
+%
+%  Draw a halftone dictionary's threshold array out of the file it
+%  arrives in, and answer with the two dictionaries a halftone is read
+%  through afterwards: the SCREEN, which carries the array itself and is
+%  what a cell is built from, and the ANSWER, which carries it as a file
+%  and is what currenthalftone hands back.
+%
+%  A dictionary that spells its array in a string, or carries no array at
+%  all, is already both of them and is answered twice over rather than
+%  copied. A type 5 is neither until its components are, so it is resolved
+%  component by component; PLRM 7.4.6 allows a component of any type but
+%  2, 4 and 5, so a component's own components are not a case.
+%
+%  Nothing here writes into the dictionary it was given, and nothing is
+%  recorded until all of this has succeeded: a dictionary that cannot
+%  deliver the array it declares leaves the halftone in force, and its own
+%  contents, as they were.
+%
+.xpostsys /.htresolve {  % ht  .  screen answer
+    6 dict begin
+    /ht exch def
+    ht /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse 5 eq {
+        /moved false def
+        currentglobal
+        ht gcheck setglobal
+        /scr ht length dict def
+        /ans ht length dict def
+        setglobal
+        ht {
+            /v exch def
+            /k exch def
+            v type /dicttype eq {
+                v //.xpostsys /.htresolve get exec
+                dup v ne { /moved true def } if
+                ans exch k exch put
+                scr exch k exch put
             }{
-                httype 16 eq ht /Width2 known and {
-                    /hw2 ht /Width2 get def /hh2 ht /Height2 get def
-                } if
+                scr k v put
+                ans k v put
             } ifelse
-            /nsamp htw hth hw2 hh2 //.celldet exec def
-            /nbytes nsamp wide { 2 mul } if def
-            nsamp 0 gt nbytes 65535 le and {
-                nbytes string
-                1 index exch readstring pop
-
-                % The cell holds one byte a sample, in C and in the
-                % PostScript screens alike, so a 16-bit threshold is kept
-                % to the precision the cell carries: its high byte. The
-                % reduction is stated rather than silent -- a type 16 and
-                % a type 6 built from the same values screen alike here.
-                wide {
-                    /raw exch def
-                    nsamp string
-                    0 1 nsamp 1 sub {
-                        /i exch def
-                        dup i raw i 2 mul get put
-                    } for
-                } if
-                ht wcheck {
-                    ht /Thresholds 3 -1 roll put
-                }{ pop } ifelse
-            } if
-
-            % Drain whatever the array did not need: sethalftone consumes
-            % the file. readstring leaves the piece it read whether or not
-            % it filled the string, so the last piece is dropped on the way
-            % out as well as on the way round -- but not without bound. A
-            % source that ends where the cell's samples do drains to
-            % nothing; one that goes on decoding far more than any cell can
-            % hold is a decompression bomb, not thresholds, so the drain
-            % stops at a cap the largest cell is already well inside rather
-            % than following the source to the end of an arbitrary stream.
-            0
-            { 1 index 4096 string readstring not { pop exit } if pop
-              1 add dup 16 gt { exit } if } loop
-            pop pop
-        }{ pop } ifelse
-    }{ pop pop } ifelse
+        } forall
+        moved { scr ans }{ ht ht } ifelse
+    }{
+        ht /Thresholds 2 copy known { get }{ pop pop null } ifelse
+        type /filetype eq {
+            ht //.htthresholds exec         % raw screen
+            ht exch //.htwith exec          % raw screen'
+            exch                            % screen' raw
+            ht /Thresholds get
+            ht /HalftoneType get 16 eq
+            //.htarrayfile exec             % screen' file
+            ht exch //.htwith exec          % screen' answer'
+        }{
+            ht ht
+        } ifelse
+    } ifelse
     end
 } put
 
@@ -1200,9 +1321,9 @@ readonly put
 
         % The same threshold array as a type 3, delivered through a file
         % rather than a string. The file is the whole of the difference:
-        % .htreadthresholds already draws Width x Height bytes out of it
-        % and puts the string back where the screen looks for it, so
-        % nothing downstream distinguishes the two.
+        % the threshold read draws Width x Height bytes out of it and
+        % hands the screen a dictionary carrying the string, so nothing
+        % downstream distinguishes the two.
         ht [ /Width /Height /Thresholds ] //.htrequire exec
         ht /Width get type /integertype eq
         ht /Height get type /integertype eq and not
@@ -1334,22 +1455,19 @@ readonly put
         /sethalftone cvx /typecheck signalerror
     } if
     dup //.htvalidate exec
-    graphicsdict /currgstate get exch /halftone exch put
 
-    % The thresholds are drawn out of their file BEFORE a component is
-    % chosen: an angled cell is expanded from the bytes themselves, and
-    % a file is not bytes yet. sethalftone consumes the file either way.
-    graphicsdict /currgstate get /halftone get
-    dup /HalftoneType 2 copy known { get }{ pop pop 0 } ifelse 5 eq {
-        { exch pop
-          dup type /dicttype eq { //.htreadthresholds exec }{ pop } ifelse
-        } forall
-    }{
-        //.htreadthresholds exec
-    } ifelse
+    % Everything that can refuse the dictionary happens before any of it is
+    % recorded. The thresholds are drawn out of their file first, because
+    % an angled cell is expanded from the bytes themselves and a file is
+    % not bytes yet; a dictionary that cannot deliver the array it
+    % declares is refused here, and the halftone in force stays in force.
+    //.htresolve exec               % screen answer
+    exch //.ht5component exec       % answer component
+    2 dict begin
+    /ht exch def
+    /ans exch def
 
-    1 dict begin
-    /ht graphicsdict /currgstate get /halftone get //.ht5component exec def
+    graphicsdict /currgstate get /halftone ans put
     ht /HalftoneType 2 copy known { get 1 eq }{ pop pop false } ifelse
     ht /Frequency known and ht /Angle known and {
         graphicsdict /currgstate get /screenfreq ht /Frequency get put
@@ -1367,8 +1485,7 @@ readonly put
     % copied over.
     graphicsdict /currgstate get /halftonetransfer
         ht /TransferFunction 2 copy known { get }{ pop pop null } ifelse put
-    graphicsdict /currgstate get /halftone get ht
-        //.htanswer exec
+    ans ht //.htanswer exec
     end
     //.spreadgrayscreen exec
 } .defop

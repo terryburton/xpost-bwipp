@@ -21,6 +21,10 @@
  * readhexstring writehexstring bytesavailable flush flushfile resetfile
  * status run currentfile print echo deletefile renamefile filenameforall
  *
+ * and under dot-prefixed names, .eexecdecode and .readstringanyaccess,
+ * which the boot files move out of systemdict into the machinery's own
+ * dictionary: they are not part of the language.
+ *
  * A filter is a file whose bytes pass through a decoder or an encoder on the
  * way, and it is a file object like any other to everything above it.
  */
@@ -1094,17 +1098,20 @@ int xpost_op_file_writehexstring (Xpost_Context *ctx,
     return 0;
 }
 
-/* file string  readstring  substring true
-                            substring false
-   read from file into string */
+/* The transfer both reading operators below are made of. `anyaccess`
+   says whether the file's own access attribute stands in the way: it is
+   the difference between the operator a program calls and the one the
+   halftone machinery calls, and nothing else about the transfer
+   changes. */
 static
-int xpost_op_file_readstring (Xpost_Context *ctx,
-                              Xpost_Object F,
-                              Xpost_Object S)
+int _readstring (Xpost_Context *ctx,
+                 Xpost_Object F,
+                 Xpost_Object S,
+                 int anyaccess)
 {
     integer n;
     Xpost_File *f;
-    if (!xpost_object_is_readable(ctx,F))
+    if (!anyaccess && !xpost_object_is_readable(ctx,F))
         return invalidaccess;
     /* a zero-length string could hold nothing, so asking to fill one is an
        error rather than a transfer of no bytes (PLRM 8.2) */
@@ -1163,6 +1170,37 @@ int xpost_op_file_readstring (Xpost_Context *ctx,
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
     }
     return 0;
+}
+
+/* file string  readstring  substring true
+                            substring false
+   read from file into string */
+static
+int xpost_op_file_readstring (Xpost_Context *ctx,
+                              Xpost_Object F,
+                              Xpost_Object S)
+{
+    return _readstring(ctx, F, S, 0);
+}
+
+/* file string  .readstringanyaccess  substring true
+                                      substring false
+   read from file into string, disregarding the file's access attribute.
+
+   PLRM 7.4.5 has sethalftone read the threshold array out of a halftone
+   dictionary's Thresholds file with the file object's access attribute
+   disregarded, so that an execute-only or no-access file still delivers
+   its array -- which is what lets the dictionary currenthalftone answers
+   with, whose file is no-access for a type 16, be presented back to
+   sethalftone to reinstall the same array. The threshold read is the
+   only caller: this is a private operator, out of a program's reach, and
+   readstring above is what a program gets. */
+static
+int xpost_op_file_readstringanyaccess (Xpost_Context *ctx,
+                                       Xpost_Object F,
+                                       Xpost_Object S)
+{
+    return _readstring(ctx, F, S, 1);
 }
 
 /* file string  writestring  -
@@ -2533,6 +2571,8 @@ int xpost_oper_init_file_ops (Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, "writehexstring", (Xpost_Op_Func)xpost_op_file_writehexstring, 2, filetype, stringtype);
     INSTALL;
     op = xpost_operator_cons(ctx, "readstring", (Xpost_Op_Func)xpost_op_file_readstring, 2, filetype, stringtype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".readstringanyaccess", (Xpost_Op_Func)xpost_op_file_readstringanyaccess, 2, filetype, stringtype);
     INSTALL;
     op = xpost_operator_cons(ctx, "writestring", (Xpost_Op_Func)xpost_op_file_writestring, 2, filetype, stringtype);
     INSTALL;

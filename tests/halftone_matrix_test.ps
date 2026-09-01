@@ -28,6 +28,15 @@
     pop zf.s /ASCIIHexDecode filter
 } def
 
+% The dictionary the screen in force was built from. PLRM 8.2 has
+% currentscreen answer with a halftone dictionary in place of the spot
+% function where the halftone was set by sethalftone, and that is the
+% dictionary carrying the threshold array a cell reads -- the array
+% itself, in a string, whatever the array arrived as.
+/screendict { % -  ->  dict
+    currentscreen exch pop exch pop
+} def
+
 % ----------------------------------------------------- the whole dictionaries
 % Each type this interpreter screens with, complete, is accepted.
 
@@ -61,10 +70,10 @@
 % spelling 01 80 00 FF.
 { << /HalftoneType 16 /Width 2 /Height 2
      /Thresholds (0140807F0022FF13) /ASCIIHexDecode filter >> sethalftone
-  currenthalftone /Thresholds get
+  screendict /Thresholds get 4 string copy
   << /HalftoneType 6 /Width 2 /Height 2
      /Thresholds (018000FF) /ASCIIHexDecode filter >> sethalftone
-  currenthalftone /Thresholds get
+  screendict /Thresholds get
   ne { (a type 16 does not reduce to the type 6 it matches)
        (16-bit thresholds) note } if }
   (a type 16 reduced to the cell's precision) works
@@ -141,6 +150,151 @@
   currenthalftone /HalftoneType get 3 ne
     { (does not read back as type 3) (currenthalftone) note } if }
   (a type 3 read back) works
+
+% -------------------------------------------- the array comes back again
+% A threshold array given through a file comes back through one. PLRM
+% 7.4.5 has currenthalftone answer a type 6 and a type 16 with a
+% dictionary whose Thresholds is a FILE -- a different file object from
+% the one sethalftone was given -- and the dictionary can be presented to
+% sethalftone to reinstall the same array. A type 3
+% spells its array in a string and is the control here: it must still
+% come back as the string it was set with, and must still reinstall.
+%
+% Each case checks the reinstalled array against the array first
+% installed, because a round trip that merely does not raise cannot tell
+% a dictionary that reinstalled the same screen from one that reinstalled
+% some other.
+
+{ << /HalftoneType 3 /Width 2 /Height 2 /Thresholds <0180C8FF> >> sethalftone
+  /htwas screendict /Thresholds get 4 string copy def
+  currenthalftone /Thresholds get type /stringtype ne
+    { (does not come back as a string) (a type 3 threshold array) note } if
+  currenthalftone sethalftone
+  screendict /Thresholds get htwas ne
+    { (does not reinstall the same array) (a type 3 threshold array) note } if }
+  (a type 3 threshold array through currenthalftone) works
+
+{ << /HalftoneType 6 /Width 2 /Height 2
+     /Thresholds (0180C8FF) /ASCIIHexDecode filter >> sethalftone
+  /htwas screendict /Thresholds get 4 string copy def
+  currenthalftone /Thresholds get type /filetype ne
+    { (does not come back as a file) (a type 6 threshold array) note } if
+  currenthalftone sethalftone
+  screendict /Thresholds get htwas ne
+    { (does not reinstall the same array) (a type 6 threshold array) note } if }
+  (a type 6 threshold array through currenthalftone) works
+
+{ << /HalftoneType 16 /Width 2 /Height 2
+     /Thresholds (0140807F0022FF13) /ASCIIHexDecode filter >> sethalftone
+  /htwas screendict /Thresholds get 4 string copy def
+  currenthalftone /Thresholds get type /filetype ne
+    { (does not come back as a file) (a type 16 threshold array) note } if
+  currenthalftone sethalftone
+  screendict /Thresholds get htwas ne
+    { (does not reinstall the same array) (a type 16 threshold array) note } if }
+  (a type 16 threshold array through currenthalftone) works
+
+% and the same for the type 16 that carries a second rectangle, whose
+% array is expanded into a cell rather than read straight into one
+{ << /HalftoneType 16 /Width 4 /Height 3 /Width2 2 /Height2 2
+     /Thresholds
+     (00010A0B14151E1F28292A2B34353E3F48494A4B54555E5F68696A6B74757E7F)
+     /ASCIIHexDecode filter >> sethalftone
+  /htwas screendict /Thresholds get
+         screendict /Thresholds get length string copy def
+  currenthalftone sethalftone
+  screendict /Thresholds get htwas ne
+    { (does not reinstall the same cell) (a type 16 angled cell) note } if }
+  (a type 16 with a second rectangle through currenthalftone) works
+
+% A type 5's components are threshold arrays in their own right, so the
+% dictionary answered for a composite carries a file wherever a component
+% was given one, and the composite reinstalls.
+{ << /HalftoneType 5
+     /Gray << /HalftoneType 6 /Width 2 /Height 2
+              /Thresholds (0180C8FF) /ASCIIHexDecode filter >>
+     /Default << /HalftoneType 1 /Frequency 60 /Angle 45
+                 /SpotFunction { pop pop 0 } >> >> sethalftone
+  /htwas screendict /Thresholds get 4 string copy def
+  currenthalftone /Gray get /Thresholds get type /filetype ne
+    { (does not come back as a file) (a type 5 component's array) note } if
+  currenthalftone sethalftone
+  screendict /Thresholds get htwas ne
+    { (does not reinstall the same array) (a type 5 component's array) note } if }
+  (a type 5 component's threshold array through currenthalftone) works
+
+% ------------------------------------------------ what may be read back
+% PLRM 7.4.5 gives the answered type 6 file the access attribute the
+% original had, so a program may read the array back through it where the
+% original permitted a read. It gives the answered type 16 file no access
+% AT ALL, whatever the original's was, so a program cannot read a type
+% 16's array. The two are separate rules and both are asked here: a fix
+% that made the answered file's access unconditional would satisfy one of
+% them and fail the other.
+
+{ << /HalftoneType 6 /Width 2 /Height 2
+     /Thresholds (0180C8FF) /ASCIIHexDecode filter >> sethalftone
+  currenthalftone /Thresholds get
+  dup type /filetype ne
+    { (is not a file at all) (a type 6 answered file) note } if
+  rcheck not
+    { (is not readable where the original was) (a type 6 answered file) note } if }
+  (a type 6 answered file keeping a readable original's access) works
+
+{ << /HalftoneType 6 /Width 2 /Height 2
+     /Thresholds (0180C8FF) /ASCIIHexDecode filter >> sethalftone
+  currenthalftone /Thresholds get 4 string readstring pop
+  <0180C8FF> ne
+    { (does not carry the array) (a type 6 answered file) note } if }
+  (a type 6 answered file carrying the array) works
+
+{ << /HalftoneType 6 /Width 2 /Height 2
+     /Thresholds (0180C8FF) /ASCIIHexDecode filter noaccess >> sethalftone
+  currenthalftone /Thresholds get
+  dup type /filetype ne
+    { (is not a file at all) (a type 6 answered file) note } if
+  rcheck
+    { (is readable where the original was not) (a type 6 answered file) note } if }
+  (a type 6 answered file keeping a no-access original's access) works
+
+{ << /HalftoneType 16 /Width 2 /Height 2
+     /Thresholds (0100804000C800FF) /ASCIIHexDecode filter >> sethalftone
+  currenthalftone /Thresholds get
+  dup type /filetype ne
+    { (is not a file at all) (a type 16 answered file) note } if
+  rcheck
+    { (is readable, and a type 16's may not be) (a type 16 answered file) note } if }
+  (a type 16 answered file being no-access) works
+
+% The array is read with the file's own access attribute disregarded,
+% which PLRM 7.4.5 asks of sethalftone and of nothing else: a file a
+% program cannot read still delivers its array. That is the rule the type
+% 16 round trip above rests on, and it holds for a file the program made
+% no-access itself.
+{ << /HalftoneType 6 /Width 2 /Height 2
+     /Thresholds (0180C8FF) /ASCIIHexDecode filter noaccess >> sethalftone }
+  (a type 6 whose Thresholds file is no-access) works
+{ << /HalftoneType 16 /Width 2 /Height 2
+     /Thresholds (0100804000C800FF) /ASCIIHexDecode filter noaccess >>
+  sethalftone } (a type 16 whose Thresholds file is no-access) works
+
+% ------------------------------------- a file that does not hold it all
+% PLRM 7.4.5: a rangecheck where the file ends before the array does.
+{ << /HalftoneType 6 /Width 2 /Height 2
+     /Thresholds (0180) /ASCIIHexDecode filter >> sethalftone }
+  /rangecheck (a type 6 whose file ends before the array does) raises
+{ << /HalftoneType 16 /Width 2 /Height 2
+     /Thresholds (01008040) /ASCIIHexDecode filter >> sethalftone }
+  /rangecheck (a type 16 whose file ends before the array does) raises
+{ << /HalftoneType 10 /Xsquare 3 /Ysquare 2
+     /Thresholds (011020) /ASCIIHexDecode filter >> sethalftone }
+  /rangecheck (a type 10 whose file ends before the array does) raises
+
+% and one that declares more than a string can hold, as an angled cell
+% too large to expand is refused for the same reason
+{ << /HalftoneType 6 /Width 400 /Height 400
+     /Thresholds (0180C8FF) /ASCIIHexDecode filter >> sethalftone }
+  /limitcheck (a type 6 declaring more thresholds than a string holds) raises
 
 % ------------------------------------------------------------ the type itself
 % A dictionary with no type at all, a type that is not a number, and
@@ -482,12 +636,48 @@ currenthalftone /ActualFrequency known not
 
 % --------------------------------------------------- nothing is left behind
 % A rejected halftone must not have displaced the one already in force.
+%
+% The framework's runners cannot ask this question. They put the graphics
+% state back when a case raises, and the graphics state is where the
+% halftone lives -- so a case run through them would be answered by the
+% framework's own tidying whatever sethalftone did. These are run by hand
+% for that reason.
 
 << /HalftoneType 1 /Frequency 33 /Angle 44 /SpotFunction { pop pop 0 } >>
 sethalftone
 { << /HalftoneType 99 >> sethalftone } stopped pop clear
 currenthalftone /Frequency get 33 eq
     (a rejected halftone leaves the current one in force) assert
+
+% A type 16 is the type whose dictionary can be sound and whose FILE
+% still cannot deliver the array, so the last thing that can refuse it is
+% the read. The array is drawn out before any of the halftone is
+% recorded: a file that ends early leaves the halftone in force whole --
+% its type, the array a cell is built from, and its own ability to be
+% reinstalled.
+
+<< /HalftoneType 3 /Width 2 /Height 2 /Thresholds <0180C8FF> >> sethalftone
+/htkept screendict /Thresholds get 4 string copy def
+{ << /HalftoneType 16 /Width 2 /Height 2
+     /Thresholds (01008040) /ASCIIHexDecode filter >> sethalftone } stopped
+    (a type 16 whose file ends early is refused) assert
+clear
+currenthalftone /HalftoneType get 3 eq
+    (a refused type 16 leaves the halftone type in force) assert
+screendict /Thresholds get htkept eq
+    (a refused type 16 leaves the threshold array in force) assert
+currenthalftone sethalftone
+currenthalftone /HalftoneType get 3 eq
+    (the halftone a refused type 16 left can be reinstalled) assert
+
+% and the control the three checks above need: a type 16 whose file DOES
+% deliver the array replaces the halftone. Without it they would pass
+% just as well against a sethalftone that had stopped installing
+% anything at all.
+<< /HalftoneType 16 /Width 2 /Height 2
+   /Thresholds (0100804000C800FF) /ASCIIHexDecode filter >> sethalftone
+currenthalftone /HalftoneType get 16 eq
+    (a type 16 whose file delivers the array does replace the halftone) assert
 
 % and the operand is still refused when it is not a dictionary at all
 { 7 sethalftone } /typecheck (a halftone that is not a dictionary) raises
