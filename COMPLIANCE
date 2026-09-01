@@ -58,8 +58,7 @@ Level 1 operators
 Level 2 operators
 -----------------
 
- [X] setcolorspace (all colour-space families; colour rendering dictionaries
-     are recorded, not applied)
+ [X] setcolorspace (all colour-space families)
  [X] setpagedevice (OutputDevice, PageSize, HWResolution, OutputFile,
      PageOffset, ImagingBBox, Policies; a request states page-device
      parameters and a key that is not one of them is accepted -- the
