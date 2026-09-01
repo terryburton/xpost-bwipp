@@ -438,6 +438,11 @@ WC WL differs 0 gt (rather than the glyph its last byte would select) check
 % literal past the type's range is a real (PLRM 3.3.2), so the same
 % source text is a wrong type at one width and an out-of-range integer
 % at the other. Either way it must not paint.
+%
+% The descendant declares no CIDMap, so the CID is the glyph index, and
+% no CIDCount, so the walk has nothing to say which CIDs the font has.
+% That is the font the index field is the only bound on, and it is the
+% one this asks the question of.
 /tr.cid null def
 /tr.font { % cid  .  font
     /tr.cid exch def
@@ -447,7 +452,8 @@ WC WL differs 0 gt (rather than the glyph its last byte would select) check
         /CMap << /.codespaces [ <00> <FF> ]
                  /.cidranges [ <00> <00> tr.cid ] >> def
         /FDepVector [ /CIDWideTest /CIDFont findresource
-                      dup length 8 add dict copy dup /CIDMap undef ] def
+                      dup length 8 add dict copy
+                      dup /CIDMap undef dup /CIDCount undef ] def
     currentdict end 20 scalefont
 } bind def
 /tr.ink { % cid  .  ink or -1 when refused
@@ -1092,6 +1098,80 @@ end
 /sd.reached 2 store
 sd.reached 2 eq
     (the declared bytes leave the program and the file goes on) check
+
+% --- a CID the descendant does not have --------------------------------
+%
+% "The number of valid CIDs in the CIDFont. Valid CIDs range from 0 to
+% (CIDCount - 1); CIDs outside this range are treated as undefined
+% glyphs" (PLRM 5.11.2, 5.11.3). PLRM 5.11.4 says what an undefined one
+% is answered with: "If there is no glyph for that CID, the glyph for CID
+% 0 (which is required to be present) is substituted."
+%
+% The descendant below sends CID 0 and CID 1 to glyphs of different ink,
+% so the substitution is visible as CID 0's glyph rather than as an empty
+% page -- an empty page is what a CID that reached no glyph at all would
+% leave, and the two have to be told apart. Its CIDMap carries an entry
+% for CID 2 as well, reaching a glyph of its own, so a count that was not
+% read would be visible as that glyph.
+/p.name (CID above the count:) def
+/CIDInit /ProcSet findresource begin
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDCountTest def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [1 0 0 1 0 0] def
+    /FontType 42 def
+    /CIDCount 2 def
+    /GDBytes 1 def
+    /CIDMap <010202> def
+    /GlyphDirectory 0 dict def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
+end
+/CIDCountT0 /CIDShowTestCMap [ /CIDCountTest ] composefont pop
+% the same descendant declaring no count at all, which is the font
+% nothing says the valid CIDs of
+/CIDCountFreeT0 /CIDShowTestCMap
+    [ /CIDCountTest /CIDFont findresource dup length dict copy
+      dup /CIDCount undef ] composefont pop
+
+/cc.code <0000> def
+/cc { /CIDCountT0 findfont 20 scalefont setfont
+      10 20 moveto cc.code show } bind def
+/cc.free { /CIDCountFreeT0 findfont 20 scalefont setfont
+           10 20 moveto cc.code show } bind def
+/cc.snap { % code  .  snap
+    /cc.code exch def /cc load greysnap } bind def
+/cc.pen { % code  .  x y
+    /cc.code exch def /cc load pen } bind def
+/cc.freesnap { % code  .  snap
+    /cc.code exch def /cc.free load greysnap } bind def
+
+/cc.zero <0000> cc.snap def
+/cc.one  <0001> cc.snap def
+cc.zero inkof 0 gt (CID 0 marks the page) check
+cc.one inkof 0 gt (and CID 1 marks it too) check
+cc.zero cc.one differs 0 gt (the two are told apart by their ink) check
+
+/cc.two  <0002> cc.snap def
+/cc.far  <012C> cc.snap def
+cc.two cc.zero differs 0 eq
+    (a CID at the count is answered by the glyph for CID 0) check
+cc.far cc.zero differs 0 eq
+    (and so is one far above it) check
+cc.two cc.one differs 0 gt
+    (rather than by the glyph its own map entry names) check
+<0002> cc.pen <0000> cc.pen
+3 -1 roll near exch 3 -1 roll near and
+    (and it advances the pen as CID 0 does) check
+
+% the count is what says which CIDs those are: the same descendant
+% declaring none reaches its own map entry for the same code
+/cc.freetwo <0002> cc.freesnap def
+cc.freetwo cc.one differs 0 eq
+    (a descendant declaring no count reaches its own entry for that CID) check
+cc.freetwo cc.zero differs 0 gt
+    (which is not the glyph for CID 0) check
 
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse

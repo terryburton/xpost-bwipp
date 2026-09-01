@@ -738,6 +738,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         fnt /FontMatrix get matrix concatmatrix put
     /gdb desc /GDBytes 2 copy known { get }{ pop pop 1 } ifelse def
     /cidmap desc /CIDMap 2 copy known { get }{ pop pop null } ifelse def
+
+    % What the descendant says its CIDs run to. A CIDFont declares the
+    % number of them it has, and the valid ones are 0 to one less than
+    % that; the rest "are treated as undefined glyphs" (PLRM 5.11.2,
+    % 5.11.3). A descendant declaring no count is not held to one.
+    /ccount desc /CIDCount 2 copy known { get }{ pop pop null } ifelse def
     graphicsdict /currgstate get /currfont wrap put
     /p 0 def
     {
@@ -745,6 +751,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         str p cm //.cmapnext exec
         /w exch def
         /cid exch def
+
+        % A CID the descendant does not have is answered by the glyph for
+        % CID 0, which a CIDFont is required to carry (PLRM 5.11.4,
+        % "Handling Undefined Characters"). The substitution is made here,
+        % before the CIDMap is read and before the face is asked, because
+        % what a CID outside the declared range resolves to is whatever
+        % the bytes past the end of the map happen to be.
+        ccount type /integertype eq
+            { cid 0 lt cid ccount ge or { /cid 0 def } if } if
+
         /gid cid def
         cidmap null ne {
             /off cid gdb mul def
