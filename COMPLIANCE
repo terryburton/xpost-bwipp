@@ -343,12 +343,17 @@ Known behavioural deviations
      (PLRM), where some interpreters read to end-of-file.
  [X] setcolorrendering  a type 1 dictionary missing a required entry is
      undefined, whichever entry is missing. PLRM 7.1.3 Table 7.1 marks
-     WhitePoint and TransformPQR alike required and gives no reason to
-     answer for one differently from the other, so both are answered the
-     same way -- and undefined is what a required entry that is absent
-     earns everywhere else here. The specification does not name the
-     error for this case, so this is the reading taken rather than a
-     rule it states.
+     ColorRenderingType, WhitePoint and TransformPQR alike required and
+     gives no reason to answer for one differently from another, so all
+     three are answered the same way -- and undefined is what an absent
+     required entry earns in the halftone, image, pattern, shading and
+     function dictionaries and in a CIE-based space besides. A form
+     dictionary with no FormType is the exception: that is rangecheck,
+     which is also what an unsupported FormType earns, so the answer
+     there comes from the type dispatcher rather than from the path a
+     missing entry takes. PLRM lists undefined among this operator's
+     errors but does not tie it to this condition, so this is the
+     reading taken rather than a rule it states.
  [/] currentgray, currentrgbcolor, currentcmykcolor, currenthsbcolor
      (PLRM 8.2 says these "cannot convert from CIE-based or special
      color spaces". A colour in a pattern space is answered with the
