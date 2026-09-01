@@ -1,0 +1,94 @@
+% The resource operators survive a program redefining the operators they
+% use internally, run through `xpost -q --no-sandbox -d null` by
+% run-ps-test.sh.
+%
+% The machinery this exercises is written in PostScript and calls the
+% standard operators by name. A name is what a program may shadow, so the
+% interpreter freezes those references before any program runs -- and the
+% resource machinery was the one part where the freezing silently did not
+% happen, because a body closed to reading is a body bind declines without
+% saying so.
+%
+% THE INSTRUMENT IS CAPTURED BEFORE ANYTHING IS REDEFINED, AND THAT IS NOT
+% A STYLE CHOICE. This file redefines operators the interpreter's own
+% machinery calls. A harness that looked one of them up while it ran would
+% be running the redefinition, and every answer it gave would be about the
+% harness rather than about the interpreter -- reporting SUCCESS whatever
+% the machinery did, or printing HIJACKED where an error name belongs.
+% Both have happened. So what the harness needs is taken out of systemdict
+% here, before the first redefinition, and used through names of its own;
+% and every case body is bound before it too, so that a case cannot be
+% hijacked out from under its own answer. Simplifying either of those back
+% into ordinary lookups does not make this file shorter, it makes it
+% useless.
+
+/sysprint systemdict /print get def
+/syscvs   systemdict /cvs   get def
+/sysget   systemdict /get   get def
+/sysdef   systemdict /def   get def
+/sysexch  systemdict /exch  get def
+
+/failures 0 sysdef
+
+/case {                                 % {body} (what)  .  -
+    /label sysexch sysdef
+    { exec } stopped {
+        (FAIL: ) sysprint label sysprint ( raised ) sysprint
+        $error /errorname sysget 32 string syscvs sysprint (\n) sysprint
+        /failures failures 1 add sysdef
+    } if
+    clear
+} bind def
+
+% Bound here, where the operators they name still answer with operators.
+/c_find   { /Font /Category findresource pop } bind def
+/c_define { /RH1 3 dict /Generic defineresource pop } bind def
+/c_status { /Font /Category resourcestatus { pop pop } if } bind def
+/c_forall { (*) { pop } 128 string /Category resourceforall } bind def
+/c_undef  { /RH1 /Generic undefineresource } bind def
+/c_font   { /Courier findfont pop } bind def
+/c_page   { << /PageSize [612 792] >> setpagedevice } bind def
+
+% ---- the redefinitions --------------------------------------------------
+%
+% Five at once rather than one per run, and these five because they are
+% five different paths through the machinery: each produced a different
+% error when the references were live -- typecheck from get and known,
+% undefinedresource from exch, undefined from def, dictstackunderflow from
+% begin -- so a fix that covered one would not have covered the rest.
+% They go in through the captured def, since def is itself among them.
+
+/get   { (HIJACKED) } sysdef
+/known { (HIJACKED) } sysdef
+/exch  { (HIJACKED) } sysdef
+/begin { (HIJACKED) } sysdef
+/def   { (HIJACKED) } sysdef
+
+% ---- the control --------------------------------------------------------
+%
+% That the redefinitions took. Without this the file passes when they
+% quietly did not, which is the failure mode that looks exactly like
+% success.
+/control false sysdef
+[ 1 2 3 ] 0 get (HIJACKED) eq { /control true sysdef } if
+clear
+
+% ---- what must still work ----------------------------------------------
+
+{ c_find }   (findresource)      case
+{ c_define } (defineresource)    case
+{ c_status } (resourcestatus)    case
+{ c_forall } (resourceforall)    case
+{ c_undef }  (undefineresource)  case
+{ c_font }   (findfont)          case
+{ c_page }   (setpagedevice)     case
+
+control not {
+    (FAIL: the redefinitions did not take, so nothing above was tested\n) sysprint
+    /failures failures 1 add sysdef
+} if
+
+failures 0 eq { (SUCCESS\n) sysprint }
+             { (FAILURES: ) sysprint failures 8 string syscvs sysprint (\n) sysprint } ifelse
+flush
+quit

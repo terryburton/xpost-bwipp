@@ -5910,6 +5910,20 @@ test('check-colorrendering-facts',
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 240)
 
+# The resource operators are written in PostScript and call the standard
+# operators by name, so a program shadowing one of those names reaches
+# inside them. The interpreter freezes such references before any program
+# runs; this held for every part of the machinery except the resource
+# helpers, whose bodies were closed to reading at their definition -- and
+# bind declines a body it may not read, silently. Five operators at once,
+# chosen because each took a different path through the machinery when
+# the references were live.
+test('resource-hijack',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/resource_hijack_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('check-plrm-operators',
   find_program('tests/check-plrm-operators.sh'),
   priority: guard_priority,

@@ -97,19 +97,24 @@ FNR == 1 { inx = 0; depth = 0 }
             # put" are one thing to the interpreter, so they are one thing
             # here. Read on to whichever line carries the put or def.
             if (t ~ /(put|def)[ \t]*$/) {
-                if (t ~ /bind/)
-                    printf "%s\t%d\t%s\n", FILENAME, start, name
+                if (t ~ /(^|[^A-Za-z.])bind([^A-Za-z]|$)/)
+                    printf "%s\t%d\t%s\tbind\n", FILENAME, start, name
+                else if (t ~ /(^|[^A-Za-z.])executeonly([^A-Za-z]|$)/)
+                    printf "%s\t%d\t%s\tclosed\n", FILENAME, start, name
                 open = 0
             } else {
                 tail = 1
             }
         }
         if (tail) {
-            if (t ~ /bind/) sawbind = 1
+            if (t ~ /(^|[^A-Za-z.])bind([^A-Za-z]|$)/) sawbind = 1
+            if (t ~ /(^|[^A-Za-z.])executeonly([^A-Za-z]|$)/) sawclose = 1
             if (t ~ /(put|def)[ \t]*$/) {
                 if (sawbind)
-                    printf "%s\t%d\t%s\n", FILENAME, start, name
-                tail = 0; sawbind = 0; open = 0
+                    printf "%s\t%d\t%s\tbind\n", FILENAME, start, name
+                else if (sawclose)
+                    printf "%s\t%d\t%s\tclosed\n", FILENAME, start, name
+                tail = 0; sawbind = 0; sawclose = 0; open = 0
             }
         }
         next
@@ -119,7 +124,7 @@ FNR == 1 { inx = 0; depth = 0 }
         name = substr($0, RSTART, RLENGTH)
         sub(/^\.xpostsys[ \t]+/, "", name); sub(/^\//, "", name)
         sub(/[ \t]+\{$/, "", name)
-        start = FNR; open = 1; tail = 0; sawbind = 0
+        start = FNR; open = 1; tail = 0; sawbind = 0; sawclose = 0
         depth = gsub(/\{/, "{", t) - gsub(/\}/, "}", t)
         if (depth <= 0) open = 0
     }
@@ -165,14 +170,36 @@ while read -r op; do
     fi
 done < "$work/removed"
 
-nbound=$(grep -c . "$work/bound" || true)
+awk -F'\t' '$4 == "bind"'   "$work/bound" > "$work/bound.bind"
+awk -F'\t' '$4 == "closed"' "$work/bound" > "$work/bound.closed"
+
+nbound=$(grep -c . "$work/bound.bind" || true)
 if [ "${nbound:-0}" -ne 0 ]; then
     echo "check-helper-bind: a helper is bound where it is defined; .finalize" >&2
     echo "binds .xpostsys once the standard operators are promoted, and a body" >&2
     echo "bound before that keeps the names it calls for the whole run:" >&2
-    while IFS='	' read -r f ln n; do
+    while IFS='	' read -r f ln n k; do
         echo "  ${f##*/}:$ln  $n" >&2
-    done < "$work/bound"
+    done < "$work/bound.bind"
+    fail=1
+fi
+
+# The same fault by the other road, and the quieter one. bind rewrites a
+# body by READING it, and a body it may not read it declines in silence --
+# no error, nothing in the result. A helper closed with executeonly at its
+# own definition is one .finalize's sweep walks past while reporting
+# success, and every operator name it calls stays a name a program can
+# shadow. Such a body asks to be closed with //.closeafterbind instead,
+# and .finalize closes it once the sweep has frozen its references.
+nclosed=$(grep -c . "$work/bound.closed" || true)
+if [ "${nclosed:-0}" -ne 0 ]; then
+    echo "check-helper-bind: a helper is closed where it is defined. bind" >&2
+    echo "cannot read a closed body and says nothing when it declines one, so" >&2
+    echo "the sweep walks past it and its operator names stay live. Ask for" >&2
+    echo "the closing with //.closeafterbind and .finalize will do it after:" >&2
+    while IFS='	' read -r f ln n k; do
+        echo "  ${f##*/}:$ln  $n" >&2
+    done < "$work/bound.closed"
     fail=1
 fi
 

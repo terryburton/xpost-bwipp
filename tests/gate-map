@@ -421,6 +421,7 @@ language path data/prepr.ps
 language path data/qsort.ps
 language path data/resource.ps
 language path tests/interpreter_test.ps
+language test resource-hijack
 language test access
 language test array-swap-range
 language test bind-packed

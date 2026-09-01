@@ -686,6 +686,37 @@ setglobal
 } put
 
 %
+%  Bodies closed to reading, and why they are not closed where they are
+%  written.
+%
+%  bind rewrites a body by reading it, and a body it may not read it
+%  declines -- silently, with no error and nothing in the result to say so.
+%  A helper closed with executeonly at its own definition is therefore a
+%  helper the sweep above walks past while reporting success, and every
+%  operator name it calls stays a name for the whole run: a program's
+%  redefinition waiting inside the machinery, in the one place nothing
+%  looks.
+%
+%  So a body that is to be closed says so here instead, in place of the
+%  executeonly it would have carried, and the lockdown closes it once the
+%  sweep has frozen its references. The registry is written by the same
+%  call that hands the body back, so there is no second list to fall out
+%  of step with the first.
+%
+%  It is also how the sweep reaches some of them at all. A resource
+%  category's procedures live in the job store, which is not swept and is
+%  not going to be -- it holds the caches and the render state a job
+%  boundary winds back, and freezing those would be a subtler fault than
+%  the one this fixes. Registered here, they are reached through
+%  .xpostsys, which is swept.
+%
+.xpostsys /.closepending 64 dict put
+.xpostsys /.closeafterbind {  % proc  .  proc
+    dup //.xpostsys /.closepending get exch
+    1 index length exch put
+} put
+
+%
 % Predefined in xpost_interpreter.c:setlocalconfig()
 %
 % /DATA_DIR
@@ -3979,6 +4010,16 @@ currentglobal true setglobal
             % the same way. The anchor procedures moved here below were bound in userdict
             % before the move, so they carry their frozen references with them.
             .privatedict //.bindscope exec
+
+            % And now the bodies that asked to be closed, once every sweep
+            % above has frozen what they call. Closing them earlier is
+            % what bind cannot see past; closing them here costs the
+            % reading a program was never entitled to and keeps the
+            % freezing that a body written in PostScript depends on. The
+            % registry goes with them, so nothing is left holding a
+            % machinery procedure a program could reach.
+            .xpostsys /.closepending get { exch pop executeonly pop } forall
+            .xpostsys /.closepending undef
 
             % Install idiom recognition. The plain bind is kept in .internaldict and
             % /bind becomes an operator that runs it and then offers the result to

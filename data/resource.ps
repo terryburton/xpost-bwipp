@@ -67,15 +67,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 //.resources /Category get /Category <<
     /Category /Category
     /DefineResource   {  % key instance  .  instance
-            Category //.xpostsys /.defdefineresource get exec } executeonly
+            Category //.xpostsys /.defdefineresource get exec } //.closeafterbind exec
     /UndefineResource {  % key  .  -
-            Category //.xpostsys /.defundefineresource get exec } executeonly
+            Category //.xpostsys /.defundefineresource get exec } //.closeafterbind exec
     /FindResource     {  % key  .  instance
-            Category //.xpostsys /.deffindresource get exec } executeonly
+            Category //.xpostsys /.deffindresource get exec } //.closeafterbind exec
     /ResourceStatus   {  % key  .  status size true | false
-            Category //.xpostsys /.defresourcestatus get exec } executeonly
+            Category //.xpostsys /.defresourcestatus get exec } //.closeafterbind exec
     /ResourceForAll   {  % template proc scratch category  .  -
-            //.xpostsys /.defresourceforall get exec } executeonly
+            //.xpostsys /.defresourceforall get exec } //.closeafterbind exec
 >> put
 
 %
@@ -156,15 +156,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 .xpostsys /.catprocs <<
     /DefineResource   {  % key instance  .  instance
-            Category //.xpostsys /.defdefineresource get exec } executeonly
+            Category //.xpostsys /.defdefineresource get exec } //.closeafterbind exec
     /UndefineResource {  % key  .  -
-            Category //.xpostsys /.defundefineresource get exec } executeonly
+            Category //.xpostsys /.defundefineresource get exec } //.closeafterbind exec
     /FindResource     {  % key  .  instance
-            Category //.xpostsys /.deffindresource get exec } executeonly
+            Category //.xpostsys /.deffindresource get exec } //.closeafterbind exec
     /ResourceStatus   {  % key  .  status size true | false
-            Category //.xpostsys /.defresourcestatus get exec } executeonly
+            Category //.xpostsys /.defresourcestatus get exec } //.closeafterbind exec
     /ResourceForAll   {  % template proc scratch category  .  -
-            //.xpostsys /.defresourceforall get exec } executeonly
+            //.xpostsys /.defresourceforall get exec } //.closeafterbind exec
 >> put
 
 %
@@ -186,7 +186,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             dup //.catprocs { 2 index 3 1 roll put } forall pop
         put
     } ifelse
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  The standard regular categories exist from the start, empty until
@@ -271,11 +271,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
 //.resources /Category get /Font get
     dup /FindResource     {  % key  .  instance
-            findfont } executeonly put
+            findfont } //.closeafterbind exec put
     dup /DefineResource   {  % key instance  .  instance
-            definefont } executeonly put
+            definefont } //.closeafterbind exec put
     dup /UndefineResource {  % key  .  -
-            undefinefont } executeonly put
+            undefinefont } //.closeafterbind exec put
     dup /ResourceForAll   {  % template proc scratch category  .  -
             % The fonts in virtual memory and the faces the host holds,
             % under the names those faces call themselves by. PLRM 3.9 has
@@ -296,7 +296,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                           { 1 index exch null put } ifelse }
                 ifelse
             } for
-            //.xpostsys /.enumerateinstances get exec } executeonly put
+            //.xpostsys /.enumerateinstances get exec } //.closeafterbind exec put
     dup /ResourceStatus   {  % key  .  status size true | false
             % A key may be given as a string, which names the same instance
             % a name key does (PLRM 3.9); the memo below is keyed by the
@@ -312,7 +312,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                               dup 4 1 roll put } ifelse
                         { 2 -1 true }{ false } ifelse }
                   ifelse }
-            ifelse } executeonly put
+            ifelse } //.closeafterbind exec put
     pop
 
 %
@@ -333,13 +333,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     //.internaldict /LOCKDOWN_DONE known
         { pop pop /defineresource cvx /invalidaccess signalerror } if
     Category //.xpostsys /.defdefineresource get exec
-} executeonly put
+} //.closeafterbind exec put
 
 .xpostsys /.implicitundefine {  % key  .  -
     //.internaldict /LOCKDOWN_DONE known
         { pop /undefineresource cvx /invalidaccess signalerror } if
     Category //.xpostsys /.defundefineresource get exec
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  What each category takes, from PLRM Tables 3.7, 3.8 and 3.9. A category
@@ -505,7 +505,7 @@ setglobal
     dup type /dicttype eq 1 index type /arraytype eq or
     1 index type /stringtype eq or 1 index type /packedarraytype eq or
     { dup wcheck { readonly } if } if
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  category -> a dict of instance names known ABSENT from the search path. A
@@ -640,7 +640,7 @@ setglobal
     end
     exit
   } loop
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  Whether a category holds an instance under a key, and if so its
@@ -687,7 +687,7 @@ setglobal
                     key category //.resourcemarkmissing exec
                     end false
     } ifelse } ifelse } ifelse } ifelse
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  Take an instance out of a category (PLRM 3.9).
@@ -722,7 +722,7 @@ setglobal
         % key category key .lresources category -- no local category
         pop pop pop /undefineresource //.instof exec exch undef
     } ifelse
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  Hand one instance to the program's procedure (PLRM 8.2).
@@ -867,7 +867,7 @@ setglobal
     [ .rfscr /.rfproc load //.rfhand /exec load ] cvx
     end
     forall
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  The category implementation layer (PLRM 3.9.2).
@@ -907,7 +907,7 @@ setglobal
 %
 .xpostsys /.trycategoryload {  % category  .  -
     mark exch { /Category //.loadresource exec pop } stopped pop cleartomark
-} executeonly put
+} //.closeafterbind exec put
 
 .xpostsys /.catdispatch {  % ...operands category /Entry /operator  .  ...results
     8 dict begin
@@ -949,7 +949,7 @@ setglobal
         }{
             countdictstack dsd sub { end } repeat
         } ifelse
-} executeonly put
+} //.closeafterbind exec put
 
 %
 %  The five operators, each a dispatch and nothing more.

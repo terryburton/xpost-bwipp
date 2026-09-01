@@ -197,6 +197,7 @@ own    wrapsave_bank_test.ps                  1
 
 cannot entity_limit_test.ps                   6  its subject is the entity limit, and it exhausts virtual memory deliberately. MEASURED: converted, the framework's own definitions consume entities the suite is counting and it raises limitcheck on a string it means to allocate
 cannot startup_surface_test.ps                6  it asserts that a program's own dictionary starts empty, which is the first thing it checks and the reason it exists; a framework defined into that dictionary is exactly what it would report. MEASURED: converted, it fails on "userdict starts empty" and on nothing else
+cannot resource_hijack_test.ps                1  it redefines the operators the shared framework itself calls, so the framework would be running the redefinition and reporting on itself rather than on the interpreter. Its instrument is captured out of systemdict before the first redefinition and its cases are bound before it, which is the whole of what makes its answers mean anything
 
 owns 130
-cannots 2
+cannots 3
