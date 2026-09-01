@@ -3943,7 +3943,14 @@ currentglobal true setglobal
                 dup xcheck
                 1 index type dup /arraytype eq exch /packedarraytype eq or
                 and {
-                    dup wcheck
+                    % A body that is not writable was either BOUND at its
+                    % definition, which is what this refuses, or CLOSED to
+                    % reading, which is what the machinery does to a body a
+                    % program must not be able to read a namespace out of
+                    % (tests/vm_forbidden_test.ps counts the ones left
+                    % open). The two are told apart by reading: bind leaves
+                    % a body readable and executeonly does not.
+                    dup wcheck 1 index rcheck not or
                         { pop pop }
                         { pop
                           dup /.armdevrequest eq

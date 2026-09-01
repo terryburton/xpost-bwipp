@@ -17,7 +17,12 @@ prog="$work/prog.ps"
 
 mkdir -p "$tree/Resource/Category" "$tree/Resource/MyCat"
 cat > "$tree/Resource/Category/MyCat" <<'EOF'
-/MyCat << /Category /MyCat >> /Category defineresource pop
+% A category is seeded from the Generic category's implementation
+% dictionary (PLRM 3.9.3): that is where the five procedures a category
+% answers through come from, and all five are Required.
+/MyCat /Generic /Category findresource dup length 2 add dict copy
+    dup /Category /MyCat put
+/Category defineresource pop
 EOF
 cat > "$tree/Resource/MyCat/foo" <<'EOF'
 /foo (foo-instance-value) /MyCat defineresource pop

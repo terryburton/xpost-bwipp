@@ -51,7 +51,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  recursive, so it carries an implementation dictionary of its own alongside
 %  the ones it holds for everything else.
 %
-//.resources /Category get /Category << /Category /Category >> put
+//.resources /Category get /Category <<
+    /Category /Category
+    /DefineResource   {  % key instance  .  instance
+            Category //.xpostsys /.defdefineresource get exec } executeonly
+    /UndefineResource {  % key  .  -
+            Category //.xpostsys /.defundefineresource get exec } executeonly
+    /FindResource     {  % key  .  instance
+            Category //.xpostsys /.deffindresource get exec } executeonly
+    /ResourceStatus   {  % key  .  status size true | false
+            Category //.xpostsys /.defresourcestatus get exec } executeonly
+    /ResourceForAll   {  % template proc scratch category  .  -
+            //.xpostsys /.defresourceforall get exec } executeonly
+>> put
 
 %
 %  A category is two things made together: a table of its own instances,
@@ -119,13 +131,40 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  lets a module state the categories it keeps instances in without
 %  having to know whether another module has already asked for them.
 %
+%
+%  The five procedures every category answers through, made ONCE here and
+%  shared. They are built at the top level rather than written into
+%  .defcategory's body on purpose: access belongs to the REFERENCE and not
+%  to the value (PLRM 3.3.2), so a procedure literal inside a body stays
+%  readable however the copy handed out is marked -- and a machinery body a
+%  program can read is a namespace it can reach
+%  (tests/vm_forbidden_test.ps). Held here, the only reference is the
+%  execute-only one below.
+%
+.xpostsys /.catprocs <<
+    /DefineResource   {  % key instance  .  instance
+            Category //.xpostsys /.defdefineresource get exec } executeonly
+    /UndefineResource {  % key  .  -
+            Category //.xpostsys /.defundefineresource get exec } executeonly
+    /FindResource     {  % key  .  instance
+            Category //.xpostsys /.deffindresource get exec } executeonly
+    /ResourceStatus   {  % key  .  status size true | false
+            Category //.xpostsys /.defresourcestatus get exec } executeonly
+    /ResourceForAll   {  % template proc scratch category  .  -
+            //.xpostsys /.defresourceforall get exec } executeonly
+>> put
+
 .xpostsys /.defcategory {  % name  .  -
     dup //.resources exch known { pop }{
         dup //.catinstances exec
         //.resources /Category get exch dup
-            << /Category 3 -1 roll /ResourceFileName //.resourcefilename >> put
+            << /Category 3 -1 roll
+               /ResourceFileName //.resourcefilename
+            >>
+            dup //.catprocs { 2 index 3 1 roll put } forall pop
+        put
     } ifelse
-} put
+} executeonly put
 
 %
 %  The standard regular categories exist from the start, empty until
@@ -249,12 +288,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 currentglobal false setglobal
 .gscratch /.lresources 32 dict put
 setglobal
-
-%
-%  The local table of a category, created on first use
-%
 .xpostsys /.linstof {  % category  .  instances
-    .gscratch /.lresources get exch 2 copy known not {
+    //.gscratch /.lresources get exch 2 copy known not {
         2 copy 8 dict put
     } if
     get
@@ -270,7 +305,7 @@ setglobal
 %  category that names no type takes any, which is what PLRM 8.2 means
 %  by the category verifying the instance.
 %
-/defineresource [ /anytype /anytype /nametype ] {  % key instance category  .  instance
+.xpostsys /.defdefineresource {  % key instance category  .  instance
     dup /Category eq {
         % Defining an instance of /Category is defining a category, so it
         % gets the table its instances will live in; the implementation
@@ -308,7 +343,7 @@ setglobal
     dup type /dicttype eq 1 index type /arraytype eq or
     1 index type /stringtype eq or 1 index type /packedarraytype eq or
     { dup wcheck { readonly } if } if
-} .defop
+} executeonly put
 
 %
 %  category -> a dict of instance names known ABSENT from the search path. A
@@ -409,7 +444,7 @@ setglobal
 %  and the same undefinedresource answers whether it was the category or
 %  the instance that could not be found.
 %
-/findresource [ /anytype /nametype ] {  % key category  .  instance
+.xpostsys /.deffindresource {  % key category  .  instance
   {  % loop, so the local-shadow path can exit early
     2 dict begin
     /category exch def
@@ -426,8 +461,8 @@ setglobal
     } if
 
     % a local instance shadows a global one of the same name
-    .gscratch /.lresources get category known {
-        .gscratch /.lresources get category get dup key known
+    //.gscratch /.lresources get category known {
+        //.gscratch /.lresources get category get dup key known
             { key get end exit }{ pop } ifelse
     } if
     category /findresource //.instof exec /instances exch def
@@ -443,7 +478,7 @@ setglobal
     end
     exit
   } loop
-} .defop
+} executeonly put
 
 %
 %  Whether a category holds an instance under a key, and if so its
@@ -454,7 +489,7 @@ setglobal
 %  answering false is the point of it -- but a category that does not
 %  exist is still undefined, because the question cannot be asked.
 %
-/resourcestatus [ /anytype /nametype ] {  % key category  .  status size true | false
+.xpostsys /.defresourcestatus {  % key category  .  status size true | false
     % Querying a category that does not exist is an undefined error (PLRM);
     % only a present-but-absent instance yields false. Ensure the category is
     % defined the same way findresource does before reporting on an instance.
@@ -474,7 +509,7 @@ setglobal
     % way findresource would reach it, through the one search-and-open site.
     % An unavailable instance is remembered so a repeat query does not re-walk
     % the path.
-    .gscratch /.lresources get category 2 copy known { get }{ pop pop << >> } ifelse
+    //.gscratch /.lresources get category 2 copy known { get }{ pop pop << >> } ifelse
     key known {
         end 0 0 true
     }{
@@ -490,7 +525,7 @@ setglobal
                     key category //.resourcemarkmissing exec
                     end false
     } ifelse } ifelse } ifelse } ifelse
-} .defop
+} executeonly put
 
 %
 %  Take an instance out of a category (PLRM 3.9).
@@ -500,13 +535,13 @@ setglobal
 %  leaves the shared one standing. Where only the global table holds it,
 %  that is the one that gives it up.
 %
-/undefineresource [ /anytype /nametype ] {  % key category  .  -
+.xpostsys /.defundefineresource {  % key category  .  -
     % Each arm reaches the same shape before it acts: the key and the
     % category, in that order, so that the instance dictionary the
     % category names is what the key is removed from. The three arms
     % arrive here holding different amounts, which is the whole of what
     % the pops below are for.
-    2 copy .gscratch /.lresources get exch 2 copy known {
+    2 copy //.gscratch /.lresources get exch 2 copy known {
         get 1 index known {
             % key category key -- a local instance of this key
             pop //.linstof exec exch undef
@@ -518,7 +553,7 @@ setglobal
         % key category key .lresources category -- no local category
         pop pop pop /undefineresource //.instof exec exch undef
     } ifelse
-} .defop
+} executeonly put
 
 %
 %  Hand one instance to the program's procedure (PLRM 8.2).
@@ -608,14 +643,26 @@ setglobal
 %  reusing the scratch string it was given -- which is why the string is
 %  an operand and not something the operator provides.
 %
-/resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
-    % Merge the global table with any local instances over it
+%
+%  The instances a category holds, its local table over its global one.
+%  Separated from the enumeration below so that a category whose instances
+%  are not all in a table -- the Font category, whose faces the host holds
+%  -- can enumerate its own set through the same walk.
+%
+.xpostsys /.catinstancedict {  % category  .  dict
     dup /resourceforall //.instof exec exch
-    .gscratch /.lresources get exch 2 copy known {
+    //.gscratch /.lresources get exch 2 copy known {
         get exch dup length 2 index length add 1 add dict
         exch { 2 index 3 1 roll put } forall
         exch { 2 index 3 1 roll put } forall
     }{ pop pop } ifelse
+} put
+
+%
+%  Hand each instance of a dictionary that the template names to the
+%  program's procedure.
+%
+.xpostsys /.enumerateinstances {  % template proc scratch instances  .  -
     5 dict begin
     /.rfinst exch def /.rfscr exch def /.rfproc exch def /.rftmpl exch def
     /.rfbuf 127 string def
@@ -651,6 +698,123 @@ setglobal
     [ .rfscr /.rfproc load //.rfhand /exec load ] cvx
     end
     forall
+} executeonly put
+
+%
+%  The category implementation layer (PLRM 3.9.2).
+%
+%  A resource operator does not carry out the operation itself. It obtains
+%  the category's implementation dictionary, executes begin on it, runs the
+%  procedure that dictionary holds for the operator -- with the category
+%  name already taken off the operands -- and executes end. Where the
+%  procedure raises, the dictionary and operand stacks are put back as they
+%  were before it ran and the error is raised again under the operator's own
+%  name, so a category's own procedure cannot leave the stacks changed
+%  behind it.
+
+%
+%  Give a category the default five. Done here rather than in .defcategory
+%  because the categories are declared before the procedures above exist:
+%  the declaration is early, the behaviour it stands for is defined late.
+%
+
+%
+%  Obtain the category's implementation dictionary and run one of its
+%  procedures under it, which is the whole of what a resource operator does.
+%
+.xpostsys /.catdispatch {  % ...operands category /Entry /operator  .  ...results
+    8 dict begin
+        % the depth the caller was at, so the unwinding below is to an
+        % absolute mark rather than to a count of begins: a procedure may
+        % legitimately close dictionaries itself, which ResourceForAll does
+        % so that the program's own procedure runs where its caller was.
+        /dsd countdictstack 1 sub def
+        /op exch def  /entry exch def  /cat exch def
+        % A category may not be in VM yet: it is itself an instance of
+        % /Category and can be sitting on the search path, so the dispatch
+        % has to be able to load one before it can reach its procedures.
+        //.resources /Category get cat 2 copy known not {
+            pop pop
+            % a category that cannot be loaded is simply absent: what the
+            % attempt raises on the way is not the answer to the question
+            % asked, which is answered below
+            mark { cat /Category //.loadresource exec pop } stopped
+                { cleartomark }{ cleartomark } ifelse
+            //.resources /Category get cat 2 copy known not {
+                % resourcestatus answers for a category that exists; one
+                % that does not is a question that cannot be asked, and it
+                % says so with undefined rather than undefinedresource.
+                pop pop op cvx
+                op /resourcestatus eq { /undefined }{ /undefinedresource } ifelse
+                end signalerror
+            } if
+        } if
+        get /catdict exch def
+        /osd count def
+        % PLRM Table 3.11 marks all five Required, and both implementations
+        % adjudicated against refuse a category that supplies none, so a
+        % category without the procedure for this operator is an error
+        % rather than something to stand in for.
+        catdict entry known not {
+            op cvx /undefined end signalerror
+        } if
+        catdict entry get catdict begin
+        { exec } stopped {
+            count osd gt { count osd sub { pop } repeat } if
+            op cvx $error /errorname get
+            countdictstack dsd sub { end } repeat
+            signalerror
+        }{
+            countdictstack dsd sub { end } repeat
+        } ifelse
+} executeonly put
+
+%
+%  The five operators, each a dispatch and nothing more.
+%
+/defineresource [ /anytype /anytype /nametype ] {  % key instance category  .  instance
+    /DefineResource /defineresource //.catdispatch exec
+} .defop
+
+/undefineresource [ /anytype /nametype ] {  % key category  .  -
+    /UndefineResource /undefineresource //.catdispatch exec
+} .defop
+
+/findresource [ /anytype /nametype ] {  % key category  .  instance
+    /FindResource /findresource //.catdispatch exec
+} .defop
+
+/resourcestatus [ /anytype /nametype ] {  % key category  .  status size true | false
+    /ResourceStatus /resourcestatus //.catdispatch exec
+} .defop
+
+%
+%  resourceforall does not go through the bracket above, and the reason is
+%  the program's own procedure: it runs INSIDE the enumeration, and it must
+%  see the dictionary stack its caller had -- MEASURED, that is what the two
+%  implementations this tree is adjudicated against do, and a definition the
+%  procedure makes has to land where the program will look for it. A
+%  dictionary left open around it, this operator's or the category's, would
+%  take that definition and throw it away with itself.
+%
+%  So this reaches the category's procedure without opening either, and
+%  hands the category over as an operand rather than through the dictionary
+%  stack. A category implementing its own enumeration is handed
+%  `template proc scratch category` for that reason.
+%
+/resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
+    dup //.resources /Category get exch 2 copy known not {
+        pop pop
+        mark 1 index { /Category //.loadresource exec pop } stopped
+            { cleartomark }{ cleartomark } ifelse
+        dup //.resources /Category get exch 2 copy known not {
+            pop pop /resourceforall cvx /undefinedresource signalerror
+        } if
+    } if
+    get dup /ResourceForAll known not {
+        pop /resourceforall cvx /undefined signalerror
+    } if
+    /ResourceForAll get exec
 } .defop
 
 %
@@ -729,6 +893,11 @@ setglobal
     end
 } put
 
+.xpostsys /.defresourceforall {  % template proc scratch category  .  -
+    //.catinstancedict exec
+    //.enumerateinstances exec
+} put
+
 %
 %  Walk one IdiomSet instance dictionary, whose every value is a two-element
 %  array of a template and a substitute, and return the first substitute
@@ -787,7 +956,7 @@ setglobal
         dup /IdiomSet known { /IdiomSet get }{ pop << >> } ifelse def
     /l currentglobal
         { << >> }
-        { .gscratch /.lresources get
+        { //.gscratch /.lresources get
           dup /IdiomSet known { /IdiomSet get }{ pop << >> } ifelse }
         ifelse def
     g length 0 eq l length 0 eq and {

@@ -69,7 +69,8 @@ int main(void)
     w = fopen(file, "wb");
     if (w)
     {
-        fputs("/DiskCat << /Category /DiskCat >> /Category defineresource pop\n", w);
+        fputs("/DiskCat /Generic /Category findresource dup length 2 add dict copy\n"
+              "  dup /Category /DiskCat put /Category defineresource pop\n", w);
         fclose(w);
     }
     snprintf(dir, sizeof dir, "%s/DiskCat", root);
@@ -101,10 +102,15 @@ int main(void)
     /* point the search path at the temporary tree via the C API */
     check(xpost_add_resource_dir(ctx, root) == 1, "add resource dir");
 
-    /* create the category (in global VM, like the shared instance table) */
+    /* Create the category, in global VM like the shared instance table. It
+       is seeded from the Generic category's implementation dictionary
+       (PLRM 3.9.3), which is where the five procedures a category answers
+       through come from: all five are Required, and a category supplying
+       none has nothing to answer with. */
     st = xpost_run(ctx, XPOST_INPUT_STRING,
         "currentglobal true setglobal "
-        "/TestCategory << /Category /TestCategory >> /Category defineresource pop "
+        "/TestCategory /Generic /Category findresource dup length 2 add dict copy "
+        "dup /Category /TestCategory put /Category defineresource pop "
         "setglobal", 0);
     check(st == XPOST_RUN_COMPLETE, "setup completes");
 

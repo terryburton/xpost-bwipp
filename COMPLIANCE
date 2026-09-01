@@ -124,9 +124,12 @@ Level 2 operators
      3.8.4 admits one and reaches ioerror only when it fills. A procedure
      is called as the filter wants data or needs to be rid of it)
  [X] defineresource, findresource, resourcestatus, resourceforall,
-     undefineresource (an instance is held to the type its category takes
-     and left read-only; resourceforall enumerates the instances in VM, not
-     those present only as files on the search path)
+     undefineresource (a category answers through the five procedures of
+     its own implementation dictionary, so a program defining a category
+     supplies them and a category supplying none cannot answer; an instance
+     is held to the type its category takes and left read-only;
+     resourceforall enumerates the instances a category holds, not every
+     instance obtainable from outside virtual memory)
  [X] resource discovery by filename (GenericResourceDir, GenericResourcePathSep,
      ResourceFileName; the directory is %null when the search path is empty)
  [X] idiom recognition (IdiomSet resource category, IdiomRecognition user

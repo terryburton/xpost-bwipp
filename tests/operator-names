@@ -31,7 +31,6 @@ rows are fine for a different reason: .endpage names
 # depend on the output device. Fixing it means threading the top-level
 # operator through stroke's own use of strokepath.
 #
-# helper                    names
 .checkpagefeatures          setpagedevice
 .checkpagegeometry          setpagedevice
 .checkpagehandlers          setpagedevice
@@ -47,6 +46,9 @@ rows are fine for a different reason: .endpage names
 .csname                     setcolorspace
 .csproc                     setcolorspace
 .csvalidate                 setcolorspace
+.defdefineresource	defineresource
+.deffindresource	findresource
+.defresourcestatus	resourcestatus
 .doclip                     clip
 .endpage                    EndPage
 .fmapnext                   show
@@ -67,3 +69,4 @@ rows are fine for a different reason: .endpage names
 .spacereduce                setcolorspace
 .upathcheck                 uappend
 .withspacebody              setcolor
+rows are fine for a different reason: .endpage names
