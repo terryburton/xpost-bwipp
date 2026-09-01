@@ -451,7 +451,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % FontDirectory denotes the global directory while the allocation mode
     % is global, so a font built there is filed there and outlives the
     % restores that empty the local one.
-    FontDirectory exch 2 index exch put
+    %
+    % Both directories are read-only to a program (PLRM Tables 3.3 and
+    % 3.4), so the entry is not made with put: this is the one route that
+    % files a font, and it takes the directory it is to write, which is
+    % what holds it to writing a font directory and nothing else.
+    FontDirectory exch 2 index exch
+    //.internaldict /.fontdirdef get exec
     findfont
 } .defop
 
@@ -1885,10 +1891,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  still set it.
 %
 /undefinefont [ /anytype ] {  % key  .  -
-    % Remove it from whichever directory holds it
+    % Remove it from whichever directory holds it. The directories are
+    % read-only to a program (PLRM Tables 3.3 and 3.4), so the entry goes
+    % through the same route definefont files it by rather than undef.
     dup GlobalFontDirectory exch known
-        { GlobalFontDirectory exch undef }
-        { FontDirectory exch undef } ifelse
+        { GlobalFontDirectory exch //.internaldict /.fontdirundef get exec }
+        { FontDirectory exch //.internaldict /.fontdirundef get exec } ifelse
 } .defop
 
 %

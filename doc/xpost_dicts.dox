@@ -133,9 +133,9 @@
  * | `userdict` | local | program-owned | no | the program's own dictionary; **empty at start-up** |
  * | `$error`, `errordict` | local | mutable | no | error record and handlers; local so a job's error state reverts; **named in** `systemdict` |
  * | `statusdict`, `serverdict` | local | mutable | no | device/product status and job-server state a program may change; local so changes revert; **named in** `systemdict` |
- * | `FontDirectory` | local | mutable | no | fonts defined while the allocation mode was local; they revert with the save level that defined them; **named in** `systemdict`. `setglobal` rebinds the name to `GlobalFontDirectory` while the mode is global, so a font defined in terms of another finds the directory its own is going into (PLRM) |
- * | `GlobalFontDirectory` | global | persistent | no | fonts defined while the allocation mode was global, and only those; survives the restores that empty `FontDirectory` (PLRM 3.7, Table 3.4) |
- * | `SharedFontDirectory` | global | persistent | no | the same dictionary as `GlobalFontDirectory` under its older name |
+ * | `FontDirectory` | local | mutable | read-only to a program | fonts defined while the allocation mode was local; they revert with the save level that defined them; **named in** `systemdict`. Read-only per PLRM Table 3.3: `definefont` and `undefinefont` write it past the attribute and nothing else adds to it. `setglobal` rebinds the name to `GlobalFontDirectory` while the mode is global, so a font defined in terms of another finds the directory its own is going into (PLRM) |
+ * | `GlobalFontDirectory` | global | persistent | read-only to a program | fonts defined while the allocation mode was global, and only those; survives the restores that empty `FontDirectory` (PLRM 3.7, Table 3.4). Read-only on the same terms as `FontDirectory` |
+ * | `SharedFontDirectory` | global | persistent | read-only to a program | the same dictionary as `GlobalFontDirectory` under its older name, and sealed with it: the attribute belongs to the dictionary, not to the name |
  * | `StandardEncoding`, `ISOLatin1Encoding` | global | static | read-only | shared encoding vectors; read-only per PLRM (findfont copies before installing). Defined with the font/graphics modules, so absent under `--no-graphics` |
  *
  * Local dictionaries named in `systemdict` (`$error`, `statusdict`, ...) use the

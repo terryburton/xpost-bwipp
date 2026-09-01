@@ -4150,6 +4150,33 @@ currentglobal true setglobal
             //.xpostsys /.stdcategories 2 copy known
                 { get readonly pop }{ pop pop } ifelse
 
+            % The font directories go the same way, and for the same
+            % reason. PLRM Tables 3.3 and 3.4 have FontDirectory and
+            % GlobalFontDirectory read-only: they are updated by definefont
+            % and consulted by findfont, and nothing else adds to what they
+            % hold. Left writable, a program files a dictionary of its own
+            % under a name and findfont hands it back as a font, and a name
+            % already defined is replaced under whoever asks for it next.
+            % Sealed here rather than where they are made, with the rest
+            % of what the lockdown closes: this is the point at which the
+            % interpreter stops being built and a program begins, and a
+            % directory sealed before it is one the boot could not fill.
+            %
+            % The attribute belongs to the dictionary and not to the
+            % reference (PLRM 3.3.2), so this seals every reference to
+            % them, the ones the machinery froze into its own bodies
+            % included. definefont and undefinefont therefore do not write
+            % them through a reference of their own: they go through
+            % .fontdirdef and .fontdirundef, which write past the attribute
+            % and write nothing but a font directory.
+            %
+            % The name FontDirectory answers with whichever directory the
+            % allocation mode calls for, so each mode is asked in turn.
+            currentglobal
+            true setglobal FontDirectory readonly pop
+            false setglobal FontDirectory readonly pop
+            setglobal
+
             .internaldict /.jobstore known
               { .internaldict /.jobstore undef } if
 

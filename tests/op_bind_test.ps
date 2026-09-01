@@ -108,7 +108,7 @@ tf.made /FontType get 3 eq
     (findfont answers with the font definefont registered) assert
 FontDirectory /tf.testfont known
     (definefont registered the font in FontDirectory) assert
-FontDirectory /tf.testfont undef
+/tf.testfont undefinefont
 
 % {test} (what)  -  run the test on every name, naming any that fail
 /eachop {

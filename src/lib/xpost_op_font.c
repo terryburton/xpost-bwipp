@@ -1300,6 +1300,78 @@ static int _newfontid(Xpost_Context *ctx)
     return 0;
 }
 
+/* Whether a dictionary is one of the two font directories.
+
+   The context holds both, so the question is asked of the interpreter's
+   own record rather than of a name a program could rebind. */
+static int _isfontdir(Xpost_Context *ctx, Xpost_Object d)
+{
+    Xpost_Object dir[2];
+    int i;
+
+    dir[0] = ctx->localfontdir;
+    dir[1] = ctx->globalfontdir;
+    for (i = 0; i < 2; i++)
+    {
+        if (xpost_object_get_type(dir[i]) != dicttype)
+            continue;
+        if (xpost_object_get_ent(dir[i]) == xpost_object_get_ent(d)
+            && ((dir[i].tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK)
+                == (d.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK)))
+            return 1;
+    }
+    return 0;
+}
+
+/* dir key font  .fontdirdef  -
+   File a font in a font directory under a key.
+
+   FontDirectory and GlobalFontDirectory are read-only to a program
+   (PLRM Tables 3.3 and 3.4): they are updated by definefont and consulted
+   by findfont, and nothing else may add to them. A dictionary carries its
+   access on its value and not on the reference (PLRM 3.3.2), so there is
+   no writable reference for definefont to keep and the write has to pass
+   the attribute rather than go round it. This is that write, and the only
+   one: everything a program can reach refuses.
+
+   Only the two directories the context holds are written; any other
+   dictionary is refused, so this is a way to file a font and not a way to
+   write a dictionary of a caller's choosing.
+
+   The rule that a global dictionary may not name a local object stands
+   (PLRM 3.7.2): a font built in local VM is refused by the global
+   directory here exactly as put refuses it. */
+static
+int _fontdirdef(Xpost_Context *ctx,
+                Xpost_Object D,
+                Xpost_Object K,
+                Xpost_Object V)
+{
+    if (!_isfontdir(ctx, D))
+        return invalidaccess;
+    return xpost_dict_put_internal(ctx, D, K, V);
+}
+
+/* dir key  .fontdirundef  -
+   Take a font out of a font directory, past the same attribute and under
+   the same restriction as .fontdirdef. This is the write undefinefont
+   makes. A key the directory does not hold is no error, as undef is not
+   (PLRM 8.2). */
+static
+int _fontdirundef(Xpost_Context *ctx,
+                  Xpost_Object D,
+                  Xpost_Object K)
+{
+    int ret;
+
+    if (!_isfontdir(ctx, D))
+        return invalidaccess;
+    ret = xpost_dict_undef(ctx, D, K);
+    if (ret == undefined)
+        return 0;
+    return ret;
+}
+
 /* Gives up every face this module opened, and the names and files they
    were opened from. */
 static void xpost_op_font_quit(void)
@@ -6311,6 +6383,12 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".newfontid", (Xpost_Op_Func)_newfontid, 0); INSTALL;
     op = xpost_operator_cons(ctx, ".setglyphadvance", (Xpost_Op_Func)_setglyphadvance, 2,
         numbertype, numbertype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".fontdirdef", (Xpost_Op_Func)_fontdirdef, 3,
+        dicttype, anytype, anytype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".fontdirundef", (Xpost_Op_Func)_fontdirundef, 2,
+        dicttype, anytype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".maskcacheput", (Xpost_Op_Func)_maskcacheput, 1, dicttype);
     INSTALL;

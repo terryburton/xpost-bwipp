@@ -111,4 +111,94 @@ FontDirectory /fd.drop known not
     (a font defined in local VM does not survive a restore) assert
 /fd.keep undefinefont
 
+% ------------------------------------------- neither is a program's to write
+% PLRM Tables 3.3 and 3.4: both directories are read-only. They are
+% updated by definefont and consulted by findfont, and a program adds to
+% them through definefont or not at all. A writable one is a font the
+% program never defined that findfont hands back as a font, and a name
+% already defined that a program can replace under whoever asks for it
+% next.
+%
+% The access attribute belongs to the dictionary and not to the reference
+% (PLRM 3.3.2), so this is asked of the name every program reaches them
+% by, and every route a program has to a dictionary is asked in turn: put,
+% def with the dictionary current, and undef.
+
+false setglobal
+FontDirectory wcheck not
+    (FontDirectory is not writable) assert
+GlobalFontDirectory wcheck not
+    (GlobalFontDirectory is not writable) assert
+SharedFontDirectory wcheck not
+    (SharedFontDirectory is not writable) assert
+
+{ FontDirectory /fd.plant 5 dict put } /invalidaccess
+    (put into FontDirectory) raises
+{ FontDirectory begin /fd.plant 5 dict def end } /invalidaccess
+    (def with FontDirectory current) raises
+{ FontDirectory /fd.local undef } /invalidaccess
+    (undef from FontDirectory) raises
+
+% The global directory is asked with a font built in global VM, so that
+% what refuses it is the access attribute and not the rule against a
+% global dictionary naming a local object (PLRM 3.7.2).
+currentglobal true setglobal
+/fd.globalplant fd.mk def
+setglobal
+{ GlobalFontDirectory /fd.plant fd.globalplant put } /invalidaccess
+    (put into GlobalFontDirectory) raises
+{ GlobalFontDirectory begin /fd.plant fd.globalplant def end } /invalidaccess
+    (def with GlobalFontDirectory current) raises
+{ GlobalFontDirectory /fd.global undef } /invalidaccess
+    (undef from GlobalFontDirectory) raises
+
+FontDirectory /fd.plant known not
+    (nothing a program planted is in FontDirectory) assert
+GlobalFontDirectory /fd.plant known not
+    (nothing a program planted is in GlobalFontDirectory) assert
+
+% ---------------------------------- and the operators still write them both
+% The seal is on the dictionary, so it stands against every reference to
+% it -- the ones definefont and undefinefont hold included. They reach
+% past it rather than around it, and this is what says they still do.
+
+false setglobal
+/fd.sealed fd.mk definefont pop
+FontDirectory /fd.sealed known
+    (definefont still files a font in the sealed FontDirectory) assert
+/fd.sealed findfont /FontType get 3 eq
+    (findfont still answers with the font definefont filed) assert
+/fd.sealed undefinefont
+FontDirectory /fd.sealed known not
+    (undefinefont still takes a font out of the sealed FontDirectory) assert
+
+true setglobal
+/fd.sealedglobal fd.mk definefont pop
+false setglobal
+GlobalFontDirectory /fd.sealedglobal known
+    (definefont still files a font in the sealed GlobalFontDirectory) assert
+/fd.sealedglobal undefinefont
+GlobalFontDirectory /fd.sealedglobal known not
+    (undefinefont still takes a font out of the sealed GlobalFontDirectory) assert
+
+% PLRM 3.9.2 makes /Font defineresource, findresource and undefineresource
+% the same operations as definefont, findfont and undefinefont, and the
+% category's instances ARE these directories, so the route through the
+% resource operators has to reach past the seal as well.
+
+false setglobal
+/fd.viaresource fd.mk /Font defineresource pop
+FontDirectory /fd.viaresource known
+    (defineresource files a font in the sealed FontDirectory) assert
+/fd.viaresource /Font findresource /FontType get 3 eq
+    (findresource answers with the font defineresource filed) assert
+/fd.viaresource /Font undefineresource
+FontDirectory /fd.viaresource known not
+    (undefineresource takes a font out of the sealed FontDirectory) assert
+
+FontDirectory wcheck not
+    (the directories are still sealed after all of that) assert
+GlobalFontDirectory wcheck not
+    (and so is the global one) assert
+
 verdict
