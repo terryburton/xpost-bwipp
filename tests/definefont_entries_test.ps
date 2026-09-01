@@ -1,0 +1,82 @@
+%!testlib
+% What definefont checks of a font dictionary, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 8.2 has definefont verify that the dictionary "contains all entries
+% required in that type of dictionary". Entries, not their contents: what a
+% CharStrings entry holds is read by whatever paints a glyph, and a program
+% may define a font and fill its charstrings afterwards. So a dictionary
+% carrying every entry its type requires is defined, and a font that cannot
+% paint says so when something asks it to.
+
+/M [0.001 0 0 0.001 0 0] def
+/B [0 0 1000 1000] def
+
+% A Type 1 whose entries are all present and whose charstrings describe no
+% face that can be built. Every one of these is defined.
+
+{ << /FontType 1 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /CharStrings << >> /Private << >> /PaintType 0 >>
+  /de.empty exch definefont pop }
+    (a Type 1 whose CharStrings is empty) works
+{ << /FontType 1 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /CharStrings () /Private << >> /PaintType 0 >>
+  /de.string exch definefont pop }
+    (a Type 1 whose CharStrings is an empty string) works
+{ << /FontType 1 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /CharStrings << /.notdef (not a charstring) >> /Private << >>
+     /PaintType 0 >>
+  /de.junk exch definefont pop }
+    (a Type 1 whose charstrings are not charstrings) works
+
+% and the same font with CharStrings left out altogether, which is the
+% shape the three above are now defined as: a font dictionary with no face
+% behind it.
+{ << /FontType 1 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /Private << >> /PaintType 0 >>
+  /de.nocs exch definefont pop }
+    (a Type 1 with no CharStrings at all) works
+
+% What is defined is a font: it is filed, and findfont answers with it.
+FontDirectory /de.empty known
+    (the font definefont accepted is in FontDirectory) assert
+/de.empty findfont /FontType get 1 eq
+    (findfont answers with it) assert
+
+% The absence surfaces where the font is asked to paint, and not before.
+{ gsave /de.empty findfont 10 scalefont setfont 0 0 moveto (a) show grestore }
+    /invalidfont (showing through a font with no face) raises
+{ gsave /de.empty findfont 10 scalefont setfont (a) stringwidth } /invalidfont
+    (measuring through a font with no face) raises
+
+% ---------------------------------------------- and what is still refused
+% The change is a narrowing. A dictionary missing an entry its type
+% requires is refused as it was, and so is one whose type this
+% interpreter does not build a font from.
+
+{ << /FontType 1 /FontBBox B /Encoding StandardEncoding
+     /CharStrings << >> /Private << >> >> /de.nfm exch definefont }
+    /invalidfont (a Type 1 with no FontMatrix) raises
+{ << /FontType 1 /FontMatrix M /FontBBox B
+     /CharStrings << >> /Private << >> >> /de.nenc exch definefont }
+    /invalidfont (a Type 1 with no Encoding) raises
+{ << /FontType 1 /FontMatrix M /FontBBox B /Encoding StandardEncoding >>
+  /de.npriv exch definefont }
+    /invalidfont (a Type 1 with neither CharStrings nor Private) raises
+{ << /FontType 7 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /Private << >> >> /de.t7 exch definefont }
+    /invalidfont (a font of a type this interpreter does not build) raises
+
+% A Type 42 asks for a face over its sfnts and is refused when there is
+% none to build: that path is untouched, so the narrowing above is
+% confined to the type it was made for.
+{ << /FontType 42 /FontMatrix [1 0 0 1 0 0] /FontBBox B
+     /Encoding StandardEncoding /sfnts [ <00010000> ] >>
+  /de.t42 exch definefont }
+    /invalidfont (a Type 42 whose sfnts build no face) raises
+
+% and the operand is still held to being a dictionary
+{ /de.nd (not a dictionary) definefont } /typecheck
+    (definefont of a non-dictionary) raises
+
+verdict

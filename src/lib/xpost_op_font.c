@@ -4507,8 +4507,20 @@ int _loadfont1(Xpost_Context *ctx,
     data.face = xpost_font_face_new_from_memory(whole, wlen);
     if (data.face == NULL)
     {
+        /* The charstrings describe no face that can be built. PLRM 8.2
+           has definefont check that the dictionary holds the entries its
+           type requires, and this one does: what failed is the content of
+           CharStrings rather than the presence of any entry, so the font
+           is defined without a face rather than refused.
+
+           That is not a new state. A Type 1 font carrying no CharStrings
+           at all is already defined this way, and the showing operators
+           answer invalidfont when either is asked to paint, which is
+           where the absence belongs -- a program may define a font and
+           fill its charstrings afterwards, and definefont is not the
+           operator that reads them. */
         free(whole);
-        return invalidfont;
+        return 0;
     }
 
     /* executable: what a program reads back is the array's own

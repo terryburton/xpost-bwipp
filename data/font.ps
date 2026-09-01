@@ -273,6 +273,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     2 index /Private 2 copy known { get type /dicttype eq }{ pop pop false } ifelse and {
         pop
 
+        % The entries required of a base font, asked here as the other
+        % types ask them: FontMatrix, which PLRM Table 5.2 requires of
+        % every font dictionary, and Encoding, which Table 5.3 requires
+        % of the base fonts. What is asked is that the dictionary carries
+        % them, which is definefont's question (PLRM 8.2); whether the
+        % charstrings under them describe a face any glyph can be drawn
+        % from is not, and is answered where a program asks for a glyph.
+        {
+            dup /FontMatrix known not {stop} if
+            dup /Encoding known not {stop} if
+        } stopped {
+            /definefont cvx /invalidfont signalerror
+        } if
+
         % An embedded Type 1 program: its interpreted dictionaries are
         % written back out as a font program and opened as a face. The
         % charstrings flatten here, where forall lives; the subroutines are

@@ -199,6 +199,7 @@ tests/corpus/run-corpus-test.sh \
 tests/corpus/run-eps-test.sh \
 tests/counttomark_test.ps \
 tests/dct_truncated_test.ps \
+tests/definefont_entries_test.ps \
 tests/dev_gray_row_test.ps \
 tests/dev_rect_test.c \
 tests/record_test.c \

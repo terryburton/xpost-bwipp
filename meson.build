@@ -3467,6 +3467,15 @@ test('font-substitute',
 
 # The two font directories hold different populations: the local one goes
 # away with the save level that defined its fonts, the global one does not.
+# What definefont checks of a font dictionary: the entries a type requires,
+# and not what those entries hold. A font whose charstrings describe no face
+# is defined and says so when it is asked to paint.
+test('font-definefont-entries',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/definefont_entries_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('font-directory',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/font_directory_test.ps') ],
