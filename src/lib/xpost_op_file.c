@@ -762,8 +762,17 @@ int xpost_op_file_filter_dict (Xpost_Context *ctx,
     Xpost_Object f;
     Xpost_Object cs, ct;
     int closesource, closetarget;
-    int ret = _filter_dict_build(ctx, F, dict, name);
+    int ret;
 
+    /* the filter takes its parameters out of the dictionary, so the
+       dictionary has to permit being read (PLRM 3.3.2). The question is
+       put here, where every form of the operator arrives -- the file, the
+       string and the procedure forms all reach this one -- rather than in
+       each filter's own build, where a filter that happens to read no
+       parameter would be the one that never asked. */
+    if (!xpost_object_is_readable(ctx, dict))
+        return invalidaccess;
+    ret = _filter_dict_build(ctx, F, dict, name);
     if (ret)
         return ret;
     cs = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "CloseSource"));
@@ -1952,6 +1961,15 @@ int _bos_measure(Xpost_Context *ctx,
             *data += o.comp_.sz;
             return 0;
         case arraytype:
+            /* the sequence carries the array's elements, so writing one
+               reads the array, and a value may be read only where its
+               access permits (PLRM 3.3.2, and the invalidaccess entry,
+               whose own example of a violation is an array). Asked on
+               the measuring walk, which reaches every array the sequence
+               will carry including those nested in another, and which
+               runs before any byte is emitted. */
+            if (!xpost_object_is_readable(ctx, o))
+                return invalidaccess;
             *recs += 8;
             for (i = 0; i < o.comp_.sz; i++)
             {

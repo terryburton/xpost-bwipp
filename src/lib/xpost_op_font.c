@@ -3067,6 +3067,19 @@ void _face_setup(Xpost_Context *ctx,
     xpost_font_face_transform(face, mat);
 }
 
+/* Whether a member of a font dictionary may be read. A member the
+   dictionary does not carry, and one that is not a composite object, has
+   no access attribute to withhold the read and answers yes. */
+static
+int _member_readable(Xpost_Context *ctx, Xpost_Object fontdict, Xpost_Object key)
+{
+    Xpost_Object m = xpost_dict_get(ctx, fontdict, key);
+
+    if (!xpost_object_is_composite(m))
+        return 1;
+    return xpost_object_is_readable(ctx, m);
+}
+
 /* The font data a dict names, with its face made current, or nothing.
  *
  * The two go together. A face is shared through the findfont cache, so
@@ -3077,25 +3090,41 @@ void _face_setup(Xpost_Context *ctx,
  * a ninth written from the same shape would have had to remember the
  * setup as well as the check. Here it cannot be had without the other.
  *
- * Answers zero where the dict names no face, leaving *data untouched;
- * the caller raises invalidfont, which is its own to raise because only
- * the caller knows what it was asked to do. */
+ * Answers invalidfont where the dict names no face, leaving *data
+ * untouched, and invalidaccess where a member the glyphs are read out of
+ * may not be read. Zero is the answer that means the face is current.
+ *
+ * The access question belongs with the setup for the same reason the
+ * face check does. What a text operator paints comes out of the font's
+ * Encoding, CharStrings and Metrics, so it reads them, and a value may
+ * be read only where its access permits (PLRM 3.3.2, and the
+ * invalidaccess entry, which names reading a value in violation of its
+ * access among the causes). The other road to a glyph -- a font whose
+ * build procedure runs PostScript -- reaches those members through get,
+ * which asks the same question of its own accord, so asking it here is
+ * what makes the two roads answer alike. */
 static
 int _font_data_current(Xpost_Context *ctx,
                        Xpost_Object gs,
                        Xpost_Object fontdict,
                        fontdata *data)
 {
-    fontdata *fd = _font_data(ctx, fontdict);
+    fontdata *fd;
 
+    if (!_member_readable(ctx, fontdict, name_Encoding)
+        || !_member_readable(ctx, fontdict, name_CharStrings)
+        || !_member_readable(ctx, fontdict, name_Metrics))
+        return invalidaccess;
+
+    fd = _font_data(ctx, fontdict);
     if (!fd || fd->face == NULL)
     {
         XPOST_LOG_INFO("face is NULL");
-        return 0;
+        return invalidfont;
     }
     *data = *fd;
     _face_setup(ctx, gs, fontdict, data->face);
-    return 1;
+    return 0;
 }
 
 
@@ -4062,8 +4091,9 @@ int _show(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
     XPOST_LOG_INFO("loaded font data from dict");
 
     /* the string's characters, copied out of VM so that a device method
@@ -4166,8 +4196,9 @@ int _glyphshow_common(Xpost_Context *ctx,
     putpix = xpost_dict_get(ctx, devdic, name_PutPix);
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
 
     ret = _get_current_point(ctx, gs, &xpos, &ypos);
     if (ret)
@@ -5556,8 +5587,9 @@ int _ashow(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
     XPOST_LOG_INFO("loaded font data from dict");
 
     cstr = xpost_string_allocate_cstring(ctx, str);
@@ -5654,8 +5686,9 @@ int _widthshow(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
     XPOST_LOG_INFO("loaded font data from dict");
 
     cstr = xpost_string_allocate_cstring(ctx, str);
@@ -5757,8 +5790,9 @@ int _awidthshow(Xpost_Context *ctx,
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
     /* get the font data from the font dict */
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
     XPOST_LOG_INFO("loaded font data from dict");
 
     cstr = xpost_string_allocate_cstring(ctx, str);
@@ -5837,6 +5871,7 @@ int _stringwidth(Xpost_Context *ctx,
     Xpost_Object encoding;
     Xpost_Object charstrings;
     textstate mts;
+    int ret;
 
 
     /* load the graphicsdict, current graphics state, and current font */
@@ -5847,8 +5882,9 @@ int _stringwidth(Xpost_Context *ctx,
     XPOST_LOG_INFO("loaded graphicsdict, graphics state, and current font");
 
     /* get the font data from the font dict */
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
     encoding = xpost_dict_get(ctx, fontdict, name_Encoding);
     charstrings = xpost_dict_get(ctx, fontdict, name_CharStrings);
     /* only the /Metrics fields matter here: stringwidth accumulates the
@@ -6072,8 +6108,9 @@ int _stringoutline(Xpost_Context *ctx,
     if (xpost_object_get_type(fontdict) == invalidtype)
         return invalidfont;
 
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
     encoding = xpost_dict_get(ctx, fontdict, name_Encoding);
     charstrings = xpost_dict_get(ctx, fontdict, name_CharStrings);
     /* only the /Metrics fields matter here: the glyphs are placed and
@@ -6184,8 +6221,9 @@ int _glyphoutline_common(Xpost_Context *ctx,
     devdic = xpost_dict_get(ctx, gs, name_device);
     ts = _text_state_get(ctx, gs, fontdict, devdic);
 
-    if (!_font_data_current(ctx, gs, fontdict, &data))
-        return invalidfont;
+    ret = _font_data_current(ctx, gs, fontdict, &data);
+    if (ret)
+        return ret;
 
     memset(&oc, 0, sizeof oc);
     oc.ctx = ctx;

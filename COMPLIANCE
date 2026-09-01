@@ -342,6 +342,18 @@ Known behavioural deviations
  instead would leave each of the seven able to report what an unreadable
  string spells.
 
+ What a text operator paints comes out of the font's Encoding,
+ CharStrings and Metrics, so it reads them, and an access that withholds
+ that read raises invalidaccess. charpath is the one of those operators
+ whose PLRM 8.2 entry does not list the error. The rule it is held to is
+ not its own -- PLRM 3.3.2 has an access attribute restrict the
+ operations allowed on an object's value, and the invalidaccess entry
+ names accessing a value in violation of its access among the causes it
+ is raised for -- and charpath is defined as the outlines a show of the
+ same string would make, whose entry does list the error. Answering
+ instead would leave charpath able to report what a font's Encoding
+ assigns to a character code that the program may not read.
+
  [X] restore  a save object is not invalidated by the restore that uses it,
      where a snapshot is defined to be usable once: restore is defined to
      invalidate its operand and every save object made after it, so a second

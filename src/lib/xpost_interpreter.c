@@ -513,6 +513,18 @@ int evalload(Xpost_Context *ctx, Xpost_Object n)
                 if (xpost_object_get_type(x) == invalidtype)
                     continue;
 
+                /* the value comes out of this dictionary, so this
+                   dictionary is read, and a value may be read only where
+                   its access permits (PLRM 3.3.2). The load operator
+                   resolves a name the way this does (PLRM 8.2 load) and
+                   asks the same question at the same point, so the two
+                   answer alike. A resolution is remembered only once it
+                   is allowed, and the remembering is undone whenever a
+                   dictionary's access changes, so no name reaches its
+                   value through an answer given before the seal. */
+                if (!xpost_object_is_readable(ctx, seg->data[i]))
+                    return invalidaccess;
+
                 if (key >= ctx->namecache_size)
                 {
                     unsigned int nsz = ctx->namecache_size ? ctx->namecache_size : 4096;

@@ -970,6 +970,166 @@ afmake
   { pop pop pop pop (FAIL: the refused-then-taken deletefile left its file\n) print
     faildict /n 2 copy get 1 add put } if } /ok          (the deleted file is gone) chk
 
+% --- a binary object sequence carries the elements of the arrays it is made
+%     of, so writing one reads them, and an array whose access withholds that
+%     read is refused. PLRM 3.3.2 has the access attribute restrict the
+%     operations allowed on an object's value, and the invalidaccess entry's
+%     own example of a violation is an array. The question is put on the walk
+%     that measures the sequence, which reaches an array nested inside another
+%     as well as one handed over on its own, and which runs before any byte is
+%     emitted -- so a refused print writes nothing at all, which is what lets
+%     the printobject case below be asked without its output landing in the
+%     verdict this suite prints. ---
+1 setobjectformat
+/bosw { afscratch (w) file } bind def
+{ bosw dup [1 2 3] 0 writeobject closefile }
+    /ok            (writeobject of a readable array) chk
+{ bosw dup [1 2 3] readonly 0 writeobject closefile }
+    /ok            (writeobject of a read-only array) chk
+{ bosw dup 1 2 3 3 packedarray 0 writeobject closefile }
+    /ok            (writeobject of a packed array) chk
+{ bosw dup [ [1 2] [3 4] ] 0 writeobject closefile }
+    /ok            (writeobject of an array holding readable arrays) chk
+{ bosw dup [1 2 3] executeonly 0 writeobject closefile }
+    /invalidaccess (writeobject of an execute-only array) chk
+{ bosw dup [1 2 3] noaccess 0 writeobject closefile }
+    /invalidaccess (writeobject of a no-access array) chk
+{ bosw dup 1 2 3 3 packedarray noaccess 0 writeobject closefile }
+    /invalidaccess (writeobject of a no-access packed array) chk
+{ bosw dup [ [1 2 3] noaccess ] 0 writeobject closefile }
+    /invalidaccess (writeobject of an array holding a sealed one) chk
+{ [1 2 3] noaccess 0 printobject }
+    /invalidaccess (printobject of a no-access array) chk
+0 setobjectformat
+
+% --- a dictionary the dictionary-stack search takes a value out of is read,
+%     so its access has to permit that read (PLRM 3.3.2). load resolves a key
+%     the way the interpreter resolves an executable name (PLRM 8.2 load), and
+%     where answers the dictionary a caller then reads or writes the key
+%     through, so all three ask the same question at the same point.
+%
+%     A dictionary the search passed over gave nothing up and is not asked.
+%     The dictionary stack is walked by the interpreter rather than named by
+%     the program, and refusing for every dictionary merely visited refuses
+%     the names the error machinery itself resolves while it reports the
+%     refusal: a dictionary sealed while it is current takes the job into a
+%     runaway error cascade, which is what the last two cases here hold the
+%     reading to. PLRM settles the choice neither way, since begin refuses a
+%     no-access dictionary and one is therefore on the dictionary stack only
+%     if it was sealed after it was pushed -- which is what each case below
+%     does.
+/nadict { 5 dict dup /dskey 111 put } bind def
+{ nadict dup begin noaccess pop /dskey load pop end }
+    /invalidaccess (load takes no value out of a no-access dictionary on the stack) chk
+{ nadict dup begin noaccess pop /dskey where { pop } if end }
+    /invalidaccess (where does not answer a no-access dictionary it found the key in) chk
+{ nadict dup begin noaccess pop dskey pop end }
+    /invalidaccess (an executable name does not resolve in a no-access dictionary) chk
+{ nadict dup begin noaccess pop /dskey 222 store end }
+    /invalidaccess (store does not write through a no-access dictionary) chk
+% a name resolved before the seal is not still resolvable after it: what a
+% name resolves to is remembered, and the remembering has to end where the
+% access does or the seal is a seal only for names nobody has used yet
+{ nadict dup begin dskey pop noaccess pop dskey pop end }
+    /invalidaccess (a name resolved before the seal does not resolve after it) chk
+% the controls: the same shapes with the dictionary readable. Read-only is
+% the rung that withholds writing and not reading, so a search reads it.
+{ nadict dup begin pop /dskey load 111 eq
+    { }{ (FAIL: load answered the wrong value\n) print
+         faildict /n 2 copy get 1 add put } ifelse end }
+    /ok            (load takes a value out of a writable dictionary on the stack) chk
+{ nadict dup begin readonly pop /dskey load 111 eq
+    { }{ (FAIL: load answered the wrong value\n) print
+         faildict /n 2 copy get 1 add put } ifelse end }
+    /ok            (load takes a value out of a read-only dictionary on the stack) chk
+{ nadict dup begin readonly pop /dskey where { pop } if end }
+    /ok            (where answers a read-only dictionary it found the key in) chk
+% and a dictionary the search passed over is not asked: a key held lower down
+% still resolves through a sealed dictionary that does not hold it, and the
+% names the interpreter needs go on resolving under one that is current
+/dsdeep 5 dict def
+dsdeep /dsdeepkey 7 put
+{ dsdeep begin 5 dict dup begin noaccess pop /dsdeepkey load 7 eq
+    { }{ (FAIL: a search past a sealed dictionary answered wrongly\n) print
+         faildict /n 2 copy get 1 add put } ifelse end end }
+    /ok            (a key below a sealed dictionary still resolves) chk
+{ 5 dict dup begin noaccess pop 1 1 add pop end }
+    /ok            (a sealed current dictionary does not stop other names resolving) chk
+
+% --- a filter takes its parameters out of the dictionary it is given, so the
+%     dictionary is read and its access has to permit that read (PLRM 3.3.2,
+%     and filter's own entry lists invalidaccess). The question is put where
+%     every form of the operator arrives, so the file, the string and the
+%     procedure forms answer alike rather than only the form somebody thought
+%     of. Each control asserts that the parameters were honoured as well as
+%     that the call returned, since a filter that ignored the dictionary would
+%     return just as quietly. ---
+/fpar { 3 dict dup /EODCount 0 put dup /EODString (!!) put } bind def
+{ { (AB!!CD) } fpar /SubFileDecode filter 8 string readstring pop length 2 eq
+    { }{ (FAIL: the filter did not stop at its declared end of data\n) print
+         faildict /n 2 copy get 1 add put } ifelse }
+    /ok            (filter reads a writable parameter dictionary) chk
+{ { (AB!!CD) } fpar readonly /SubFileDecode filter 8 string readstring pop length 2 eq
+    { }{ (FAIL: the filter did not stop at its declared end of data\n) print
+         faildict /n 2 copy get 1 add put } ifelse }
+    /ok            (filter reads a read-only parameter dictionary) chk
+{ { (AB!!CD) } fpar noaccess /SubFileDecode filter 8 string readstring pop pop }
+    /invalidaccess (the procedure form refuses a no-access parameter dictionary) chk
+{ (AB!!CD) fpar noaccess /SubFileDecode filter 8 string readstring pop pop }
+    /invalidaccess (the string form refuses a no-access parameter dictionary) chk
+{ (AB!!CD) fpar /SubFileDecode filter 8 string readstring pop length 2 eq
+    { }{ (FAIL: the filter did not stop at its declared end of data\n) print
+         faildict /n 2 copy get 1 add put } ifelse }
+    /ok            (the string form reads a writable parameter dictionary) chk
+% and the file form, which reaches the same question by the third road. The
+% dictionary here carries no parameter the filter reads, so the pair says
+% which road answers rather than what was read out of it; the pair above is
+% what shows the reading.
+{ afscratch (w) file 3 dict /ASCIIHexEncode filter closefile }
+    /ok            (the file form takes a writable parameter dictionary) chk
+{ afscratch (w) file 3 dict noaccess /ASCIIHexEncode filter closefile }
+    /invalidaccess (the file form refuses a no-access parameter dictionary) chk
+
+% --- what a text operator paints comes out of the font's Encoding,
+%     CharStrings and Metrics, so it reads them and their access has to permit
+%     the read (PLRM 3.3.2). The question is asked where every text operator
+%     makes the font's face current, so show, its variants, stringwidth and
+%     charpath answer alike; a font whose glyphs are built by a PostScript
+%     procedure reaches the same members through get, which asks for itself.
+%     The cases need a face to paint from, so a build carrying no face library
+%     cannot ask them; there the group is not run rather than passed. ---
+systemdict /NOFACES known not {
+    /basefont /Courier findfont def
+    /fontcopy { basefont basefont maxlength 8 add dict copy } bind def
+    /sealedenc { fontcopy dup /Encoding
+                 basefont /Encoding get dup length array copy noaccess put } bind def
+    /XXaccessA fontcopy definefont pop
+    /XXaccessB sealedenc definefont pop
+    /XXaccessC fontcopy dup /Metrics 3 dict dup /A 300 put noaccess put definefont pop
+    /XXaccessD fontcopy dup /Metrics 3 dict dup /A 300 put put definefont pop
+    { /XXaccessA findfont 10 scalefont setfont newpath 0 0 moveto (A) show }
+        /ok            (show through a font whose members may be read) chk
+    { /XXaccessB findfont 10 scalefont setfont newpath 0 0 moveto (A) show }
+        /invalidaccess (show through a font whose Encoding may not be read) chk
+    { /XXaccessA findfont 10 scalefont setfont (A) stringwidth pop pop }
+        /ok            (stringwidth over a font whose members may be read) chk
+    { /XXaccessB findfont 10 scalefont setfont (A) stringwidth pop pop }
+        /invalidaccess (stringwidth over a font whose Encoding may not be read) chk
+    { /XXaccessA findfont 10 scalefont setfont newpath 0 0 moveto (A) true charpath }
+        /ok            (charpath over a font whose members may be read) chk
+    { /XXaccessB findfont 10 scalefont setfont newpath 0 0 moveto (A) true charpath }
+        /invalidaccess (charpath over a font whose Encoding may not be read) chk
+    { /XXaccessB findfont 10 scalefont setfont newpath 0 0 moveto 1 1 (A) ashow }
+        /invalidaccess (ashow through a font whose Encoding may not be read) chk
+    { /XXaccessB findfont 10 scalefont setfont newpath 0 0 moveto 1 1 8#40 (A) widthshow }
+        /invalidaccess (widthshow through a font whose Encoding may not be read) chk
+    { /XXaccessD findfont 10 scalefont setfont newpath 0 0 moveto (A) show }
+        /ok            (show through a font whose Metrics may be read) chk
+    { /XXaccessC findfont 10 scalefont setfont newpath 0 0 moveto (A) show }
+        /invalidaccess (show through a font whose Metrics may not be read) chk
+    basefont 10 scalefont setfont
+} if
+
 mark { afscratch deletefile } stopped pop cleartomark
 
 count 0 eq { (operand stack balanced) }{ (FAIL: operand stack unbalanced\n) print

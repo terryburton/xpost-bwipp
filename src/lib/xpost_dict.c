@@ -103,6 +103,12 @@ Xpost_Object xpost_dict_set_access(Xpost_Context *ctx, Xpost_Object d, Xpost_Obj
     dp->tag |= access << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
     d.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
     d.tag |= access << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
+    /* what a name on the dictionary stack resolves to is remembered
+       against a generation, and this dictionary may be one of the
+       stack's. A resolution taken out of it is a read of its value, so
+       the answer to whether that read is allowed has just changed and
+       the remembered ones are made to be taken again. */
+    ++ctx->namebind_gen;
     return d;
 }
 

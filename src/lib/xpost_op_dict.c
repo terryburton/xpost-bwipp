@@ -256,6 +256,15 @@ int xpost_op_any_load(Xpost_Context *ctx,
         x = xpost_dict_get(ctx, D, K);
         if (xpost_object_get_type(x) != invalidtype)
         {
+            /* the value comes out of this dictionary, so this dictionary
+               is read, and a value may be read only where its access
+               permits (PLRM 3.3.2). A dictionary the search passed over
+               gave nothing up and is not asked: the dictionary stack is
+               walked by the interpreter rather than named by the program,
+               and a refusal for every dictionary merely visited would
+               refuse the names the error machinery itself resolves. */
+            if (!xpost_object_is_readable(ctx, D))
+                return invalidaccess;
             xpost_stack_push(ctx->lo, ctx->os, x);
             return 0;
         }
@@ -409,6 +418,13 @@ int xpost_op_any_where(Xpost_Context *ctx,
                 ? xpost_object_get_type(xpost_dict_get_name(ctx, D, K)) != invalidtype
                 : xpost_dict_known_key(ctx, xpost_context_select_memory(ctx, D), D, K))
         {
+            /* answering names the dictionary the key is in, which is what
+               a caller then reads or writes it through, so the answer is
+               drawn from this dictionary's value and needs its access to
+               permit the read (PLRM 3.3.2). As in load, a dictionary the
+               search passed over is not asked. */
+            if (!xpost_object_is_readable(ctx, D))
+                return invalidaccess;
             xpost_stack_push(ctx->lo, ctx->os, D);
             xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
             return 0;
