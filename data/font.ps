@@ -675,6 +675,23 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         setmatrix
         initclip
         newpath
+
+        % The raster records coverage, and coverage is set here rather
+        % than by the build: full coverage is grey one on a raster that
+        % starts at zero, and PLRM 5.7.1 has a glyph description that
+        % declares setcachedevice make no colour of its own.
+        %
+        % A transfer function adjusts a colour component on its way to a
+        % device (PLRM 7.3), and this raster is not that device -- it is
+        % the shape the glyph will later be painted in, in whatever
+        % colour is current when it is. So the one in force is put aside
+        % for the length of the build: left standing, it would take the
+        % coverage this line sets and answer with whatever it computes,
+        % and a function that inverts would file the glyph as a mask of
+        % nothing. That mask is cached, and every later use of the glyph
+        % replays it -- so a transfer set once, anywhere, would empty a
+        % glyph for the rest of the job.
+        { } settransfer
         1 setgray
     } if
     end
@@ -748,7 +765,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % is tiled over them.
     /maskok clipok keyok and //.xpostsys /.patternactive get exec not and def
     maskok
-    { devx devy devmat gkey cliparr .maskcachehit }
+    { //.xpostsys /.setmarkedcolor get exec
+      devx devy devmat gkey cliparr .maskcachehit }
     { false } ifelse
     {
         /ya exch def /xa exch def
@@ -794,7 +812,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         grestore
         cap null ne {
             maskok
-            { devx devy devmat gkey cliparr .maskcachehit }
+            { //.xpostsys /.setmarkedcolor get exec
+              devx devy devmat gkey cliparr .maskcachehit }
             { false } ifelse
             {
                 /ya exch def /xa exch def
@@ -1110,7 +1129,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /PaintType 2 copy known { get 2 eq }{ pop pop false } ifelse
     dup { true }{ //.xpostsys /.colorroute get exec /direct ne } ifelse
     { exch pop //.showoutline exec }
-    { pop exch pop exec } ifelse
+    { pop exch pop //.xpostsys /.setmarkedcolor get exec exec } ifelse
 } put
 
 %

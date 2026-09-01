@@ -93,6 +93,27 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  Leave the current colour where a coverage painter reads it: the
+%  components in the device's own space with the transfer functions
+%  applied, gathered into an array.
+%
+%  It is the same colour a fill of the same graphics state hands the
+%  device, and it is assembled here rather than there because a fill and
+%  a coverage raster take it at different moments. A fill builds the
+%  components on the operand stack immediately below the device call, so
+%  the two cannot come apart. A raster of coverage is one colour over
+%  many pixels and the colour has to be settled before the coverage is
+%  walked, so the painter is given it through a slot instead, filled
+%  immediately before the call that reads it.
+%
+.xpostsys /.setmarkedcolor {  % -  .  -
+    graphicsdict /.markedcolor
+    [ //.currentcolordict DEVICE /nativecolorspace get get exec
+      //.applytransfer exec ]
+    put
+} put
+
+%
 %  Painting Operators
 %
 
@@ -2026,6 +2047,7 @@ setglobal
         graphicsdict /.inglyph 2 copy known { get }{ pop pop 0 } ifelse 0 gt
         interp or and
         .cliptrivial and {
+            //.xpostsys /.setmarkedcolor get exec
             << /buf buf /width width /height height
                /ink ink /interp interp
                /mat matrix currentmatrix >> .stencilaa

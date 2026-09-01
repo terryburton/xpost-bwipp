@@ -102,9 +102,6 @@ static Xpost_Object name_dotrecordglyph;
 static Xpost_Object name_BlendPix;
 static Xpost_Object name_CIDFontType;
 static Xpost_Object name_CharStrings;
-static Xpost_Object name_DeviceCMYK;
-static Xpost_Object name_DeviceGray;
-static Xpost_Object name_DeviceRGB;
 static Xpost_Object name_Encoding;
 static Xpost_Object name_FDArray;
 static Xpost_Object name_FID;
@@ -117,7 +114,6 @@ static Xpost_Object name_GlyphData;
 static Xpost_Object name_GlyphExtents;
 static Xpost_Object name_Metrics;
 static Xpost_Object name_Private;
-static Xpost_Object name_Process;
 static Xpost_Object name_PutPix;
 static Xpost_Object name_ScreenPaint;
 static Xpost_Object name_Subrs;
@@ -129,11 +125,7 @@ static Xpost_Object name_c;
 static Xpost_Object name_clipbox;
 static Xpost_Object name_clipcache;
 static Xpost_Object name_clipspans;
-static Xpost_Object name_colorcomp1;
-static Xpost_Object name_colorcomp2;
-static Xpost_Object name_colorcomp3;
-static Xpost_Object name_colorcomp4;
-static Xpost_Object name_colorspace;
+static Xpost_Object name_dotmarkedcolor;
 static Xpost_Object name_csreal;
 static Xpost_Object name_currfont;
 static Xpost_Object name_currgstate;
@@ -149,7 +141,6 @@ static Xpost_Object name_l;
 static Xpost_Object name_m;
 static Xpost_Object name_mark;
 static Xpost_Object name_mat;
-static Xpost_Object name_nativecolorspace;
 static Xpost_Object name_sepindex;
 static Xpost_Object name_septint;
 static Xpost_Object name_serial;
@@ -170,9 +161,6 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_BlendPix, "BlendPix" },
     { &name_CIDFontType, "CIDFontType" },
     { &name_CharStrings, "CharStrings" },
-    { &name_DeviceCMYK, "DeviceCMYK" },
-    { &name_DeviceGray, "DeviceGray" },
-    { &name_DeviceRGB, "DeviceRGB" },
     { &name_Encoding, "Encoding" },
     { &name_FDArray, "FDArray" },
     { &name_FID, "FID" },
@@ -185,7 +173,6 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_GlyphExtents, "GlyphExtents" },
     { &name_Metrics, "Metrics" },
     { &name_Private, "Private" },
-    { &name_Process, "Process" },
     { &name_PutPix, "PutPix" },
     { &name_ScreenPaint, "ScreenPaint" },
     { &name_Subrs, "Subrs" },
@@ -197,11 +184,7 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_clipbox, "clipbox" },
     { &name_clipcache, "clipcache" },
     { &name_clipspans, "clipspans" },
-    { &name_colorcomp1, "colorcomp1" },
-    { &name_colorcomp2, "colorcomp2" },
-    { &name_colorcomp3, "colorcomp3" },
-    { &name_colorcomp4, "colorcomp4" },
-    { &name_colorspace, "colorspace" },
+    { &name_dotmarkedcolor, ".markedcolor" },
     { &name_csreal, "csreal" },
     { &name_currfont, "currfont" },
     { &name_currgstate, "currgstate" },
@@ -217,7 +200,6 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_m, "m" },
     { &name_mark, "mark" },
     { &name_mat, "mat" },
-    { &name_nativecolorspace, "nativecolorspace" },
     { &name_sepindex, "sepindex" },
     { &name_septint, "septint" },
     { &name_serial, "serial" },
@@ -3128,16 +3110,23 @@ int _font_data_current(Xpost_Context *ctx,
 }
 
 
-/* Resolve the current colour into the device's native space, applying
-   the same source-to-destination conversions as the .colorconversiondict
-   table in color.ps (gray by NTSC luminosity, CMYK composed by
-   additive complement, RGB to CMYK with full black generation and
-   undercolor removal), so glyphs mark in exactly the colour a fill
-   under the same graphics state would. A device with the /Process
-   native space takes each paint in the space it was set in, so the
-   source components pass through unconverted. A source space the
-   table does not know passes its raw components through. Returns 0 on
-   success. */
+/* The current colour as the device takes it: the components in the
+   device's own space with the transfer functions applied (PLRM 7.3).
+
+   The painting machinery resolves it and leaves it in the graphics
+   dictionary immediately before the call that paints from it, so a
+   glyph and a fill under one graphics state reach the device in the
+   same components. Where the conversions and the transfer live is the
+   point: they are stated once, in the colour and painting machinery, and
+   a raster of coverage reads the answer rather than working it out a
+   second time -- two statements of the same arithmetic agree only until
+   one of them is changed.
+
+   A route that paints coverage without resolving the colour first
+   leaves nothing there, and the paint is refused rather than made in
+   whatever the graphics state reads as: a mark in a colour no operator
+   asked for is a wrong page, and a wrong page nothing can tell from a
+   right one. Returns 0 on success. */
 static
 int _device_color(Xpost_Context *ctx,
                   Xpost_Object gs,
@@ -3145,133 +3134,43 @@ int _device_color(Xpost_Context *ctx,
                   int *ncomp,
                   Xpost_Object comp[4])
 {
-#define GSCOMP(name) (o = xpost_dict_get(ctx, gs, name), \
-                      xpost_object_get_type(o) == realtype ? o.real_.val \
-                    : xpost_object_get_type(o) == integertype ? (double)o.int_.val \
-                    : 0.0)
-#define MIN1(x) ((x) < 1.0 ? (x) : 1.0)
-    Xpost_Object colorspace, srcspace, o;
-    enum { SRC_GRAY, SRC_RGB, SRC_CMYK, SRC_OTHER } src;
-    double v[4];
+    Xpost_Object marked;
+    int i, n;
 
-    srcspace = xpost_dict_get(ctx, gs, name_colorspace);
-    if (xpost_dict_compare_objects(ctx, srcspace, name_DeviceGray) == 0)
-        src = SRC_GRAY;
-    else if (xpost_dict_compare_objects(ctx, srcspace, name_DeviceRGB) == 0)
-        src = SRC_RGB;
-    else if (xpost_dict_compare_objects(ctx, srcspace, name_DeviceCMYK) == 0)
-        src = SRC_CMYK;
-    else
-        src = SRC_OTHER;
-    v[0] = GSCOMP(name_colorcomp1);
-    v[1] = GSCOMP(name_colorcomp2);
-    v[2] = GSCOMP(name_colorcomp3);
-    v[3] = GSCOMP(name_colorcomp4);
-
-    colorspace = xpost_dict_get(ctx, devdic, name_nativecolorspace);
-    if (xpost_dict_compare_objects(ctx, colorspace, name_DeviceGray) == 0)
+    (void)gs;
+    (void)devdic;
+    marked = xpost_dict_get(ctx, ctx->graphicsdict, name_dotmarkedcolor);
+    if (xpost_object_get_type(marked) != arraytype)
     {
-        double g;
-
-        switch (src)
-        {
-            case SRC_RGB:
-                g = 0.3 * v[0] + 0.59 * v[1] + 0.11 * v[2];
-                break;
-            case SRC_CMYK:
-                g = 1.0 - MIN1(0.3 * v[0] + 0.59 * v[1] + 0.11 * v[2] + v[3]);
-                break;
-            default: /* gray, or an unknown space's first component */
-                g = v[0];
-                break;
-        }
-        *ncomp = 1;
-        comp[0] = xpost_real_cons((real)g);
-    }
-    else if (xpost_dict_compare_objects(ctx, colorspace, name_DeviceRGB) == 0)
-    {
-        double r, g, b;
-
-        switch (src)
-        {
-            case SRC_GRAY:
-                r = g = b = v[0];
-                break;
-            case SRC_CMYK:
-                r = 1.0 - MIN1(v[0] + v[3]);
-                g = 1.0 - MIN1(v[1] + v[3]);
-                b = 1.0 - MIN1(v[2] + v[3]);
-                break;
-            default:
-                r = v[0]; g = v[1]; b = v[2];
-                break;
-        }
-        *ncomp = 3;
-        comp[0] = xpost_real_cons((real)r);
-        comp[1] = xpost_real_cons((real)g);
-        comp[2] = xpost_real_cons((real)b);
-    }
-    else if (xpost_dict_compare_objects(ctx, colorspace, name_DeviceCMYK) == 0)
-    {
-        double c, m, y, k;
-
-        switch (src)
-        {
-            case SRC_GRAY:
-                c = m = y = 0;
-                k = 1.0 - v[0];
-                break;
-            case SRC_RGB:
-                c = 1.0 - v[0];
-                m = 1.0 - v[1];
-                y = 1.0 - v[2];
-                k = c < m ? c : m;
-                if (y < k) k = y;
-                c -= k; m -= k; y -= k;
-                break;
-            default:
-                c = v[0]; m = v[1]; y = v[2]; k = v[3];
-                break;
-        }
-        *ncomp = 4;
-        comp[0] = xpost_real_cons((real)c);
-        comp[1] = xpost_real_cons((real)m);
-        comp[2] = xpost_real_cons((real)y);
-        comp[3] = xpost_real_cons((real)k);
-    }
-    else if (xpost_dict_compare_objects(ctx, colorspace, name_Process) == 0)
-    {
-        /* the device takes each paint in the space it was set in:
-           deliver the source components unconverted */
-        switch (src)
-        {
-            case SRC_GRAY:
-                *ncomp = 1;
-                comp[0] = xpost_real_cons((real)v[0]);
-                break;
-            case SRC_CMYK:
-                *ncomp = 4;
-                comp[0] = xpost_real_cons((real)v[0]);
-                comp[1] = xpost_real_cons((real)v[1]);
-                comp[2] = xpost_real_cons((real)v[2]);
-                comp[3] = xpost_real_cons((real)v[3]);
-                break;
-            default: /* RGB, or an unknown space's first three components */
-                *ncomp = 3;
-                comp[0] = xpost_real_cons((real)v[0]);
-                comp[1] = xpost_real_cons((real)v[1]);
-                comp[2] = xpost_real_cons((real)v[2]);
-                break;
-        }
-    }
-    else
-    {
-        XPOST_LOG_ERR("unimplemented device colorspace");
+        XPOST_LOG_ERR("no marked colour resolved for this paint");
         return unregistered;
     }
+    n = (int)marked.comp_.sz;
+    if ((n < 1) || (n > 4))
+    {
+        XPOST_LOG_ERR("marked colour of %d components", n);
+        return unregistered;
+    }
+    /* the components a device is not given still travel to it as
+       arguments, so all four are values rather than whatever the
+       caller's frame held */
+    for (i = 0; i < 4; i++)
+        comp[i] = xpost_real_cons((real)0.0);
+    for (i = 0; i < n; i++)
+    {
+        Xpost_Object o = xpost_array_get(ctx, marked, i);
+
+        if (xpost_object_get_type(o) == integertype)
+            o = xpost_real_cons((real)o.int_.val);
+        else if (xpost_object_get_type(o) != realtype)
+        {
+            XPOST_LOG_ERR("marked colour component is not a number");
+            return unregistered;
+        }
+        comp[i] = o;
+    }
+    *ncomp = n;
     return 0;
-#undef GSCOMP
-#undef MIN1
 }
 
 /* Plot a rendered glyph bitmap through the device. An 8-bit coverage

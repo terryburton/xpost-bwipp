@@ -86,6 +86,15 @@ cstat 7 array astore /before exch def
 % outside it at either width -- and each transform must reach the entry
 % it filed, or reach none.
 /mhit id /.maskcachehit get def
+
+% The operator paints, and what it paints in is the colour the painting
+% machinery resolves for a coverage raster: the components in the
+% device's own space with the transfer functions applied, left where the
+% paint reads them. Nothing here has painted yet, so nothing has resolved
+% one, and the calls below would be refused for want of it rather than
+% answering about the keys they are here to ask about. Showing a
+% character resolves one the ordinary way.
+/Helvetica findfont 12 scalefont setfont 0 0 moveto (A) show
 /require { % bool label  .  -
     exch { (ok   ) print note }
          { /fails fails 1 add def (FAIL: ) print note } ifelse

@@ -209,9 +209,6 @@ src/lib/xpost_object.c       xpost_object_file_set_access outlives replaced-at-i
 src/lib/xpost_op_font.c      name_BlendPix          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_CIDFontType       reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_CharStrings       reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_DeviceCMYK        reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_DeviceGray        reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_DeviceRGB         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_Encoding          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FDArray           reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FID               reset xpost_oper_init_font_ops
@@ -224,7 +221,6 @@ src/lib/xpost_op_font.c      name_GlyphData         reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_GlyphExtents      reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_Metrics           reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_Private           reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_Process           reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_PutPix            reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_ScreenPaint       reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_Subrs             reset xpost_oper_init_font_ops
@@ -236,11 +232,7 @@ src/lib/xpost_op_font.c      name_c                 reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_clipbox           reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_clipcache         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_clipspans         reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_colorcomp1        reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_colorcomp2        reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_colorcomp3        reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_colorcomp4        reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_colorspace        reset xpost_oper_init_font_ops
+src/lib/xpost_op_font.c      name_dotmarkedcolor    reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_csreal            reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_currfont          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_currgstate        reset xpost_oper_init_font_ops
@@ -263,7 +255,6 @@ src/lib/xpost_op_font.c      name_l                 reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_m                 reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_mark              reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_mat               reset xpost_oper_init_font_ops
-src/lib/xpost_op_font.c      name_nativecolorspace  reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_sepindex          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_septint           reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_serial            reset xpost_oper_init_font_ops

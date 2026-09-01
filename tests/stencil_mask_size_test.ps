@@ -33,6 +33,14 @@ graphicsdict /currgstate get /device DEV put
 DEV /BlendPix known DEV /TextAlphaBits known and
     (the test device blends, so the painter can be reached at all) assert
 
+% The painter marks coverage in the colour the painting machinery
+% resolves for it -- the components in the device's own space with the
+% transfer functions applied -- and refuses to paint at all where no
+% call has resolved one. Nothing here has painted yet, so showing a
+% character resolves one the ordinary way and the calls below can be
+% about the mask sizes they are here to ask about.
+/Helvetica findfont 12 scalefont setfont 0 0 moveto (A) show
+
 % width height buflen mat  paint  bool
 % The painter refuses anything but an axis-aligned map, and refuses a
 % device image bigger than a few thousand pixels a side, so each mask

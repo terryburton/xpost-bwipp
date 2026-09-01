@@ -163,4 +163,93 @@ pdb 0 count AREA eq
 pk 204 count pd 204 count eq
     (so the two routes agree wherever the description stays within PLRM 5.5) assert
 
+% --- the transfer function reaches the colour a glyph marks in ---
+%
+% PLRM 7.3 has a transfer function adjust a device colour component on
+% its way to the device, and a glyph's marks are marks. The colour a
+% glyph is painted in is worked out somewhere other than where a fill's
+% is: a raster of coverage carries one colour over many pixels, so the
+% colour is resolved before the coverage is walked rather than being
+% built on the operand stack under the device call. That is a second
+% place the same arithmetic is done, and the two have to arrive at the
+% same page.
+%
+% Each case paints the same glyph twice and requires the same raster:
+% once in black with no function in force, and once in white through a
+% function that inverts white to black. A route that resolved the colour
+% without the function would paint the second in white and leave the
+% page as it found it. Comparing the rasters rather than counting one of
+% them is what makes the case exact -- there is no value to choose and
+% no tolerance to set, and a route that painted the right colour in the
+% wrong place would fail it too.
+
+/samepage { % [rows] [rows] . bool
+  /spb exch def /spa exch def /spsame true def
+  0 1 spa length 1 sub {
+    /spi exch def
+    spa spi get spb spi get ne { /spsame false def } if
+  } for
+  spsame
+} bind def
+
+/drawthrough { % font proc . [rows]
+  /dtp exch def /dtf exch def
+  1 setgray 0 0 64 64 rectfill
+  gsave
+    dtp
+    dtf 30 scalefont setfont 2 4 moveto (A) show
+  grestore
+  snap
+} bind def
+
+/invert { { 1 exch sub } settransfer 1 setgray } bind def
+/plain  { 0 setgray } bind def
+
+% through the glyph cache
+/tkplain  PKEY { plain  } drawthrough def
+/tkinvert PKEY { invert } drawthrough def
+tkplain 0 count AREA eq
+    (the cached glyph painted in black covers the glyph) assert
+tkplain tkinvert samepage
+    (and a transfer function that inverts white paints the same page) assert
+
+% and built afresh, which reaches the raster by the other route
+/tdplain  PDIR { plain  } drawthrough def
+/tdinvert PDIR { invert } drawthrough def
+tdplain 0 count AREA eq
+    (the directly built glyph painted in black covers the glyph) assert
+tdplain tdinvert samepage
+    (and a transfer function that inverts white paints the same page there too) assert
+
+% and a font whose glyphs come out of a face, which is the third route
+% to the page and the one an ordinary program takes. Its raster is
+% coverage the painter blends rather than marks it fills, so it resolves
+% its colour in the same place the cached mask does and has to arrive at
+% the same answer.
+/facedraw { % proc . [rows]
+  /fdp exch def
+  1 setgray 0 0 64 64 rectfill
+  gsave
+    fdp
+    /Helvetica findfont 30 scalefont setfont 2 10 moveto (A) show
+  grestore
+  snap
+} bind def
+/tfplain  { plain  } facedraw def
+/tfinvert { invert } facedraw def
+tfplain 255 count 64 64 mul eq not
+    (the face glyph painted in black marks the page) assert
+tfplain tfinvert samepage
+    (and a transfer function that inverts white paints the same page) assert
+
+% The control. A transfer function that changes nothing must leave both
+% routes where they were: without it, a case that painted black whatever
+% the function said would pass the three above.
+/tkident PKEY { { } settransfer 1 setgray } drawthrough def
+tkident 255 count 64 64 mul eq
+    (white through an identity function leaves the whole page white) assert
+/tfident { { } settransfer 1 setgray } facedraw def
+tfident 255 count 64 64 mul eq
+    (and leaves it white for a face glyph too) assert
+
 verdict

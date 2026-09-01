@@ -477,6 +477,7 @@ entries 508
 .xpostsys /.screenstoragebytes
 .xpostsys /.sepconv
 .xpostsys /.setclipregion
+.xpostsys /.setmarkedcolor
 .xpostsys /.setpageinfo
 .xpostsys /.setpagemarked
 .xpostsys /.setpageno

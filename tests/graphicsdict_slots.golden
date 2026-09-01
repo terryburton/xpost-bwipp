@@ -33,6 +33,7 @@ bracketed /.ctrec
 bracketed /.ctop
 bracketed /.csrec
 
+lifetime /.markedcolor
 lifetime /.formcache
 lifetime /.formlast
 lifetime /.exactpagedims
