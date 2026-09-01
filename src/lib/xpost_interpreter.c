@@ -1519,6 +1519,9 @@ evalfunc *evaldict = evalpush;
 evalfunc *evalextended = evalquit;
 evalfunc *evalglob = evalpush;
 evalfunc *evalmagic = evalquit;
+/* a fontID is a literal object: what a font dictionary carries under
+   FID is a value, and executing one pushes it as any other value */
+evalfunc *evalfontID = evalpush;
 
 evalfunc *evalcontext = evalpush;
 evalfunc *evalname = evalload;

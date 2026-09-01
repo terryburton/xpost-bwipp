@@ -55,6 +55,7 @@
     _(glob)     /*14*/ \
     _(magic)    /*15*/ \
     _(string)   /*16*/ \
+    _(fontID)   /*17*/ \
 /* #def XPOST_OBJECT_TYPES */
 
 #define XPOST_OBJECT_AS_TYPE(_) \
@@ -100,6 +101,11 @@
  * carries is what the type operator answers with. magictype names no
  * member of the union and no object is built of it; the entry holds the
  * number in place.
+ *
+ * fontIDtype is PLRM Table 3.2's fontID: the type of the object a font
+ * dictionary carries under FID (PLRM Table 5.2). It is a simple object
+ * carrying an identity in .mark_.padw and nothing else; no operator
+ * builds one, so a program can tell one apart but cannot make one.
  */
 typedef enum
 {
@@ -522,6 +528,20 @@ XPOST_TEST_VISIBLE Xpost_Object xpost_int_cons(integer i);
  * literal.
  */
 XPOST_TEST_VISIBLE Xpost_Object xpost_real_cons(real r);
+
+/**
+ * @brief Construct a fontIDtype object with the given identity.
+ *
+ * @param[in] id The identity the object carries.
+ * @return A new object.
+ *
+ * This function constructs the object a font dictionary carries under
+ * FID (PLRM Table 5.2). Two of them are the same font's when they carry
+ * the same identity, which is the whole of what the value is for: it
+ * names the dictionary the font machinery stamped and is read by
+ * nothing else. It returns the object as literal.
+ */
+XPOST_TEST_VISIBLE Xpost_Object xpost_fontid_cons(dword id);
 
 
 /*

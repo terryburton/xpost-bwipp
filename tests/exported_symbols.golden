@@ -33,6 +33,7 @@ evalboolean
 evalcontext
 evaldict
 evalextended
+evalfontID
 evalglob
 evalinteger
 evalinvalid
@@ -259,6 +260,7 @@ xpost_font_init
 xpost_font_mask_cache_flush
 xpost_font_name_is_available
 xpost_font_quit
+xpost_fontid_cons
 xpost_fpurge
 xpost_free_alloc
 xpost_free_bytes

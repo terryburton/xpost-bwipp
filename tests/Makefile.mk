@@ -270,6 +270,7 @@ tests/font_bigbuf_test.ps \
 tests/font_cache_bound_test.ps \
 tests/font_cache_evict_test.ps \
 tests/font_directory_test.ps \
+tests/font_fid_test.ps \
 tests/font_encoding_test.ps \
 tests/font_resource_test.ps \
 tests/font_substitute_test.ps \

@@ -188,6 +188,15 @@ cont:
         case contexttype:   return L.mark_.padw < R.mark_.padw ? -1 :
                                    L.mark_.padw > R.mark_.padw ? 1 : 0;
 
+        /* two FIDs are the same font's when they carry the same
+           identity, and they carry nothing else -- so they compare by
+           the field the hash above reads, which is what lets one serve
+           as a dictionary key. PLRM Table 5.2 gives a font dictionary
+           the entry; telling two of them apart is the whole of what a
+           program may do with it. */
+        case fontIDtype:    return L.mark_.padw < R.mark_.padw ? -1 :
+                                   L.mark_.padw > R.mark_.padw ? 1 : 0;
+
         case dicttype: /*@fallthrough@*/ /*return !( xpost_object_get_ent(L) == xpost_object_get_ent(R) ); */
         case arraytype: return !( L.comp_.sz == R.comp_.sz
                                 && (L.tag&XPOST_OBJECT_TAG_DATA_FLAG_BANK) == (R.tag&XPOST_OBJECT_TAG_DATA_FLAG_BANK)

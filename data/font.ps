@@ -408,7 +408,30 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     {
         dup /.fontid //.internaldict /.newfontserial get exec put
         dup /.fontidof 2 index put
+
+        % A dictionary given an identity of its own is given the whole
+        % of one. A serial is reissued here where the dictionary
+        % carrying it is not the dictionary it was issued to, and an FID
+        % copied in from that same other dictionary names it no better.
+        dup /FID //.internaldict /.newfontid get exec put
     } if
+
+    % PLRM Table 5.2: a font dictionary carries an FID, an object of type
+    % fontID, and definefont is what inserts it. Nothing in the language
+    % builds one, so an FID reached here is one this operator stamped and
+    % the dictionary's identity stands with it; anything else under the
+    % name, or nothing at all, is answered with the entry the
+    % specification asks for.
+    %
+    % Telling two of them apart is the whole of what the object is for,
+    % and a program cannot write one, so that answer means what it says.
+    % The glyph cache is keyed by the serial above and not by this: a
+    % cache key is built from a number, and the number is the entry a
+    % program may steer.
+    dup /FID 2 copy known
+    { get type /fontIDtype ne }
+    { pop pop true } ifelse
+    { dup /FID //.internaldict /.newfontid get exec put } if
 
     % FontDirectory denotes the global directory while the allocation mode
     % is global, so a font built there is filed there and outlives the

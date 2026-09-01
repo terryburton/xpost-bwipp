@@ -99,7 +99,7 @@ typedef struct Xpost_Operator
  */
 enum typepat
 {
-    anytype = XPOST_OBJECT_NTYPES /* stringtype + 1 */,
+    anytype = XPOST_OBJECT_NTYPES /* one past the last object type */,
     floattype,
     numbertype,
     proctype };

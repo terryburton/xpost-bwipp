@@ -2605,6 +2605,21 @@ test('font-glyphkey',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The FID a font dictionary carries (PLRM Table 5.2), which is an object
+# of a type of its own: PLRM Table 3.2 lists fontID among the object
+# types, so the type operator has an answer for it that is no other
+# type's, and telling one font dictionary's entry from another's is the
+# whole of what a program may do with it. Held on every route a program
+# reaches a font by -- what definefont answers with, the dictionary it
+# was handed, findfont, the font directory, and a name the host resolved
+# -- because an entry inserted on one of them and not the rest is a font
+# dictionary that is a font dictionary only when asked for the right way.
+test('font-fid',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/font_fid_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # What identifies a cached glyph (PLRM 5.5): the font, the character
 # selector -- which is the character's NAME -- and the transform. The
 # code is explicitly not part of it, "since a given glyph may be

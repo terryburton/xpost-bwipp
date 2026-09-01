@@ -110,6 +110,19 @@ Xpost_Object xpost_real_cons (real r)
     return xpost_object_cvlit(obj);
 }
 
+Xpost_Object xpost_fontid_cons (dword id)
+{
+    Xpost_Object obj = { 0 };
+
+    obj.mark_.tag = fontIDtype
+        | (XPOST_OBJECT_TAG_ACCESS_UNLIMITED
+                << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
+    obj.mark_.pad0 = 0;
+    obj.mark_.padw = id;
+
+    return xpost_object_cvlit(obj);
+}
+
 
 /*
    Type and Tag Manipulation
@@ -355,6 +368,11 @@ xpost_object_dump (Xpost_Object obj)
         case extendedtype: XPOST_LOG_DUMP("<extended>");
             break;
         case globtype: XPOST_LOG_DUMP("<glob>");
+            break;
+        case fontIDtype:
+            XPOST_LOG_DUMP("<fontID "
+                           "%" XPOST_FMT_DWORD(u) ">",
+                           obj.mark_.padw);
             break;
     }
 }

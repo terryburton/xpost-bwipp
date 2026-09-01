@@ -107,6 +107,7 @@ static Xpost_Object name_DeviceGray;
 static Xpost_Object name_DeviceRGB;
 static Xpost_Object name_Encoding;
 static Xpost_Object name_FDArray;
+static Xpost_Object name_FID;
 static Xpost_Object name_FillRect;
 static Xpost_Object name_FontBBox;
 static Xpost_Object name_FontMatrix;
@@ -172,6 +173,7 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_DeviceRGB, "DeviceRGB" },
     { &name_Encoding, "Encoding" },
     { &name_FDArray, "FDArray" },
+    { &name_FID, "FID" },
     { &name_FillRect, "FillRect" },
     { &name_FontBBox, "FontBBox" },
     { &name_FontMatrix, "FontMatrix" },
@@ -1252,8 +1254,16 @@ static unsigned long face_cache_clock = 0;
    the disagreement is only visible as the wrong shape on the page. */
 static int _fontserial_next = 1;
 
-static int _newfontserial(Xpost_Context *ctx)
+/* The next number, and the restart when the range runs out. One counter
+   mints both of the identities a font is given here -- the serial its
+   cached glyph masks are filed under, and the FID its dictionary is
+   stamped with -- so the restart that stops a mask being answered to a
+   later font is the same restart that stops two dictionaries carrying
+   one FID. */
+static int _fontserial(void)
 {
+    int n;
+
     if (_fontserial_next <= 0)
     {
         /* the counter has run its range: nothing held can be told apart
@@ -1261,9 +1271,28 @@ static int _newfontserial(Xpost_Context *ctx)
         xpost_mask_cache_clear();
         _fontserial_next = 1;
     }
-    if (!xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(_fontserial_next)))
-        return stackoverflow;
+    n = _fontserial_next;
     _fontserial_next++;
+    return n;
+}
+
+static int _newfontserial(Xpost_Context *ctx)
+{
+    if (!xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(_fontserial())))
+        return stackoverflow;
+    return 0;
+}
+
+/* -  .newfontid  fontID
+   The object PLRM Table 5.2 has definefont insert under FID. It is of a
+   type nothing else in the language builds, so a program can tell one
+   font dictionary's FID from another's and cannot write one of its own;
+   its value is an identity and is read by nothing. */
+static int _newfontid(Xpost_Context *ctx)
+{
+    if (!xpost_stack_push(ctx->lo, ctx->os,
+                          xpost_fontid_cons((dword)_fontserial())))
+        return stackoverflow;
     return 0;
 }
 
@@ -1393,6 +1422,21 @@ int _findfont(Xpost_Context *ctx,
 
     fontdict = xpost_dict_cons (ctx, 10);
     ret = xpost_dict_put(ctx, fontdict, name_FontName, fontname);
+    if (ret)
+    {
+        free(fname);
+        return ret;
+    }
+
+    /* Every font dictionary carries an FID (PLRM Table 5.2), and this is
+       a font dictionary the interpreter builds rather than one a program
+       hands to definefont, so it is stamped here: a name resolved through
+       the host answers with a font as complete as a defined one. Each
+       lookup builds its own dictionary and each gets its own identity --
+       what the entry says is which dictionary this is, and two of these
+       are two dictionaries even where one face answers both. */
+    ret = xpost_dict_put(ctx, fontdict, name_FID,
+                         xpost_fontid_cons((dword)_fontserial()));
     if (ret)
     {
         free(fname);
@@ -6222,6 +6266,7 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
         floattype, floattype, arraytype, arraytype, arraytype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".newfontserial", (Xpost_Op_Func)_newfontserial, 0); INSTALL;
+    op = xpost_operator_cons(ctx, ".newfontid", (Xpost_Op_Func)_newfontid, 0); INSTALL;
     op = xpost_operator_cons(ctx, ".maskcacheput", (Xpost_Op_Func)_maskcacheput, 1, dicttype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".setcachelimit", (Xpost_Op_Func)_setcachelimit, 1, integertype);

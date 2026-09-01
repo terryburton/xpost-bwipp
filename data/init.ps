@@ -947,6 +947,11 @@ systemdict begin
         pop (-savelevel-) tprint
     } def
 
+    % The object a font dictionary carries under FID (PLRM Table 5.2).
+    % It has no written form to read back, so it prints as the other
+    % objects without one do.
+    /fontIDtype { pop (-fontID-) tprint } def  % fontID  .  -
+
     % Re-readable string escaping for ==: a byte becomes \\ \( \) for
     % those three, a named escape for the five control characters that
     % have one, its own character when printable, and \ddd octal

@@ -36,7 +36,7 @@
 #            caller reads that. The dropper is then in the caller's file
 #            and NOT named in the restart, which is what is checked.
 
-counter _fontserial_next    src/lib/xpost_op_font.c     _newfontserial
+counter _fontserial_next    src/lib/xpost_op_font.c     _fontserial
 counter _region_serial_next src/lib/xpost_dev_generic.c _newregionserial
 counter _form_serial_next   src/lib/xpost_op_path.c     _newformserial
 

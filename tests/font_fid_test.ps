@@ -1,0 +1,174 @@
+%!testlib
+% The FID entry every font dictionary carries (PLRM Table 5.2), run
+% through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM Table 5.2: "FID fontID (Inserted by definefont) A special object
+% of type fontID that serves internal purposes in the font machinery."
+% PLRM Table 3.2 lists fontID among the object types, so the type
+% operator has an answer for it that is no other type's -- and that
+% answer, with the equality of two of them, is the whole of what a
+% program may do with the entry.
+%
+% Every route a program reaches a font by is asked, because an entry
+% inserted on one of them and not the rest is a font dictionary that is a
+% font dictionary only when asked for the right way. The entry is read
+% through /fidof rather than with get, so a route carrying none is one
+% reported line and not the end of the suite: a run that stopped at the
+% first would say nothing about the routes after it.
+%
+% The subject is a Type 3 font, whose glyphs come out of a procedure
+% rather than a face, so the questions below can be asked in a build
+% carrying no face library. The one question that needs a face -- what a
+% name resolved through the host answers with -- is asked at the end and
+% only where there is a face to resolve it.
+
+/fidof {                                % dict  .  fontID | null
+    dup /FID known { /FID get }{ pop null } ifelse
+} bind def
+
+% Two dictionaries carry one entry, and it is an entry: a route reached
+% by a dictionary carrying nothing answers null, and two nulls are equal
+% to each other -- so a comparison alone would report a route that has
+% lost the entry as a route that agrees with the rest.
+/samefid {                              % dict1 dict2  .  bool
+    fidof exch fidof
+    dup type /fontIDtype eq
+    3 1 roll eq and
+} bind def
+
+% A dictionary of the shape definefont accepts, with room for the
+% entries definefont adds to it.
+/mkfont {                               % -  .  dict
+    12 dict begin
+        /FontType 3 def
+        /FontMatrix [0.001 0 0 0.001 0 0] def
+        /FontBBox [0 0 1000 1000] def
+        /Encoding 256 array def
+        0 1 255 { Encoding exch /.notdef put } for
+        /BuildChar { pop pop 0 0 setcharwidth } def
+    currentdict end
+} bind def
+
+% ---- definefont inserts the entry ------------------------------------
+
+/F1 mkfont def
+/D1 /FIDone F1 definefont def
+
+D1 /FID known (definefont answers with a dictionary carrying FID) assert
+D1 fidof type /fontIDtype eq
+    (the entry is an object of type fontID, PLRM Table 5.2) assert
+
+% definefont registers the dictionary it was handed rather than a copy of
+% it, so the entry is on the object the program still holds.
+F1 /FID known (the dictionary handed to definefont carries the entry) assert
+
+% ---- every route to the font reaches the same entry -------------------
+
+/FIDone findfont D1 samefid
+    (findfont answers with the same entry) assert
+FontDirectory /FIDone get D1 samefid
+    (the font directory holds the same entry) assert
+/FIDone /Font findresource D1 samefid
+    (the Font resource category answers with the same entry) assert
+
+% ---- the entry distinguishes one font from another --------------------
+
+/D2 /FIDtwo mkfont definefont def
+D2 fidof D1 fidof eq not
+    (two fonts carry entries that are not equal) assert
+D2 D2 samefid
+    (a font's entry is equal to itself) assert
+
+% Equality is what the entry is for, so it has to hold where equality is
+% asked by lookup as well as by eq: a key that compares equal to another
+% and hashes apart from it is found by neither.
+/keyed false def
+{
+    /K 4 dict def
+    K D1 fidof (one) put
+    K D2 fidof (two) put
+    /keyed K D1 fidof get (one) eq K length 2 eq and store
+} (an entry serves as a dictionary key) works
+keyed (two unequal entries take two slots and each finds its own) assert
+
+% ---- a copy is a different dictionary ---------------------------------
+%
+% A copy of a defined font carries the original's entry until definefont
+% is asked about it. What comes back then says which dictionary it is,
+% which is a different answer from the one the original carries.
+
+/F3 D1 length dict D1 exch copy def
+/D3 /FIDthree F3 definefont def
+D3 fidof D1 fidof eq not
+    (a copy presented to definefont is given an entry of its own) assert
+
+% A dictionary presented again is the dictionary it was, and keeps what
+% it was stamped with.
+/D4 /FIDfour D1 definefont def
+D4 D1 samefid
+    (a dictionary defined a second time keeps the entry it has) assert
+
+% ---- the entry is the machinery's, not the program's -------------------
+%
+% Nothing in the language builds an object of this type, so a program can
+% only put some other value under the name. definefont answers such a
+% dictionary with the entry the specification asks for rather than
+% carrying the program's value as though it were one.
+
+/F5 mkfont def
+F5 /FID 42 put
+/D5 /FIDfive F5 definefont def
+D5 fidof type /fontIDtype eq
+    (a value a program wrote under FID is replaced by the entry) assert
+
+% ---- fonts derived from a font ----------------------------------------
+%
+% scalefont and makefont answer with a copy of the font (PLRM 8.2), so a
+% derived dictionary is a font dictionary too and carries the entry. It
+% carries the one it was copied from: the derived font is the same font
+% under another transform, and the entry says so.
+
+/S D1 12 scalefont def
+S /FID known (a scaled font carries the entry) assert
+S D1 samefid
+    (and it is the entry the font it was derived from carries) assert
+D1 [2 0 0 2 0 0] makefont /FID known
+    (a transformed font carries the entry) assert
+
+S setfont
+currentfont /FID known (the current font carries the entry) assert
+
+% ---- what the object itself is ----------------------------------------
+
+D1 fidof xcheck not
+    (the entry is literal, so reading a font dictionary's entries runs nothing) assert
+
+/pushed false def
+{ /pushed D1 fidof cvx exec D1 fidof eq store }
+    (an executable entry pushes itself rather than running) works
+pushed (and what it pushes is the entry) assert
+
+{ D1 fidof == } (== has a form for the type) works
+{ D1 fidof 32 string cvs pop } (cvs has an answer for it) works
+
+clear
+
+% ---- a font the host resolved -----------------------------------------
+%
+% PLRM 5.2 gives the entry to font dictionaries, not only to the ones a
+% program defined: a name resolved through the host answers with a font
+% as complete as a defined one. Asked only where a face library can
+% resolve a name at all.
+
+systemdict /NOFACES known not {
+    /Courier findfont /FID known
+        (a font found through the host carries the entry) assert
+    /Courier findfont fidof type /fontIDtype eq
+        (and it is an object of type fontID) assert
+    /Courier findfont fidof D1 fidof eq not
+        (a host font's entry is not a defined font's) assert
+} if
+
+clear
+
+verdict

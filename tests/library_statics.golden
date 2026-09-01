@@ -214,6 +214,7 @@ src/lib/xpost_op_font.c      name_DeviceGray        reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_DeviceRGB         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_Encoding          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FDArray           reset xpost_oper_init_font_ops
+src/lib/xpost_op_font.c      name_FID               reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FillRect          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FontBBox          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FontMatrix        reset xpost_oper_init_font_ops
