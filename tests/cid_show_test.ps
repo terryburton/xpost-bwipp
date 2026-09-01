@@ -1046,6 +1046,53 @@ cf.base {
     nx.err /typecheck eq
     (a CMap operand of no such form is a wrong type) check
 
+% --- FontSetInit's StartData tells its two forms apart by the name -----
+%
+% "key int StartData" and "key int name StartData" (PLRM 8.2), so the
+% operand on top is the byte count in the one form and the master font's
+% name in the other, and a name is what says which form was written. An
+% operand of any other type stands where the count stands and is held to
+% being a count, so the two forms answer alike for one that is not.
+/p.name (StartData:) def
+% PLRM 8.2 has the operator "invoked when the dictionary stack contains
+% the FontSetInit procedure set dictionary", so each of these puts it
+% there for itself: a case that raises leaves it on the stack, and what
+% takes it off again is the helper above.
+/sd { % proc  .  errorname or null
+    /FontSetInit /ProcSet findresource begin exec end
+} bind def
+{ { /SDTwoZero 0 StartData } sd } nx.err null eq
+    (the two-operand form takes a byte count) check
+{ { /SDThreeZero 0 /SDMaster StartData } sd } nx.err null eq
+    (and the three-operand form a count and a master font name) check
+{ { /SDTwoStr (bogus) StartData } sd } nx.err /typecheck eq
+    (a two-operand count that is not one is a wrong type) check
+{ { /SDThreeStr (bogus) /SDMaster StartData } sd } nx.err /typecheck eq
+    (and so is a three-operand count that is not one) check
+{ { /SDTwoArr [ 1 2 ] StartData } sd } nx.err /typecheck eq
+    (an array where the count belongs is a wrong type too) check
+{ { /SDStrMaster 0 (SDMaster) StartData } sd } nx.err /typecheck eq
+    (a master font that is not a name leaves no count to read) check
+{ { /SDNeg -1 StartData } sd } nx.err /rangecheck eq
+    (a negative count is out of range) check
+
+% and the count that is one is read: the declared bytes leave the program
+% and what follows them is the PostScript it is. The block is written at
+% the top level of this file because that is where its bytes are -- the
+% data begins after the space that ends the invocation, so it is part of
+% the program text and not of any procedure the test could wrap it in.
+/sd.reached 0 def
+/FontSetInit /ProcSet findresource begin
+/SDTwoData 4 StartData ABCD
+end
+/sd.reached 1 store
+/FontSetInit /ProcSet findresource begin
+/SDThreeData 4 /SDMaster StartData WXYZ
+end
+/sd.reached 2 store
+sd.reached 2 eq
+    (the declared bytes leave the program and the file goes on) check
+
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
 quit

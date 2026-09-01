@@ -340,9 +340,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     %  key nbytes mastername StartData  .  -   (Chameleon descriptors)
     /StartData {
         4 dict begin
-        % the three-operand form names the master font; it is read and
-        % discarded with the rest
-        dup type /integertype ne { pop } if
+        % The three-operand form names the master font, and a name is the
+        % only thing that operand is (PLRM 8.2), so a name is what tells
+        % the two forms apart. Anything else on top stands where the byte
+        % count stands and is held to being one.
+        dup type /nametype eq { pop } if
         /n exch def
         /key exch def
         n type /integertype ne
