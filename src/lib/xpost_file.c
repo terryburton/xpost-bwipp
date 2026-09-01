@@ -53,6 +53,7 @@
 #include "xpost_object.h"
 #include "xpost_handle.h"  /* a file entity carries a handle on its stream */
 #include "xpost_stack.h"  /* files are objects */
+#include "xpost_save.h"  /* a file entity carries a birth level like any other */
 #include "xpost_context.h"
 
 #include "xpost_error.h"  /* file functions may throw errors */
@@ -1657,6 +1658,15 @@ static int
 _file_bind_entity(Xpost_Memory_File *mem, unsigned int ent, Xpost_File *fp)
 {
     unsigned int vs, depth = 0, mk;
+
+    /* The save level the entity was made at, in the field every entity
+       carries it in. The low field below is a file's census bucket
+       instead -- it is cleared when the file closes, so that the deepest
+       occupied bucket can fall again -- so a file's birth is read from
+       the other one, which nothing writes for a file after this: the
+       copy-on-write marker that field otherwise carries belongs to
+       objects restore reverts the contents of, and a file is not one. */
+    xpost_save_stamp_birth(mem, ent);
 
     if (!xpost_handle_hold(mem, ent, XPOST_HANDLE_FILE,
                            XPOST_FILE_BLOCK_SIZE, fp))

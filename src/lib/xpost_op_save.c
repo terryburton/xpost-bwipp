@@ -151,6 +151,115 @@ int Zsave(Xpost_Context *ctx)
     return 0;
 }
 
+/* The save level an object's storage was made at, or 0 for an object
+   that has no storage in local virtual memory.
+
+   Every entity is stamped with the save-stack count in force when it was
+   allocated (xpost_save_stamp_birth). For a string, an array or a
+   dictionary that stamp is the low field of the mark word; for a file it
+   is the high one, the low field being the open-file census the sweep
+   below reads. A file object carries no bank flag and its entity is
+   always local, which is the same reading the sweep takes. */
+static unsigned int _birth_level(Xpost_Context *ctx, Xpost_Object o)
+{
+    unsigned int ent;
+    unsigned int mask, offset;
+
+    switch (xpost_object_get_type(o))
+    {
+        case stringtype: /*@fallthrough@*/
+        case arraytype:  /*@fallthrough@*/
+        case dicttype:
+            /* an object whose value is in global VM is undisturbed by a
+               restore (PLRM 3.7.3), and its entity is a number in the
+               other bank's table, which this one's rows say nothing
+               about */
+            if (o.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK)
+                return 0;
+            ent = (unsigned int)xpost_object_get_ent(o);
+            mask = XPOST_MEMORY_TABLE_MARK_DATA_LOWLEVEL_MASK;
+            offset = XPOST_MEMORY_TABLE_MARK_DATA_LOWLEVEL_OFFSET;
+            break;
+        case filetype:
+            ent = (unsigned int)o.mark_.padw;
+            mask = XPOST_MEMORY_TABLE_MARK_DATA_TOPLEVEL_MASK;
+            offset = XPOST_MEMORY_TABLE_MARK_DATA_TOPLEVEL_OFFSET;
+            break;
+        default:
+            return 0;
+    }
+    if (!xpost_ent_valid(ctx->lo, ent))
+        return 0;
+    return (ctx->lo->table.tab[ent].mark & mask) >> offset;
+}
+
+/* Whether this object is one the restore to @p lev would leave naming
+   storage it has discarded.
+
+   PLRM 8.2, restore: "If any of these stacks contains composite objects
+   whose values reside in local VM and are newer than the snapshot being
+   restored, an invalidrestore error occurs. This restriction applies to
+   save objects and, in LanguageLevel 1, to name objects." A name is
+   therefore not asked about here, this being LanguageLevel 3.
+
+   Newer than the snapshot is the whole of the question. A save records
+   as its level the save-stack count taken before it pushed itself, so
+   everything made while that save stood carries a birth one higher, and
+   an object born at or below the level is one the save was taken over. */
+static int _newer_than_snapshot(Xpost_Context *ctx,
+                                Xpost_Object o,
+                                unsigned int lev)
+{
+    if (xpost_object_get_type(o) == savetype)
+        return (unsigned int)o.save_.lev > lev;
+    return _birth_level(ctx, o) > lev;
+}
+
+/* The operand, dictionary and execution stacks read for an object the
+   restore would leave dangling (PLRM 3.7.3, PLRM 8.2 restore). Answers
+   the object found, or a null object where the three stacks hold none.
+
+   Those three and no others. The hold stack is not one PLRM names, and
+   at this moment it holds the operand this very operator was called
+   with; the graphics state stack is not read because restore alters it
+   rather than being refused by it -- PLRM 8.2 has restore perform the
+   equivalent of a grestoreall.
+
+   Each stack is walked a segment at a time from its root, for the reason
+   the file sweep below is: reaching an index walks the segment chain, so
+   asking for one index after another costs the stack's depth once per
+   element. Nothing allocates inside the walk. */
+static Xpost_Object _restore_blocked_by(Xpost_Context *ctx, unsigned int lev)
+{
+    unsigned int stacks[3];
+    int k;
+
+    /* A procedure being run out of stands on the execution stack as an
+       interval naming the elements not yet reached, so the stack is
+       where it is found here like anything else. The interval is
+       dropped once nothing follows the element in hand, which is what
+       makes a tail call flat (evalarray, src/lib/xpost_interpreter.c) --
+       so a procedure whose last element is the restore has finished by
+       the time the restore runs, and is on no stack because there is
+       nothing left of it to run. */
+    stacks[0] = ctx->os; stacks[1] = ctx->ds; stacks[2] = ctx->es;
+    for (k = 0; k < 3; k++)
+    {
+        Xpost_Stack *s;
+
+        for (s = xpost_stack_at(ctx->lo, stacks[k]); s;
+             s = xpost_stack_next_segment(ctx->lo, s))
+        {
+            unsigned int i;
+
+            for (i = 0; i < s->top; i++)
+                if (_newer_than_snapshot(ctx, s->data[i], lev))
+                    return s->data[i];
+        }
+    }
+    return null;
+}
+
 /* save  restore  -
    rewind vm to saved state */
 static
@@ -159,6 +268,25 @@ int Vrestore(Xpost_Context *ctx,
 {
     int z;
     unsigned int vs;
+
+    /* Nothing is reverted while a stack still names something the
+       reversion discards (PLRM 3.7.3). The check comes first, and
+       nothing before it has changed anything, so a refused restore
+       leaves the state exactly as it found it -- which is what lets the
+       error be handled and the program carry on.
+
+       It is not only that the program would be left holding storage that
+       is no longer its own. An object carried out of the save level it
+       was made at keeps the birth stamp of that level, which is above
+       the level it now lives at; the next save then reads that stamp,
+       concludes the object was made after it, and takes no backup -- so
+       the next restore does not revert a write it was asked to revert.
+       The stamp is the machinery's record of what belongs to which
+       level, and this is what keeps an object from outliving its own. */
+    if (xpost_object_get_type(_restore_blocked_by(ctx, (unsigned int)V.save_.lev))
+        != nulltype)
+        return invalidrestore;
+
     ++ctx->namebind_gen; /* restored dicts may change bindings */
 
     vs = xpost_memory_save_stack_ent(ctx->lo);
@@ -185,11 +313,8 @@ int Vrestore(Xpost_Context *ctx,
 
     /* restore closes a file created since the corresponding save (PLRM
        3.8.2): sweep the local table for file entities born above the
-       restored depth and close them. A file still referenced from a
-       stack stays open: the spec answers that situation with
-       invalidrestore, which is not implemented -- see the note in
-       tests/save_restore_test.ps -- and closing under a live reference
-       would be worse.
+       restored depth and close them. A file a stack still names does not
+       reach here at all: the check above has refused the restore.
 
        The close is all this does. It does not reclaim the entity, and
        the scan below is why: it sees the objects lying on the stacks,

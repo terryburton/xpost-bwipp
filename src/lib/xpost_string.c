@@ -27,6 +27,7 @@
 #include "xpost_stack.h"
 #include "xpost_context.h"
 #include "xpost_error.h"
+#include "xpost_save.h"  /* a string carries a birth level like any entity */
 
 #include "xpost_string.h"  // double-check prototypes
 
@@ -82,6 +83,14 @@ Xpost_Object xpost_string_cons_memory(Xpost_Memory_File *mem,
         XPOST_LOG_ERR("cannot allocate string");
         return null;
     }
+    /* The save level the storage was made at. A string takes no part in
+       the copy-on-write snapshots -- PLRM 3.7.3 exempts string contents
+       from restore, so nothing here ever asks whether this entity is
+       backed up -- but restore still has to tell a string made since a
+       save from one that predates it, and the birth stamp is where every
+       entity says so. A row from the free list carries its last tenant's
+       stamp until this writes one. */
+    xpost_save_stamp_birth(mem, ent);
     if (ini)
     {
         ret = xpost_memory_put(mem, ent, 0, sz, ini);

@@ -86,55 +86,85 @@ save
 restore
 xs (HelLO) eq (string contents survive restore, per the PLRM string exception) assert
 
-% KNOWN DEVIATION (TODO, not asserted): the PLRM has restore raise
-% /invalidrestore when a composite object created after the save remains
-% on the operand, dictionary or execution stack.
-% xpost currently restores without the check:
-%     save (fresh) exch restore  =>  no error, dangling string
-% Locking the absent error in would freeze non-compliance, so it is
-% recorded here for the C-side save/restore work rather than tested.
-
-% --- a file reached only through a composite is not left dangling ---
-% Restore releases the files opened since the save it undoes, and decides
-% which those are by asking what still reaches them. A file named from
-% inside an array or a dictionary is named all the same: releasing one
-% hands its entity back, and the object that still holds the number then
-% names whatever the number is given out for next -- read as a stream and
-% dispatched through, which is a jump to an address the free list wrote.
+% --- restore is refused while a stack still names what it would discard ---
 %
-% The situation is the deviation recorded just above, so whether the file
-% comes back open or closed is not asserted; what is asserted is that
-% nothing the surviving object does can reach a file opened afterwards.
-save [ (41>) /ASCIIHexDecode filter ] exch restore
-0 get /heldinarray exch def
-/freshfilter (42>) /ASCIIHexDecode filter def
-heldinarray closefile
-freshfilter status
-    (a filter opened after a restore is not closed through an array element) assert
-freshfilter 1 string readstring pop (B) eq
-    (a filter opened after a restore still reads its own bytes) assert
-freshfilter closefile
+% PLRM 3.7.3, on what restore does NOT do: "Affect the contents of the
+% operand, dictionary, and execution stacks. If a stack contains a
+% reference to a composite object in local VM that would be discarded by
+% the restore operation, the restore is not allowed; an invalidrestore
+% error occurs." PLRM 8.2 restore says the same and adds that the
+% restriction covers save objects, and name objects in LanguageLevel 1.
+%
+% Two things rest on it. One is the program's: it would be left holding
+% storage that is no longer its own. The other is the interpreter's: an
+% object carried out of the save level it was made at keeps that level's
+% birth stamp, which is above the level it now lives at, and the next
+% save reads the stamp, concludes the object postdates it and takes no
+% backup -- so the next restore silently fails to revert a write. The
+% control below drives exactly that sequence and is the reason this is
+% not only a conformance check.
+%
+% Each composite type is asked separately: they are stamped by different
+% constructors and read through different fields, so one type answering
+% correctly says nothing about the others.
 
-save << /f (43>) /ASCIIHexDecode filter >> exch restore
-/f get /heldindict exch def
-/freshagain (44>) /ASCIIHexDecode filter def
-heldindict closefile
-freshagain status
-    (a filter opened after a restore is not closed through a dictionary value) assert
-freshagain 1 string readstring pop (D) eq
-    (a filter opened after a restore still reads its own bytes from a dict case) assert
-freshagain closefile
+{ save 5 string exch restore } /invalidrestore
+    (a string made under the save may not be left on the operand stack) raises
+{ save 3 array exch restore } /invalidrestore
+    (nor an array) raises
+{ save 3 dict exch restore } /invalidrestore
+    (nor a dictionary) raises
+{ save 1 2 3 3 packedarray exch restore } /invalidrestore
+    (nor a packed array) raises
+{ save (43>) /ASCIIHexDecode filter exch restore } /invalidrestore
+    (nor a file) raises
+{ save save exch restore } /invalidrestore
+    (nor a save object, which PLRM 8.2 names beside the composites) raises
 
-% status is how a program walks into the situation: it reports on the
-% surviving object rather than dispatching through what it names, so
-% asking is safe whichever answer it gives
-heldinarray status pop
-heldindict status pop
+% The dictionary stack and the execution stack are named by the same
+% sentence. A dictionary made under the save and left open is on the
+% dictionary stack; a procedure made under the save is on the execution
+% stack while it runs, which is what calling restore from inside one
+% means.
+{ save 3 dict begin restore } /invalidrestore
+    (nor a dictionary left open on the dictionary stack) raises
 
-% and closed with nothing allocated in between, so that the entity is
-% still on the free list and nothing has taken its storage
-save [ (45>) /ASCIIHexDecode filter ] exch restore
-0 get dup status pop closefile
+% The procedure is built after the save and is what runs the restore, so
+% it is on the execution stack at the moment the restore is asked for.
+% Something has to follow the restore in it: a procedure runs out of an
+% interval on the execution stack naming the elements not yet reached,
+% and one with nothing left to reach has finished -- so a procedure
+% ENDING in the restore is on no stack by the time the restore runs, and
+% is not a reference to anything.
+{ save [ /restore cvx /pop cvx ] cvx exec 0 } /invalidrestore
+    (nor a procedure on the execution stack that has the restore to run) raises
+
+% --- and the controls, which are what make the checks above mean anything --
+%
+% A check that refused every restore would pass all of the above.
+
+{ save restore } (a save with nothing made under it restores) works
+
+{ 5 string save restore pop } (a string made BEFORE the save may stay) works
+{ 3 array save restore pop } (so may an array) works
+{ 3 dict save restore pop } (so may a dictionary) works
+{ (46>) /ASCIIHexDecode filter save restore closefile }
+    (so may a file) works
+
+% Global virtual memory is undisturbed by a restore (PLRM 3.7.3), so an
+% object made there under the save is no reason to refuse.
+{ save true setglobal 3 array false setglobal exch restore pop }
+    (an array made in global VM under the save may stay) works
+clear
+
+% An object cannot now reach a save level below the one it was made at,
+% so every object a save can see was made at or before the level it was
+% taken over -- which is the condition the backup stamps are read under,
+% and a write under the save is reverted.
+/sr.arr 3 array def
+save sr.arr 0 42 put restore
+sr.arr 0 get null eq
+    (a write under a save reverts, the object having stayed at its level) assert
 
 count 0 eq (operand stack is balanced) assert
 verdict

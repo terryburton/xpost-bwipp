@@ -110,26 +110,35 @@ scr deletefile
 
 verdict
 
-% --- an entity a released stream once used is not written through again ---
+% --- a filter cannot outlive the restore that freed its source ---
 %
 % A filter over a string builds a source stream of its own, with its own
 % entity. Closing the filter releases that stream, and the stream
-% remembers the entity number so it can clear it -- but the entity may
-% have been reclaimed and handed out again by then, and the number now
-% names something else. The write lands in whatever holds it.
+% remembers the entity number so it can clear it -- but if the entity
+% has been reclaimed and handed out again by then, the number names
+% something else and the write lands in whatever holds it.
 %
-% Here the surviving filter is closed after a restore has freed its
-% source and a new file has taken the number. The new file must still be
-% open afterwards: it is a different object and nothing the filter does
-% may reach it.
+% Freeing the source under the filter takes a restore that leaves the
+% filter behind, and that is what invalidrestore refuses (PLRM 3.7.3):
+% the filter is a file made under the save and the operand stack still
+% names it. So the hazard is shut at its entrance, and what is asserted
+% is the entrance -- a filter made under a save may not be carried out
+% of it, whichever stack carries it.
 /lifescratch (filter_source_life.scratch) def
 /w lifescratch (w) file def w (hello) writestring w closefile
+
+{ save (41>) /ASCIIHexDecode filter exch restore } /invalidrestore
+    (a filter made under a save may not be left on the operand stack) raises
+{ save (41>) /ASCIIHexDecode filter 1 dict dup 3 -1 roll /f exch put
+  begin restore } /invalidrestore
+    (nor in a dictionary left open on the dictionary stack) raises
+clear
+
+% and a file the restore is free to close leaves everything else alone
 save
-  (41>) /ASCIIHexDecode filter
-exch restore
+  (41>) /ASCIIHexDecode filter pop
+restore
 /victim lifescratch (r) file def
-victim status (a fresh file opens) assert
-closefile
-victim status (closing the filter above a released source leaves an unrelated file alone) assert
+victim status (a fresh file opens after such a restore) assert
 victim closefile
 

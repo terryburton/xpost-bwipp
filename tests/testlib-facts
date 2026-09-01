@@ -96,7 +96,7 @@ own    device_getpix_destroyed_test.ps        2
 own    device_ground_test.ps                  1
 own    device_private_test.ps                 2
 own    device_restore_retired_test.ps         1
-own    device_retire_restored_test.ps         2
+own    device_retire_restored_test.ps         4
 own    empty_clip_test.ps                     6
 own    error_dict_test.ps                     3
 own    error_unwind_test.ps                   79

@@ -10,14 +10,19 @@
 % it is released at the restore or not at all.
 %
 % The raster is the part of that a program can see, and a mark is what
-% tells a raster that is still there from one that is gone. A pixel
-% painted on the installed page reads back as the paint; a released
-% raster holds no pixel and reads as the page's ground, the colour it was
-% cleared to. So the pixel is painted and read before the restore and
-% read again after it, and the two readings tell the two apart. The
-% reading before is taken first: without it a device that never had a
-% raster to read would answer the ground both times and agree for the
-% wrong reason.
+% tells a raster that is still there from one that is gone. A pixel is
+% painted on the installed page and read back, which says the device
+% holds a raster to lose: without that reading a device that never had
+% one would answer for a released raster and a held one alike.
+%
+% It is not read a second time after the restore, because a program that
+% could read it is not one the language allows. The instance was built
+% under the save, so a stack still naming it when the restore comes is
+% what PLRM 3.7.3 has restore refuse with invalidrestore -- which is the
+% same guarantee stated at the entrance rather than at the exit, and is
+% what is asserted below. What the restore releases is answered for from
+% the other side by device_restore_retired_test.ps, which paints on the
+% reinstated device whose buffer went the same way.
 %
 % A device whose Destroy is a PostScript procedure is out of the
 % restore's reach, restore executing no PostScript. Those classes keep
@@ -102,20 +107,24 @@
     } if
     (READBACK\n) print flush
 
-    % hold the replacement under the save object, so the program still
-    % names it once the restore has taken it out of the graphics state
-    getdevice exch
+    % A program may not carry the instance out of the save level that
+    % built it. setpagedevice made this dictionary under the save, so a
+    % stack still naming it is what PLRM 3.7.3 refuses the restore for --
+    % and that refusal is the same thing said from the other end: a
+    % program cannot be left holding a device whose raster the restore
+    % has released. So the refusal is what is asserted here, the raster
+    % afterwards being unreadable by any program allowed to run.
+    getdevice exch                 % device save
+    { restore } stopped not
+        { (FAILURE: a restore ran while the program still named the displaced device)
+          bail }
+    if
+    $error /errorname get /invalidrestore ne
+        { (FAILURE: the refused restore raised the wrong error) bail }
+    if
+    exch pop                       % let the device go; the save is next
 
     restore
-
-    % the read that says whether the restore retired it: the mark is
-    % gone with the raster that held it
-    2 2 3 -1 roll dup /GetPix get exec
-    /bad 0 def
-    ncomp { 0 ne { /bad bad 1 add def } if } repeat
-    bad 0 eq
-        { (FAILURE: a device displaced by restore kept its raster) bail }
-    if
 
     % painting on the reinstated device, which the setpagedevice above
     % retired and whose raster is gone: it takes no marks and follows
@@ -137,16 +146,25 @@
         { (FAILURE: the device's Destroy did not take the overwrite) bail }
     if
     paintmark
-    getdevice exch
-
-    restore
-
-    2 2 3 -1 roll dup /GetPix get exec
-    /bad 0 def
-    ncomp { 0 ne { /bad bad 1 add def } if } repeat
-    bad 0 eq
-        { (FAILURE: an overwritten Destroy chose the release) bail }
+    getdevice exch                 % device save
+    { restore } stopped not
+        { (FAILURE: a restore ran while the program still named the overwritten device)
+          bail }
     if
+    $error /errorname get /invalidrestore ne
+        { (FAILURE: the refused restore raised the wrong error) bail }
+    if
+    exch pop                       % let the device go; the save is next
+
+    % The restore now retires an instance whose Destroy slot holds a
+    % procedure. What runs is the release the device was installed
+    % carrying, and a release read out of the slot instead would take a
+    % raster device's private state for a vector writer's and free a
+    % pointer from the middle of it. The read that used to say so is not
+    % constructible: it asked the retired instance for a pixel, and the
+    % restore that retires it is refused while the program still names
+    % it. What stands is that this run completes.
+    restore
 
     % The same again with an operator of the program's own under
     % /Destroy, which a page device request puts there: setpagedevice

@@ -3,9 +3,8 @@
 % to, run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
 %
 % restore closes a file created since the corresponding save (PLRM
-% 3.8.2), and a file still named from a stack is left open instead. So
-% the sweep that does it has to look for each such file on the stacks,
-% and how it looks is the whole subject here: a stack is a chain of
+% 3.8.2), and it decides which files those are by looking for each of
+% them on the stacks. How it looks is the whole subject here: a stack is a chain of
 % thousand-object segments, and an index into one is reached by walking
 % that chain from its root. Asking the stack for index 0, then index 1,
 % and so on to the top walks the chain again for every element, which
@@ -34,29 +33,28 @@
 % Rewind past an open file with n objects under it, and answer the
 % segments the sweep stepped over doing it.
 %
-% The file is left on the operand stack, which is the arm that makes the
-% sweep read the whole of it: a file found there is one restore leaves
-% open, and it is found last because it was pushed last. A file the
-% sweep does not find is one it closes, and it reaches that verdict
-% having walked every stack to the end -- which is what this arm walks
-% too, the deep one being walked to the end to find the file at its top.
-% The two arms differ by the shallow stacks alone, and this measures the
-% one whose outcome is easier to state.
+% The file is named by nothing when the restore comes, which is the arm
+% that makes the sweep read every stack to the end: a file the sweep
+% does not find on any of them is one it closes, and it reaches that
+% verdict only after looking everywhere. The other arm -- a file the
+% sweep does find -- cannot be reached from a program at all, because a
+% file made under the save and still named from a stack is what
+% invalidrestore refuses (PLRM 3.7.3); its walk is this one's, stopped
+% early, so this is the arm that bounds the cost.
 %
-% The file is closed and its entity reclaimed before the next call, so
-% that each depth is measured against the same number of files and the
-% ratio below is a ratio of depths and nothing else. Without that the
-% second arm would sweep for the first arm's file as well as its own.
+% The file's entity is reclaimed before the next call, so that each
+% depth is measured against the same number of files and the ratio below
+% is a ratio of depths and nothing else. Without that the second arm
+% would sweep for the first arm's file as well as its own.
 /measure { % int  .  int
     /n exch def
     0 1 n 1 sub { pop 42 } for
     /sv save def
-    (abcdefgh) 0 () /SubFileDecode filter
+    (abcdefgh) 0 () /SubFileDecode filter pop
     .vmstackwalk pop
     sv restore
     .vmstackwalk pop
     exch sub /steps exch def
-    closefile
     clear
     2 vmreclaim
     steps
