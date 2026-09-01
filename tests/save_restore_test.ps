@@ -183,20 +183,49 @@ xs (HelLO) eq (string contents survive restore, per the PLRM string exception) a
 % asks a different question altogether: the restore reverts userdict, so
 % the second mention fails at name lookup and raises undefined without
 % reaching restore at all, and the errorname is what tells that apart
-% from a refusal. They are held on the operand stack, or parked as below.
+% from a refusal. A save object is held on the operand stack where the
+% case can hold one, and parked as below where it cannot.
 
+% A save object records as its level the save-stack count taken before
+% it pushed itself, and the save took the snapshot before it made the
+% object -- so an object recording the very level being restored to is
+% newer than the snapshot that level names, and a stack holding one is a
+% stack holding what the restore discards. The operand this restore was
+% handed is exempt: PLRM 8.2 has restore "pop its save operand", and it
+% is off the operand stack before the stacks are read. A copy of it is
+% not, so the refusal falls on the restore that would spend the original
+% and no spent object is left holding a stack place.
+{ save dup restore } /invalidrestore
+    (a copy of the save object may not be kept across the restore) raises
 { save dup restore restore } /invalidrestore
-    (a save object may not be restored to a second time) raises
+    (so a save object cannot be held back for a second restore) raises
 
-% An array in global VM, which two things below need for two different
+% An array in global VM, which the cases below need for two different
 % reasons. It is where a save object is put to be reachable from outside
 % the case that made it -- a case that raises does not carry on, and the
 % framework's unwind takes the operand stack back to where the case found
 % it -- and it is where a save object is put to be out of sight of the
-% rule that no stack may name what a restore discards. A restore does not
-% reach global VM (PLRM 3.7.3), so what is parked there is still there
-% afterwards.
+% rule that no stack may name what a restore discards, which since that
+% rule reaches save objects at the level being restored to is the only
+% place a spent one can be kept. A restore does not reach global VM (PLRM
+% 3.7.3), so what is parked there is still there afterwards.
 /sr.park true setglobal 1 array false setglobal def
+
+% The parking works because a save object is accepted into a global
+% composite, which is the deviation COMPLIANCE records under put -- a
+% save object belongs to local VM whatever the allocation mode is, and a
+% local composite stored in a global one is an invalidaccess (PLRM
+% 3.7.2). Asserted here, and with the controls that say the refusal is
+% real for every other composite, because two cases below are the cases
+% they are only while a save object can be put out of sight this way.
+{ save sr.park 0 3 -1 roll put } (a save object enters a global array) works
+sr.park 0 get restore
+{ sr.park 0 (abc) put } /invalidaccess
+    (where a local string does not) raises
+{ sr.park 0 3 array put } /invalidaccess
+    (nor a local array) raises
+{ sr.park 0 3 dict put } /invalidaccess
+    (nor a local dictionary) raises
 
 % The first, second and third use of one save object, as three cases: a
 % refusal spends nothing, so the third is refused for the same reason as
@@ -224,21 +253,43 @@ save sr.park 0 3 -1 roll put
     /invalidrestore
     (nor a save object made under the one restored to) raises
 
-% What is not refused, and is the deviation COMPLIANCE records under
-% restore. A save taken after a level has been restored to stands at the
-% index the spent save object stood at and records the same level and the
-% same record stack, so the spent object is accepted and winds back the
-% newer save's snapshot. Asserted as it behaves, so that a change to it
-% is reported here rather than passing unremarked.
+% A save taken after a level has been restored to stands at the index the
+% spent save object stood at and records the same level and the same
+% record stack, so nothing the two objects carry tells them apart. Where
+% either is on a stack the restore is refused for that reason, and the
+% write made under the newer save stands.
 /sr.d 3 dict def
 sr.d /k 0 put
-save                    % the first save
-dup restore             % spent, and kept on the operand stack
+save sr.park 0 3 -1 roll put   % a save parked and spent, so that what
+sr.park 0 get restore          % follows starts from a spent object
+{ save                  % a second save, at the level the first stood at,
+                        % left on the operand stack
+  sr.d /k 2 put         % written under it
+  sr.park 0 get restore % the spent object: refused, the second save
+                        % naming the level being restored to
+} /invalidrestore
+    (a spent save object is refused while a later save that retook its
+     level is on the stack) raises
+sr.d /k get 2 eq
+    (and the write made under that later save stands, a refusal winding
+     nothing back) assert
+
+% What is still not refused, and is the deviation COMPLIANCE records
+% under restore. Reaching it needs both objects out of sight of the walk
+% over the stacks: the spent one parked in global VM, which a restore
+% does not reach, and the newer one dropped. Then the spent object is
+% accepted and what it winds back is the newer save's snapshot. Asserted
+% as it behaves, so that a change to it is reported here rather than
+% passing unremarked.
+sr.d /k 0 put
+save sr.park 0 3 -1 roll put   % the first save, parked and on no stack
+sr.park 0 get restore          % spent
 sr.d /k 1 put
-save                    % a second save, at the level the first stood at
+save pop                       % a second save at the level the first
+                               % stood at, and on no stack either
 sr.d /k 2 put
-exch restore            % the spent object, a second time
-sr.d /k get 1 eq exch pop
+sr.park 0 get restore          % the spent object, a second time
+sr.d /k get 1 eq
     (a spent save object is accepted where a later save has retaken its
      level, and winds that save back) assert
 
@@ -295,8 +346,10 @@ sr.arr 0 get null eq
 % the operator that raised).
 /sr.n 3 dict def
 sr.n /k 0 put
-save dup restore            % spend the save object, keeping it
+save sr.park 0 3 -1 roll put % parked, since a copy kept on the stack is
+sr.park 0 get restore        % what the restore that spends it refuses
 sr.n /k 7 put               % written after the level it names had ended
+sr.park 0 get               % the spent object, on the stack for the case
 count /sr.count exch def
 vmstatus pop pop /sr.level exch def
 { restore } stopped

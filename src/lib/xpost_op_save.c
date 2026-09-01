@@ -205,13 +205,26 @@ static unsigned int _birth_level(Xpost_Context *ctx, Xpost_Object o)
    Newer than the snapshot is the whole of the question. A save records
    as its level the save-stack count taken before it pushed itself, so
    everything made while that save stood carries a birth one higher, and
-   an object born at or below the level is one the save was taken over. */
+   an object born at or below the level is one the save was taken over.
+
+   A save object is read one step earlier than that, because the save
+   that returned it took the snapshot before it made the object: the
+   snapshot is of the memory as it stood with the object not yet in it,
+   so an object recording the very level being restored to is newer than
+   the snapshot that level names, and the restore invalidates it along
+   with every save object made after it (PLRM 8.2, restore). The operand
+   this restore was handed is not among them -- it is off the operand
+   stack and in the interpreter's hands by the time the walk runs, which
+   is what PLRM 8.2 allows for in "restore does not alter the contents of
+   the operand, dictionary, or execution stack, except to pop its save
+   operand". A second copy of it is on the stack and is refused, so a
+   save object can never outlive the restore that spends it. */
 static int _newer_than_snapshot(Xpost_Context *ctx,
                                 Xpost_Object o,
                                 unsigned int lev)
 {
     if (xpost_object_get_type(o) == savetype)
-        return (unsigned int)o.save_.lev > lev;
+        return (unsigned int)o.save_.lev >= lev;
     return _birth_level(ctx, o) > lev;
 }
 
