@@ -327,6 +327,11 @@ entries 508
 .xpostsys /.htnum
 .xpostsys /.htoptional
 .xpostsys /.htoptypes
+<<<<<<< HEAD
+=======
+.xpostsys /.htraisezero
+.xpostsys /.htreadthresholds
+>>>>>>> 3f1c7e16e (halftone: a threshold of zero is a threshold of one)
 .xpostsys /.htrequire
 .xpostsys /.htresolve
 .xpostsys /.htthresholds

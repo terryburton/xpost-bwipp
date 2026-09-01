@@ -63,6 +63,7 @@ tests/device-facts \
 tests/check-filter-facts.sh \
 tests/filter-facts \
 tests/check-halftone-facts.sh \
+tests/check-halftone-threshold.sh \
 tests/check-halftone-transfer.sh \
 tests/check-screen-paths.sh \
 tests/halftone-facts \

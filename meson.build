@@ -6240,6 +6240,17 @@ test('check-name-interning',
 # device that does not screen takes no effect from it. The counts this
 # holds the interpreter to were taken from two other implementations,
 # which agreed with each other on every case.
+# The rule a threshold array is read by, at the values where it decides:
+# a strict comparison, solid ends, and PLRM 7.4.5's note that a threshold
+# of zero counts as one -- which an array with no zero in it never asks
+# about and an array with one asks about only at black.
+test('halftone-threshold',
+  find_program('tests/check-halftone-threshold.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
+
 test('check-halftone-transfer',
   find_program('tests/check-halftone-transfer.sh'),
   priority: guard_priority,

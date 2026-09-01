@@ -680,6 +680,33 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     bytes
 end } put
 
+%  The cell a threshold array screens through: the array with every
+%  zero raised to one.
+%
+%  PLRM 7.4.5 states the rule and its consequence together -- "a
+%  threshold value of 0 is treated as if it were 1; therefore, a gray
+%  level of 0.0 paints all pixels black, regardless of the values in the
+%  threshold array". A pixel whitens where the grey level reaches its
+%  threshold, so a threshold left at zero is reached by every grey there
+%  is, including black: the one grey that must mark whatever the array
+%  says would leave a hole at every place the array zeroed.
+%
+%  The array itself is not touched. It is the program's object, it is
+%  what currenthalftone answers with, and it is what the device holds as
+%  the identity of the screen it is painting through -- so the raise
+%  makes a cell of its own and the array goes on standing for itself.
+%
+%  A screen built from a spot function needs none of this: its ranks
+%  start at one.
+%
+.xpostsys /.htraisezero {  % thresholds  .  cell
+    dup length string copy
+    dup length 1 sub 0 exch 1 exch {   % cell i
+        2 copy get 0 eq { 2 copy 1 put } if
+        pop
+    } for
+} put
+
 %
 %  Bring a screening device's cell up to the screen in force: the
 %  installed halftone dictionary's thresholds or spot function, else
@@ -700,7 +727,8 @@ end } put
                 /th exch def
                 DEVICE /.state get /.htsrc 2 copy known { get }{ pop pop null } ifelse
                 th eq not {
-                    th ht /Width get ht /Height get th
+                    th //.htraisezero exec
+                    ht /Width get ht /Height get th
                     //.setscreencell exec
                 } if
             }{
