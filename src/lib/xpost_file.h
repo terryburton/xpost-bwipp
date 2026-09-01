@@ -216,6 +216,35 @@ typedef struct Xpost_ProcFile
     int cpending;
 } Xpost_ProcFile;
 
+/* A stream whose bytes go into a program's string (PLRM 3.13.1). It is
+   the target half of the string forms of the filter operator: the
+   encoding filter layered over it writes its encoded bytes here, and
+   they land in the very string the program handed the operator, which
+   is where the program reads them back once it closes the filter.
+
+   The string bounds the stream. A byte that will not fit is refused,
+   and the operator that was writing reports that as ioerror -- PLRM
+   3.13.1 gives ioerror where the filter exhausts the capacity of the
+   string, and 3.13.2 gives it for a write attempted while the target
+   cannot accept data. Filling the string exactly is neither.
+
+   Bytes are placed through the string mutator, a byte at a time, rather
+   than through a pointer taken once: a string's storage is virtual
+   memory, which moves when the arena grows or is compacted, so a
+   pointer held here would name whatever occupied that address by the
+   next write.
+
+   The string is an object living in a C struct, which the collector
+   does not walk. It is named to it through the file entity that holds
+   this struct. */
+typedef struct Xpost_StrTgtFile
+{
+    Xpost_File methods;
+    Xpost_Context *ctx;
+    Xpost_Object str;
+    unsigned int next;  /* how much of the string has been placed */
+} Xpost_StrTgtFile;
+
 
 /* interface fgetc
    in preparation for more elaborate cross-platform non-blocking mechanisms
@@ -336,12 +365,25 @@ Xpost_Object xpost_file_cons_procsource(Xpost_Context *ctx, Xpost_Object proc);
 Xpost_Object xpost_file_cons_proctarget(Xpost_Context *ctx, Xpost_Object proc);
 
 /**
+ * @brief Construct a writeable stream over a program's string.
+ *
+ * The encoded bytes of the filter layered over this land in @p S itself,
+ * so the program reads them back out of the string it handed the filter
+ * operator; they are dependable once it has closed the filter (PLRM
+ * 3.13.1). The string's length is the whole of the room there is: a byte
+ * that will not fit is refused, which the writing operator reports as
+ * ioerror.
+ */
+Xpost_Object xpost_file_cons_writestring(Xpost_Context *ctx, Xpost_Object S);
+
+/**
  * @brief How many objects a file holds outside virtual memory.
  *
  * A procedure stream holds the procedure it calls, the string that
- * procedure last answered with, and any strings waiting behind that one,
- * all in a C struct the collector does not walk; every other kind of
- * file holds no object at all.
+ * procedure last answered with, and any strings waiting behind that one;
+ * a stream over a program's string holds that string. All of them live
+ * in a C struct the collector does not walk. Every other kind of file
+ * holds no object at all.
  */
 int xpost_file_held_count(Xpost_Memory_File *mem, unsigned int ent);
 

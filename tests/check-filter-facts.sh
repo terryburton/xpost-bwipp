@@ -390,8 +390,8 @@ eod=$( cd "$work" && XPOST_DATA_DIR="$abssrc/data" \
 # register classifies needsdict are asked, so the line retires only when
 # neither answers as though it did not exist.
 # A decoder is asked for over a string and an encoder over a file open for
-# writing: a string is no target for an encoder, and asking one for one
-# answers about the target rather than about the missing parameters.
+# writing, so each is handed a data source or target of the direction it
+# works in and the answer is about the missing parameters and nothing else.
 nd=$(awk '$2 == "needsdict" { print $1 }' "$work/reg")
 allundef=yes
 any=no

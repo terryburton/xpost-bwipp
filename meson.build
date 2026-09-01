@@ -3225,7 +3225,9 @@ test('op-subfiledecode',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
-# String data sources for filters (PLRM 3.8.4): a filter may read from a string.
+# Strings as filter data sources and targets (PLRM 3.8.4, 3.13.1): a filter may
+# read from a string, and an encoding filter may write into one -- filling it
+# exactly, and raising ioerror on the byte it has no room for.
 test('op-string-filter',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/op_string_filter_test.ps') ],

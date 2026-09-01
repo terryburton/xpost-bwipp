@@ -1,8 +1,16 @@
 %!testlib
-% String data sources for filters (PLRM 3.8.4), run through `xpost -d null` by
-% run-ps-test.sh: prints SUCCESS iff every assertion holds.
+% Strings as filter data sources and data targets (PLRM 3.8.4, 3.13.1), run
+% through `xpost -d null` by run-ps-test.sh: prints SUCCESS iff every
+% assertion holds.
 %
-% A filter's data source may be a string; the filter reads a private copy of it.
+% A filter's data source may be a string; the filter reads a private copy
+% of it. A filter's data target may be a string too: the encoding filter
+% writes into the very string the program handed the filter operator, and
+% the program reads its encoded data back out of that string once it has
+% closed the filter. There is no way to ask how much was written (PLRM
+% 3.13.1 says so and directs a program that needs to know to a procedure
+% target), so every case here knows how long the encoding is and compares
+% exactly that much.
 
 % ASCIIHexDecode from a string
 (48656C6C6F>) /ASCIIHexDecode filter 12 string readstring pop
@@ -42,5 +50,123 @@
 % unreadable the string it was handed.
 { (abc) noaccess /XpostNoSuchFilter filter }
     /undefined (an unknown name over an unreadable string) raises
+
+
+% --------------------------------------------------- strings as targets
+
+/PLAIN (AB\377) def            % three bytes: 41 42 FF
+/CODED (4142FF>) def           % what ASCIIHexEncode makes of them, marker and all
+/SCRATCH (zzstrtarget.tmp) def
+
+% The control. The same three bytes through the same filter into a FILE
+% target, read back as bytes: if CODED were not what this filter writes,
+% every string-target case below would agree with a wrong expectation and
+% the suite would pass with the whole feature broken.
+/ctl.f SCRATCH (w) file def
+/ctl.e ctl.f /ASCIIHexEncode filter def
+ctl.e PLAIN writestring
+ctl.e closefile
+ctl.f closefile
+SCRATCH (r) file dup 32 string readstring pop exch closefile
+CODED eq (a file target receives exactly the expected bytes) assert
+
+% A string exactly as long as the encoding: every byte lands, the
+% end-of-data marker is the last of them, and filling the string to
+% capacity is not an error.
+/exact CODED length string def
+exact /ASCIIHexEncode filter dup PLAIN writestring closefile
+exact CODED eq (a string target receives the encoded bytes) assert
+
+% A roomier string: the encoding lands at the front and the rest of the
+% string is left as the program had it.
+/roomy 16 string def
+0 1 roomy length 1 sub { roomy exch 46 put } for      % fill with '.'
+roomy /ASCIIHexEncode filter dup PLAIN writestring closefile
+roomy 0 CODED length getinterval CODED eq
+    (a string target longer than the encoding takes it at the front) assert
+roomy CODED length roomy length CODED length sub getinterval
+    (..........) 0 roomy length CODED length sub getinterval eq
+    (the room past the encoding is left alone) assert
+
+% One byte short of the encoding. The bytes that fit are placed and the
+% write that cannot be accepted raises ioerror (PLRM 3.13.1: an ioerror
+% occurs where the filter exhausts the capacity of the string).
+/short CODED length 1 sub string def
+{ short /ASCIIHexEncode filter dup PLAIN writestring closefile }
+    /ioerror (a string target that fills raises ioerror) raises
+short CODED 0 short length getinterval eq
+    (what fitted before the string filled is in it) assert
+
+% Room for the data and none for the end-of-data marker. Filling the
+% string exactly is not the error; the marker closefile then writes is
+% the byte the target cannot accept, so the refusal arrives there.
+/nomarker CODED length 1 sub string def
+/nomarker.e nomarker /ASCIIHexEncode filter def
+{ nomarker.e PLAIN writestring } (writing what the string has room for) works
+{ nomarker.e closefile }
+    /ioerror (the end-of-data marker past a full string raises ioerror) raises
+nomarker (4142FF) eq (the data itself is in the string) assert
+
+% NullEncode over a string: an arbitrary data target treated as an output
+% file (PLRM 3.13.3), so what lands is the bytes written and nothing else.
+/nul 8 string def
+nul /NullEncode filter dup (hello) writestring closefile
+nul 0 5 getinterval (hello) eq (NullEncode writes through to a string) assert
+
+% RunLengthEncode takes its record size as an operand, and a string stands
+% where its target goes like any other target: four equal bytes encode as
+% the run length 256 - 3 and the byte, then the end-of-data marker 128.
+/rle 8 string def
+rle 4 /RunLengthEncode filter dup (aaaa) writestring closefile
+rle 0 3 getinterval (\375a\200) eq
+    (a string target takes a filter's operand form) assert
+
+% The two directions meet: what an encoding filter puts in a string is
+% what the decoding filter reads back out of that same string.
+/trip 64 string def
+trip /ASCII85Encode filter dup (round trip) writestring closefile
+trip /ASCII85Decode filter 32 string readstring pop
+(round trip) eq (a string target feeds a string source) assert
+
+% A string that may not be written is no target, and says so as a
+% read-only string does anywhere else.
+{ 16 string readonly /NullEncode filter }
+    /invalidaccess (a read-only string is refused as a target) raises
+
+% Every encoding filter that builds from its name alone, asked the same
+% question: a string target must take exactly what a file target takes.
+% One member answering is how a family comes to have a gap in the rest --
+% the last defect in these filters was in all five stream decoders at
+% once. The two library-conditional encoders are left out because a build
+% without the library answers undefined for them, which is a statement
+% about the build and not about targets; tests/filter-facts holds the
+% family's membership.
+/FAMDATA (family data, encoded every way) def
+/coded.file {                  % (name)  .  (bytes a file target received)
+    /fam.n exch def
+    /fam.f SCRATCH (w) file def
+    /fam.e fam.f fam.n cvn filter def
+    fam.e FAMDATA writestring
+    fam.e closefile
+    fam.f closefile
+    SCRATCH (r) file dup 512 string readstring pop exch closefile
+} def
+[ (ASCIIHexEncode) (ASCII85Encode) (NullEncode)
+  (RunLengthEncode) (LZWEncode) (CCITTFaxEncode) ] {
+    /fam exch def
+    /fam.want fam coded.file def
+    /fam.got 512 string def
+    fam.got fam cvn filter dup FAMDATA writestring closefile
+    fam.got 0 fam.want length getinterval fam.want eq
+        fam (a string target takes what a file target takes) assert2
+} forall
+
+% A name this interpreter does not know is answered as an unknown name
+% whether or not it reads as an encoding filter's: what the program got
+% wrong is the name, and the string it was handed is not the question.
+{ (abc) /XpostNoSuchEncode filter }
+    /undefined (an unknown encoding name over a string) raises
+
+SCRATCH status { pop pop pop pop SCRATCH deletefile } if
 
 verdict

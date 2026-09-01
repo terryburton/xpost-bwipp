@@ -1881,6 +1881,144 @@ Xpost_Object xpost_file_cons_readstring(Xpost_Memory_File *mem,
     return f;
 }
 
+/* --- a stream over a program's string ---------------------------------
+   The target half of the string forms of the filter operator (PLRM
+   3.13.1). A string standing where an encoding filter's data goes is
+   written into, and the bytes land in the string the program named, so
+   the program reads its encoded data back out of the operand it passed.
+
+   Placed a byte at a time through the string mutator: a string's storage
+   is virtual memory, which moves when the arena grows or is compacted, so
+   a pointer taken when the stream was built would name something else by
+   the next write. The mutator makes no copy for save/restore, which is
+   right here -- PLRM 3.7.3 exempts strings from restore -- so the bytes
+   this places stay placed. */
+
+static int
+strtgt_readch(Xpost_File *f)
+{
+    (void)f;
+    return EOF;
+}
+
+/* One byte into the string, refused once there is no room for it. The
+   refusal is what the write operator above reports as ioerror (PLRM
+   3.13.1). */
+static int
+strtgt_writech(Xpost_File *f, int c)
+{
+    Xpost_StrTgtFile *sf = (Xpost_StrTgtFile *)f;
+
+    if (sf->next >= sf->str.comp_.sz)
+        return EOF;
+    if (xpost_string_put_memory(xpost_context_select_memory(sf->ctx, sf->str),
+                                sf->str, (integer)sf->next, c & 0xff) != 0)
+        return EOF;
+    sf->next++;
+    return 0;
+}
+
+/* The string belongs to the program and outlives the stream; what goes
+   is the stream's claim on it, which is also what stops a later write
+   reaching a string this no longer holds. */
+static int
+strtgt_close(Xpost_File *f)
+{
+    Xpost_StrTgtFile *sf = (Xpost_StrTgtFile *)f;
+
+    sf->str = null;
+    sf->next = 0;
+    return 0;
+}
+
+/* Nothing is held back on the way out: a byte written is already in the
+   string. resetfile drops what has not been written (PLRM 8.2), and
+   there is never anything unwritten here. */
+static int
+strtgt_flush(Xpost_File *f)
+{
+    (void)f;
+    return 0;
+}
+
+static void
+strtgt_purge(Xpost_File *f)
+{
+    (void)f;
+}
+
+static int
+strtgt_unreadch(Xpost_File *f, int c)
+{
+    (void)f;
+    (void)c;
+    return EOF;
+}
+
+/* How much of the string has been filled is not a position a program may
+   ask for: PLRM 3.13.1 states there is no way to determine how much data
+   the filter has written into it, and directs a program that needs to
+   know to use a procedure as the data target. Reported as unpositionable,
+   which fileposition and setfileposition raise ioerror for (PLRM 8.2). */
+static long long
+strtgt_tell(Xpost_File *f)
+{
+    (void)f;
+    return -1;
+}
+
+static int
+strtgt_seek(Xpost_File *f, long long offset)
+{
+    (void)f;
+    (void)offset;
+    return EOF;
+}
+
+static struct Xpost_File_Methods strtgt_methods =
+{
+    strtgt_readch,
+    strtgt_writech,
+    strtgt_close,
+    strtgt_flush,
+    strtgt_purge,
+    strtgt_unreadch,
+    strtgt_tell,
+    strtgt_seek
+};
+
+Xpost_Object xpost_file_cons_writestring(Xpost_Context *ctx, Xpost_Object S)
+{
+    Xpost_Object f = { 0 };
+    unsigned int ent;
+    Xpost_StrTgtFile *sf;
+
+    sf = malloc(sizeof *sf);
+    if (!sf)
+        return invalid;
+    _plain_file_init(&sf->methods, &strtgt_methods);
+    sf->ctx = ctx;
+    sf->str = S;
+    sf->next = 0;
+    f.tag = filetype;
+    if (!xpost_memory_table_alloc(ctx->lo, XPOST_HANDLE_ENTITY_SIZE, filetype,
+                                  &ent))
+    {
+        XPOST_LOG_ERR("cannot allocate file record");
+        /* the stream is being abandoned before any program saw it */
+        free(sf);
+        return invalid;
+    }
+    if (!_file_bind_entity(ctx->lo, ent, (Xpost_File *)sf))
+    {
+        XPOST_LOG_ERR("cannot hold the stream of a file record");
+        free(sf);
+        return invalid;
+    }
+    f.mark_.padw = ent;
+    return f;
+}
+
 /* --- streams that run a program's procedure --------------------------
    The language lets a filter's source or target be a procedure, which
    means reading a byte can re-enter the interpreter. These carry what
@@ -2287,9 +2425,10 @@ Xpost_Object xpost_file_cons_proctarget(Xpost_Context *ctx, Xpost_Object proc)
 }
 
 /* What the collector cannot see of a file: a procedure stream holds the
-   procedure it calls and the string that procedure last gave back, and
-   both are ordinary objects living in a C struct. Every other kind of
-   file holds none, and says so with a count of zero. */
+   procedure it calls and the string that procedure last gave back, and a
+   stream over a program's string holds that string. All are ordinary
+   objects living in a C struct. Every other kind of file holds none, and
+   says so with a count of zero. */
 static Xpost_Object _file_object_of_entity(unsigned int ent);
 
 /* The procedure stream an entity holds, or nothing where the entity is
@@ -2310,29 +2449,55 @@ static Xpost_ProcFile *_proc_stream_at(Xpost_Memory_File *mem, unsigned int ent)
     return (Xpost_ProcFile *)f;
 }
 
-/* The objects a procedure stream holds, so the collector can mark
-   them. A stream built on a program's procedure names virtual memory
-   -- the procedure, its buffer, and whatever it has handed back but
-   not yet been read -- and nothing else would know to look there. */
+/* The stream an entity holds where that stream writes into a program's
+   string, and nothing where the entity is a stream of some other kind. */
+static Xpost_StrTgtFile *_str_target_at(Xpost_Memory_File *mem,
+                                        unsigned int ent)
+{
+    Xpost_File *f;
+
+    f = xpost_file_get_file_pointer(mem, _file_object_of_entity(ent));
+    if (!f || f->methods != &strtgt_methods)
+        return NULL;
+    return (Xpost_StrTgtFile *)f;
+}
+
+/* The objects a stream holds, so the collector can mark them. A stream
+   built on a program's procedure names virtual memory -- the procedure,
+   its buffer, and whatever it has handed back but not yet been read --
+   and one built on a program's string names the string it writes into.
+   Nothing else would know to look in either. */
 int xpost_file_held_count(Xpost_Memory_File *mem, unsigned int ent)
 {
     Xpost_ProcFile *pf = _proc_stream_at(mem, ent);
 
-    return pf ? 2 + pf->npending : 0;
+    if (pf)
+        return 2 + pf->npending;
+    return _str_target_at(mem, ent) ? 1 : 0;
 }
 
 Xpost_Object xpost_file_held_object(Xpost_Memory_File *mem, unsigned int ent,
                                     int i)
 {
     Xpost_ProcFile *pf = _proc_stream_at(mem, ent);
+    Xpost_StrTgtFile *sf;
 
-    if (!pf || i < 0 || i >= 2 + pf->npending)
+    if (i < 0)
         return null;
-    if (i == 0)
-        return pf->proc;
-    if (i == 1)
-        return pf->buf;
-    return pf->pending[i - 2];
+    if (pf)
+    {
+        if (i >= 2 + pf->npending)
+            return null;
+        if (i == 0)
+            return pf->proc;
+        if (i == 1)
+            return pf->buf;
+        return pf->pending[i - 2];
+    }
+    sf = _str_target_at(mem, ent);
+    if (sf && i == 0)
+        return sf->str;
+    return null;
 }
 
 /* ASCIIHexDecode filter: hexadecimal digit pairs to bytes, whitespace

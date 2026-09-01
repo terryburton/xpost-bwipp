@@ -147,6 +147,7 @@ count    xpost_file.h:Xpost_ProcFile        pos
 count    xpost_file.h:Xpost_ProcFile        pushback
 count    xpost_file.h:Xpost_ProcFile        running
 count    xpost_file.h:Xpost_ProcFile        started
+count    xpost_file.h:Xpost_StrTgtFile      next
 count    xpost_interpreter.h                cid
 count    xpost_interpreter.h                in_onerror
 count    xpost_memory.h:Xpost_Memory_File   blind_reach

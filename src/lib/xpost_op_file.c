@@ -2260,32 +2260,71 @@ int xpost_op_lockdown (Xpost_Context *ctx)
     return 0;
 }
 
-/* The string forms of filter: a private copy of the string becomes a readable
-   file, and the file-source machinery runs over it. No program object names
-   that file, so it is handed to the filter built over it, which closes and
-   releases it along with itself.
+/* Which way a data source or target faces under a filter of this name.
+   The family table states the direction, and is asked for it here as it
+   is asked for it when the filter is built, so the two cannot come to
+   disagree. A name the table does not carry answers as a decoding
+   filter's would: such a name is undefined whatever it was handed, and
+   the filter operator reaches that answer before it asks anything of the
+   stream, so which stream was built for it is not something a program
+   sees. */
+static int _filter_name_encodes(Xpost_Context *ctx, Xpost_Object name)
+{
+    const Xpost_Filter_Spec *spec;
+    Xpost_Object namestr;
+    char *cname;
+    int enc;
 
-   Handing the string's bytes to a filter is reading them, so the file
-   carries read access only where the string admits a read: PLRM 3.3.2 gives
-   an execute-only string no readable value, and its invalidaccess entry
-   names reading one as an access violation. The refusal itself is the
-   filter operator's, which asks the file it is given whether its direction
-   is allowed -- and asks that after it has looked the filter's name up, so
-   a name this interpreter does not know is answered as an unknown name
-   whatever it was handed. */
+    namestr = xpost_name_get_string(ctx, name);
+    cname = xpost_string_allocate_cstring(ctx, namestr);
+    if (!cname)
+        return 0;
+    spec = _filter_spec(cname);
+    enc = spec && spec->encodes;
+    free(cname);
+    return enc;
+}
+
+/* The string forms of filter (PLRM 3.13.1). Which way the string faces
+   is the filter's to say, not the string's, and the two directions are
+   different streams: a string a decoding filter reads becomes a readable
+   file over a private copy of it, since the program may not depend on
+   what it does to the string meanwhile, while a string an encoding filter
+   writes becomes a stream that places the encoded bytes into the string
+   itself -- which is where the program reads its encoded data back from
+   once it has closed the filter.
+
+   A string that may not be written carries no write access to the filter
+   operator, which refuses it there. The refusal belongs there and not
+   here because the operator looks the filter's name up first, so a name
+   this interpreter does not know is answered as an unknown name whatever
+   it was handed.
+
+   No program object names either stream, so it is handed to the filter
+   built over it, which closes and releases it along with itself. */
 static
-Xpost_Object _string_source(Xpost_Context *ctx, Xpost_Object S)
+Xpost_Object _string_stream(Xpost_Context *ctx, Xpost_Object S,
+                            Xpost_Object name)
 {
     Xpost_Object F;
+    int enc = _filter_name_encodes(ctx, name);
 
-    F = xpost_file_cons_readstring(ctx->lo,
-            (const unsigned char *)xpost_string_get_pointer(ctx, S), S.comp_.sz);
+    if (enc)
+        F = xpost_file_cons_writestring(ctx, S);
+    else
+        F = xpost_file_cons_readstring(ctx->lo,
+                (const unsigned char *)xpost_string_get_pointer(ctx, S),
+                S.comp_.sz);
     if (xpost_object_get_type(F) == filetype)
     {
+        int access = enc ? (xpost_object_is_writeable(ctx, S)
+                            ? XPOST_OBJECT_TAG_ACCESS_FILE_WRITE : 0)
+                         : (xpost_object_is_readable(ctx, S)
+                            ? XPOST_OBJECT_TAG_ACCESS_FILE_READ : 0);
+
         F.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
-        if (xpost_object_is_readable(ctx, S))
-            F.tag |= (XPOST_OBJECT_TAG_ACCESS_FILE_READ
-                      << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
+        F.tag |= (unsigned int)access
+                 << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
         xpost_file_hand_over(ctx->lo, F);
     }
     return F;
@@ -2295,32 +2334,9 @@ Xpost_Object _string_source(Xpost_Context *ctx, Xpost_Object S)
    the filter machinery then runs over exactly as it runs over a file.
    Which kind of stream is the filter's to say, not the procedure's -- a
    procedure standing where an encode filter's data goes is a target and
-   one standing where a decode filter's data comes from is a source --
-   and the filter's name is what says so. As with the string forms, no
-   program object names the stream, so it is handed to the filter built
-   over it, which closes and releases it along with itself. */
-static int _filter_name_encodes(Xpost_Context *ctx, Xpost_Object name)
-{
-    Xpost_Object namestr;
-    char *cname;
-    size_t len;
-    int enc;
-
-    namestr = xpost_name_get_string(ctx, name);
-    cname = xpost_string_allocate_cstring(ctx, namestr);
-    if (!cname)
-        return 0;
-    len = strlen(cname);
-    enc = len > 6 && strcmp(cname + len - 6, "Encode") == 0;
-    free(cname);
-    return enc;
-}
-
-/* Wraps a procedure as a stream for a filter to sit on. Which way it
-   faces is read off the filter's name: a filter that encodes is
-   written into and so takes a target, and one that decodes is read
-   from and so takes a source. The stream is handed to the interpreter
-   to close, since nothing else holds it once the filter is built. */
+   one standing where a decode filter's data comes from is a source. The
+   stream is handed to the interpreter to close, since nothing else holds
+   it once the filter is built. */
 static
 Xpost_Object _proc_stream(Xpost_Context *ctx, Xpost_Object P, Xpost_Object name)
 {
@@ -2393,7 +2409,7 @@ int xpost_op_string_filter (Xpost_Context *ctx,
                             Xpost_Object S,
                             Xpost_Object name)
 {
-    Xpost_Object F = _string_source(ctx, S);
+    Xpost_Object F = _string_stream(ctx, S, name);
     if (xpost_object_get_type(F) != filetype) return VMerror;
     return xpost_op_file_filter(ctx, F, name);
 }
@@ -2404,9 +2420,20 @@ int xpost_op_string_filter_dict (Xpost_Context *ctx,
                                  Xpost_Object dict,
                                  Xpost_Object name)
 {
-    Xpost_Object F = _string_source(ctx, S);
+    Xpost_Object F = _string_stream(ctx, S, name);
     if (xpost_object_get_type(F) != filetype) return VMerror;
     return xpost_op_file_filter_dict(ctx, F, dict, name);
+}
+
+static
+int xpost_op_string_filter_int (Xpost_Context *ctx,
+                                Xpost_Object S,
+                                Xpost_Object rec,
+                                Xpost_Object name)
+{
+    Xpost_Object F = _string_stream(ctx, S, name);
+    if (xpost_object_get_type(F) != filetype) return VMerror;
+    return xpost_op_file_filter_int(ctx, F, rec, name);
 }
 
 static
@@ -2416,7 +2443,7 @@ int xpost_op_string_filter_subfile (Xpost_Context *ctx,
                                     Xpost_Object eod,
                                     Xpost_Object name)
 {
-    Xpost_Object F = _string_source(ctx, S);
+    Xpost_Object F = _string_stream(ctx, S, name);
     if (xpost_object_get_type(F) != filetype) return VMerror;
     return xpost_op_file_filter_subfile(ctx, F, count, eod, name);
 }
@@ -2548,6 +2575,9 @@ int xpost_oper_init_file_ops (Xpost_Context *ctx,
     INSTALL;
     op = xpost_operator_cons(ctx, "filter", (Xpost_Op_Func)xpost_op_string_filter_dict, 3,
             stringtype, dicttype, nametype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, "filter", (Xpost_Op_Func)xpost_op_string_filter_int, 3,
+            stringtype, integertype, nametype);
     INSTALL;
     op = xpost_operator_cons(ctx, "filter", (Xpost_Op_Func)xpost_op_proc_filter_subfile, 4,
             proctype, integertype, stringtype, nametype);

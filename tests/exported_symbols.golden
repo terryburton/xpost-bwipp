@@ -200,6 +200,7 @@ xpost_file_cons_invalid
 xpost_file_cons_procsource
 xpost_file_cons_proctarget
 xpost_file_cons_readstring
+xpost_file_cons_writestring
 xpost_file_get_access
 xpost_file_get_bytes_available
 xpost_file_get_file_pointer
