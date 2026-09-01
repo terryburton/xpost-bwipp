@@ -252,6 +252,29 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /definefont cvx /invalidfont signalerror
         } if
     }{
+    % PLRM Table 5.3 requires FontBBox, and the table is what settles who
+    % is asked: it lists the entries common to all BASE fonts, alongside
+    % Encoding, where FontType and FontMatrix are common to every font
+    % dictionary (Table 5.2). So every base font is asked for it, and the
+    % entry describes what only a base font has -- the glyph bounding box
+    % the cache is sized from and the glyph is clipped to.
+    %
+    % A font whose glyphs come out of a face carries the box in the data
+    % those glyphs come from, and the loaders here put it in the
+    % dictionary from the face they build -- so a program that leaves
+    % the entry out is not withholding something unknowable, it is
+    % leaving out an entry the specification asks it for. The loader
+    % supplying it afterwards is a convenience and not the requirement.
+    %
+    % Asked of the base fonts and not of a Type 0, which is the branch
+    % above. A composite font's glyphs are its descendants' and its box
+    % is theirs, so PLRM 5.10 describes none of its own for it and
+    % composefont builds one without the entry (data/cid.ps). A CIDFont
+    % leaves earlier still, carrying its own structure rather than a
+    % base font's.
+    1 index /FontBBox known not {
+        /definefont cvx /invalidfont signalerror
+    } if
     dup 42 eq {
         pop
         {

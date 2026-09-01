@@ -79,4 +79,67 @@ FontDirectory /de.empty known
 { /de.nd (not a dictionary) definefont } /typecheck
     (definefont of a non-dictionary) raises
 
+% ------------------------------------------------ the box a Type 3 states
+% PLRM Table 5.3 requires FontBBox of every base font, and the cases
+% below ask it of a Type 3. A Type 3 is where the entry is the only
+% statement of the box there is: its glyphs are drawn by its own
+% procedure, so the box the glyph cache is sized from and the glyph is
+% clipped to is knowable from nothing else in the dictionary. The other
+% base types are asked the same question further down.
+
+{ << /FontType 3 /FontMatrix M /Encoding StandardEncoding
+     /BuildChar { pop pop } >> /de.t3nb exch definefont }
+    /invalidfont (a Type 3 with no FontBBox) raises
+{ << /FontType 3 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /BuildChar { pop pop } >> /de.t3 exch definefont pop }
+    (a Type 3 with a FontBBox) works
+{ << /FontType 3 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /BuildGlyph { pop pop } >> /de.t3g exch definefont pop }
+    (a BuildGlyph Type 3 with a FontBBox) works
+
+% and the entries asked for beside it are asked for still
+{ << /FontType 3 /FontBBox B /Encoding StandardEncoding
+     /BuildChar { pop pop } >> /de.t3nm exch definefont }
+    /invalidfont (a Type 3 with no FontMatrix) raises
+{ << /FontType 3 /FontMatrix M /FontBBox B
+     /BuildChar { pop pop } >> /de.t3ne exch definefont }
+    /invalidfont (a Type 3 with no Encoding) raises
+{ << /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /BuildChar { pop pop } >> /de.t3nt exch definefont }
+    /invalidfont (a Type 3 with no FontType) raises
+{ << /FontType 3 /FontMatrix M /FontBBox B /Encoding StandardEncoding >>
+  /de.t3nbc exch definefont }
+    /invalidfont (a Type 3 with neither build procedure) raises
+
+% Every base font is asked for it, whatever its glyphs come out of. A
+% font backed by a face carries the box in the data the glyphs come
+% from, and the loader puts it in the dictionary from the face it
+% builds, but that is the loader supplying what the program was asked
+% to state and not a reason to stop asking.
+{ << /FontType 1 /FontMatrix M /Encoding StandardEncoding
+     /CharStrings << >> /Private << >> /PaintType 0 >>
+  /de.t1nb exch definefont }
+    /invalidfont (a Type 1 with no FontBBox) raises
+% The Type 42 pair carries a /Private, which is what a re-encoded copy of
+% a findfont dictionary holds and what makes the loader skip its own face
+% build. Without that, a Type 42 assembled from sfnts these tests can
+% carry is refused for the face it cannot build, and the refusal would say
+% nothing about the box.
+{ << /FontType 42 /FontMatrix [1 0 0 1 0 0] /Encoding StandardEncoding
+     /sfnts [ <00010000> ] /Private << >> >> /de.t42nb exch definefont }
+    /invalidfont (a Type 42 with no FontBBox) raises
+{ << /FontType 42 /FontMatrix [1 0 0 1 0 0] /FontBBox [-1 -1 2 2]
+     /Encoding StandardEncoding /sfnts [ <00010000> ] /Private << >> >>
+  /de.t42b exch definefont pop }
+    (a Type 42 carrying a FontBBox) works
+{ << /FontType 1 /FontMatrix M /FontBBox B /Encoding StandardEncoding
+     /CharStrings << >> /Private << >> /PaintType 0 >>
+  /de.t1b exch definefont pop }
+    (a Type 1 carrying a FontBBox) works
+
+% A Type 0 is not a base font: its glyphs are its descendants' and so is
+% its box, so PLRM 5.10 describes none of its own for it. composefont
+% builds one with no FontBBox at all (data/cid.ps), and that route stays
+% open -- tests/cid_show_test.ps walks it.
+
 verdict

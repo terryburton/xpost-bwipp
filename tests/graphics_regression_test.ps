@@ -1630,6 +1630,12 @@ basefont null ne {
     12 dict begin
         /FontType 42 def
         /FontMatrix [1 0 0 1 0 0] def
+        % The box PLRM Table 5.3 asks of every base font. The sfnts
+        % below carry it in their own head table and the loader reads it
+        % from there, so this states what the font data already says
+        % rather than standing in for something the program cannot know;
+        % one em is one unit under the FontMatrix above.
+        /FontBBox [-1 -1 2 2] def
         /Encoding ISOLatin1Encoding def
         /sfnts sfntsarr def
     currentdict end
