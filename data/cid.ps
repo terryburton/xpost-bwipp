@@ -912,7 +912,10 @@ end
     /FontType 0 def
     /FMapType 9 def
     /FontMatrix matrix def
-    /Encoding [ 0 ] def
+    % PLRM 8.2 gives the entry as an identity mapping the length of
+    % FDepVector, consecutive integers from zero, so that the font number
+    % the mapping algorithm yields indexes the descendant it names.
+    /Encoding [ 0 1 FDepVector length 1 sub { } for ] def
     /WMode CMap /WMode 2 copy known { get }{ pop pop 0 } ifelse def
     currentdict end
     definefont

@@ -992,6 +992,36 @@ CFN inkof 0 gt (the font composed from names marks the page) check
         (and the one composed from dictionaries marks the same) check }
     { false (the one composed from dictionaries was not defined) check } ifelse
 
+/p.name (composefont defines:) def
+% PLRM 8.2's table of what composefont defines: Encoding is "identity
+% mapping whose length is the same as FDepVector (consecutive integers
+% starting from 0)", so it is as long as the array of descendants and not
+% a fixed length. One descendant and two are both asked, because a fixed
+% length is right for one of those by accident.
+{ /CIDShowTwoDesc /CIDShowTestCMap
+    [ /CIDShowTest /CIDShowTestOutline ] composefont pop }
+    nx.err null eq (a composite of two descendants composes) check
+/cf.enc { % /name  .  bool  -- is Encoding the identity over FDepVector
+    5 dict begin
+    dup /Font resourcestatus { pop pop
+        findfont
+        /f exch def
+        /e f /Encoding get def
+        /n f /FDepVector get length def
+        e length n eq {
+            /ok true def
+            0 1 n 1 sub { dup e exch get ne { /ok false def } if } for
+            ok
+        }{ false } ifelse
+    }{ pop false } ifelse
+    end
+} bind def
+/CIDShowByName cf.enc
+    (a composite of one descendant is encoded over its one) check
+/CIDShowTwoDesc cf.enc
+    (and a composite of two over both of them) check
+
+/p.name (composefont operands:) def
 % a descendant the CIDFont category does not carry is looked for in the
 % Font category, which is where the base font of PLRM 8.2's own example
 % lives
