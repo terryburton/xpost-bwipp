@@ -42,6 +42,13 @@ out=$(XPOST_DATA_DIR=${XPOST_DATA_DIR:-} "$xpost" -q -d svgwrite -g 100x60+0+0 \
 verdict_run $? "$out" "the clean cell" || fail=1
 # the filed cells themselves, not every reference to one: the document
 # also carries references that are not cells
+#
+# This holds the invariant; it does not find a procedure that breaks it. A
+# cell that sets no colour files one cell per colour whether or not the
+# refusal below is in force, so this assertion passes on its own strength
+# and answers only for the invariant staying true. The refusal is what
+# answers for a procedure that sets a colour. Neither covers the other, and
+# taking either away leaves what the remaining one does not reach.
 cells=$(grep -coE '<pattern[[:space:]]' "$work/clean.svg" 2>/dev/null || echo 0)
 if [ "${cells:-0}" -ne 2 ]; then
     echo "FAILURES: the same pattern in two colours filed $cells cell(s), not 2;"
