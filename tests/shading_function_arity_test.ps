@@ -1,0 +1,140 @@
+%!testlib
+% A shading's Function is held to the number of inputs its type calls
+% for, run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM Table 4.12 gives a function-based shading (type 1) a Function of
+% "a 2-in, n-out function dictionary"; Tables 4.13 and 4.14 give the
+% axial and radial types "a 1-in, n-out function dictionary or an array
+% of n 1-in, 1-out function dictionaries", and the four mesh types the
+% same thing where they carry one at all.
+%
+% What the arity decides is what the painter may do with the function.
+% It has a point of the shading's domain to hand it -- one number along
+% an axis, between two circles or across a mesh element, and two over a
+% rectangle -- and a function wanting a different count is one no painter
+% can call. Evaluated anyway, with whatever the caller happened to have,
+% it paints a page the program did not ask for and says nothing about
+% why.
+%
+% The 2-in function below is a sampled one over a rectangle, which is a
+% function of two inputs in its own right rather than a malformed
+% one-input type: a type 2 with a two-interval Domain would be neither,
+% since exponential interpolation takes one input whatever its Domain
+% says, and refusing it would prove nothing about arity.
+
+/f2in << /FunctionType 0 /Domain [0 1 0 1] /Range [0 1] /Size [2 2]
+         /BitsPerSample 8 /DataSource <00 40 80 FF> >> def
+/f1in << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> def
+/f1sampled << /FunctionType 0 /Domain [0 1] /Range [0 1] /Size [2]
+              /BitsPerSample 8 /DataSource <00 FF> >> def
+
+/gray { /DeviceGray setcolorspace } bind def
+
+/axial {                                % fn  .  dict
+    << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 100 0] >>
+    dup 3 -1 roll /Function exch put
+} bind def
+/radial {                               % fn  .  dict
+    << /ShadingType 3 /ColorSpace /DeviceGray /Coords [50 50 0 50 50 40] >>
+    dup 3 -1 roll /Function exch put
+} bind def
+
+% One free-form triangle and one lattice of two, with a parametric value
+% per vertex; the literal-array DataSource form, so the numbers can be
+% read here rather than packed.
+/tri [ 0 0 0 0   0 100 0 0.5   0 50 100 1 ] def
+/lat [ 0 0 0   100 0 0.5   50 100 1   10 10 0.2   90 10 0.6   50 90 0.9 ] def
+/coons [ 0  0 0  0 33  0 66  0 100  33 100  66 100  100 100
+         100 66  100 33  100 0  66 0  33 0   0 0.33 0.66 1 ] def
+/tensor [ 0  0 0  0 33  0 66  0 100  33 100  66 100  100 100
+          100 66  100 33  100 0  66 0  33 0  33 33  33 66  66 66  66 33
+          0 0.33 0.66 1 ] def
+
+/mesh {                                 % fn data type  .  dict
+    << /ColorSpace /DeviceGray /VerticesPerRow 3 >>
+    dup 3 -1 roll /ShadingType exch put
+    dup 3 -1 roll /DataSource exch put
+    dup 3 -1 roll /Function exch put
+} bind def
+
+% ---- the arity a type calls for --------------------------------------
+
+{ gray f2in axial shfill } /rangecheck
+    (an axial shading refuses a function of two inputs) raises
+{ gray f2in radial shfill } /rangecheck
+    (and so does a radial one) raises
+
+{ gray f2in tri 4 mesh shfill } /rangecheck
+    (so does a free-form mesh, which takes a Function where it has one) raises
+{ gray f2in lat 5 mesh shfill } /rangecheck
+    (so does a lattice mesh) raises
+{ gray f2in coons 6 mesh shfill } /rangecheck
+    (so does a Coons patch mesh) raises
+{ gray f2in tensor 7 mesh shfill } /rangecheck
+    (so does a tensor patch mesh) raises
+clear
+
+% ---- and the controls, which are what make those mean anything -------
+%
+% A check that refused every Function would pass all of the above.
+
+{ gray f1in axial shfill } (an axial shading takes a function of one input) works
+{ gray f1in radial shfill } (and so does a radial one) works
+{ gray f1sampled axial shfill }
+    (a sampled function of one input is one too, the refused one differing
+     from it in its arity and not in its type) works
+
+{ gray f1in tri 4 mesh shfill } (a free-form mesh takes one) works
+{ gray f1in lat 5 mesh shfill } (a lattice mesh takes one) works
+{ gray f1in coons 6 mesh shfill } (a Coons patch mesh takes one) works
+{ gray f1in tensor 7 mesh shfill } (a tensor patch mesh takes one) works
+
+% The Function is optional for the mesh types, and a mesh that carries
+% none is not a mesh with a Function of the wrong arity.
+{ gray << /ShadingType 4 /ColorSpace /DeviceGray
+          /DataSource [ 0 0 0 0.1  0 100 0 0.5  0 50 100 0.9 ] >> shfill }
+    (a mesh carrying no Function at all still paints) works
+clear
+
+% ---- the array form ---------------------------------------------------
+%
+% PLRM Tables 4.13 and 4.14 allow an array of n functions of one input
+% and one output in place of one function of n outputs, and the check has
+% to read it as what it is rather than refuse it for not being a
+% dictionary. Each element is held to the same arity.
+
+{ gray [ f1in ] axial shfill }
+    (an axial shading takes an array of one-input functions) works
+{ gray [ f1in ] radial shfill }
+    (and so does a radial one) works
+{ gray [ f1in ] tri 4 mesh shfill }
+    (and so does a mesh) works
+
+{ gray [ f2in ] axial shfill } /rangecheck
+    (an array whose element takes two inputs is refused like the bare one) raises
+{ gray [ f1in f2in ] axial shfill } /rangecheck
+    (and so is one where only a later element does) raises
+{ gray [ 42 ] axial shfill } /typecheck
+    (an array element that is no function at all is refused) raises
+clear
+
+% ---- what a function-based shading calls for --------------------------
+%
+% The other arity, and the reason this file asks about it: type 1 is the
+% one type whose function takes two inputs, so a check written as though
+% every shading wanted one would break it. Held in both directions.
+
+/fnsh {                                 % fn  .  dict
+    << /ShadingType 1 /ColorSpace /DeviceGray /Domain [0 1 0 1] >>
+    dup 3 -1 roll /Function exch put
+} bind def
+
+{ gray f2in fnsh shfill }
+    (a function-based shading takes the function of two inputs) works
+{ gray f1in fnsh shfill } /rangecheck
+    (and refuses one of a single input) raises
+{ gray f1sampled fnsh shfill } /rangecheck
+    (a sampled function of one input is refused by it too) raises
+clear
+
+verdict

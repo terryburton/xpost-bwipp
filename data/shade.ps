@@ -105,6 +105,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  call per band.
 %
 /.fneval {  % t fn  .  c0..cn-1 n
+    dup type /arraytype eq {
+        % The alternative form PLRM Tables 4.13 and 4.14 allow: an array
+        % of n functions of one input and one output, one per colour
+        % component, in place of one function of n outputs. Each is
+        % evaluated at the same value and contributes its component.
+        3 dict begin
+        /fa exch def /tt exch def
+        0 1 fa length 1 sub { /k exch def
+            tt fa k get //.xpostsys /.fneval get exec pop
+        } for
+        fa length
+        end
+    }{
     10 dict begin
     /f exch def
     /d0 f /Domain get 0 get def
@@ -159,6 +172,62 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /shfill cvx /rangecheck signalerror
     } ifelse } ifelse } ifelse
     end
+    } ifelse
+} def
+
+%
+%  How many inputs a function declares. PLRM 3.10 gives a function's
+%  Domain as one interval of two numbers per input, so the count is half
+%  its length.
+%
+/.fnindim {  % fn  .  int
+    /Domain get length 2 idiv
+} def
+
+%
+%  Hold a shading's Function to the number of inputs its type calls for,
+%  in either of the two forms the specification allows: one function of
+%  that many inputs, or an array of functions each taking one input and
+%  giving one component (PLRM Tables 4.12 to 4.19).
+%
+%  A function of the wrong arity is not a function the shading can be
+%  painted from: what the painter has to give it is a point of the
+%  domain, and a function wanting two numbers cannot be handed one. It
+%  is refused rather than evaluated with whatever the painter happens to
+%  have, which would paint a page the program did not ask for.
+%
+/.fncheckin {  % fn nin  .  -
+    exch dup type /arraytype eq {
+        exch pop
+        {
+            dup type /dicttype ne
+                { /shfill cvx /typecheck signalerror } if
+            //.fnindim exec 1 ne
+                { /shfill cvx /rangecheck signalerror } if
+        } forall
+    }{
+        dup type /dicttype ne
+            { /shfill cvx /typecheck signalerror } if
+        //.fnindim exec ne
+            { /shfill cvx /rangecheck signalerror } if
+    } ifelse
+} def
+
+%
+%  The same question asked of a shading dictionary, by its type. A
+%  function-based shading takes a function of two inputs, the domain it
+%  covers being a rectangle (PLRM Table 4.12); every other type takes one
+%  of a single input, the parametric variable along an axis, between two
+%  circles, or across a mesh element (PLRM Tables 4.13 to 4.19).
+%
+%  A Function that is absent is not asked about here. Whether a type
+%  demands one is the painter's to say, and the two types that require it
+%  already answer for its absence.
+%
+/.fncheckshading {  % shdict type  .  -
+    1 eq { 2 }{ 1 } ifelse
+    exch /Function 2 copy known
+    { get exch //.fncheckin exec }{ pop pop pop } ifelse
 } def
 
 %
@@ -1173,6 +1242,13 @@ systemdict /shfill [ /dicttype ] {  % dict  .  -
     dup /ShadingType get
     //.shadepainters 1 index known not
         { pop pop /shfill cvx /rangecheck signalerror } if
+
+    % And the Function is held to the arity its type calls for, here for
+    % the reason the type itself is settled here: before the gsave, so a
+    % program that catches the refusal is not left painting in a graphics
+    % state nothing closed.
+    2 copy //.fncheckshading exec
+
     //.shadepainters exch get exch          % Proc shdict
 
     {

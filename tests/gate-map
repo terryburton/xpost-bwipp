@@ -319,6 +319,7 @@ graphics test render-state-bank
 graphics test save-restore-ctm
 graphics test save-restore-matrix
 graphics test setdash-finite
+graphics test shading-*
 graphics test show-*
 graphics test stencil-mask-size
 graphics test thin-stroke

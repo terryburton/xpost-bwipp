@@ -5858,6 +5858,20 @@ test('check-halftone-facts',
 # shading types with the operators that take them, and each cell is a
 # process. It comes in comfortably under the default where a process is
 # cheap and does not on Windows, where starting one is not.
+# A shading's Function is held to the number of inputs its type calls
+# for (PLRM Tables 4.12 to 4.19): two for a function-based shading, whose
+# domain is a rectangle, and one for every other type, whose domain is a
+# parametric value. A function of the wrong arity is one no painter can
+# call, and evaluated anyway with whatever the caller had it paints a
+# page the program did not ask for. Held in both directions and in both
+# the forms the specification allows a Function to take, the single
+# dictionary and the array of one per component.
+test('shading-function-arity',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/shading_function_arity_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('check-shading-facts',
   find_program('tests/check-shading-facts.sh'),
   priority: guard_priority,
