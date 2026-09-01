@@ -106,6 +106,13 @@ struct Xpost_File
     int owned;
     unsigned int ent;
     Xpost_File_Wraps wraps;
+    /* CloseSource and CloseTarget (PLRM 3.13.2): whether closing this
+       filter also closes the stream it reads from or writes to. A filter
+       given neither leaves the stream beneath it alone, which is what a
+       filter did in LanguageLevel 2 and is still the default. Set on a
+       filter only: a stream that is nobody's filter has nothing beneath
+       it to close. */
+    int closeunder;
     /* A job-server channel frames its jobs with a Control-D (0x04): reading
        one ends the job and the stream reads on for the next (PLRM 3.7.7).
        This is device-dependent channel framing, not a PostScript token, so
@@ -408,9 +415,20 @@ Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
                                                   Xpost_Object tgt,
                                                   int predictor, int colors,
                                                   int bpc, int columns);
+
 Xpost_Object xpost_file_cons_filter_enc_ccitt(Xpost_Memory_File *mem, Xpost_Object tgt, int k, int columns, int rows, int blackis1, int byteal, int eol, int eob);
 Xpost_Object xpost_file_cons_filter_enc_dct(Xpost_Memory_File *mem, Xpost_Object tgt, int columns, int rows, int colors, double qfactor, int colortransform, const int *hsamp, const int *vsamp);
 Xpost_Object xpost_file_cons_filter_eexec(Xpost_Memory_File *mem, Xpost_Object src);
+
+/**
+ * @brief say whether closing a filter closes the stream beneath it.
+ *
+ * CloseSource is a decoding filter's parameter and CloseTarget an
+ * encoding filter's (PLRM 3.13.2), so the one that does not match the
+ * direction the filter was built in names nothing and is ignored here.
+ */
+void xpost_file_set_close_under(Xpost_Memory_File *mem, Xpost_Object f,
+                                int closesource, int closetarget);
 
 /**
  * @brief The single path-to-stream opener for disk-backed files.

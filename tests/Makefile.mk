@@ -251,6 +251,7 @@ tests/filenameforall_large_test.ps \
 tests/fill_span_test.ps \
 tests/filter_abandon_test.ps \
 tests/filter_close_eod_test.ps \
+tests/filter_close_under_test.ps \
 tests/filter_conformance_test.ps \
 tests/filter_encode_pad_test.ps \
 tests/filter_eod_test.ps \

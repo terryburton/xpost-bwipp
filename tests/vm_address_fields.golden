@@ -131,6 +131,7 @@ count    xpost_dsc_ctx.h:Xpost_Dsc_Ctx      eof:1
 count    xpost_file.h:Xpost_DiskFile        input
 count    xpost_file.h:Xpost_DiskFile        poll_before_read
 count    xpost_file.h:Xpost_File            closed
+count    xpost_file.h:Xpost_File            closeunder
 count    xpost_file.h:Xpost_File            ent
 count    xpost_file.h:Xpost_File            eot
 count    xpost_file.h:Xpost_File            err

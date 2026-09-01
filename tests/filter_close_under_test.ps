@@ -1,0 +1,165 @@
+%!testlib
+% CloseSource and CloseTarget (PLRM 3.13.2), run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A filter is built over a stream the program already has, and closing the
+% filter says nothing about that stream: "if CloseSource or CloseTarget is
+% false (as they are by default), no additional action is taken on the data
+% source or target". Given the parameter as true, closefile on the filter is
+% applied to the stream beneath it as well, and that carries on down a
+% pipeline until it reaches a filter whose own parameter is false -- which is
+% closed, while its source or target is not.
+%
+% So every case here is a pair: the same construction with the parameter true
+% and with it false, and what is asked of the stream beneath is that it
+% answers differently. The false half is what a filter did before the
+% parameter existed, and holding both is what tells a filter that honours the
+% parameter from one that closes everything or nothing.
+%
+% `status` on a file answers whether it is still open (PLRM 8.2), which is
+% how the stream beneath is asked.
+
+/nm (closeunder.scratch) def
+/hex (48656c6c6f>) def          % the ASCIIHex of (Hello), with its EOD
+
+/write { % (contents)  .  -    put contents in the scratch file
+    /w.c exch def
+    /w.f nm (w) file def
+    w.f w.c writestring
+    w.f closefile
+} bind def
+
+hex write
+
+% ---- CloseTarget, on an encoding filter -------------------------------
+
+/t.f nm (w) file def
+/t.e t.f << /CloseTarget true >> /ASCIIHexEncode filter def
+t.e (abc) writestring
+t.e closefile
+t.f status not (CloseTarget true closes the data target) assert
+
+/t.f2 nm (w) file def
+/t.e2 t.f2 << /CloseTarget false >> /ASCIIHexEncode filter def
+t.e2 (abc) writestring
+t.e2 closefile
+t.f2 status (CloseTarget false leaves the data target open) assert
+t.f2 closefile
+
+/t.f3 nm (w) file def
+/t.e3 t.f3 << >> /ASCIIHexEncode filter def
+t.e3 (abc) writestring
+t.e3 closefile
+t.f3 status (a filter given no CloseTarget leaves the data target open) assert
+t.f3 closefile
+
+% ---- CloseSource, on a decoding filter --------------------------------
+
+hex write
+
+/s.g nm (r) file def
+/s.d s.g << /CloseSource true >> /ASCIIHexDecode filter def
+s.d 16 string readstring pop pop
+s.d closefile
+s.g status not (CloseSource true closes the data source) assert
+
+/s.g2 nm (r) file def
+/s.d2 s.g2 << /CloseSource false >> /ASCIIHexDecode filter def
+s.d2 closefile
+s.g2 status (CloseSource false leaves the data source open) assert
+s.g2 closefile
+
+/s.g3 nm (r) file def
+/s.d3 s.g3 << >> /ASCIIHexDecode filter def
+s.d3 closefile
+s.g3 status (a filter given no CloseSource leaves the data source open) assert
+s.g3 closefile
+
+% ---- and it carries down a pipeline -----------------------------------
+% Two filters over one file, each with a parameter of its own: closing the
+% outermost closes the one beneath it, and that one closes the file.
+
+/p.g nm (r) file def
+/p.in p.g << /EODCount 1000 /EODString () /CloseSource true >>
+    /SubFileDecode filter def
+/p.out p.in << /CloseSource true >> /ASCIIHexDecode filter def
+p.out 16 string readstring pop pop
+p.out closefile
+p.in status not (the close reaches the filter beneath) assert
+p.g status not (and carries on from there to the file) assert
+
+% ...and stops at a filter that does not carry it. The filter reached is
+% closed; what it reads is not.
+
+/q.g nm (r) file def
+/q.in q.g << /EODCount 1000 /EODString () /CloseSource false >>
+    /SubFileDecode filter def
+/q.out q.in << /CloseSource true >> /ASCIIHexDecode filter def
+q.out closefile
+q.in status not (a filter reached by the close is closed) assert
+q.g status (and its own source is left open where its parameter is false) assert
+q.g closefile
+
+% ---- the parameter is a boolean ---------------------------------------
+
+{ nm (r) file << /CloseSource 1 >> /ASCIIHexDecode filter } /typecheck
+    (a CloseSource that is not a boolean) raises
+{ nm (w) file << /CloseTarget (yes) >> /ASCIIHexEncode filter } /typecheck
+    (a CloseTarget that is not a boolean) raises
+
+% ---- a source with nothing to close -----------------------------------
+% A string standing as the data source is not a file, so there is nothing
+% for the close to be applied to and asking for one is not a fault.
+
+{ hex << /CloseSource true >> /ASCIIHexDecode filter
+  dup 16 string readstring pop pop closefile }
+    (a string source takes the parameter and closes cleanly) works
+
+% ---- the closes the specification calls implicit -----------------------
+% PLRM 3.13.2 names restore as one of the ways closefile is applied to a
+% filter without a program asking. A filter made since the save goes with
+% the save level, and the parameter goes with it.
+
+(/cu.ran true def\n) write
+
+/r.g nm (r) file def
+/r.sv save def
+/r.flt r.g << /EODCount 1000 /EODString () /CloseSource true >>
+    /SubFileDecode filter def
+r.sv restore
+r.g status not (restore closes the data source of the filter it discards) assert
+
+/r.g2 nm (r) file def
+/r.sv2 save def
+/r.flt2 r.g2 << /EODCount 1000 /EODString () /CloseSource false >>
+    /SubFileDecode filter def
+r.sv2 restore
+r.g2 status (restore leaves it open where the parameter is false) assert
+r.g2 closefile
+
+% ...and reaching end of data is another, for a filter the interpreter is
+% executing.
+
+/e.g nm (r) file def
+/e.flt e.g << /EODCount 1000 /EODString () /CloseSource true >>
+    /SubFileDecode filter def
+e.flt cvx exec
+/cu.ran where { pop cu.ran }{ false } ifelse
+    (the filter ran to its end) assert
+e.g status not (a filter closed at end of data closes its data source) assert
+
+% The one exception the specification names: a ReusableStreamDecode filter
+% does not close at end of data -- it rewinds, so the program it carries can
+% be run again -- and so its source is not closed there either.
+
+/x.g nm (r) file def
+/x.rs x.g << /CloseSource true >> /ReusableStreamDecode filter def
+x.rs cvx exec
+x.rs status (a reusable stream stays open at end of data) assert
+x.g status (and its data source is left open with it) assert
+x.rs closefile
+x.g status { x.g closefile } if
+
+nm deletefile
+
+verdict

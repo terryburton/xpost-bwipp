@@ -1192,6 +1192,7 @@ _plain_file_init(Xpost_File *f, Xpost_File_Methods *methods)
     f->owned = 0;
     f->ent = 0;
     f->wraps = XPOST_FILE_WRAPS_NOTHING;
+    f->closeunder = 0;
     f->job_stream = 0;
     f->eot = 0;
     f->err = 0;
@@ -5916,6 +5917,7 @@ _filter_object_cons(Xpost_Memory_File *mem, Xpost_File *ff,
     ff->owned = 0;
     ff->ent = 0;
     ff->wraps = wraps;
+    ff->closeunder = 0;
     ff->job_stream = 0;
     ff->eot = 0;
     ff->err = 0;
@@ -6675,6 +6677,52 @@ int xpost_file_stream_err(Xpost_File *fp)
     return 0;
 }
 
+/* The stream a filter's CloseSource or CloseTarget names: the first one
+   beneath it that the program itself supplied.
+
+   A filter the program asked for may be several streams here -- a
+   predictor stage over a compressor, a decode chain a reusable stream was
+   built over, the stream a string or a procedure source becomes -- and
+   the ones the machinery interposed are part of the filter rather than
+   its source or its target. They are marked as made for it, close with
+   it, and are stepped over here. What is left is the file the program
+   handed to the filter operator, or nothing where the program handed it a
+   string or a procedure, which is not a thing closefile is applied to. */
+static unsigned int _underlying_program_stream(Xpost_File *f)
+{
+    Xpost_File *under = _filter_underlying_stream(f);
+
+    while (under && under->owned)
+        under = _filter_underlying_stream(under);
+    return under ? under->ent : 0;
+}
+
+/* CloseSource and CloseTarget (PLRM 3.13.2). The parameter belongs to the
+   direction the filter was built in -- the first to a decoding filter and
+   the second to an encoding one -- so the filter's own record of what it
+   is over is what decides which of the two it is given, and the other
+   names nothing here. A filter over neither a source nor a target is a
+   stream in its own right and has nothing beneath it to close. */
+void xpost_file_set_close_under(Xpost_Memory_File *mem, Xpost_Object f,
+                                int closesource, int closetarget)
+{
+    Xpost_File *fp = xpost_file_get_file_pointer(mem, f);
+
+    if (!fp)
+        return;
+    switch (fp->wraps)
+    {
+        case XPOST_FILE_WRAPS_SOURCE:
+            fp->closeunder = closesource;
+            break;
+        case XPOST_FILE_WRAPS_TARGET:
+            fp->closeunder = closetarget;
+            break;
+        case XPOST_FILE_WRAPS_NOTHING:
+            break;
+    }
+}
+
 /* Mark a stream the machinery made for the filter about to wrap it. */
 void xpost_file_hand_over(Xpost_Memory_File *mem, Xpost_Object f)
 {
@@ -6762,9 +6810,20 @@ int xpost_file_object_close(Xpost_Memory_File *mem,
     fp = xpost_file_get_file_pointer(mem, f);
     if (fp)
     {
+        unsigned int under = 0;
+
 #ifdef DEBUG_FILE
         printf("fclose");
 #endif
+
+        /* A filter given CloseSource or CloseTarget hands the close on to
+           the stream beneath it (PLRM 3.13.2). Which stream that is, is
+           asked here rather than below, because the teardown gives up the
+           filter's claim on it and may free the filter's own struct: after
+           that there is nothing left to ask. The close itself is made
+           after this one, which is the order the specification states. */
+        if (fp->closeunder)
+            under = _underlying_program_stream(fp);
 
         /* the stream may have had bytes still to place -- an encoding
            filter's end-of-data marker, a buffer the system had not taken
@@ -6797,6 +6856,14 @@ int xpost_file_object_close(Xpost_Memory_File *mem,
             return VMerror;
         }
         _file_retire_stamp(mem, f.mark_.padw);
+        /* and on down the pipeline. The stream beneath may be a filter
+           carrying the parameter itself, in which case its own source or
+           target closes too; one that does not carry it is closed and
+           stops there (PLRM 3.13.2). A stream already given up answers
+           with no pointer and is nothing to close, so arriving here twice
+           costs nothing. */
+        if (under)
+            (void)xpost_file_object_close(mem, _file_object_of_entity(under));
         if (lost)
             return ioerror;
     }

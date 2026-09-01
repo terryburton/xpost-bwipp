@@ -416,17 +416,20 @@ int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f,
     return 0;
 }
 
-/* file dict /FilterName  filter  file'
-   the optional parameter dictionary form. LZWDecode reads its
-   EarlyChange switch and CCITTFaxDecode its coding layout from the
-   dictionary; the other decode filters take no parameter that
+/* Build the filter the parameter dictionary form asks for. LZWDecode
+   reads its EarlyChange switch and CCITTFaxDecode its coding layout from
+   the dictionary; the other decode filters take no parameter that
    changes their output here (DCTDecode reads its layout from the
-   stream itself), so it is otherwise set aside */
+   stream itself), so it is otherwise set aside.
+
+   What every filter takes from the dictionary whatever its name --
+   CloseSource and CloseTarget -- is read by the caller below, so that a
+   filter cannot be added here and be the one that does not answer them. */
 static
-int xpost_op_file_filter_dict (Xpost_Context *ctx,
-                               Xpost_Object F,
-                               Xpost_Object dict,
-                               Xpost_Object name)
+int _filter_dict_build (Xpost_Context *ctx,
+                        Xpost_Object F,
+                        Xpost_Object dict,
+                        Xpost_Object name)
 {
     Xpost_Object namestr;
     char *cname;
@@ -680,6 +683,50 @@ int xpost_op_file_filter_dict (Xpost_Context *ctx,
     }
     free(cname);
     return xpost_op_file_filter(ctx, F, name);
+}
+
+/* file dict /FilterName  filter  file'
+   the optional parameter dictionary form.
+
+   CloseSource and CloseTarget (PLRM 3.13.2) say whether closing the
+   filter also closes the stream beneath it. They are read here, of every
+   filter the form can name, because the specification gives them to every
+   filter rather than to a list of them: a decoding filter is given the
+   first and an encoding one the second, and the filter itself is what
+   says which of the two it is. Absent, or false, the stream beneath is
+   left alone, which is what a filter did in LanguageLevel 2. */
+static
+int xpost_op_file_filter_dict (Xpost_Context *ctx,
+                               Xpost_Object F,
+                               Xpost_Object dict,
+                               Xpost_Object name)
+{
+    Xpost_Object f;
+    Xpost_Object cs, ct;
+    int closesource, closetarget;
+    int ret = _filter_dict_build(ctx, F, dict, name);
+
+    if (ret)
+        return ret;
+    cs = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "CloseSource"));
+    ct = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "CloseTarget"));
+    if (xpost_object_get_type(cs) == invalidtype
+        && xpost_object_get_type(ct) == invalidtype)
+        return 0;
+    /* the value is a boolean and nothing else stands for one (PLRM 3.13.2),
+       so a number or a name is refused rather than read as true */
+    if ((xpost_object_get_type(cs) != invalidtype
+         && xpost_object_get_type(cs) != booleantype)
+        || (xpost_object_get_type(ct) != invalidtype
+            && xpost_object_get_type(ct) != booleantype))
+        return typecheck;
+    closesource = xpost_object_get_type(cs) == booleantype && cs.int_.val;
+    closetarget = xpost_object_get_type(ct) == booleantype && ct.int_.val;
+    f = xpost_stack_topdown_fetch(ctx->lo, ctx->os, 0);
+    if (xpost_object_get_type(f) != filetype)
+        return ioerror;
+    xpost_file_set_close_under(ctx->lo, f, closesource, closetarget);
+    return 0;
 }
 
 /* file count string /SubFileDecode  filter  file'

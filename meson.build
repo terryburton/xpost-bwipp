@@ -3208,6 +3208,16 @@ test('filter-matrix',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# CloseSource and CloseTarget: what closing a filter does to the stream
+# beneath it. Every case is a pair, the same construction with the
+# parameter true and with it false, because a filter that closed
+# everything and one that closed nothing each satisfy half of it.
+test('filter-close-under',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/filter_close_under_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The predictor stage over a compressed stream: a stage that did nothing
 # would return the differences, which read as an image rather than as an
 # error.
