@@ -183,9 +183,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  FOUR OF THESE ARE DECLARED AND HOLD NOTHING, and that is a decision
 %  rather than an omission. /Halftone, /Pattern, /Form and /FontSet take
 %  instances a program defines; PLRM requires no particular ones to be
-%  supplied, and the two implementations this tree is adjudicated against
-%  do not agree on what to supply -- one ships a halftone and no colour
-%  spaces, the other ten colour spaces and no halftone. So an instance
+%  supplied, and what an interpreter ships in them is its own choice and
+%  not the language's -- there is no set a program may count on. So an
+%  instance
 %  here would be this interpreter's invention rather than the language's
 %  requirement. The categories exist so that a program defining its own
 %  is answered, and so that one asking after a name is told there is no
@@ -226,8 +226,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  procedures ARE those operators rather than something kept in step with
 %  them. findfont substitutes for a name the host cannot resolve (PLRM
 %  5.2), and findresource inherits that: the two are one operation, so
-%  they answer alike -- which is what both implementations this tree is
-%  adjudicated against do.
+%  they answer alike.
 %
 %  The names are reached at run time and not frozen: the font operators
 %  are defined after this file is read.
@@ -847,10 +846,9 @@ setglobal
         } if
         get /catdict exch def
         /osd count def
-        % PLRM Table 3.11 marks all five Required, and both implementations
-        % adjudicated against refuse a category that supplies none, so a
-        % category without the procedure for this operator is an error
-        % rather than something to stand in for.
+        % PLRM Table 3.11 marks all five Required, so a category without
+        % the procedure for this operator is an error rather than something
+        % to stand in for.
         catdict entry known not {
             op cvx /undefined end signalerror
         } if
@@ -887,9 +885,8 @@ setglobal
 %
 %  resourceforall does not go through the bracket above, and the reason is
 %  the program's own procedure: it runs INSIDE the enumeration, and it must
-%  see the dictionary stack its caller had -- MEASURED, that is what the two
-%  implementations this tree is adjudicated against do, and a definition the
-%  procedure makes has to land where the program will look for it. A
+%  see the dictionary stack its caller had: a definition the procedure
+%  makes has to land where the program will look for it. A
 %  dictionary left open around it, this operator's or the category's, would
 %  take that definition and throw it away with itself.
 %

@@ -813,8 +813,8 @@
  * the standard system name table. The scanner's buffer is sized to
  * the longest legal string literal a 16-bit length field can name,
  * which base-85 z-runs can reach from modest input. Its conformance
- * suite is adjudicated against two independent implementations,
- * with the differences recorded.
+ * suite is held to what the specification states, and records where
+ * this interpreter departs from it.
  *
  * @section design_errors Errors
  *
