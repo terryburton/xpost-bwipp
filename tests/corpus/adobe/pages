@@ -51,9 +51,17 @@
 #   36. None of the three ever reaches its break, and each draws the
 #   one page its last line asks for.
 #
-# Thirteen have no page in the comparison, twelve because the listing
-# asks for none and one because it is stopped before it asks. nopage
-# carries the reason for each, one at a time.
+# Sixteen have no page in the comparison: twelve because the listing
+# asks for none, and four because they are stopped before they ask.
+# nopage carries the reason for each, one at a time.
+#
+# The technical-note programs are one page each, and the reading is the
+# same one: each ends with a single showpage, written at the top level of
+# the file, outside every procedure and every loop, and nothing in any of
+# them calls copypage or redefines showpage. Three of the thirty put no
+# page into the comparison and are counted one all the same, because the
+# count is what the listing asks for rather than what any engine
+# delivers -- what they do instead is written in nopage.
 bb_01-repeated-shapes 1
 bb_02-expanded-and-constant-width-lines 1
 bb_03-elliptical-arcs 1
@@ -120,3 +128,33 @@ gb_14-03-listing 0
 gb_14-04-listing 0
 gb_15-01-listing 1
 gb_15-02-listing 0
+devn_hexachrome_to_cmyk 1
+devn_rgb_colorants 1
+devn_six_component_to_rgb 1
+ht_type16_file 1
+ht_type16_two_tiles 1
+ht_type3_string 1
+ht_type6_file 1
+mask_level2_emulation 1
+mask_type3_interleave1 1
+mask_type3_interleave2 1
+mask_type3_interleave3 1
+mask_type4_chromakey 1
+pat_type1_shaded_glyphs 1
+pat_type2_shading_mask 1
+sh_axial_gray 1
+sh_axial_rgb_bbox 1
+sh_axial_sampled_orders 1
+sh_axial_stitched 1
+sh_coons_conical 1
+sh_coons_hsb_wheel 1
+sh_function_four_matrices 1
+sh_function_rgb_cube 1
+sh_gouraud_decahedron 1
+sh_gouraud_square 1
+sh_lattice_five_rows 1
+sh_lattice_two_triangles 1
+sh_radial_cie 1
+sh_radial_gray 1
+sh_radial_sampled 1
+sh_tensor_control_points 1

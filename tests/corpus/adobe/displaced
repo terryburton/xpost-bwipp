@@ -80,8 +80,35 @@
 #           produces: the pages are not comparable, and that is true
 #           before either engine is run.
 #
+# ht_type16_file p1 -- a smooth shading screened through a sixteen-bit
+#           threshold array, and the difference is three rows of the
+#           screen's dots out of a page of them: twenty-three dots each
+#           on rows 82, 131 and 135, at the twenty-pixel pitch of the
+#           tile. Rendered in continuous tone instead of screened, the
+#           two engines' pages differ by at most two grey levels of 255
+#           anywhere, and on exactly those rows by one -- the shading's
+#           tint, rounded the other way. A screen turns a fraction of a
+#           level into a whole dot wherever the tint crosses a
+#           threshold, so one level of difference in a gradient is a row
+#           of dots present in one page and absent from the other, and
+#           the tint of the page as a whole still agrees (its coarse
+#           resize differs by a hundredth). The sixteen-bit path itself
+#           is not what differs: the same sixteen thresholds as an
+#           eight-bit array and as their sixteen-bit widening screen a
+#           sixteen-step ramp to the same page, dot for dot.
+#
+# sh_radial_sampled p1 -- this one IS this interpreter's, and it is here
+#           because it is being worked on rather than because it cannot
+#           be closed. The listing shades two radial figures through
+#           sampled functions, and the interpreter raises rangecheck in
+#           get partway through the first, leaving most of the page
+#           unpainted -- so almost all of the reference's ink has nothing
+#           near it. The entry goes when the function is read the way
+#           PLRM 3.13.4's sampled type asks for.
 gb_07-04-listing p1
 gb_07-05-listing p1
 gb_08-02-listing p1
 gb_10-02-listing p1
 gb_10-04-listing p1
+ht_type16_file p1
+sh_radial_sampled p1

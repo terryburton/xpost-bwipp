@@ -253,14 +253,24 @@ The corpora
 
   adobe         The sample code of Adobe's PostScript books -- the Blue
                 Book (Tutorial and Cookbook) and Green Book (Program
-                Design) listings -- and the DeviceN, halftone and
-                masked-image technical-note examples. Each listing
-                targets one named feature of a specification section, so
-                a divergence points straight at the operator
-                responsible; this is the compliance workhorse. Adobe
-                holds the copyright and no canonical download survives,
-                so this corpus is NOT fetched: place your own copy under
+                Design) listings -- and the technical-note examples for
+                smooth shading, DeviceN colour, halftones, masked images
+                and shading patterns. Each listing targets one named
+                feature of a specification section, so a divergence
+                points straight at the operator responsible; this is the
+                compliance workhorse. The shading set alone paints all
+                seven ShadingTypes and both PatternTypes. Adobe holds
+                the copyright and no canonical download survives, so
+                this corpus is NOT fetched: place your own copy under
                 adobe/ (see SOURCES) and the evaluator will pick it up.
+
+                Where a note prints a listing with its data elided -- a
+                threshold array or an image left as a comment saying
+                where it would be -- the companion file the note shipped
+                alongside it carries the whole program, and that is what
+                belongs here. A listing read out of the printed note
+                fails on its own missing data and says nothing about any
+                interpreter.
 
 Not included
 ------------
@@ -331,7 +341,8 @@ SOURCES
                makers, and any machine that typesets already has them.
   adobe        Adobe's "PostScript Language Tutorial and Cookbook" (Blue
                Book) and "PostScript Language Program Design" (Green
-               Book) sample code, and the DeviceN / halftone /
-               masked-image Technical Notes. Historically on Adobe's
-               developer FTP; obtain from an archive you trust and
-               arrange under adobe/ as flat *.ps files.
+               Book) sample code, and the smooth-shading / DeviceN /
+               halftone / masked-image Technical Notes together with the
+               companion program files those notes shipped. Historically
+               on Adobe's developer FTP; obtain from an archive you
+               trust and arrange under adobe/ as flat *.ps files.

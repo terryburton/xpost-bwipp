@@ -4,12 +4,15 @@
 # worse than no entry at all -- it is read as a known cost and stops
 # anyone looking.
 #
-# Nothing is held out. Thirteen of these listings put no page into the
+# Nothing is held out. Sixteen of these listings put no page into the
 # comparison and every one of them is still rendered, because the entry
 # that would keep one out of the run is the entry nothing measures
-# again: what each of the thirteen does is written in nopage instead,
+# again: what each of the sixteen does is written in nopage instead,
 # where the claim is checked both ways every run and lapses of its own
 # accord the day the program draws. Two of them ask for something that
 # is not a page description -- a job that leaves job encapsulation on a
 # password, a job that opens a font file for writing -- and what a run
 # does with the request is worth reaching as much as a page would be.
+# Two more are pages this interpreter alone does not reach, and holding
+# those out is the one thing that would stop the corpus reporting the
+# day it does.
