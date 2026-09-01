@@ -772,6 +772,58 @@ _fc_match_name(const char *name, FcPattern **request)
     return NULL;
 }
 
+/* The same, asking by the name a font calls itself.
+
+   A PostScript font name is not a family name, and the configuration
+   reads a bare name as a family: a document asking for a face by the
+   name that face carries -- which is what /FontName holds and what
+   findfont is given -- can be answered with some other family
+   altogether. The configuration does index the PostScript name, so the
+   question can simply be asked in those terms, and where it answers the
+   answer is the face the document named.
+
+   Asked only where reading the name as a family did not reach the name,
+   so a document naming a family still reaches the family. */
+static FcPattern *
+_fc_match_psname(const char *name, FcPattern **request)
+{
+    FcPattern *pattern;
+    FcPattern *match;
+    FcResult result;
+
+    if (request)
+        *request = NULL;
+
+    pattern = FcPatternCreate();
+    if (!pattern)
+        return NULL;
+    if (!FcPatternAddString(pattern, FC_POSTSCRIPT_NAME,
+                            (const FcChar8 *)name))
+    {
+        FcPatternDestroy(pattern);
+        return NULL;
+    }
+    if (!FcConfigSubstitute(_xpost_font_fc_config, pattern, FcMatchPattern))
+    {
+        FcPatternDestroy(pattern);
+        return NULL;
+    }
+    FcDefaultSubstitute(pattern);
+    match = FcFontMatch(_xpost_font_fc_config, pattern, &result);
+    if (result == FcResultNoMatch || result == FcResultOutOfMemory)
+    {
+        FcPatternDestroy(pattern);
+        if (match)
+            FcPatternDestroy(match);
+        return NULL;
+    }
+    if (request)
+        *request = pattern;
+    else
+        FcPatternDestroy(pattern);
+    return match;
+}
+
 /* --- a name the configuration answers, and a name it falls back on ---
 
    Resolving a name to a face of another family is not by itself a
@@ -904,6 +956,35 @@ _xpost_font_face_filename_and_index_get(const char *name, int *idx)
     match = _fc_match_name(name, &request);
     if (!match)
         return NULL;
+
+    /* The name a face carries, asked for as such. A bare name is read as
+       a family, so a document naming a face by its own name can be
+       answered with another family's face; the configuration indexes
+       that name, so where reading it as a family did not reach it, it is
+       asked for directly. */
+    if (!_fc_match_is_exact(match, name))
+    {
+        FcPattern *psrequest;
+        FcPattern *psmatch = _fc_match_psname(name, &psrequest);
+
+        if (psmatch)
+        {
+            if (_fc_match_is_exact(psmatch, name))
+            {
+                FcPatternDestroy(match);
+                match = psmatch;
+                if (request)
+                    FcPatternDestroy(request);
+                request = psrequest;
+            }
+            else
+            {
+                FcPatternDestroy(psmatch);
+                if (psrequest)
+                    FcPatternDestroy(psrequest);
+            }
+        }
+    }
 
     /* a fallback match for a PostScript style-variant name loses the
        style (fontconfig reads the whole name as a family); requery as
