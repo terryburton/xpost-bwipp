@@ -279,6 +279,9 @@ int Sgetenv(Xpost_Context *ctx,
     char *r;
     if (xpost_path_control_is_engaged())
         return invalidaccess;
+    /* the variable's name is read out of the string (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, S))
+        return invalidaccess;
     str = xpost_string_allocate_cstring(ctx, S);
     r = xpost_getenv(str);
     if (r)
@@ -324,6 +327,9 @@ int SSputenv(Xpost_Context *ctx,
     char *v;
 
     if (xpost_path_control_is_engaged())
+        return invalidaccess;
+    /* both the name and the value it is given are read (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, N) || !xpost_object_is_readable(ctx, S))
         return invalidaccess;
     n = xpost_string_allocate_cstring(ctx, N);
     if (!n)

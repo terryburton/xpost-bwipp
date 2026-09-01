@@ -295,6 +295,22 @@ Known behavioural deviations
  interpreter's procedures through OtherSubrs; no such program has been
  exercised against this interpreter.
 
+ An operator that reads the characters of a string operand raises
+ invalidaccess when the string's access withholds that read, and seven of
+ them do so although their PLRM 8.2 entries do not list the error among
+ the ones they raise: charpath, file, run, deletefile, renamefile,
+ findfont and currentdevparams. The rule those seven are held to is not
+ an operator's own -- PLRM 3.3.2 has an access attribute restrict the
+ operations allowed on an object's value, and the invalidaccess entry
+ names the read of an execute-only string among the violations it is
+ raised for -- and it is a rule about what is done to the string rather
+ than about which operator does it. charpath is defined as the outlines a
+ show of the same string would make, and show's own entry lists the
+ error; a filename or a font name is read exactly as status and
+ setdevparams read theirs, and those entries list it too. Answering
+ instead would leave each of the seven able to report what an unreadable
+ string spells.
+
  [X] restore  a save object is not invalidated by the restore that uses it,
      where a snapshot is defined to be usable once: restore is defined to
      invalidate its operand and every save object made after it, so a second

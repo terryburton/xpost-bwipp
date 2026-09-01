@@ -776,6 +776,200 @@ db readonly pop                             % the sealed reference is discarded
 da wcheck not (a dictionary IS sealed by sealing another object of it) bchk
 { da /k 1 put } /invalidaccess (a write through any object of it is refused) chk
 
+% --- an operator that reaches a string's characters asks the string ------
+%
+% PLRM 3.3.2 has an access attribute "restrict the set of operations that
+% can be performed on the object's value", and the invalidaccess entry
+% gives "reading an execute-only string" as one of the violations it is
+% raised for. So the question is not which operator is being called but
+% what it does with the string: an operator that reads the characters
+% needs read access, one that writes them needs write access, and one
+% that merely carries the object needs neither.
+%
+% Read access is what read-only grants and execute-only withholds, so a
+% string that may not be read is one reduced to execute-only or to
+% no-access. Every refusal below has a readable string beside it asking
+% the same operator the same thing: a check that simply refused every
+% string would pass the refusals and fail those.
+
+/cp { dup length string copy } bind def     % a fresh copy to reduce
+
+% The showing operators name their glyphs by the string's characters.
+% A build carrying no face library cannot select a font, so the operator
+% that got past the access question answers invalidfont there instead of
+% showing; the access question is asked either way and is what these
+% cases are about.
+/showok systemdict /NOFACES known { /invalidfont }{ /ok } ifelse def
+/withfont { initgraphics /Helvetica findfont 12 scalefont setfont
+            10 10 moveto } bind def
+
+{ withfont (Hi) show }                    showok         (show of a readable string) chk
+{ withfont (Hi) readonly show }           showok         (show of a read-only string) chk
+{ withfont (Hi) executeonly show }        /invalidaccess (show of an execute-only string) chk
+{ withfont (Hi) noaccess show }           /invalidaccess (show of a no-access string) chk
+{ withfont 1 0 (Hi) ashow }               showok         (ashow of a readable string) chk
+{ withfont 1 0 (Hi) noaccess ashow }      /invalidaccess (ashow of a no-access string) chk
+{ withfont 1 0 32 (Hi) widthshow }        showok         (widthshow of a readable string) chk
+{ withfont 1 0 32 (Hi) noaccess widthshow }
+                                          /invalidaccess (widthshow of a no-access string) chk
+{ withfont 1 0 32 1 0 (Hi) awidthshow }   showok         (awidthshow of a readable string) chk
+{ withfont 1 0 32 1 0 (Hi) noaccess awidthshow }
+                                          /invalidaccess (awidthshow of a no-access string) chk
+{ withfont (Hi) stringwidth pop pop }     showok         (stringwidth of a readable string) chk
+{ withfont (Hi) executeonly stringwidth pop pop }
+                                          /invalidaccess (stringwidth of an execute-only string) chk
+{ withfont (Hi) true charpath }           showok         (charpath of a readable string) chk
+{ withfont (Hi) noaccess true charpath }  /invalidaccess (charpath of a no-access string) chk
+
+% Two strings are compared element by element and a string compared with
+% a name is compared against the name's characters, so either reads the
+% string. Access is no part of what makes two objects equal (PLRM 8.2
+% eq), which is the first control: a sealed string still equals an
+% unsealed one of the same characters.
+{ (abc) readonly (abc) eq { }{ (FAIL: a read-only string compared unequal\n) print
+    faildict /n 2 copy get 1 add put } ifelse } /ok (eq ignores the access of a readable string) chk
+{ (abc) executeonly (abc) eq }           /invalidaccess (eq with an execute-only string) chk
+{ (abc) (abc) noaccess eq }              /invalidaccess (eq with a no-access second operand) chk
+{ (abc) noaccess (abc) ne }              /invalidaccess (ne with a no-access string) chk
+{ (abc) noaccess (abd) lt }              /invalidaccess (lt with a no-access string) chk
+{ (abc) noaccess (abd) le }              /invalidaccess (le with a no-access string) chk
+{ (abc) noaccess (abd) gt }              /invalidaccess (gt with a no-access string) chk
+{ (abc) noaccess (abd) ge }              /invalidaccess (ge with a no-access string) chk
+{ (abc) noaccess /abc eq }               /invalidaccess (eq of a no-access string against a name) chk
+{ (abc) (abd) lt pop }                   /ok            (lt of two readable strings) chk
+% and the operands the comparison never reads: unlike kinds are told
+% apart by their types, so a sealed string answers false rather than
+% raising
+{ (abc) noaccess 5 eq
+  { (FAIL: a string compared equal to an integer\n) print
+    faildict /n 2 copy get 1 add put } if } /ok (eq of a no-access string against an integer) chk
+
+% Writing a string out reads it, wherever it is written to.
+afmake
+{ AFW dup (data) writestring closefile }  /ok            (writestring of a readable string) chk
+{ AFW dup (data) noaccess writestring closefile }
+                                          /invalidaccess (writestring of a no-access string) chk
+{ AFW dup (data) writehexstring closefile } /ok          (writehexstring of a readable string) chk
+{ AFW dup (data) executeonly writehexstring closefile }
+                                          /invalidaccess (writehexstring of an execute-only string) chk
+{ 1 setobjectformat AFW dup (data) 0 writeobject closefile }
+                                          /ok            (writeobject of a readable string) chk
+{ 1 setobjectformat AFW dup (data) noaccess 0 writeobject closefile }
+                                          /invalidaccess (writeobject of a no-access string) chk
+% printobject writes to the standard output, so only the refusals are
+% asked of it here: a refused call writes nothing, and the control that
+% it writes at all is writeobject's above, which shares the sequence
+% builder with it.
+{ 1 setobjectformat (data) noaccess 0 printobject }
+                                          /invalidaccess (printobject of a no-access string) chk
+% a string nested inside an array is reached by the same walk
+{ 1 setobjectformat AFW dup [ (data) noaccess ] 0 writeobject closefile }
+                                          /invalidaccess (writeobject of an array holding a no-access string) chk
+
+% A file name is read out of the string that gives it.
+afmake
+{ afscratch cp (r) file closefile }       /ok            (file named by a readable string) chk
+{ afscratch cp noaccess (r) file closefile }
+                                          /invalidaccess (file named by a no-access string) chk
+{ afscratch (r) cp file closefile }       /ok            (file opened with a readable access string) chk
+{ afscratch (r) cp noaccess file closefile }
+                                          /invalidaccess (file opened with a no-access access string) chk
+{ afscratch cp status { pop pop pop pop }{ (FAIL: status did not find the scratch file\n) print
+    faildict /n 2 copy get 1 add put } ifelse } /ok      (status of a readable file name) chk
+% status answers false for a name no file has, so a refusal that came
+% back as false would be indistinguishable from a miss; it is raised
+{ afscratch cp executeonly status }       /invalidaccess (status of an execute-only file name) chk
+{ afscratch cp run }                      /ok            (run of a readable file name) chk
+af.ran (run ran the file it was given) bchk
+{ afscratch cp noaccess run }             /invalidaccess (run of a no-access file name) chk
+
+% filenameforall reads the template and writes each name it finds into
+% the scratch string, so the two operands are asked different questions.
+/fnfahit false def
+{ (access-file-scratch.*) { pop /fnfahit true store } 128 string filenameforall }
+                                          /ok            (filenameforall with a readable template) chk
+fnfahit (filenameforall found the scratch file) bchk
+{ (access-file-scratch.*) noaccess { pop } 128 string filenameforall }
+                                          /invalidaccess (filenameforall with a no-access template) chk
+{ (access-file-scratch.*) { pop } 128 string readonly filenameforall }
+                                          /invalidaccess (filenameforall with a read-only scratch string) chk
+
+% A string used as a dictionary key is converted to a name (PLRM 3.3.9),
+% which reads its characters.
+/kd 5 dict def
+kd /kk 1 put
+{ kd (kk) get pop }                       /ok            (get by a readable string key) chk
+{ kd (kk) noaccess get }                  /invalidaccess (get by a no-access string key) chk
+{ kd (kk) 2 put }                         /ok            (put by a readable string key) chk
+{ kd (kk) executeonly 2 put }             /invalidaccess (put by an execute-only string key) chk
+{ kd (kk) known { }{ (FAIL: known did not find the key\n) print
+    faildict /n 2 copy get 1 add put } ifelse } /ok      (known by a readable string key) chk
+{ kd (kk) noaccess known }                /invalidaccess (known by a no-access string key) chk
+{ 5 dict dup /kk 1 put (kk) noaccess undef }
+                                          /invalidaccess (undef by a no-access string key) chk
+{ 5 dict begin (kk) 1 def end }           /ok            (def by a readable string key) chk
+{ 5 dict begin (kk) noaccess 1 def end }  /invalidaccess (def by a no-access string key) chk
+{ (add) load type /operatortype eq { }{ (FAIL: load did not find the operator\n) print
+    faildict /n 2 copy get 1 add put } ifelse } /ok      (load by a readable string key) chk
+{ (add) noaccess load }                   /invalidaccess (load by a no-access string key) chk
+{ (add) where { pop }{ (FAIL: where did not find the operator\n) print
+    faildict /n 2 copy get 1 add put } ifelse } /ok      (where by a readable string key) chk
+{ (add) noaccess where }                  /invalidaccess (where by a no-access string key) chk
+{ 5 dict begin (kk) 1 def (kk) 2 store end } /ok         (store by a readable string key) chk
+{ 5 dict begin (kk) 1 def (kk) noaccess 2 store end }
+                                          /invalidaccess (store by a no-access string key) chk
+
+% A password presented to startjob is compared byte for byte, so it is
+% read. Refusing it is raised rather than answered false: false is the
+% answer to a password that does not match, and answering it for one that
+% was never compared would make the operator an oracle over the
+% characters of a string the program may not read.
+%
+% Both cases run inside a save bracket, where a startjob that got past
+% the access question answers false and changes nothing; outside one it
+% would reset the stacks under the suite. The two answers are carried out
+% of the bracket on the operand stack, since a verdict recorded in the
+% failcount would not survive the restore.
+save
+{ true (jobpw) startjob } outcome
+{ true (jobpw) noaccess startjob } outcome
+3 -1 roll restore
+/invalidaccess eq (startjob with a no-access password is refused) bchk
+/ok eq (startjob with a readable password is answered) bchk
+
+% and the question is asked wherever the operator runs. The interpreter
+% executes the hottest operators inline when they appear in a procedure,
+% and the comparison and the dictionary lookup are among them.
+/nas (abc) noaccess def
+/naseq { nas (abc) eq } bind def
+/naslt { nas (abd) lt } bind def
+/nasget { kd nas get } bind def
+{ naseq }                                 /invalidaccess (eq with a no-access string, in a procedure) chk
+{ naslt }                                 /invalidaccess (lt with a no-access string, in a procedure) chk
+{ nasget }                                /invalidaccess (get by a no-access string key, in a procedure) chk
+
+% SubFileDecode watches its stream for the characters of the delimiter
+% string it is given, so that string is read too.
+afmake
+{ AFR 0 (ran) /SubFileDecode filter dup 8 string readstring pop pop closefile }
+                                          /ok            (SubFileDecode with a readable delimiter) chk
+{ AFR 0 (ran) noaccess /SubFileDecode filter closefile }
+                                          /invalidaccess (SubFileDecode with a no-access delimiter) chk
+
+% A font name given as a string is read for the name it spells.
+{ (Helvetica) findfont pop }              showok         (findfont named by a readable string) chk
+{ (Helvetica) noaccess findfont pop }     /invalidaccess (findfont named by a no-access string) chk
+
+% the refusal comes first, so the file it makes is the one the control
+% then deletes and neither case has to clean up after the other
+{ (access-file-noaccess.dat) (w) file closefile
+  (access-file-noaccess.dat) cp noaccess deletefile }
+                                          /invalidaccess (deletefile of a no-access file name) chk
+{ (access-file-noaccess.dat) cp deletefile } /ok         (deletefile of a readable file name) chk
+{ (access-file-noaccess.dat) status
+  { pop pop pop pop (FAIL: the refused-then-taken deletefile left its file\n) print
+    faildict /n 2 copy get 1 add put } if } /ok          (the deleted file is gone) chk
+
 mark { afscratch deletefile } stopped pop cleartomark
 
 count 0 eq { (operand stack balanced) }{ (FAIL: operand stack unbalanced\n) print

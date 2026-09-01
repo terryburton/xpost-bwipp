@@ -1348,6 +1348,10 @@ int _fontnameavailable(Xpost_Context *ctx,
         fontstr = xpost_name_get_string(ctx, fontname);
     else
         fontstr = fontname;
+    /* the characters of the name are read, and a string names a font
+       only where its access permits being read (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, fontstr))
+        return invalidaccess;
     fname = xpost_string_allocate_cstring(ctx, fontstr);
     if (!fname)
         return VMerror;
@@ -1381,6 +1385,10 @@ int _findfont(Xpost_Context *ctx,
         fontstr = xpost_name_get_string(ctx, fontname);
     else
         fontstr = fontname;
+    /* the characters of the name are read, and a string names a font
+       only where its access permits being read (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, fontstr))
+        return invalidaccess;
     fname = xpost_string_allocate_cstring(ctx, fontstr);
 
     fontdict = xpost_dict_cons (ctx, 10);

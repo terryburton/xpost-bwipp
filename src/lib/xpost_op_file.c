@@ -83,12 +83,22 @@
    a byte above the ASCII range in one, and the name a program writes is
    the name it gets.
 
+   Reading the name reads the string, so the string's access has to
+   permit that read. PLRM 3.3.2 has an access attribute restrict the
+   operations allowed on an object's value, and the invalidaccess entry
+   names the read of an execute-only string among the violations. The
+   question is asked here rather than at each operator, so that every
+   operator naming a file asks it once and asks it alike.
+
    Returns 0 and the allocated name, or an error code and nothing. */
 static int
 xpost_op_file_name(Xpost_Context *ctx, Xpost_Object s, char **out)
 {
-    char *p = xpost_string_allocate_cstring(ctx, s);
+    char *p;
 
+    if (!xpost_object_is_readable(ctx, s))
+        return invalidaccess;
+    p = xpost_string_allocate_cstring(ctx, s);
     if (!p)
         return VMerror;
     if (strlen(p) != (size_t)s.comp_.sz)
@@ -111,6 +121,10 @@ int xpost_op_string_mode_file (Xpost_Context *ctx,
     char *cfn, *cmode;
     int ret;
 
+    /* both operands are read: the access string says how the file is to
+       be opened and is read for that, exactly as the name is */
+    if (!xpost_object_is_readable(ctx, mode))
+        return invalidaccess;
     ret = xpost_op_file_name(ctx, fn, &cfn);
     if (ret)
         return ret;
@@ -747,6 +761,11 @@ int xpost_op_file_filter_subfile (Xpost_Context *ctx,
 
     if (!xpost_object_is_readable(ctx, F))
         return invalidaccess;
+    /* the delimiter's characters are what the stream is watched for, so
+       the string carrying them is read and has to permit that read
+       (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, eod))
+        return invalidaccess;
     namestr = xpost_name_get_string(ctx, name);
     cname = xpost_string_allocate_cstring(ctx, namestr);
     if (!cname)
@@ -1035,6 +1054,10 @@ int xpost_op_file_writehexstring (Xpost_Context *ctx,
         return ioerror;
     if (!xpost_object_is_writeable(ctx, F))
         return invalidaccess;
+    /* the string's bytes are what is written, so the string has to
+       permit being read (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, S))
+        return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
 
     n = 0;
@@ -1155,6 +1178,10 @@ int xpost_op_file_writestring (Xpost_Context *ctx,
     if (!xpost_file_get_status(ctx->lo, F))
         return ioerror;
     if (!xpost_object_is_writeable(ctx, F))
+        return invalidaccess;
+    /* the string's bytes are what is written, so the string has to
+       permit being read (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, S))
         return invalidaccess;
     f = xpost_file_get_file_pointer(ctx->lo, F);
     s = xpost_string_get_pointer(ctx, S);
@@ -1402,12 +1429,15 @@ int xpost_op_string_status (Xpost_Context *ctx,
     int ret;
 
     ret = xpost_op_file_name(ctx, S, &sbuf);
-    if (ret == VMerror)
-        return VMerror;
+    if (ret == VMerror || ret == invalidaccess)
+        return ret;
     if (ret)
     {
         /* PLRM 8.2 has status answer whether there is a file by the name
-           given, and a name no file can hold is a name no file has */
+           given, and a name no file can hold is a name no file has.
+           A name that may not be read is a different matter: nothing was
+           asked of the file system, so there is no answer to give and
+           the refusal is raised rather than reported as absence. */
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
         return 0;
     }
@@ -1614,9 +1644,16 @@ int xpost_op_filenameforall (Xpost_Context *ctx,
     unsigned int id;
     int ret;
 
+    /* each matched name is copied into the scratch string, which is
+       therefore written and has to permit being written (PLRM 3.3.2).
+       Asked before the enumeration starts rather than at the first
+       match: a scratch string that cannot be written can hold no name,
+       so there is nothing for the procedure to be called on. */
+    if (!xpost_object_is_writeable(ctx, Scr))
+        return invalidaccess;
     ret = xpost_op_file_name(ctx, Tmp, &tmpbuf);
-    if (ret == VMerror)
-        return VMerror;
+    if (ret == VMerror || ret == invalidaccess)
+        return ret;
     if (ret)
         /* no file name holds a NUL, so a template holding one matches
            none of them: an empty enumeration, as for any other template
@@ -1827,6 +1864,13 @@ int _bos_measure(Xpost_Context *ctx,
             return 0;
         }
         case stringtype:
+            /* the sequence carries the string's characters, so writing
+               one reads it and the string has to permit that read (PLRM
+               3.3.2). Asked on the measuring walk, which reaches every
+               string the sequence will carry including those nested in
+               arrays, and which runs before any byte is emitted. */
+            if (!xpost_object_is_readable(ctx, o))
+                return invalidaccess;
             *recs += 8;
             *data += o.comp_.sz;
             return 0;
@@ -2107,8 +2151,8 @@ int xpost_op_string_permitfileread (Xpost_Context *ctx,
     int permitted;
     int ret = xpost_op_file_name(ctx, dir, &d);
 
-    if (ret == VMerror)
-        return VMerror;
+    if (ret == VMerror || ret == invalidaccess)
+        return ret;
     if (ret)
         /* a directory a name cannot express is one the permitted set
            cannot be extended to hold */
@@ -2128,8 +2172,8 @@ int xpost_op_string_permitfilewrite (Xpost_Context *ctx,
     int permitted;
     int ret = xpost_op_file_name(ctx, dir, &d);
 
-    if (ret == VMerror)
-        return VMerror;
+    if (ret == VMerror || ret == invalidaccess)
+        return ret;
     if (ret)
         return invalidfileaccess;
     permitted = xpost_path_permit_write(d);
@@ -2350,6 +2394,12 @@ int xpost_op_resourcefileopen (Xpost_Context *ctx,
     int n;
     int ret;
 
+    /* all three name parts are read, so all three have to permit being
+       read before any of their bytes is looked at */
+    if (!xpost_object_is_readable(ctx, cat) ||
+        !xpost_object_is_readable(ctx, nam))
+        return invalidaccess;
+
     /* validate against the raw bytes and length (rejects embedded NUL)
        before composing any path */
     if (!xpost_path_safe_leaf(xpost_string_get_pointer(ctx, cat), cat.comp_.sz) ||
@@ -2363,8 +2413,8 @@ int xpost_op_resourcefileopen (Xpost_Context *ctx,
        components above cannot express a path, and neither may the
        directory they are composed beneath express a shorter one */
     ret = xpost_op_file_name(ctx, dir, &cdir);
-    if (ret == VMerror)
-        return VMerror;
+    if (ret == VMerror || ret == invalidaccess)
+        return ret;
     if (ret)
     {
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));

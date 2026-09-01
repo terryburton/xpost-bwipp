@@ -751,6 +751,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  The showing operators name their glyphs by the characters of the
+%  string they are handed, so they read it, and PLRM 3.3.2 permits a
+%  value to be read only where its access says so -- the invalidaccess
+%  entry names the read of an execute-only string among the violations.
+%
+%  Asked here, at the operator, rather than on the route the characters
+%  eventually take: a string reaches the glyphs by several roads -- the
+%  face route, a composite font's mapping, a Type 3 font's build
+%  procedure -- and a question asked on one of them is a question the
+%  others do not ask. The operand is left where it was found.
+%
+.xpostsys /.needread {  % obj /opname  .  obj
+    exch dup rcheck
+        { exch pop }
+        { pop cvx /invalidaccess signalerror } ifelse
+} put
+
+%
 %  Work out which device pixels the clip region in force covers and
 %  leave the answer in the clip's own cache holder, where the glyph
 %  raster route reads it.
@@ -1005,6 +1023,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  themselves.
 %
 /show [ /stringtype ] {  % string  .  -
+    /show //.needread exec
     /show //.needfont exec
     /show //.needpoint exec
     //.showclip exec
@@ -1047,6 +1066,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  widening its spaces.
 %
 /widthshow [ /numbertype /numbertype /integertype /stringtype ] {  % cx cy char string  .  -
+    /widthshow //.needread exec
     /widthshow //.needfont exec
     /widthshow //.needpoint exec
     //.showclip exec
@@ -1109,6 +1129,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  -- the way a program letterspaces.
 %
 /ashow [ /numbertype /numbertype /stringtype ] {  % ax ay string  .  -
+    /ashow //.needread exec
     /ashow //.needfont exec
     /ashow //.needpoint exec
     //.showclip exec
@@ -1168,6 +1189,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  glyph and widthshow's after every occurrence of the nominated one.
 %
 /awidthshow [ /numbertype /numbertype /integertype /numbertype /numbertype /stringtype ] {  % cx cy char ax ay string  .  -
+    /awidthshow //.needread exec
     /awidthshow //.needfont exec
     /awidthshow //.needpoint exec
     //.showclip exec
@@ -1507,6 +1529,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  they are painted.
 %
 /stringwidth [ /stringtype ] {  % string  .  wx wy
+    /stringwidth //.needread exec
     /stringwidth //.needfont exec
     graphicsdict /currgstate get /currfont get //.cshsubst exec
     dup //.fontroute exec /face eq { pop //stringwidth }{
@@ -1693,6 +1716,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     3 dict begin
     /cpwant exch def
     /cpstr exch def
+    cpstr /charpath //.needread exec pop
     /cpfont graphicsdict /currgstate get /currfont get //.cshsubst exec def
     cpfont //.fontroute exec /build eq {
         cpstr stringwidth rmoveto

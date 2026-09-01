@@ -179,6 +179,24 @@ int xpost_op_end(Xpost_Context *ctx)
     return 0;
 }
 
+/* Whether a key may be read for what it names.
+
+   A string key is not stored or matched as a string: PLRM 3.3.9 has the
+   interpreter convert it to a name first, so the key's characters are
+   read to find out which name it is. A value may be read only where its
+   access permits (PLRM 3.3.2, and the invalidaccess entry, which names
+   the read of an execute-only string among the violations), so a string
+   key whose access withholds reading names nothing and is refused.
+
+   Every other kind of key is taken as the object it is and nothing is
+   read, so only a string is asked. */
+static
+int _key_readable(Xpost_Context *ctx, Xpost_Object K)
+{
+    return xpost_object_get_type(K) != stringtype
+        || xpost_object_is_readable(ctx, K);
+}
+
 /* key value  def  -
    associate key with value in current dict */
 static
@@ -190,6 +208,8 @@ int xpost_op_any_any_def(Xpost_Context *ctx,
     Xpost_Memory_File *mem = xpost_context_select_memory(ctx, D);
     int ret;
 
+    if (!_key_readable(ctx, K))
+        return invalidaccess;
     /* the arguments are held by the operator machinery, so the general
        wrapper's re-holding is unnecessary on the fast path (see
        xpost_dict_def_cached for its contract) */
@@ -210,6 +230,9 @@ int xpost_op_any_load(Xpost_Context *ctx,
 {
     int i;
     int z = xpost_stack_count(ctx->lo, ctx->ds);
+
+    if (!_key_readable(ctx, K))
+        return invalidaccess;
     if (DEBUGLOAD)
     {
         printf("\nload:");
@@ -305,6 +328,8 @@ int xpost_op_dict_any_get(Xpost_Context *ctx,
 
     if (!xpost_object_is_readable(ctx, D))
         return invalidaccess;
+    if (!_key_readable(ctx, K))
+        return invalidaccess;
     v = xpost_dict_get(ctx, D, K);
     if (xpost_object_get_type(v) == invalidtype)
         return undefined;
@@ -320,6 +345,8 @@ int xpost_op_dict_any_any_put(Xpost_Context *ctx,
                               Xpost_Object K,
                               Xpost_Object V)
 {
+    if (!_key_readable(ctx, K))
+        return invalidaccess;
     return xpost_dict_put(ctx, D, K, V);
 }
 
@@ -332,6 +359,8 @@ int xpost_op_dict_any_undef(Xpost_Context *ctx,
 {
     int ret;
     if (!xpost_object_is_writeable(ctx, D))
+        return invalidaccess;
+    if (!_key_readable(ctx, K))
         return invalidaccess;
     ret = xpost_dict_undef(ctx, D, K);
     if (ret == undefined)
@@ -348,6 +377,8 @@ int xpost_op_dict_any_known(Xpost_Context *ctx,
 {
     /* the dictionary is searched, so it needs read access */
     if (!xpost_object_is_readable(ctx, D))
+        return invalidaccess;
+    if (!_key_readable(ctx, K))
         return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(xpost_dict_known_key(ctx, xpost_context_select_memory(ctx, D), D, K)));
     return 0;
@@ -366,6 +397,8 @@ int xpost_op_any_where(Xpost_Context *ctx,
     /* a key may be any object except null (PLRM 3.3.9) */
     if (xpost_object_get_type(K) == nulltype)
         return typecheck;
+    if (!_key_readable(ctx, K))
+        return invalidaccess;
 
     z = xpost_stack_count(ctx->lo, ctx->ds);
     isname = xpost_object_get_type(K) == nametype;

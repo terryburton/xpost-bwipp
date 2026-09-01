@@ -39,6 +39,35 @@
 #include "xpost_operator.h"
 #include "xpost_op_boolean.h"
 
+/* Whether the comparison of this pair may read what it is handed.
+
+   Two strings are compared element by element, and a string compared
+   with a name is compared against the name's characters; either way the
+   string's own characters are read, and a value may be read only where
+   its access permits (PLRM 3.3.2, and the invalidaccess entry, which
+   names the read of an execute-only string among the violations).
+
+   Only a pair the comparison would take that far is asked. Objects of
+   unlike kinds are told apart by their types alone, with no value read,
+   so a string of any access compares unequal to an integer rather than
+   raising; and access is no part of what makes two objects equal (PLRM
+   8.2 eq), so a readable string is compared with whatever it is
+   compared with, whatever access that carries. */
+static
+int _compare_may_read(Xpost_Context *ctx, Xpost_Object x, Xpost_Object y)
+{
+    int xt = xpost_object_get_type(x);
+    int yt = xpost_object_get_type(y);
+    int xs = xt == stringtype;
+    int ys = yt == stringtype;
+
+    if (xs && (ys || yt == nametype) && !xpost_object_is_readable(ctx, x))
+        return 0;
+    if (ys && (xs || xt == nametype) && !xpost_object_is_readable(ctx, y))
+        return 0;
+    return 1;
+}
+
 /* any1 any2  eq  bool
    test equal */
 static
@@ -46,6 +75,8 @@ int xpost_op_any_any_eq (Xpost_Context *ctx,
                          Xpost_Object x,
                          Xpost_Object y)
 {
+    if (!_compare_may_read(ctx, x, y))
+        return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os,
                      xpost_bool_cons(xpost_op_relation(XPOST_OP_REL_EQ,
                          xpost_dict_compare_objects(ctx, x, y))));
@@ -59,6 +90,8 @@ int xpost_op_any_any_ne (Xpost_Context *ctx,
                          Xpost_Object x,
                          Xpost_Object y)
 {
+    if (!_compare_may_read(ctx, x, y))
+        return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os,
                      xpost_bool_cons(xpost_op_relation(XPOST_OP_REL_NE,
                          xpost_dict_compare_objects(ctx, x, y))));
@@ -74,6 +107,8 @@ int xpost_op_any_any_ge (Xpost_Context *ctx,
 {
     if (!xpost_op_ordered_comparable(x, y))
         return typecheck;
+    if (!_compare_may_read(ctx, x, y))
+        return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os,
                      xpost_bool_cons(xpost_op_relation(XPOST_OP_REL_GE,
                          xpost_dict_compare_objects(ctx, x, y))));
@@ -89,6 +124,8 @@ int xpost_op_any_any_gt (Xpost_Context *ctx,
 {
     if (!xpost_op_ordered_comparable(x, y))
         return typecheck;
+    if (!_compare_may_read(ctx, x, y))
+        return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os,
                      xpost_bool_cons(xpost_op_relation(XPOST_OP_REL_GT,
                          xpost_dict_compare_objects(ctx, x, y))));
@@ -104,6 +141,8 @@ int xpost_op_any_any_le (Xpost_Context *ctx,
 {
     if (!xpost_op_ordered_comparable(x, y))
         return typecheck;
+    if (!_compare_may_read(ctx, x, y))
+        return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os,
                      xpost_bool_cons(xpost_op_relation(XPOST_OP_REL_LE,
                          xpost_dict_compare_objects(ctx, x, y))));
@@ -119,6 +158,8 @@ int xpost_op_any_any_lt (Xpost_Context *ctx,
 {
     if (!xpost_op_ordered_comparable(x, y))
         return typecheck;
+    if (!_compare_may_read(ctx, x, y))
+        return invalidaccess;
     xpost_stack_push(ctx->lo, ctx->os,
                      xpost_bool_cons(xpost_op_relation(XPOST_OP_REL_LT,
                          xpost_dict_compare_objects(ctx, x, y))));

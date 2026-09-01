@@ -626,8 +626,21 @@ int Bstartjob(Xpost_Context *ctx,
 {
     unsigned int vs = xpost_memory_save_stack_ent(ctx->lo);
     unsigned int floor;
-    int tier = _startjob_tier(ctx, P);
+    int tier;
 
+    /* A string password is compared byte for byte, so presenting one
+       reads it, and a value may be read only where its access permits
+       (PLRM 3.3.2, and the invalidaccess entry, which names the read of
+       an execute-only string among the violations). Raised rather than
+       answered false: false is the answer to a password that does not
+       match, and a comparison that never happened has no such answer --
+       and an answer would make the operator an oracle over the
+       characters of a string the program may not read. */
+    if (xpost_object_get_type(P) == stringtype
+        && !xpost_object_is_readable(ctx, P))
+        return invalidaccess;
+
+    tier = _startjob_tier(ctx, P);
     if (tier == STARTJOB_REFUSED
         || xpost_stack_count(ctx->lo, vs) != 0)
     {
