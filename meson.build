@@ -5634,6 +5634,26 @@ test('corpus-eps',
   priority: 100,
   timeout: 1800)
 
+# The Type 1 corpus: real font programs, copied off whatever typesetting
+# system the machine carries, run through this interpreter and held to
+# what they define and paint. A font program is the one kind of program
+# the specification has reach the interpreter's internal dictionary --
+# the standard array of procedures a Type 1 font carries asks for it
+# while the array is being built -- so what these exercise is reached by
+# nothing else in the suite.
+#
+# It costs a fraction of a second per font, so it is costed as the cheap
+# thing it is rather than as its siblings are; it is in the corpus suite
+# because, like them, it needs material this tree does not carry and is
+# a skip until that material is fetched.
+test('corpus-type1',
+  find_program('tests/corpus/run-type1-test.sh'),
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: [ 'corpus', 'fast' ],
+  priority: 100,
+  timeout: 600)
+
 # A downstream consumer's own suite: Barcode Writer in Pure PostScript,
 # a hundred and thirty programs of real-world PostScript run to verdicts
 # their author wrote, out of a checkout kept beside this one. Skips when

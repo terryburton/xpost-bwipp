@@ -8,6 +8,8 @@
 # waiting for its prelude is read as unfetched rather than as broken.
 */*.ps
 */*.eps
+*/*.pfa
+*/*.pfb
 */*.ppm
 */*.pbm
 */*.pgm

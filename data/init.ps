@@ -415,7 +415,17 @@ userdict /.internaldict 256 dict put
 %  no other use for, and the flag saying so arrives in systemdict from the
 %  C before this file runs. Any other run is handed a dictionary holding
 %  nothing, which is the whole of what PLRM 8 entitles a program to.
-userdict /.plrminternaldict 8 dict put
+%  Holding nothing and with nowhere to put anything, which is the answer
+%  the one sanctioned caller asks for. A Type 1 font program's standard
+%  array of procedures wants somewhere to keep the one it draws flex
+%  with, and reads this dictionary's length against its capacity before
+%  it writes: a dictionary with no room is recognised there, and the
+%  program keeps that procedure and carries on building the array. A
+%  write here is refused whatever the capacity says -- the dictionary is
+%  global and a procedure a running program builds is local -- and a
+%  font program that reaches the write stops on the refusal, taking the
+%  font it was defining with it.
+userdict /.plrminternaldict 0 dict put
 systemdict /CENSUS known
     { userdict /.plrminternaldict userdict /.internaldict get put
       %  and out of systemdict at once: it is a fact about how the run was

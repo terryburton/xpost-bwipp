@@ -1,0 +1,36 @@
+# The font programs this corpus runs, and what each was measured to
+# carry. tests/corpus/fetch.sh copies whichever of them the machine
+# already has, under the name in the first field; a machine that has
+# none leaves the corpus empty and the test skips. The fonts belong to
+# their makers and are not kept here.
+#
+# Four fields: the name the corpus holds it under, whether the font's
+# array of procedures runs while the program is loaded, which of those
+# procedures its charstrings reach, and what the font is.
+#
+# Where the middle two come from. Both are properties of the font file
+# and of nothing in this tree, read out of the program itself: the
+# encrypted section is deciphered with the documented stream cipher, the
+# array following /OtherSubrs is read to see whether its first token is
+# an operator -- an array whose entries are all procedure bodies is
+# built without any of them running, one that opens with a test of its
+# own runs as it is built -- and each charstring is deciphered and
+# decoded in turn, following the subroutines it calls, for the procedure
+# numbers it hands to callothersubr. Number 0 is the one a flex is drawn
+# through and number 3 the one a glyph replaces its stem hints through,
+# so a font that reaches neither exercises nothing here and is not
+# listed.
+#
+# `runs` is what makes a font material for the question this corpus was
+# assembled for. The standard array asks the interpreter for its
+# internal dictionary while it is being built, which is the use PLRM 8
+# sanctions for that dictionary and the only one it sanctions; an
+# `inert` font names the same dictionary inside a procedure body that
+# nothing here ever runs. The test wants at least one `runs` font among
+# what the corpus holds, and says so rather than passing when it has
+# none.
+
+crimson.pfb       runs   flex hint  Crimson roman, Sebastian Kosch
+freeeuro.pfa      runs   flex       FreeEuro, the free Euro symbols
+charter.pfb       inert  hint       Bitstream Charter roman
+nimbusroman.pfb   inert  hint       Nimbus Roman, URW

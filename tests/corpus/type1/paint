@@ -1,0 +1,222 @@
+%!PS
+% Load one Type 1 font program and paint what it defines.
+%
+% The program is beside this one as `program`, in either of the forms a
+% Type 1 font is distributed in: PostScript as it stands, or the same
+% PostScript cut into length-prefixed segments so that its binary half
+% survives a channel that would otherwise read the bytes as text. The
+% segmented form is unwrapped here into `program.pfa`, because what the
+% interpreter runs is the PostScript.
+%
+% Each thing asserted is said as it is reached, and a line beginning
+% FAIL is this run's complaint; the wrapper reads those and the page.
+
+/nfail 0 def
+/complain {  % (what) . -
+    (FAIL: ) print print (\n) print
+    /nfail nfail 1 add store
+} bind def
+/hold {  % bool (what) . -
+    exch { pop }{ complain } ifelse
+} bind def
+
+% ------------------------------------------------------ the program's form
+%
+% A segmented program is a run of segments, each announced by 128, the
+% kind of the segment -- 1 text, 2 binary, 3 the end -- and, for the two
+% that carry bytes, the count of them in four bytes least significant
+% first.
+
+/buf 32768 string def
+/le32 {  % file . int
+    /le.f exch def
+    le.f read pop  le.f read pop  le.f read pop  le.f read pop
+    16777216 mul exch 65536 mul add exch 256 mul add add
+} bind def
+
+/copyn {  % file file int . -
+    /cp.n exch def /cp.dst exch def /cp.src exch def
+    {   cp.n 0 le { exit } if
+        /cp.take cp.n buf length lt { cp.n }{ buf length } ifelse def
+        cp.src buf 0 cp.take getinterval readstring
+        { cp.dst exch writestring }
+        { pop (the program ends inside a segment) complain exit } ifelse
+        /cp.n cp.n cp.take sub store
+    } loop
+} bind def
+
+/src (program) (r) file def
+src read
+{   128 eq {
+        src closefile
+        /src (program) (r) file def
+        /dst (program.pfa) (w) file def
+        {   src read not { exit } if
+            128 ne { (a segment begins where none should) complain exit } if
+            src read not { exit } if
+            dup 3 eq { pop exit } if
+            pop
+            src dst src le32 copyn
+        } loop
+        dst closefile
+        src closefile
+        /run.name (program.pfa) def
+    }{
+        src closefile
+        /run.name (program) def
+    } ifelse
+}{ (the font program holds no bytes) complain /run.name (program) def } ifelse
+
+% --------------------------------------------------------------- the load
+%
+% PLRM 5.2 has definefont enter a font in the font directory under the
+% name it is defined by, so what the program defined is what running it
+% put in that directory.
+
+/before [ FontDirectory { pop } forall ] def
+run.name run
+/after [ FontDirectory { pop } forall ] def
+
+after length before length 1 add eq
+    (the program defines one font) hold
+
+/FN null def
+after {
+    /a.k exch def
+    /a.new true def
+    before { a.k eq { /a.new false store } if } forall
+    a.new { /FN a.k def } if
+} forall
+
+FN null ne (the font it defined can be named) hold
+FN null eq { (FAILURES: there is nothing to paint\n) print quit } if
+
+/F FN findfont def
+F type /dicttype eq (the name reaches a font dictionary) hold
+F /FontType get 1 eq (the font is a Type 1 font) hold
+F /CharStrings known (the font carries charstrings) hold
+F /CharStrings get length 0 gt (its charstrings are not empty) hold
+
+% --------------------------------------------- what the program asked back
+%
+% The procedures a Type 1 font reaches the interpreter through are built
+% while the font program runs, and the standard array asks internaldict
+% for somewhere to keep the one it uses for flex before it builds them.
+% PLRM 8 entitles a program to nothing in that dictionary, and a
+% dictionary with no room says so in the terms the question is asked in:
+% the array reads the length against the capacity, finds no room, keeps
+% its procedure to itself and goes on building.
+
+/ID 1183615869 internaldict def
+ID type /dicttype eq (internaldict answers a dictionary) hold
+ID length ID maxlength eq
+    (that dictionary has no room, which a font program reads before it writes) hold
+
+% ------------------------------------------------------- what it is drawn as
+%
+% Every code the font's encoding names a glyph of this font for, taken
+% as a path and weighed before anything is painted: a glyph that came
+% out wrong is a mark in the wrong place rather than an absence, and a
+% page alone cannot tell the two apart.
+
+/SIZE 24 def
+F SIZE scalefont setfont
+
+/nmove 0 def /nclose 0 def /ncurve 0 def
+/walk {  % (str) . -
+    /nmove 0 store /nclose 0 store /ncurve 0 store
+    newpath 0 0 moveto false charpath
+    { pop pop /nmove nmove 1 add store }
+    { pop pop }
+    { pop pop pop pop pop pop /ncurve ncurve 1 add store }
+    { /nclose nclose 1 add store }
+    pathforall
+} bind def
+
+/ENC F /Encoding get def
+/CS F /CharStrings get def
+/one 1 string def
+/named {  % int . bool   (this code names a glyph this font has)
+    /n.c exch def
+    ENC n.c get /.notdef ne { CS ENC n.c get known }{ false } ifelse
+} bind def
+
+/measured 0 def
+/withcontour 0 def
+/withcurve 0 def
+
+0 1 255 {
+    /code exch def
+    code named {
+        one 0 code put
+        one walk
+        /measured measured 1 add store
+        nclose 0 gt { /withcontour withcontour 1 add store } if
+        ncurve 0 gt { /withcurve withcurve 1 add store } if
+
+        % Every contour a glyph opens it closes, and the path is left
+        % standing at one further point: where the glyph after it would
+        % start. A subpath opened and not closed is a contour the glyph
+        % does not have, which is the shape a run of relative movements
+        % takes when it escapes the procedure that was to gather it into
+        % a pair of curves.
+        nmove nclose sub dup 0 lt exch 1 gt or {
+            (FAIL: ) print ENC code get 40 string cvs print
+            ( opens ) print nmove 10 string cvs print
+            ( subpaths and closes ) print nclose 10 string cvs print (\n) print
+            /nfail nfail 1 add store
+        } if
+
+        % A glyph with a contour encloses an area, so the box around it
+        % has both a width and a height. One without is a contour that
+        % collapsed to a line or a point.
+        nclose 0 gt {
+            pathbbox
+            /pb.y1 exch def /pb.x1 exch def /pb.y0 exch def /pb.x0 exch def
+            pb.x1 pb.x0 sub 0 gt  pb.y1 pb.y0 sub 0 gt  and not {
+                (FAIL: ) print ENC code get 40 string cvs print
+                ( encloses nothing\n) print
+                /nfail nfail 1 add store
+            } if
+        } if
+        newpath
+    } if
+} for
+
+measured 0 gt (the encoding reaches glyphs of this font) hold
+withcontour 0 gt (some of those glyphs enclose an area) hold
+withcurve 0 gt (some of those glyphs are drawn with curves) hold
+
+% ------------------------------------------------------------ the painting
+%
+% The same glyphs again through the ordinary text route, so that the
+% page the wrapper reads is one this font put ink on.
+
+/painted 0 def
+/x 36 def
+/y 720 def
+0 1 255 {
+    /code exch def
+    code named {
+        one 0 code put
+        x y moveto one show
+        /painted painted 1 add store
+        /x x SIZE 1.3 mul add store
+        x 550 gt { /x 36 store /y y SIZE 1.5 mul sub store } if
+    } if
+    y 40 lt { exit } if
+} for
+showpage
+
+painted 0 gt (the glyphs reach the page) hold
+
+(type1: ) print FN 60 string cvs print
+( charstrings=) print F /CharStrings get length 10 string cvs print
+( measured=) print measured 10 string cvs print
+( contours=) print withcontour 10 string cvs print
+( curves=) print withcurve 10 string cvs print
+( painted=) print painted 10 string cvs print (\n) print
+
+nfail 0 gt {
+    (FAILURES: ) print nfail 10 string cvs print ( in this font program\n) print
+} if

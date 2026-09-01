@@ -9,6 +9,10 @@
 #   fetch.sh ghostscript     just one
 #   BWIPP=/path/to/checkout fetch.sh bwipp
 #
+# Two of them are copied off the machine rather than downloaded: the
+# consumer's examples, and the Type 1 font programs, which belong to
+# their makers and are already installed wherever anything typesets.
+#
 # Best-effort is about which corpora are obtainable, not about whether
 # the caller is told. A program that did not arrive is counted and the
 # script ends non-zero, because the alternative is a populated corpus
@@ -105,18 +109,66 @@ fetch_bwipp() {
     done
 }
 
+fetch_type1() {
+    # Type 1 font programs are already on any machine that typesets, so
+    # this corpus is copied rather than downloaded -- the fonts belong
+    # to their makers and neither this tree nor a download of ours is
+    # the right way to get them. Each name in the register is looked for
+    # in the places the systems that ship it put it, and the first copy
+    # found is taken; a name nothing here has is reported and is not a
+    # miss, because which fonts a machine carries is not this script's
+    # to decide.
+    d="$here/type1"; mkdir -p "$d"
+    for want in crimson.pfb freeeuro.pfa charter.pfb nimbusroman.pfb; do
+        case $want in
+        crimson.pfb)
+            set -- /usr/share/texlive/*/fonts/type1/*/crimson/Crimson-Roman.pfb \
+                   /usr/local/texlive/*/texmf-dist/fonts/type1/*/crimson/Crimson-Roman.pfb \
+                   /usr/share/texmf*/fonts/type1/*/crimson/Crimson-Roman.pfb ;;
+        freeeuro.pfa)
+            set -- /usr/share/groff/*/font/devps/freeeuro.pfa \
+                   /usr/local/share/groff/*/font/devps/freeeuro.pfa \
+                   /opt/homebrew/share/groff/*/font/devps/freeeuro.pfa ;;
+        charter.pfb)
+            set -- /usr/share/fonts/type1/texlive-fonts-recommended/bchr8a.pfb \
+                   /usr/share/texlive/*/fonts/type1/bitstrea/charter/bchr8a.pfb \
+                   /usr/local/texlive/*/texmf-dist/fonts/type1/bitstrea/charter/bchr8a.pfb \
+                   /usr/share/texmf*/fonts/type1/bitstrea/charter/bchr8a.pfb ;;
+        nimbusroman.pfb)
+            set -- /usr/share/fonts/type1/urw-base35/NimbusRoman-Regular.t1 \
+                   /usr/share/texlive/*/fonts/type1/urw/times/utmr8a.pfb \
+                   /usr/local/texlive/*/texmf-dist/fonts/type1/urw/times/utmr8a.pfb ;;
+        esac
+        got=
+        for cand in "$@"; do
+            [ -f "$cand" ] || continue
+            if cp "$cand" "$d/$want" && [ -s "$d/$want" ]; then
+                got=$cand
+                break
+            fi
+            rm -f "$d/$want"
+        done
+        if [ -n "$got" ]; then
+            echo "  type1/$want ($got)"
+        else
+            echo "  type1/$want: this machine has no copy of it"
+        fi
+    done
+}
+
 fetch_adobe() {
     echo "  adobe: not fetchable (Adobe copyright, no canonical download)."
     echo "         Place flat *.ps files under $here/adobe/ -- see README SOURCES."
 }
 
-for name in ${*:-ghostscript casselman eps bwipp adobe}; do
+for name in ${*:-ghostscript casselman eps bwipp type1 adobe}; do
     echo "populating $name ..."
     case "$name" in
         ghostscript) fetch_ghostscript;;
         casselman)   fetch_casselman;;
         eps)         fetch_eps;;
         bwipp)       fetch_bwipp;;
+        type1)       fetch_type1;;
         adobe)       fetch_adobe;;
         *)           echo "  unknown corpus: $name" >&2; missing=$((missing + 1));;
     esac

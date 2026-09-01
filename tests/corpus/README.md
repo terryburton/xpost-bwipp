@@ -5,8 +5,8 @@ Sets of real PostScript programs, rendered to catch the faults the unit
 suite does not reach, because a page of real PostScript is not a test
 and does things no test thought to. Most of them are rendered through
 xpost and through a reference interpreter and compared, which is what
-the rest of this file is about; `eps` is the one held to what this
-interpreter alone must do with it, by a test of its own that asks no
+the rest of this file is about; `eps` and `type1` are held to what this
+interpreter alone must do with them, by tests of their own that ask no
 other engine anything. The programs themselves are **not** kept
 in this repository: they belong to other people, or are generated, and
 committing them would raise a licensing question and bloat the tree.
@@ -167,6 +167,40 @@ The corpora
                 (default ~/src/postscriptbarcode) and build its
                 monolithic resource first.
 
+  type1         Real Type 1 font programs, copied off whatever
+                typesetting system the machine already carries --
+                Crimson, the free Euro symbols, Bitstream Charter,
+                Nimbus Roman. A font program is PostScript, and the
+                part of it that describes the glyphs is reached only
+                by running it: the encrypted section is deciphered,
+                the binary charstrings are scanned out of it and the
+                dictionaries go to definefont. It is also the one kind
+                of program the specification has reach the
+                interpreter's internal dictionary -- the standard array
+                of procedures a Type 1 font carries asks for that
+                dictionary while the array is being built, which PLRM 8
+                names as the circumstance the operator exists for --
+                so what these exercise is reached by nothing else here.
+
+                Held by a test of its own, which asks no other engine
+                anything: each program must run to the end without an
+                error, define one Type 1 font carrying charstrings, and
+                paint a page with ink on it, and every glyph its
+                encoding names must take a path that closes every
+                contour it opens and encloses an area. A `fonts`
+                register beside them says which fonts the corpus knows,
+                which of them run their array of procedures as they
+                load and which merely carry one, and where those two
+                readings come from -- both are properties of the font
+                file, read out of the program rather than out of a run
+                of it. A corpus holding no font of the first kind
+                cannot ask the question the corpus exists for, and the
+                test skips saying so.
+
+                The program that runs them, `type1/paint`, is committed
+                beside them, because the fonts are the machine's and
+                what does the running is ours.
+
   adobe         The sample code of Adobe's PostScript books -- the Blue
                 Book (Tutorial and Cookbook) and Green Book (Program
                 Design) listings -- and the DeviceN, halftone and
@@ -239,6 +273,10 @@ SOURCES
   eps          https://people.sc.fsu.edu/~jburkardt/data/eps/  (eps.html)
   bwipp        https://github.com/bwipp/postscriptbarcode  (contrib/Examples,
                build/monolithic_package/barcode.ps)
+  type1        the machine's own installed fonts -- a TeX distribution's
+               type1 directories and groff's devps font directory. Not
+               downloaded and not redistributed: they belong to their
+               makers, and any machine that typesets already has them.
   adobe        Adobe's "PostScript Language Tutorial and Cookbook" (Blue
                Book) and "PostScript Language Program Design" (Green
                Book) sample code, and the DeviceN / halftone /

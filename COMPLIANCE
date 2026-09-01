@@ -289,15 +289,23 @@ Typical output devices
 Known behavioural deviations
 ----------------------------
 
- internaldict answers with a dictionary holding nothing, and that dictionary
- is read-only where PLRM 8 says the internal dictionary is writeable. PLRM 8
- documents no member of it, says its contents change at any time, and says
- the operator is absent from some interpreters, so nothing here is a member
- a program was entitled to; the machinery's own dictionary is a separate
- object that the password does not open. The one use the specification
- sanctions is constructing a Type 1 font program, which reaches the
- interpreter's procedures through OtherSubrs; no such program has been
- exercised against this interpreter.
+ internaldict answers with a dictionary that holds nothing and has room for
+ nothing, and that dictionary is read-only where PLRM 8 says the internal
+ dictionary is writeable. PLRM 8 documents no member of it, says its contents
+ change at any time, and says the operator is absent from some interpreters,
+ so nothing here is a member a program was entitled to; the machinery's own
+ dictionary is a separate object that the password does not open. The one use
+ the specification sanctions is constructing a Type 1 font program, which
+ reaches this dictionary while the array of procedures the font carries is
+ being built: the standard array asks it for somewhere to keep the procedure
+ a flex is drawn through, and reads its length against its capacity before
+ writing. A dictionary with no room is an answer that question has, so such a
+ program keeps that procedure and finishes building the array. What it cannot
+ do is leave a procedure of its own here for a charstring to reach later,
+ and no charstring would reach one: the glyphs are drawn through a face
+ library that interprets the charstrings itself, draws flex and replaces stem
+ hints without leaving that interpretation, and calls back into no
+ PostScript, so a font's array of procedures is built here and never run.
 
  An operator that reads the characters of a string operand raises
  invalidaccess when the string's access withholds that read, and seven of

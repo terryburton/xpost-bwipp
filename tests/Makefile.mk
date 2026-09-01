@@ -199,6 +199,9 @@ tests/corpus/ghostscript/pages \
 tests/corpus/ghostscript/prelude \
 tests/corpus/run-corpus-test.sh \
 tests/corpus/run-eps-test.sh \
+tests/corpus/run-type1-test.sh \
+tests/corpus/type1/fonts \
+tests/corpus/type1/paint \
 tests/counttomark_test.ps \
 tests/dct_truncated_test.ps \
 tests/definefont_entries_test.ps \
