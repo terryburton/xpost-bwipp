@@ -116,12 +116,13 @@ Level 2 operators
  [X] setundercolorremoval (recorded only)
  [X] makepattern (every tile repaints its cell; text through a CMap
      composite under a pattern colour paints the underlying colour)
- [X] filter (decode filters: ASCIIHex, ASCII85, SubFile, RunLength,
+ [/] filter (decode filters: ASCIIHex, ASCII85, SubFile, RunLength,
      Flate, LZW, CCITTFax, DCT, ReusableStream; encode filters:
      ASCIIHex, ASCII85, Null, RunLength, Flate, LZW, CCITTFax, DCT.
-     A data source or target may be a string, a file or a procedure,
-     and a procedure is called as the filter wants data or needs to be
-     rid of it)
+     A data SOURCE may be a string, a file or a procedure; a data TARGET
+     may be a file or a procedure, and a string target is refused, where
+     3.8.4 admits one and reaches ioerror only when it fills. A procedure
+     is called as the filter wants data or needs to be rid of it)
  [X] defineresource, findresource, resourcestatus, resourceforall,
      undefineresource (an instance is held to the type its category takes
      and left read-only; resourceforall enumerates the instances in VM, not
