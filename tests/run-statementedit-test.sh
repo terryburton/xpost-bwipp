@@ -133,5 +133,52 @@ check "the statement carries the newline that terminated it" \
 lcheck "the line does not" \
        'x\n' 'x'
 
+# --- the sub-prompt, and where it may be written -------------------------
+#
+# While a statement is still open, the reader tells whoever is typing
+# which brackets it is waiting on. That is for a person, so it is written
+# only where the statement is being read from a terminal: the standard
+# output of a run whose input is a pipe or a file belongs to the program,
+# and the prompt was landing in the middle of what the program itself
+# printed.
+#
+# This case is the only one here that looks at the interpreter's own
+# standard output. Every other compares the file the program wrote and
+# lets stdout go, which is exactly the place these bytes were going -- so
+# the case has to be shaped differently from its neighbours to see them
+# at all. It bounds the whole of stdout rather than searching it for the
+# prompt: a check that looked for the prompt would pass a run that
+# emitted something else instead.
+cat > "$work/marker.ps" <<'PSEOF'
+(BEGIN\n) print
+/f (%statementedit) (r) file def
+/s 400 string def
+f s readstring pop pop
+(END\n) print
+quit
+PSEOF
+
+stdout_check() { # description  input  the whole of the expected stdout
+    got=$(printf '%b' "$2" \
+          | ( cd "$work" && "$xpost" -q --no-sandbox -d null marker.ps ) 2>/dev/null)
+    want=$(printf '%b' "$3")
+    if [ "$got" != "$want" ]; then
+        echo "FAIL: $1"
+        # printf, not echo: the od output carries literal backslash-n and
+        # this shell's echo would turn each one back into a newline,
+        # cutting the line where the difference usually is
+        printf '      want: %s\n' "$(printf '%s' "$want" | od -c | sed '$d;s/^[0-7]* //' | tr -d '\n')"
+        printf '      got:  %s\n' "$(printf '%s' "$got" | od -c | sed '$d;s/^[0-7]* //' | tr -d '\n')"
+        fail=1
+    fi
+}
+
+stdout_check "a statement read from a pipe leaves the program's output alone" \
+             '{ 1 2\nadd }\n' 'BEGIN\nEND\n'
+stdout_check "however deeply the statement nests before it closes" \
+             '{ ( a\nb ) { 1\n2 } }\n' 'BEGIN\nEND\n'
+stdout_check "and a statement that needs no second line prints nothing either" \
+             '1 2 add\n' 'BEGIN\nEND\n'
+
 [ "$fail" = 0 ] || { echo "FAILURES: the statements above"; exit 1; }
 echo "SUCCESS"

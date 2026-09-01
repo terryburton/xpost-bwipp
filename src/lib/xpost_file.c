@@ -6433,7 +6433,27 @@ int statementedit(FILE *in, FILE **out)
                 }
                 goto done;
             }
-            { /* sub-prompt */
+            /* The sub-prompt: which brackets are still open, told to
+               whoever is typing. It is written only where the statement
+               is being read from a terminal, because that is the only
+               place there is anyone to tell -- and the standard output
+               of a run whose input is a pipe or a file belongs to the
+               program, which gets these bytes in the middle of its own.
+
+               The question is asked of the input this statement is being
+               read from rather than of a flag, because what settles it
+               is what the input IS: a program cannot set itself a
+               terminal, and one that could would be deciding what
+               somebody else's output looks like.
+
+               Everything else in the interpreter already consults this.
+               The .interactive host value is stdin's isatty (and not a
+               batch run), the boot files enter the executive only when
+               it holds, and the start procedure is chosen by the same
+               question; this was the one place that answered it for
+               itself. */
+            if (xpost_isatty(fileno(in)))
+            {
                 int i;
                 for (i = 0; i <= defer; i++)
                     putchar(nest[i]);
