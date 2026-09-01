@@ -371,9 +371,25 @@ rfstore 0 gt (what the procedure defined outlived the enumeration) assert
 { /Category /Category undefineresource }
     /invalidaccess (removing the category of categories) raises
 
-% the refusals left the category working
-/Courier /Font resourcestatus { pop pop true }{ false } ifelse
-    (the refused category still answers) assert
+% The refusals left the category working, which is asked of the category
+% itself and of a font this suite defines. Naming a standard face here
+% asks a different question: /Font resourcestatus consults the host's
+% font configuration, so the row reports whether the machine carries that
+% face and fails wherever it does not.
+/Font /Category resourcestatus { pop pop true }{ false } ifelse
+    (the refused category is still there) assert
+% The font is compared with the one definefont returned rather than asked
+% for its type, because findresource answers a name it does not hold with
+% a substitute face: a row that checks the type is answered by the
+% substitute and holds whether or not the definition arrived. Identity is
+% what distinguishes them, and a substitute is a different object.
+/XpostProbeFont 10 dict dup begin
+    /FontType 3 def /FontMatrix [0.001 0 0 0.001 0 0] def
+    /FontBBox [0 0 1000 1000] def /Encoding 256 array def
+    /BuildGlyph { pop pop 0 0 setcharwidth } def
+end definefont
+/XpostProbeFont /Font findresource eq
+    (and still answers findresource with the font defined here) assert
 
 % and a program's own category is still its own: defined, found,
 % enumerated and removed without complaint
