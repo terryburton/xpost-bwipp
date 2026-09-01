@@ -1,0 +1,122 @@
+# How many pages each program of this corpus draws. One basename and
+# one count per line.
+#
+# A run compares the pages both engines drew, so a page neither of them
+# drew is not in the comparison and is not missing from either side of
+# it. A program that stops emitting partway through reports every page
+# it reached as a match and says nothing whatever about the rest. This
+# is what says how many pages there were to reach, so the run can name
+# the ones it never got to.
+#
+# It is held from both ends: a program of this corpus with no count
+# here fails the corpus, so one cannot be added without a count, and a
+# count naming a program the corpus does not hold fails it too.
+#
+# The counts are not a record of what this tree draws -- a count taken
+# from that makes whatever the tree does today correct by definition.
+# These are listings out of two books, and one of the sixty-six carries
+# a %%Pages: line; the %%Page: comments are worse than nothing, since
+# two of the ten programs that have any draw no page at all. So the
+# source of every count here is the listing, read to each point at
+# which it asks for a page.
+#
+# Counting the word showpage is not that reading, and it is wrong four
+# times over.
+#
+#   bb_13 writes showpage once and draws six. The one it writes is
+#   inside two nested for loops, and the call at the foot of the file
+#   asks for three columns by two rows: a poster is a single drawing
+#   spread over the sheets it takes, which is the whole point of the
+#   program.
+#
+#   gb_11-01 writes it twice and draws one. The first is a definition
+#   and not a call -- the prologue defines showpage to do nothing, so
+#   that a document included in this one cannot eject the including
+#   document's page. That definition is undone by the restore that ends
+#   the inclusion, three lines above the second showpage, so the second
+#   is the operator and the page is this document's own.
+#
+#   gb_04-02 writes two and gb_04-04 writes two, gb_04-03 three, and
+#   each reaches one. They are page-breaking emulators, and their extra
+#   showpages are the break: a line below the bottom margin, a line too
+#   long for the buffer that reads it, a word past the right edge with
+#   no room left below. Each carries the text it sets in its own tail,
+#   so whether it breaks is arithmetic and not a guess. gb_04-02 sets
+#   four lines of Shakespeare at ten point leading from a top of 720
+#   against a bottom of 72; gb_04-03 four lines at fourteen point
+#   leading, none of them near the thousand-character buffer that would
+#   trip the other break; gb_04-04 fifteen words of 48-point Times from
+#   y=700, wrapping when a word would pass x=300 and dropping 48 each
+#   time it does, which puts the last of them at 412 against a break at
+#   36. None of the three ever reaches its break, and each draws the
+#   one page its last line asks for.
+#
+# Thirteen have no page in the comparison, twelve because the listing
+# asks for none and one because it is stopped before it asks. nopage
+# carries the reason for each, one at a time.
+bb_01-repeated-shapes 1
+bb_02-expanded-and-constant-width-lines 1
+bb_03-elliptical-arcs 1
+bb_04-drawing-arrows 1
+bb_05-centered-dash-patterns 0
+bb_06-printing-images 1
+bb_07-printing-with-small-caps 1
+bb_08-setting-fractions 1
+bb_09-vertical-text 1
+bb_10-circular-text 1
+bb_11-placing-text-along-an-arbitrary-path 1
+bb_12-a-simple-line-breaking-algorithm 1
+bb_13-making-a-poster 6
+bb_14-drawing-a-pie-chart 1
+bb_15-filling-an-area-with-a-pattern 1
+bb_16-making-an-outline-font 1
+bb_17-re-encoding-an-entire-font 1
+bb_18-making-small-changes-to-encoding-vectors 1
+bb_19-changing-the-character-widths-of-a-font 1
+bb_20-creating-an-analytic-font 1
+bb_21-creating-a-bitmap-font 1
+gb_02-01-listing 0
+gb_02-02-listing 1
+gb_02-03-listing 1
+gb_02-04-listing 1
+gb_02-05-listing 0
+gb_03-01-listing 1
+gb_03-02-listing 1
+gb_03-03-listing 1
+gb_03-04-listing 1
+gb_03-05-listing 1
+gb_04-01-listing 1
+gb_04-02-listing 1
+gb_04-03-listing 1
+gb_04-04-listing 1
+gb_05-01-listing 1
+gb_06-01-listing 1
+gb_06-02-listing 1
+gb_06-03-listing 1
+gb_07-01-listing 1
+gb_07-02-listing 1
+gb_07-03-listing 1
+gb_07-04-listing 1
+gb_07-05-listing 1
+gb_08-01-listing 1
+gb_08-02-listing 1
+gb_09-01-listing 1
+gb_09-02-listing 1
+gb_09-03-listing 1
+gb_09-04-listing 1
+gb_09-05-listing 0
+gb_10-01-listing 1
+gb_10-02-listing 1
+gb_10-03-listing 0
+gb_10-04-listing 1
+gb_11-01-listing 1
+gb_12-01-listing 0
+gb_12-02-listing 0
+gb_13-01-listing 1
+gb_13-02-listing 0
+gb_14-01-listing 1
+gb_14-02-listing 0
+gb_14-03-listing 0
+gb_14-04-listing 0
+gb_15-01-listing 1
+gb_15-02-listing 0

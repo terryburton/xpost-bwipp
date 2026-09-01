@@ -1,0 +1,124 @@
+# What this corpus draws no page for. One entry per line -- a basename
+# for a program that produces no page at all, a basename and " pN" for
+# one page of a program that produces others -- each with the reason it
+# draws nothing.
+#
+# A run compares the pages both engines drew, so anything that draws
+# none is outside the comparison and the run answers nothing about it.
+# Saying so here in advance is what keeps that from passing for a
+# result: the count of programs a corpus evaluated is honest and says
+# only that they were reached, so a run in which every program failed
+# reports exactly what a run in which every one rendered reports. An
+# absence nobody declared fails the corpus for that reason. So does a
+# declared absence that turns out to have rendered -- the entry's reason
+# has lapsed, and the line is left telling its next reader something
+# untrue.
+#
+# Twelve of the thirteen below are listings that ask for no page. A
+# book teaches by the smallest program that shows the thing, and for a
+# prologue, a query, a font written to disk or an error handler that is
+# the program with no page in it: the chapter's script would supply the
+# page, and the chapter's script is prose. They are still run, because
+# what they exercise is reached whether or not it ends in ink.
+#
+# bb_05-centered-dash-patterns -- a fault in the listing as printed.
+#           It computes the offset of a centred dash pattern with
+#           "pathlen last sub patternlength idiv", and the pathlength
+#           it wrote for itself sums square roots along a flattened
+#           path and so answers with a real. idiv takes two integers
+#           and a real is a typecheck (PLRM 8.2, idiv), which the first
+#           of the five centerdash calls raises with 276.0 and 60 on
+#           the stack. Nothing is stroked and the showpage at the foot
+#           is never reached. div, and a cvi where an integer is meant,
+#           is what the line wanted; the listing is kept as printed.
+#
+# bb_06-printing-images -- the one entry here that is not a property of
+#           the listing, and the count beside it in pages is one,
+#           because one is what the listing draws. It hangs a negating
+#           procedure on the front of the current transfer function the
+#           way its book does, by taking the old one apart: length,
+#           an array of the two lengths added, putinterval. The
+#           procedure currenttransfer answers with before a program has
+#           set one has execute access and no read access in this tree,
+#           and length wants read access (PLRM 8.2, length), so the job
+#           ends there and the image is never sent. Nothing in PLRM
+#           7.3 gives that procedure an access attribute either way,
+#           but the two halves of the graphics state disagree about it
+#           here -- a transfer function a program installs itself comes
+#           back readable -- and this entry goes when they stop.
+#           gb_02-04 does the same concatenation and draws, because it
+#           packages the old procedure with /exec load instead of
+#           reading it, which is the form PLRM Appendix G's note under
+#           settransfer recommends.
+#
+# gb_02-01-listing -- three orderings of the operands of findfont,
+#           scalefont and setfont, to show which of them leave the
+#           stack as the next line expects. It sets three fonts and
+#           marks nothing.
+#
+# gb_02-05-listing -- the skeleton of a print server's main loop, with
+#           a save and restore around each job. Its inner test reads
+#           "any port active", which is the book's prose standing where
+#           a condition would go rather than operators the language
+#           has, and the loop it sits in was built after the save the
+#           line above restores to. It reaches neither the job it would
+#           run nor any page of its own.
+#
+# gb_09-05-listing -- the prologue of a colour separation. It defines a
+#           setcmykcolor that keeps one component and turns it into a
+#           grey, sets that component's screen angle, and leaves a
+#           comment where the file being separated would be placed.
+#
+# gb_10-03-listing -- a query job, which is a job that asks rather than
+#           prints: whether a font is in FontDirectory, and how much VM
+#           is free. Both answers go to the standard output.
+#
+# gb_12-01-listing -- document structuring comments for font
+#           inclusion. Everything that is not a comment is a save and a
+#           restore, twice.
+#
+# gb_12-02-listing -- an unencapsulated job. It asks to leave job
+#           encapsulation with "serverdict begin 0 exitserver" so that
+#           the timestamp it defines afterwards survives into the next
+#           job, and a job that alters initial VM is not a job that
+#           draws.
+#
+# gb_13-02-listing -- writes rather than draws. It opens
+#           fonts/Logo-Font for output and copies the Type 3 font
+#           program in its own tail into it, so that a later job can
+#           read the font back; the listing names showpage nowhere.
+#
+# gb_14-02-listing -- its showpage is data, not code. The listing runs
+#           an included job through stopped, and the job calls
+#           triggererror, which is undefined on purpose so that the
+#           handler has something to catch. The handler prints the
+#           error and then reads with readline as far as a
+#           %ENDuserexec line, which is what discards the rest of the
+#           failed job -- and the included job's showpage is one of the
+#           lines it reads. What follows the handler prints the name of
+#           the job that continues and stops.
+#
+# gb_14-03-listing -- wraps errordict's limitcheck so that a job which
+#           runs out of VM reports how much was left before the
+#           standard handler takes over. A prologue for other jobs.
+#
+# gb_14-04-listing -- wraps handleerror so that the standard report is
+#           followed by the operand stack the error left. A prologue
+#           for other jobs.
+#
+# gb_15-02-listing -- prints one line from the prologue and one from
+#           the trailer, so that a job which dies in between says how
+#           far it got. There is nothing else in it.
+bb_05-centered-dash-patterns
+bb_06-printing-images
+gb_02-01-listing
+gb_02-05-listing
+gb_09-05-listing
+gb_10-03-listing
+gb_12-01-listing
+gb_12-02-listing
+gb_13-02-listing
+gb_14-02-listing
+gb_14-03-listing
+gb_14-04-listing
+gb_15-02-listing

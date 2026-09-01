@@ -37,10 +37,14 @@ command -v compare >/dev/null 2>&1 || {
 
 # device and metric for one page, by corpus and file name. The Adobe
 # halftone and pattern-screen pages are bilevel; everything else is
-# colour.
+# colour. A Blue Book program is named for its number and its title, so
+# the four bilevel ones are matched on the number and the hyphen that
+# closes it: without the hyphen the pattern would have to end at the
+# digit and match nothing, and with a bare star it would take a third
+# digit as well.
 device_for() {   # corpus base -> "ppm" | "pbm"
     case "$1/$2" in
-        adobe/ht_*|adobe/bb_1[2-5]) echo pbm;;
+        adobe/ht_*|adobe/bb_1[2-5]-*) echo pbm;;
         *) echo ppm;;
     esac
 }

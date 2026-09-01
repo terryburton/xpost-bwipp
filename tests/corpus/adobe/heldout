@@ -1,0 +1,15 @@
+# Programs held out of the differential run. One basename per line (no
+# extension), each with the reason it is not run; remove an entry once
+# that reason no longer holds. A reason that measurement contradicts is
+# worse than no entry at all -- it is read as a known cost and stops
+# anyone looking.
+#
+# Nothing is held out. Thirteen of these listings put no page into the
+# comparison and every one of them is still rendered, because the entry
+# that would keep one out of the run is the entry nothing measures
+# again: what each of the thirteen does is written in nopage instead,
+# where the claim is checked both ways every run and lapses of its own
+# accord the day the program draws. Two of them ask for something that
+# is not a page description -- a job that leaves job encapsulation on a
+# password, a job that opens a font file for writing -- and what a run
+# does with the request is worth reaching as much as a page would be.

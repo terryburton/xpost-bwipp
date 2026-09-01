@@ -181,6 +181,9 @@ tests/context_jobs_test.c \
 tests/context_reuse_test.c \
 tests/corpus/.gitignore \
 tests/corpus/README.md \
+tests/corpus/adobe/heldout \
+tests/corpus/adobe/nopage \
+tests/corpus/adobe/pages \
 tests/corpus/bwipp/nondeterministic \
 tests/corpus/bwipp/nopage \
 tests/corpus/bwipp/pages \
