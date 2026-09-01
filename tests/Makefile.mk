@@ -285,6 +285,7 @@ tests/font_face_cycle_test.c \
 tests/memory_grow_test.c \
 tests/font_face_release_test.ps \
 tests/font_leak_test.ps \
+tests/font_readonly_test.ps \
 tests/font_private_test.ps \
 tests/font_type1_noaccess_test.ps \
 tests/font_type1_sparse_subrs_test.ps \

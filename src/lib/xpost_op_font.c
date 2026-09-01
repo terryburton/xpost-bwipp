@@ -155,6 +155,8 @@ static Xpost_Object name_septint;
 static Xpost_Object name_serial;
 static Xpost_Object name_sfnts;
 static Xpost_Object name_width;
+static Xpost_Object name_xadvance;
+static Xpost_Object name_yadvance;
 
 static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
 {
@@ -221,6 +223,8 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_serial, "serial" },
     { &name_sfnts, "sfnts" },
     { &name_width, "width" },
+    { &name_xadvance, "xadvance" },
+    { &name_yadvance, "yadvance" },
 };
 
 /* --- the font program a face was opened over -------------------------
@@ -2286,6 +2290,44 @@ Xpost_Object _gstate(Xpost_Context *ctx)
 
     return xpost_dict_get(ctx, gd, name_currgstate);
 }
+
+/* wx wy  .setglyphadvance  -
+   Record the advance a glyph just built declared, in the two entries the
+   showing operators read it back from: the current font's xadvance and
+   yadvance.
+
+   definefont makes a font dictionary read-only (PLRM 8.2), and a
+   dictionary carries its access on its value rather than on the
+   reference (PLRM 3.3.2), so sealing it seals every reference and there
+   is no writable one left for the font machinery to keep. This write
+   therefore passes the attribute rather than going round it.
+
+   It is not a way to write a dictionary of a caller's choosing. The
+   dictionary is the one the graphics state names as current, which no
+   operand chooses, and the keys are these two and no others.
+
+   The advance belongs to the font rather than to the glyph state the
+   build ran under, because a build may show text of its own: the state
+   is put back to the enclosing build's when the inner one ends, and
+   what the showing operator then reads has to be the advance the glyph
+   it asked for declared. */
+static
+int _setglyphadvance(Xpost_Context *ctx,
+                     Xpost_Object X,
+                     Xpost_Object Y)
+{
+    Xpost_Object font;
+    int ret;
+
+    font = xpost_dict_get(ctx, _gstate(ctx), name_currfont);
+    if (xpost_object_get_type(font) != dicttype)
+        return invalidfont;
+    ret = xpost_dict_put_internal(ctx, font, name_xadvance, X);
+    if (ret)
+        return ret;
+    return xpost_dict_put_internal(ctx, font, name_yadvance, Y);
+}
+
 
 /* Puts a font dictionary in the graphics state as the current font. */
 static
@@ -6267,6 +6309,9 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
     INSTALL;
     op = xpost_operator_cons(ctx, ".newfontserial", (Xpost_Op_Func)_newfontserial, 0); INSTALL;
     op = xpost_operator_cons(ctx, ".newfontid", (Xpost_Op_Func)_newfontid, 0); INSTALL;
+    op = xpost_operator_cons(ctx, ".setglyphadvance", (Xpost_Op_Func)_setglyphadvance, 2,
+        numbertype, numbertype);
+    INSTALL;
     op = xpost_operator_cons(ctx, ".maskcacheput", (Xpost_Op_Func)_maskcacheput, 1, dicttype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".setcachelimit", (Xpost_Op_Func)_setcachelimit, 1, integertype);

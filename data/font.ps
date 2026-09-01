@@ -433,6 +433,21 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     { pop pop true } ifelse
     { dup /FID //.internaldict /.newfontid get exec put } if
 
+    % PLRM 8.2, definefont: the dictionary's access is made read-only,
+    % after the entries this operator inserts and before it is filed. A
+    % font is state the font machinery reads and trusts afterwards -- the
+    % encoding a glyph is selected through, the type its glyphs are built
+    % by, the face they come out of -- and a program that could still
+    % write it could change what a font already registered paints.
+    %
+    % Access is a property of a composite's value and not of the
+    % reference (PLRM 3.3.2), so this seals the dictionary the caller
+    % handed over as well as the one that comes back: they are one
+    % dictionary. The advance a build declares is written past the seal
+    % by .setglyphadvance, which is the only write the machinery makes to
+    % a font after this one.
+    readonly
+
     % FontDirectory denotes the global directory while the allocation mode
     % is global, so a font built there is filed there and outlives the
     % restores that empty the local one.
@@ -494,9 +509,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     dup /advy 3 index put
     dup /advx 4 index put
     pop
-    graphicsdict /currgstate get /currfont get
-    dup /xadvance 5 4 roll put
-    /yadvance 3 2 roll put
+    % and where the showing operators read it back from, which is the
+    % font. definefont makes a font dictionary read-only (PLRM 8.2), so
+    % the write goes through the operator that passes the attribute.
+    //.internaldict /.setglyphadvance get exec
 } .defop
 
 %
@@ -780,9 +796,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % The advance this glyph declared, put where the showing operators read
     % it, and the enclosing build's record put back.
-    graphicsdict /currgstate get /currfont get
-    dup /xadvance gst /advx get put
-    /yadvance gst /advy get put
+    gst /advx get gst /advy get
+    //.internaldict /.setglyphadvance get exec
     gst /advx heldadvx put
     gst /advy heldadvy put
     gst /capturing heldcapturing put
@@ -1452,9 +1467,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             fnt /FontMatrix get concat
 
             % A build procedure that never reports a width (or a name
-            % the font cannot serve) must not advance the pen.
-            fnt /xadvance 0 put
-            fnt /yadvance 0 put
+            % the font cannot serve) must not advance the pen. The font
+            % this writes is the current one, which is the font glyphshow
+            % paints from and the one read back below.
+            0 0 //.internaldict /.setglyphadvance get exec
             gsave
                 fnt /BuildGlyph 2 copy known {
                     get fnt gname 3 -1 roll

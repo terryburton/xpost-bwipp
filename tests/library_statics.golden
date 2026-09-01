@@ -269,6 +269,8 @@ src/lib/xpost_op_font.c      name_septint           reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_serial            reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_sfnts             reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_width             reset xpost_oper_init_font_ops
+src/lib/xpost_op_font.c      name_xadvance          reset xpost_oper_init_font_ops
+src/lib/xpost_op_font.c      name_yadvance          reset xpost_oper_init_font_ops
 src/lib/xpost_op_matrix.c    namecurrgstate        reset xpost_oper_init_matrix_ops
 src/lib/xpost_op_matrix.c    namecurrmatrix        reset xpost_oper_init_matrix_ops
 src/lib/xpost_op_matrix.c    namedefaultmatrix     reset xpost_oper_init_matrix_ops

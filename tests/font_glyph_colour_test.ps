@@ -105,8 +105,11 @@ initgraphics
 } bind def
 
 /CKEY mkcolourfont /FCkeyed  exch definefont def
-/CDIR mkcolourfont /FCdirect exch definefont def
-CDIR /.fontid undef
+% The direct arm's font is not registered, which is how it comes to
+% carry no serial and so no cache key: definefont stamps one and makes
+% the dictionary read-only (PLRM 8.2), so a registered font is one whose
+% serial the program can no longer take away.
+/CDIR mkcolourfont def
 
 % The glyph covers 21 by 21 pixels at this size; every assertion below
 % counts that many, which is also what says the glyph was painted at all
@@ -137,8 +140,7 @@ kgrey 230 count dgrey 230 count eq not
 % Without this the numbers above would say nothing: two routes that
 % differ for every glyph would produce them just as well.
 /PKEY mkplainfont /FPkeyed  exch definefont def
-/PDIR mkplainfont /FPdirect exch definefont def
-PDIR /.fontid undef
+/PDIR mkplainfont def
 
 /pk PKEY 0.8 draw def
 /pd PDIR 0.8 draw def

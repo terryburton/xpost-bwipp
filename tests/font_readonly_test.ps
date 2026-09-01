@@ -1,0 +1,117 @@
+%!testlib
+% definefont makes the font dictionary read-only, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 8.2, definefont: "It inserts an additional entry whose key is FID
+% and whose value is an object of type fontID. It makes the dictionary's
+% access read-only. Finally, it associates key with font or cidfont in
+% the font directory." The seal comes between the entries the operator
+% writes and the filing, which is where it is done.
+%
+% Access is a property of a composite's value rather than of the
+% reference (PLRM 3.3.2), so there is one dictionary here and not two:
+% the one handed over and the one handed back are the same object, and
+% sealing it seals every name for it. Both are asked all the same,
+% because a reader has no other way to be told that.
+%
+% Why it is worth more than the conformance. A registered font is state
+% the machinery reads and trusts afterwards -- the encoding a glyph is
+% selected through, the type its glyphs are built by, the serial its
+% cached rasters are filed under -- and a writable registered font is a
+% program's licence to change what a font already in use paints.
+%
+% A Type 3 font is the subject, so the questions can be asked in a build
+% carrying no face library, and because its glyphs come from a build
+% procedure: the advance such a build declares is the one write the
+% machinery still makes to a font after the seal, and text that comes out
+% at the right pen position is what says that write still lands.
+
+/mkfont {                               % -  .  dict
+    12 dict begin
+        /FontType 3 def
+        /FontMatrix [0.001 0 0 0.001 0 0] def
+        /FontBBox [0 0 1000 1000] def
+        /Encoding 256 array def
+        0 1 255 { Encoding exch /.notdef put } for
+        Encoding 65 /A put
+        /CharProcs 2 dict def
+        CharProcs /A { 600 0 setcharwidth 0 0 500 700 rectfill } put
+        CharProcs /.notdef { 0 0 setcharwidth } put
+        /BuildChar { exch begin Encoding exch get CharProcs exch get exec end } def
+    currentdict end
+} bind def
+
+% ---- the seal ---------------------------------------------------------
+
+/FRin mkfont def
+FRin wcheck (a dictionary is writeable before it is registered) assert
+/FRout /FRone FRin definefont def
+
+FRout wcheck not (definefont answers with a read-only dictionary) assert
+FRin wcheck not (and the dictionary it was handed is that same dictionary) assert
+/FRone findfont wcheck not (findfont answers with it too) assert
+FontDirectory /FRone get wcheck not (as does the font directory) assert
+
+{ FRout /zz 1 put } /invalidaccess
+    (a put into a registered font is refused) raises
+{ FRout /Encoding 1 dict put } /invalidaccess
+    (including one that would change how its glyphs are selected) raises
+{ FRout /zz undef } /invalidaccess
+    (and so is taking an entry out of one) raises
+{ FRout begin /zz 1 def end } /invalidaccess
+    (and so is a def with it current) raises
+clear
+
+FRout /Encoding get rcheck
+    (what it holds is still readable) assert
+
+% ---- and what must go on working --------------------------------------
+%
+% A check that broke the font machinery would satisfy every assertion
+% above. These are the operators a registered font exists to be used by.
+
+/FRscaled FRout 12 scalefont def
+FRscaled wcheck
+    (scalefont answers with a copy of its own, which is writeable) assert
+FRscaled /FontMatrix get 0 get 0.012 eq
+    (and the copy carries the transform it was asked for) assert
+FRout /FontMatrix get 0 get 0.001 eq
+    (the font it was derived from is untouched) assert
+
+FRout [2 0 0 2 0 0] makefont wcheck
+    (makefont answers with a writeable copy as well) assert
+
+/FRstate 0 def
+{ FRscaled setfont } (a registered font can be made current) works
+{ 10 10 moveto (AA) show /FRstate currentpoint pop store }
+    (and text is shown through it) works
+FRstate 24.4 sub abs 0.01 lt
+    (the pen advanced by the width the build declared, twice) assert
+
+/FRstate 0 def
+{ /A glyphshow /FRstate currentpoint pop store }
+    (glyphshow paints through it too) works
+FRstate 31.6 sub abs 0.01 lt
+    (and advances by the width that build declared) assert
+
+{ /FRone undefinefont } (undefinefont takes it out again) works
+FontDirectory /FRone known not (and the directory no longer holds it) assert
+clear
+
+% ---- a font the interpreter built for itself --------------------------
+%
+% findfont for a name the host resolves builds a dictionary rather than
+% fetching a registered one, and PLRM 8.2 puts the seal on definefont
+% alone. Such a font is writeable, and registering it seals it like any
+% other -- which is the same dictionary sealed, not a copy of it.
+
+systemdict /NOFACES known not {
+    /FRhost /Courier findfont def
+    { /FRtwo FRhost definefont pop } (a host font can be registered) works
+    FRhost wcheck not
+        (and registering it seals the dictionary the program still holds) assert
+    { /FRtwo undefinefont } (and it can be taken out again) works
+} if
+clear
+
+verdict

@@ -130,8 +130,12 @@ rreal rsmall same (a serial that is a real is not a key) assert
 rstr rsmall same (a serial that is a string is not a key) assert
 /rname 300 /x mkfont /GKname exch definefont draw def
 rname rsmall same (a serial that is a name is not a key) assert
-/GKgone 300 null mkfont /GKgone exch definefont def
-GKgone /.fontid undef
+% Not registered, which is how a font comes to carry no serial at all:
+% definefont stamps one and makes the dictionary read-only (PLRM 8.2),
+% so a registered font is one whose serial the program can no longer
+% take away. setfont asks a font for its matrix and not for a
+% registration, so an unregistered one shows text the same way.
+/GKgone 300 null mkfont def
 /rgone GKgone draw def
 rgone rsmall same (a font with no serial at all is not a key) assert
 
@@ -142,9 +146,14 @@ rgone rsmall same (a font with no serial at all is not a key) assert
 % asked for, so the glyph builds direct as one with no serial does. The
 % font still draws: what a glyph description reads its encoding as is
 % its own business, and only the key is refused.
-/GKnoenc 300 null mkfont /GKnoenc exch definefont def
+% The encoding is replaced before the font is registered, definefont
+% making the dictionary read-only (PLRM 8.2). It IS registered, so it
+% carries a serial: a font refused a key for want of one would pass this
+% whatever its encoding held.
+/GKnoenc 300 null mkfont def
 GKnoenc /Encoding 1 dict put
 GKnoenc /Encoding get 65 /A put
+/GKnoenc /GKnoenc GKnoenc definefont def
 /rnoenc GKnoenc draw def
 rnoenc rsmall same
     (a font whose encoding is not an array of names is not a key) assert

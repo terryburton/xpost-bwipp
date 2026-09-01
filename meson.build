@@ -2620,6 +2620,20 @@ test('font-fid',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# definefont makes the font dictionary read-only (PLRM 8.2), which is the
+# entry a program would otherwise keep into state the machinery reads and
+# trusts afterwards: the encoding a glyph is selected through, the type
+# its glyphs are built by, the serial its cached rasters are filed under.
+# Held with the operators a registered font exists to be used by, because
+# a seal that broke those would satisfy the refusals just as well -- and
+# with text shown through a Type 3 font, the advance a build declares
+# being the one write the machinery still makes to a font afterwards.
+test('font-readonly',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/font_readonly_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # What identifies a cached glyph (PLRM 5.5): the font, the character
 # selector -- which is the character's NAME -- and the transform. The
 # code is explicitly not part of it, "since a given glyph may be
