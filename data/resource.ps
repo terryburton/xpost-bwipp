@@ -1054,6 +1054,15 @@ setglobal
 %  working copies are taken literal to compare their contents without running
 %  them. The depth bound also stops a procedure that refers to itself.
 %
+%  An array either side whose access withholds the read is not walked, and
+%  the pair does not match. Comparing it would mean reading a value the
+%  access does not allow read (PLRM 3.3.2), and the alternative is worse
+%  than not matching: the comparison runs on every bind while idiom
+%  recognition is on, so one sealed template would make every bind in the
+%  job raise -- an error bind's own entry does not give it. Not matching
+%  costs a substitution that is an optimisation hook. COMPLIANCE carries
+%  the residue.
+%
 .xpostsys /.idiommatch {  % a b depth  .  bool
     6 dict begin
     /dep exch def /bb exch cvlit def /aa exch cvlit def
@@ -1063,15 +1072,17 @@ setglobal
         aa type dup /arraytype eq exch /packedarraytype eq or
         bb type dup /arraytype eq exch /packedarraytype eq or
         and dep 10 lt and {
-            aa length bb length eq {
-                /res true def
-                0 1 aa length 1 sub {
-                    /ii exch def
-                    aa ii get bb ii get dep 1 add
-                    //.xpostsys /.idiommatch get exec
-                    not { /res false def exit } if
-                } for
-                res
+            aa rcheck bb rcheck and {
+                aa length bb length eq {
+                    /res true def
+                    0 1 aa length 1 sub {
+                        /ii exch def
+                        aa ii get bb ii get dep 1 add
+                        //.xpostsys /.idiommatch get exec
+                        not { /res false def exit } if
+                    } for
+                    res
+                }{ false } ifelse
             }{ false } ifelse
         }{ false } ifelse
     } ifelse

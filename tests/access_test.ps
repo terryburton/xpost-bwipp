@@ -1130,6 +1130,49 @@ systemdict /NOFACES known not {
     basefont 10 scalefont setfont
 } if
 
+% --- idiom recognition compares a bound procedure against the template
+%     procedures in the IdiomSet resource instances, by value; PLRM 3.12.1
+%     has the objects' attributes disregarded during that comparison, just
+%     as eq disregards them, and bind's own entry gives it no invalidaccess
+%     to raise. A template, or a candidate, whose access withholds the read
+%     the comparison needs is therefore not matched rather than refused:
+%     the comparison runs on every bind while recognition is on, so a
+%     refusal would let one sealed template make every bind in the job
+%     fail. Each case asserts what the procedure bind returned does, since
+%     a substitution that did not happen and one that happened wrongly both
+%     return quietly. ---
+<< /IdiomRecognition false >> setuserparams
+/mk12 { [ 1 2 /add cvx ] cvx } bind def
+/mk78 { [ 7 8 /add cvx ] cvx } bind def
+/mk34 { [ 3 4 /add cvx ] cvx } bind def
+true setglobal
+/XXAccessIdioms
+<<
+  /open   [ { 1 2 add } bind { 99 } bind ]
+  /sealed [ { 3 4 add } bind executeonly { 88 } bind ]
+>>
+/IdiomSet defineresource pop
+false setglobal
+<< /IdiomRecognition true >> setuserparams
+
+{ mk12 bind exec 99 eq
+    { }{ (FAIL: a template that may be read did not substitute\n) print
+         faildict /n 2 copy get 1 add put } ifelse }
+    /ok            (bind substitutes for a template it may read) chk
+{ mk78 bind exec 15 eq
+    { }{ (FAIL: a candidate no template matches was changed\n) print
+         faildict /n 2 copy get 1 add put } ifelse }
+    /ok            (bind leaves a candidate no template matches) chk
+{ mk34 bind exec 7 eq
+    { }{ (FAIL: a template bind may not read was matched anyway\n) print
+         faildict /n 2 copy get 1 add put } ifelse }
+    /ok            (a template bind may not read matches nothing) chk
+{ mk78 executeonly bind pop }
+    /ok            (bind returns an execute-only candidate while idioms are on) chk
+{ mk78 noaccess bind pop }
+    /ok            (bind returns a no-access candidate while idioms are on) chk
+<< /IdiomRecognition false >> setuserparams
+
 mark { afscratch deletefile } stopped pop cleartomark
 
 count 0 eq { (operand stack balanced) }{ (FAIL: operand stack unbalanced\n) print

@@ -354,6 +354,17 @@ Known behavioural deviations
  instead would leave charpath able to report what a font's Encoding
  assigns to a character code that the program may not read.
 
+ Idiom recognition does not match a template procedure, or a candidate
+ procedure, whose access withholds the read the comparison needs, where
+ PLRM 3.12.1 has the objects' attributes disregarded during that
+ comparison just as eq disregards them. Comparing such a procedure means
+ reading a value its access does not allow to be read (PLRM 3.3.2), and
+ the comparison runs on every bind while idiom recognition is on:
+ refusing there would let a single sealed template make every bind in a
+ job fail, with an error bind's own PLRM 8.2 entry does not give it. What
+ is lost is a substitution, which is an optimisation hook; the procedure
+ bind returns is the one it bound.
+
  [X] restore  a save object is not invalidated by the restore that uses it,
      where a snapshot is defined to be usable once: restore is defined to
      invalidate its operand and every save object made after it, so a second
