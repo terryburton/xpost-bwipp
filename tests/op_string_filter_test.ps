@@ -24,4 +24,23 @@
 { (48656C6C6F>) /ASCIIHexDecode filter closefile true } stopped { pop false } if
 (a string-sourced filter closes cleanly) assert
 
+% Handing a string to a filter is reading it, so a string whose access
+% admits no read is no source: PLRM 3.3.2 leaves an execute-only string
+% with no readable value, and the invalidaccess entry names reading one as
+% an access violation. Read-only is a read and is accepted.
+{ (48656C6C6F>) readonly /ASCIIHexDecode filter 8 string readstring pop }
+    (a read-only string is a source) works
+{ (48656C6C6F>) executeonly /ASCIIHexDecode filter }
+    /invalidaccess (an execute-only string is refused as a source) raises
+{ (48656C6C6F>) noaccess /ASCIIHexDecode filter }
+    /invalidaccess (a no-access string is refused as a source) raises
+{ (abcXdef) noaccess 1 (X) /SubFileDecode filter }
+    /invalidaccess (the operand form refuses it too) raises
+
+% The name is looked up before the string is asked anything, so a name
+% this interpreter does not know is answered as an unknown name however
+% unreadable the string it was handed.
+{ (abc) noaccess /XpostNoSuchFilter filter }
+    /undefined (an unknown name over an unreadable string) raises
+
 verdict

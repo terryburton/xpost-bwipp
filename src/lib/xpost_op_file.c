@@ -2263,7 +2263,16 @@ int xpost_op_lockdown (Xpost_Context *ctx)
 /* The string forms of filter: a private copy of the string becomes a readable
    file, and the file-source machinery runs over it. No program object names
    that file, so it is handed to the filter built over it, which closes and
-   releases it along with itself. */
+   releases it along with itself.
+
+   Handing the string's bytes to a filter is reading them, so the file
+   carries read access only where the string admits a read: PLRM 3.3.2 gives
+   an execute-only string no readable value, and its invalidaccess entry
+   names reading one as an access violation. The refusal itself is the
+   filter operator's, which asks the file it is given whether its direction
+   is allowed -- and asks that after it has looked the filter's name up, so
+   a name this interpreter does not know is answered as an unknown name
+   whatever it was handed. */
 static
 Xpost_Object _string_source(Xpost_Context *ctx, Xpost_Object S)
 {
@@ -2274,8 +2283,9 @@ Xpost_Object _string_source(Xpost_Context *ctx, Xpost_Object S)
     if (xpost_object_get_type(F) == filetype)
     {
         F.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
-        F.tag |= (XPOST_OBJECT_TAG_ACCESS_FILE_READ
-                  << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
+        if (xpost_object_is_readable(ctx, S))
+            F.tag |= (XPOST_OBJECT_TAG_ACCESS_FILE_READ
+                      << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
         xpost_file_hand_over(ctx->lo, F);
     }
     return F;
