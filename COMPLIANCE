@@ -505,7 +505,18 @@ Interpreter parameters
      what its drawings come to.
  [ ] C.3.4  AccurateScreens, MaxScreenItem, MaxScreenStorage,
      MaxSuperScreen, MaxStoredScreenCache. A screen is built as asked and
-     is not tuned by parameter. HalftoneMode is the one of the group that
+     is not tuned by parameter.
+
+     MaxScreenItem bounds what one screen may occupy, and here that is
+     bounded already. The cell a screen tiles the plane with is chosen
+     from a fixed table of lattice vectors, none longer than twenty-five,
+     so a cell cannot hold more than about sixteen hundred values however
+     the frequency, the angle or the device resolution are asked for.
+     MEASURED: an ordinary screen at sixty lines per inch builds a cell of
+     four by four -- sixteen values, some hundreds of bytes -- and no
+     frequency from one to three hundred moved it. A parameter bounding
+     that would be a limit on something that cannot grow, which is the
+     kind this file exists to refuse rather than to add. HalftoneMode is the one of the group that
      is carried, and carried as the mode that is true: mode 0 has the
      halftone-setting operators behave as usual rather than put a product's
      own screen in place of the one asked for, which is what happens here.
