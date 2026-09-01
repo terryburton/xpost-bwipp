@@ -269,11 +269,37 @@ int Vrestore(Xpost_Context *ctx,
     int z;
     unsigned int vs;
 
+    vs = xpost_memory_save_stack_ent(ctx->lo);
+
+    /* A snapshot serves once. Restore invalidates the save object it is
+       given along with every save object made more recently, and a second
+       use of any of them is an invalidrestore (PLRM 8.2 restore).
+
+       A save records as its level the save-stack count taken before it
+       pushed itself, so its own entry stands at that index and the count
+       exceeds the level for exactly as long as the save is live. A
+       restore leaves the count standing at the level it restored to, so
+       the operand it was given no longer reaches it, and neither does a
+       save object made deeper than that, whose level is higher still. One
+       comparison therefore answers for the operand and for the newer
+       objects alike.
+
+       What it does not answer for is a save taken after that level was
+       restored to. It stands at the index the spent object stood at and
+       records the same level and the same record stack, so the spent
+       object is accepted and what it winds back is the newer save's
+       snapshot -- the deviation COMPLIANCE records under restore.
+
+       The comparison is made in the wider signed type, as the rewind
+       below is, so that a depth short of the level reads as below it. */
+    if (xpost_stack_count(ctx->lo, vs) <= (integer)V.save_.lev)
+        return invalidrestore;
+
     /* Nothing is reverted while a stack still names something the
-       reversion discards (PLRM 3.7.3). The check comes first, and
-       nothing before it has changed anything, so a refused restore
-       leaves the state exactly as it found it -- which is what lets the
-       error be handled and the program carry on.
+       reversion discards (PLRM 3.7.3). Neither this nor the check above
+       it changes anything, and nothing runs before them, so a refused
+       restore leaves the state exactly as it found it -- which is what
+       lets the error be handled and the program carry on.
 
        It is not only that the program would be left holding storage that
        is no longer its own. An object carried out of the save level it
@@ -289,11 +315,7 @@ int Vrestore(Xpost_Context *ctx,
 
     ++ctx->namebind_gen; /* restored dicts may change bindings */
 
-    vs = xpost_memory_save_stack_ent(ctx->lo);
     z = xpost_stack_count(ctx->lo, vs);
-    /* the depth is counted, the level recorded: comparing them in the
-       wider signed type keeps a depth that came back short of the level
-       below it rather than above it */
     while(z > (integer)V.save_.lev)
     {
         xpost_save_restore_snapshot(ctx->lo);

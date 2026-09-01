@@ -365,13 +365,15 @@ Known behavioural deviations
  is lost is a substitution, which is an optimisation hook; the procedure
  bind returns is the one it bound.
 
- [X] restore  a save object is not invalidated by the restore that uses it,
-     where a snapshot is defined to be usable once: restore is defined to
-     invalidate its operand and every save object made after it, so a second
-     use of either is an invalidrestore. Here a second use is accepted. The
-     virtual memory is already at that level so nothing is wound back, but
-     the per-context parameters the level recorded -- the array packing and
-     allocation modes, and the user parameters -- are put back from it.
+ [X] restore  a spent save object is not invalidated by a save taken after
+     the level it names was restored to, where a snapshot is defined to be
+     usable once: restore is defined to invalidate its operand and every
+     save object made after it. A restore is refused here when the level
+     its save object names is no longer one the interpreter stands under,
+     which is what a second use of the operand and a use of a save object
+     made under it both come to. It is not refused when a later save has
+     retaken the level a spent save object names: the spent object is
+     accepted, and what it winds back is that later save's snapshot.
  [X] quit  under a job server the systemdict operator is not masked in
      userdict and is not refused to an encapsulated job, where the operator
      is defined to be executable only by an unencapsulated one and to raise

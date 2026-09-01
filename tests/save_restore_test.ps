@@ -14,6 +14,39 @@
 % restore "resets the values of all composite objects in local VM, except
 % strings, to their state at the time of the save", so a put'd string
 % character is meant to survive restore.
+%
+% COLLECTION: of the three numbers vmstatus answers, only the first -- the
+% save level -- is read here, and the two the collector moves are dropped
+% on the spot. A save level is the count of saves outstanding, which no
+% collection changes.
+
+% --- across a job boundary ---
+%
+% No save object crosses one. A job starts with nothing saved, and
+% startjob is refused while a save is outstanding (PLRM 3.7.7), so a
+% program cannot reach the far side of a boundary holding a snapshot of
+% the near one.
+%
+% THIS COMES FIRST IN THE SUITE and cannot be moved down. Every refused
+% restore below leaves the save it was given outstanding -- a refusal
+% winds nothing back -- and the framework's unwind puts back the operand
+% and dictionary stacks and not the save stack, so from the first refusal
+% on there is always a save outstanding and startjob always answers false.
+% Here the level is still the one a run begins at.
+vmstatus pop pop 0 eq (a run stands at no save level of its own) assert
+save
+vmstatus pop pop 1 eq (a save raises the level) assert
+false () startjob not
+    (startjob is refused while a save is outstanding) assert
+restore
+vmstatus pop pop 0 eq (and the restore puts the level back) assert
+% The control, without which the refusal above could be the password
+% rather than the save: with nothing saved and everything else about the
+% run unchanged, startjob succeeds. It resets the operand, dictionary and
+% hold stacks, which is the other reason this belongs at the top -- there
+% is nothing on any of them yet for it to take.
+false () startjob (startjob succeeds with nothing saved) assert
+count 0 eq (and leaves the operand stack empty) assert
 
 % --- drive the entity counter past 65536 with reachable allocations ---
 % (unreachable ones would be collected and their entity numbers reused)
@@ -139,6 +172,76 @@ xs (HelLO) eq (string contents survive restore, per the PLRM string exception) a
 { save [ /restore cvx /pop cvx ] cvx exec 0 } /invalidrestore
     (nor a procedure on the execution stack that has the restore to run) raises
 
+% --- a snapshot serves once ---
+%
+% PLRM 8.2, restore, closes the sentence quoted above with "This
+% restriction applies to save objects": a restore invalidates the save
+% object it was handed along with every save object made more recently, so
+% a snapshot is good for one restore and no more.
+%
+% No save object here is put in userdict and named a second time, which
+% asks a different question altogether: the restore reverts userdict, so
+% the second mention fails at name lookup and raises undefined without
+% reaching restore at all, and the errorname is what tells that apart
+% from a refusal. They are held on the operand stack, or parked as below.
+
+{ save dup restore restore } /invalidrestore
+    (a save object may not be restored to a second time) raises
+
+% An array in global VM, which two things below need for two different
+% reasons. It is where a save object is put to be reachable from outside
+% the case that made it -- a case that raises does not carry on, and the
+% framework's unwind takes the operand stack back to where the case found
+% it -- and it is where a save object is put to be out of sight of the
+% rule that no stack may name what a restore discards. A restore does not
+% reach global VM (PLRM 3.7.3), so what is parked there is still there
+% afterwards.
+/sr.park true setglobal 1 array false setglobal def
+
+% The first, second and third use of one save object, as three cases: a
+% refusal spends nothing, so the third is refused for the same reason as
+% the second rather than accepted because the second consumed something.
+% The first case is also the control for the other two -- the object is
+% good once.
+save sr.park 0 3 -1 roll put
+{ sr.park 0 get restore } (a parked save object restores once) works
+{ sr.park 0 get restore } /invalidrestore
+    (and is refused the second time) raises
+{ sr.park 0 get restore } /invalidrestore
+    (and the third, a refusal having spent nothing) raises
+
+% A save object made after the one being restored to is invalidated by
+% that restore.
+%
+% THE PARKING IS WHAT MAKES THIS CASE THE ONE IT IS. Left on the operand
+% stack the newer save object is refused by the rule above it -- no stack
+% may name what the restore discards -- and the case would be a second
+% test of that rule and no test of this one. The walk reads the operand,
+% dictionary and execution stacks and not inside the composites lying on
+% them, so an array is out of its sight. Simplifying this back onto the
+% stack would leave this rule unexercised.
+{ save save sr.park 0 3 -1 roll put restore sr.park 0 get restore }
+    /invalidrestore
+    (nor a save object made under the one restored to) raises
+
+% What is not refused, and is the deviation COMPLIANCE records under
+% restore. A save taken after a level has been restored to stands at the
+% index the spent save object stood at and records the same level and the
+% same record stack, so the spent object is accepted and winds back the
+% newer save's snapshot. Asserted as it behaves, so that a change to it
+% is reported here rather than passing unremarked.
+/sr.d 3 dict def
+sr.d /k 0 put
+save                    % the first save
+dup restore             % spent, and kept on the operand stack
+sr.d /k 1 put
+save                    % a second save, at the level the first stood at
+sr.d /k 2 put
+exch restore            % the spent object, a second time
+sr.d /k get 1 eq exch pop
+    (a spent save object is accepted where a later save has retaken its
+     level, and winds that save back) assert
+
 % --- and the controls, which are what make the checks above mean anything --
 %
 % A check that refused every restore would pass all of the above.
@@ -157,6 +260,23 @@ xs (HelLO) eq (string contents survive restore, per the PLRM string exception) a
     (an array made in global VM under the save may stay) works
 clear
 
+% The controls for the rule that a snapshot serves once. It is a
+% comparison against the depth of the save stack, and one made the other
+% way round would refuse every restore there is.
+
+{ save save restore restore }
+    (two nested saves restore, innermost first) works
+{ save save sr.park 0 3 -1 roll put sr.park 0 get restore restore }
+    (a parked save object that is still live restores, and the outer one
+     after it) works
+{ save save sr.park 0 3 -1 roll put restore }
+    (and a restore may pass a level whose save object is parked) works
+{ { save restore } exec } (a save and its restore inside a procedure) works
+{ { save restore 1 pop } exec }
+    (and inside one still running when the restore is reached) works
+{ { save restore } stopped pop }
+    (and inside a context that catches what it runs) works
+
 % An object cannot now reach a save level below the one it was made at,
 % so every object a save can see was made at or before the level it was
 % taken over -- which is the condition the backup stamps are read under,
@@ -165,6 +285,54 @@ clear
 save sr.arr 0 42 put restore
 sr.arr 0 get null eq
     (a write under a save reverts, the object having stayed at its level) assert
+
+% --- a refused restore leaves the state it found ---
+%
+% The refusal comes before anything is wound back, so a program that
+% handles the error carries on with exactly what it had: the writes made
+% since the level ended still stand, the save level is where it was, and
+% the operand is back on the stack (PLRM 3.11.1 restores the operands of
+% the operator that raised).
+/sr.n 3 dict def
+sr.n /k 0 put
+save dup restore            % spend the save object, keeping it
+sr.n /k 7 put               % written after the level it names had ended
+count /sr.count exch def
+vmstatus pop pop /sr.level exch def
+{ restore } stopped
+    { $error /errorname get /invalidrestore eq }{ false } ifelse
+    (the spent save object is refused) assert
+sr.n /k get 7 eq (a refused restore winds nothing back) assert
+vmstatus pop pop sr.level eq (and leaves the save level where it stood) assert
+count sr.count eq (and gives the operand back) assert
+pop
+
+% --- the graphics and file work a restore does, where it is accepted ---
+%
+% PLRM 8.2 has restore perform the equivalent of a grestoreall, and PLRM
+% 3.8.2 has it close a file created since the save. A refused restore
+% reaches neither, so both are asked of one that is accepted.
+1 0 0 setrgbcolor
+save 0 1 0 setrgbcolor gsave 0 0 1 setrgbcolor restore
+currentrgbcolor 0 eq exch 0 eq and exch 1 eq and
+    (an accepted restore puts the graphics state back) assert
+
+(4142>) /ASCIIHexDecode filter
+save
+    1 index << /EODCount 1000 /EODString () /CloseSource true >>
+        /SubFileDecode filter pop
+restore
+dup status not
+    (an accepted restore closes a file made under it, and with it the
+     source that file was told to close) assert
+pop
+
+% the control: status can say a file here is open, so the answer above is
+% the close and not an operator that always says no
+(4142>) /ASCIIHexDecode filter
+save restore
+dup status (a file made before the save is left open) assert
+closefile
 
 count 0 eq (operand stack is balanced) assert
 verdict
