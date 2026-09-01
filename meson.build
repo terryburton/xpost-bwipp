@@ -2148,6 +2148,18 @@ test('cid-show',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A CID-keyed font written for this suite reaches three things one
+# TrueType program behind every descendant leaves alone: a string whose
+# codes are not all the same width, charstrings arriving in a binary
+# block, and the byte that says which descriptor dictionary a glyph
+# belongs to. Each is measured against a control that differs from it in
+# exactly the byte or the declaration under test.
+test('cid-generated',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/cid_generated_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # A font set sent through StartData, in the file PLRM 5.8 gives for one.
 # The container is well formed, so what the suite measures is this
 # interpreter and not a container it could not have read: the bytes are

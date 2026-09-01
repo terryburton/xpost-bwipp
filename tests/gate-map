@@ -206,6 +206,7 @@ font path src/lib/xpost_font.*
 font path src/lib/xpost_op_font.*
 font path data/font.ps
 font path data/cid.ps
+font test cid-generated
 font test cid-show
 font test execform-cache
 font test font-*

@@ -166,6 +166,7 @@ tests/span_window_test.c \
 tests/vm_host_state.register \
 tests/check-wrapped-bind.sh \
 tests/check-helper-bind.sh \
+tests/cid_generated_test.ps \
 tests/cid_show_test.ps \
 tests/cidsysteminfo_test.ps \
 tests/clip_region_test.ps \

@@ -1,0 +1,315 @@
+%!testlib
+% A CID-keyed font generated for this suite, and the parts of the walk
+% that only it reaches.
+%
+% The CID-keyed material the rest of the tree carries is one TrueType
+% program behind every descendant, with a CMap of one code space over
+% it. That leaves three things the machinery does and nothing asks it
+% to do: decode a string whose codes are not all the same width, take a
+% CIDFontType 0 font's charstrings out of a binary block rather than a
+% hex one, and read the byte that says which of a font's descriptor
+% dictionaries a glyph belongs to. All three are here, over material
+% written for them.
+%
+% THE FONT. A CIDFontType 0 of five glyphs, whose charstrings and the
+% map to them are the block written out below. Its glyphs are a filled
+% block, a block of half the height, a narrow bar, and the same bar
+% again -- and .notdef, which is blank. The three shapes differ in how
+% much they mark and in how far they advance, so which glyph a code
+% reached is answered by the page rather than by asking the font what
+% it thinks it did.
+%
+% THE TWO DESCRIPTORS, and why the last two glyphs are the same shape.
+% A CIDFontType 0 font divides its glyphs between descriptor
+% dictionaries, and the CIDMap entry for each glyph names the one it
+% belongs to (PLRM 5.11.4). Descriptor 1 carries a subroutine map and
+% descriptor 0 does not; the last glyph is drawn by calling that
+% subroutine, so it can be painted only under the descriptor its
+% CIDMap entry names. The control beside it is the same font with that
+% one byte changed to name descriptor 0, whose glyph is then refused --
+% which is what makes the pair a measurement of the selector byte and
+% not of whether the font loads at all.
+%
+% THE CODE SPACES. The CMap declares a one-byte space and a two-byte
+% space, so a string can carry codes of both widths and the width of
+% each is settled by which space its leading byte falls in. What that
+% is worth is measured by walking one string of both widths and reading
+% the advance, against the same string through a CMap declaring only
+% the one-byte space -- where the same bytes are four codes rather than
+% three and the text is a different width on the page.
+%
+% The block below is generated, so the numbers sealing it are the whole
+% of what says it is the block the comments describe. A change to any
+% byte breaks them, and belongs in front of a reader of the format
+% before either number is moved to match it.
+
+% a face answers for this suite's glyphs: a build without a face library
+% cannot ask its questions, and says so rather than failing them
+systemdict /NOFACES known { (SKIPPED: this suite paints glyphs, and this build carries no face library) = flush quit } if
+
+% ---- a raster to read the marks off ----------------------------------
+/DEV 200 64 .privatedict /newPGMIMAGEdevice get exec def
+DEV begin
+    /defaultmatrix [ 1 0 0 -1 0 64 ] def
+    /FillPoly 1183615869 internaldict /.fillpoly get def
+    /FillRect 1183615869 internaldict /.fillrectgray get def
+end
+.privatedict /.gstatetemplate get exec /device DEV put
+graphicsdict /currgstate get /device DEV put
+initgraphics
+
+/inkof {                                % - . n   (dark pixels on the page)
+    0 0 1 63 { DEV /ImgData get exch get { 128 lt { 1 add } if } forall } for
+} bind def
+
+/marks {                                % (code) . n   (what one code paints)
+    erasepage 10 10 moveto show inkof
+} bind def
+
+/advance {                              % (codes) . n  (how far a string carries)
+    erasepage 10 10 moveto show currentpoint pop 10 sub
+} bind def
+
+/near {                                 % a b . bool  (within a twentieth)
+    2 copy sub abs 3 1 roll add 40 div le
+} bind def
+
+/join {                                 % [ s1 s2 ... ] . s
+    3 dict begin
+    /a exch def
+    /n 0 def
+    a { length n add /n exch store } forall
+    /s n string def
+    /at 0 def
+    a { dup s exch at exch putinterval at exch length add /at exch store } forall
+    s
+    end
+} bind def
+
+/seal {                                 % s . s1 s2  (running sum, and its own)
+    3 dict begin
+    /s1 0 def /s2 0 def
+    { s1 add 65535 mod /s1 exch def s2 s1 add 65535 mod /s2 exch def } forall
+    s1 s2
+    end
+} bind def
+
+% ---- the block the font's glyphs arrive in ---------------------------
+%
+% Its layout is the one PLRM 5.11.4 gives: the map first, at the offset
+% the font declares, each entry a descriptor index of FDBytes and an
+% offset of GDBytes; then the glyphs, each at the offset its entry
+% names, the last entry's offset standing for the end. The offsets are
+% counted from the start of the block, the filler at the front
+% included, which is what makes a declared offset of anything but zero
+% worth writing down.
+/GLYPHDATA [
+    <0000000000000000>      % 0: what the declared map offset of 8 skips
+    <000030>                % 8: CID 0 -- descriptor 0, charstring at 48
+    <000039>                % 11: CID 1 -- descriptor 0, charstring at 57
+    <000052>                % 14: CID 2 -- descriptor 0, charstring at 82
+    <00006B>                % 17: CID 3 -- descriptor 0, charstring at 107
+    <010084>                % 20: CID 4 -- descriptor 1, charstring at 132
+    <000092>                % 23: the entry past the last, at 146, the block's end
+    <001E>                  % 26: descriptor 1's subroutine map -- subroutine 0 at 30
+    <0030>                  % 28: and the entry past it, at 48
+    <10BF317005FB443E6E88BDC5F3201808B30F>              % 30: subroutine 0, the bar's outline
+    <10BF317079C84B925B>                                % 48: CID 0, .notdef, blank on an advance of 600
+    <10BF317079C84B92E80592B99E60D915057A874FAEDC5447E1> % 57: CID 1, a 500 by 500 block, advance 600
+    <10BF317079C84B92E80592B99E60D9150A757BCE15A30CAA5D> % 82: CID 2, a 500 by 250 block, advance 600
+    <10BF317079C719B9DE21AC53EEFDE2DBA61A5DFF8B2F67042C> % 107: CID 3, a 200 by 500 bar, advance 300
+    <10BF317079C719B9DE21AC2FA0D4>                      % 132: CID 4, the bar again, drawn by the subroutine
+] join def
+
+GLYPHDATA length 146 eq
+    (the glyph block is the 146 bytes its pieces were read against) assert
+GLYPHDATA seal 13138 eq exch 14474 eq and
+    (and is byte for byte the block those pieces describe) assert
+
+% ---- the CIDFont resource file the block arrives in ------------------
+%
+% PLRM 5.11.4's shape: the dictionary, then the length of the block and
+% the block itself, and StartData is what registers the font -- nothing
+% here calls defineresource for it. The block is handed over in the
+% binary form, so the file is written and run rather than being this
+% one.
+/SCRATCH (cidgen.scratch) def
+
+/writecid {                             % /name block . -
+    3 dict begin
+    /blk exch def /nm exch def
+    SCRATCH (w) file
+    dup (/CIDInit /ProcSet findresource begin\n20 dict begin\n) writestring
+    dup (/CIDFontName /) writestring dup nm 40 string cvs writestring dup ( def\n) writestring
+    dup (/CIDFontType 0 def\n) writestring
+    dup (/CIDSystemInfo << /Registry \(XpostGen\) /Ordering \(Shapes\) /Supplement 2 >> def\n) writestring
+    dup (/FontMatrix [0.001 0 0 0.001 0 0] def\n) writestring
+    dup (/FontBBox [0 0 1000 1000] def\n) writestring
+    dup (/CIDCount 5 def\n/FDBytes 1 def\n/GDBytes 2 def\n) writestring
+    dup (/CIDMapOffset ) writestring dup MAPOFFSET 12 string cvs writestring dup ( def\n) writestring
+    dup (/FDArray 2 array\n) writestring
+    dup (dup 0 << /FontType 1 /FontMatrix [1 0 0 1 0 0]\n) writestring
+    dup (         /Private << /lenIV 4 >> >> put\n) writestring
+    dup (dup 1 << /FontType 1 /FontMatrix [1 0 0 1 0 0]\n) writestring
+    dup (         /Private << /lenIV 4 /SubrMapOffset 26 /SDBytes 2 /SubrCount 1 >> >> put\n) writestring
+    dup (def\n) writestring
+    dup (\(Binary\) ) writestring
+    dup blk length 12 string cvs writestring
+    dup ( StartData ) writestring
+    dup blk writestring
+    dup (\n) writestring
+    closefile
+    SCRATCH run
+    end
+} bind def
+
+/MAPOFFSET 8 def
+{ /GenCID GLYPHDATA writecid } (the CIDFont resource file runs to its end) works
+/GenCID /CIDFont resourcestatus { pop pop true }{ false } ifelse
+    (StartData registered the font the file described) assert
+
+% The font is what the file said it was. Nothing else in this suite
+% reads these, so this is where a dictionary that arrived mangled shows.
+/GENFONT /GenCID /CIDFont findresource def
+GENFONT /CIDFontType get 0 eq (the font is a CIDFontType 0) assert
+GENFONT /CIDSystemInfo get dup /Registry get (XpostGen) eq
+    exch dup /Ordering get (Shapes) eq
+    exch /Supplement get 2 eq and and
+    (its system information is the one the file declared) assert
+GENFONT /GlyphData get length 146 eq
+    (and its charstrings are the block that was sent) assert
+
+% The same font with one byte changed: CID 4's map entry names
+% descriptor 0, which carries no subroutine map.
+/CONTROL GLYPHDATA dup length string copy def
+CONTROL 20 0 put
+{ /GenCtlCID CONTROL writecid } (the control font's resource file runs) works
+
+% And the same block again under a font declaring the map at offset 0,
+% where the filler stands rather than the map.
+/MAPOFFSET 0 def
+{ /GenZeroCID GLYPHDATA writecid } (the zero-offset font's resource file runs) works
+/MAPOFFSET 8 def
+
+% ---- the CMaps -------------------------------------------------------
+%
+% The subject declares a one-byte space and a two-byte space. Codes
+% below 0x20 fall in the one-byte space and no range covers them, so
+% they name CID 0. The two-byte space is entered on a leading byte of
+% 0x80 or above; one code in it is named singly rather than by a range,
+% which is reached only after the ranges have been tried and missed.
+/CIDInit /ProcSet findresource begin
+12 dict begin
+    begincmap
+    /CMapName /GenCMap def
+    /CIDSystemInfo << /Registry (XpostGen) /Ordering (Shapes) /Supplement 2 >> def
+    2 begincodespacerange <00> <7F> <8000> <FFFF> endcodespacerange
+    2 begincidrange <20> <7F> 1 <8000> <80FF> 3 endcidrange
+    1 begincidchar <8100> 2 endcidchar
+    endcmap
+    CMapName currentdict end /CMap defineresource pop
+
+% The control: the same ranges over the one-byte space alone, so the
+% bytes of a two-byte code are two codes of their own.
+12 dict begin
+    begincmap
+    /CMapName /GenCMapNarrow def
+    /CIDSystemInfo << /Registry (XpostGen) /Ordering (Shapes) /Supplement 2 >> def
+    1 begincodespacerange <00> <7F> endcodespacerange
+    2 begincidrange <20> <7F> 1 <8000> <80FF> 3 endcidrange
+    endcmap
+    CMapName currentdict end /CMap defineresource pop
+end
+
+/GenT0 /GenCMap [ /GenCID ] composefont pop
+/GenCtl /GenCMap [ /GenCtlCID ] composefont pop
+/GenZero /GenCMap [ /GenZeroCID ] composefont pop
+/GenNarrow /GenCMapNarrow [ /GenCID ] composefont pop
+
+% composefont takes its CMap by name, by string or as a dictionary, and
+% each descendant by name or as a dictionary (PLRM 8.2). Everything
+% else in this suite names both, so this is where the dictionary forms
+% are taken.
+{ /GenByDict /GenCMap /CMap findresource
+    [ /GenCID /CIDFont findresource ] composefont pop }
+    (a CMap and a descendant given as dictionaries compose) works
+{ /GenByDict findfont pop } (and the font they compose is found) works
+
+% ---- what each code paints -------------------------------------------
+/GenT0 findfont 40 scalefont setfont
+/i.block <20> marks def
+/i.half  <21> marks def
+/i.bar   <8000> marks def
+/i.subr  <8001> marks def
+/i.char  <8100> marks def
+/i.none  <00> marks def
+
+i.block 400 near (a one-byte code paints the glyph its range names) assert
+i.half 200 near (and the code after it paints the next glyph along) assert
+i.bar 160 near (a two-byte code paints the glyph its own range names) assert
+i.none 0 eq (a code no range covers names CID 0, which is blank) assert
+i.char 200 near
+    (a code named singly is reached after the ranges have missed) assert
+i.block i.half gt i.half i.bar gt and i.bar 0 gt and
+    (the three glyphs are told apart by what they mark) assert
+
+% ---- the descriptor a glyph belongs to -------------------------------
+%
+% CID 4's outline is drawn by descriptor 1's subroutine, so it is
+% painted only if the byte naming that descriptor was read. The control
+% is the same font with that byte naming descriptor 0.
+i.subr i.bar near
+    (a glyph drawn from its descriptor's subroutine paints) assert
+
+/GenCtl findfont 40 scalefont setfont
+<8000> marks 160 near
+    (the control font is the same font for the glyphs before it) assert
+{ erasepage 10 10 moveto <8001> show } /rangecheck
+    (and refuses that glyph when the byte names the other descriptor)
+    raises
+
+% The map offset the font declares is where the map is read from. The
+% same block under a declared offset of zero is read where the filler
+% stands, and the entries found there name no charstring: the code that
+% paints a block above marks nothing here.
+/GenZero findfont 40 scalefont setfont
+<20> marks 0 eq
+    (a font declaring the map at the wrong offset reaches no glyph) assert
+
+% ---- the width a code space declares ---------------------------------
+%
+% The same four bytes, walked by two CMaps. Under the subject they are
+% three codes advancing 600, 300 and 600 glyph units; under the control
+% they are four, of which two are covered by no range and take .notdef's
+% advance of 600.
+/GenT0 findfont 40 scalefont setfont
+/a.mixed <20 8000 21> advance def
+/a.one <20> advance def
+/a.two <8000> advance def
+
+a.one 24 near (a one-byte code advances by its own glyph's width) assert
+a.two 12 near (a two-byte code advances by its own glyph's width) assert
+a.mixed a.one dup add a.two add near
+    (a string of both widths advances by the sum of its codes) assert
+
+/GenNarrow findfont 40 scalefont setfont
+/a.narrow <20 8000 21> advance def
+a.narrow 96 near
+    (the same bytes under one code space alone are four codes) assert
+a.narrow a.mixed gt
+    (so the width a code space declares is what the walk uses) assert
+
+% cshow walks the same string and is entered once per code, which says
+% the same thing without reading the page.
+/GenT0 findfont 40 scalefont setfont
+/n.mixed 0 def
+{ pop pop pop /n.mixed n.mixed 1 add store } <20 8000 21> cshow
+/GenNarrow findfont 40 scalefont setfont
+/n.narrow 0 def
+{ pop pop pop /n.narrow n.narrow 1 add store } <20 8000 21> cshow
+n.mixed 3 eq (four bytes of mixed width are three characters) assert
+n.narrow 4 eq (and four characters where only one width is declared) assert
+
+count 0 eq (the suite leaves the operand stack empty) assert
+verdict
+quit
