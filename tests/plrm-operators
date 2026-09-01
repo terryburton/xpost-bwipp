@@ -38,9 +38,9 @@ Operand-Stack-Manipulation-Operators	stack	-
 Operand-Stack-Manipulation-Operators	mark	stackoverflow,rangecheck,stackunderflow,typecheck,invalidaccess,unmatchedmark
 Operand-Stack-Manipulation-Operators	cleartomark	unmatchedmark
 Operand-Stack-Manipulation-Operators	counttomark	stackoverflow,unmatchedmark
-Arithmetic-and-Math-Operators	add	stackunderflow,typecheck,undefinedresultint-overflow->realvalueok;largerealprints4e+09vsgs4000000000(float32real,permitted)
+Arithmetic-and-Math-Operators	add	stackunderflow,typecheck,undefinedresult int overflow -> real, value ok; a large real prints 4e+09 (float32 real, permitted)
 Arithmetic-and-Math-Operators	div	stackunderflow,typecheck,undefinedresult
-Arithmetic-and-Math-Operators	idiv	stackunderflow,typecheck,undefinedresultgs-identical;INT_MIN/-1overflow->realguarded
+Arithmetic-and-Math-Operators	idiv	stackunderflow,typecheck,undefinedresult INT_MIN/-1 overflow -> real, guarded
 Arithmetic-and-Math-Operators	mul	stackunderflow,typecheck,undefinedresult
 Arithmetic-and-Math-Operators	product	stackoverflow
 Arithmetic-and-Math-Operators	sub	stackunderflow,typecheck,undefinedresult
@@ -157,8 +157,8 @@ File-Operators	flushfile	ioerror,stackunderflow,typecheck
 File-Operators	resetfile	stackunderflow,typecheck
 File-Operators	run	ioerror,limitcheck,stackunderflow,typecheck,undefinedfilenameexecutesafile;verified
 File-Operators	currentfile	stackoverflow
-File-Operators	deletefile	invalidfileaccess,ioerror,stackunderflow,typecheckmissingfile->undefinedfilename(PLRMprose);gsraisesioerror(gsoutlier)
-File-Operators	renamefile	invalidfileaccess,ioerror,stackunderflow,typecheckmissingsrc->undefinedfilename(PLRM);gsioerror(gsoutlier)
+File-Operators	deletefile	invalidfileaccess,ioerror,stackunderflow,typecheck missing file -> undefinedfilename (PLRM prose)
+File-Operators	renamefile	invalidfileaccess,ioerror,stackunderflow,typecheck missing source -> undefinedfilename (PLRM)
 File-Operators	filenameforall	invalidaccess,ioerror,rangecheck,stackoverflow,stackunderflowenumeratesmatchingfiles;verified
 File-Operators	setfileposition	ioerror,rangecheck,stackunderflow,typecheck,undefinedfilename
 File-Operators	fileposition	ioerror,stackunderflow,typecheck
@@ -168,10 +168,10 @@ File-Operators	pstack	-
 File-Operators	printobject	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflowworkswithexplicitsetobjectformat
 File-Operators	writeobject	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflowworkswithexplicitformat
 File-Operators	setobjectformat	rangecheck,stackunderflow,typecheck
-File-Operators	currentobjectformat	stackoverflowdefault0vsgs2;0(disabled)isaplausiblePLRMinitialvalue
+File-Operators	currentobjectformat	stackoverflow default 0; 0 (disabled) is a plausible PLRM initial value
 Resource-Operators	defineresource	invalidaccess,stackunderflow,typecheck,undefined
 Resource-Operators	undefineresource	stackunderflow,typecheck,undefined
-Resource-Operators	findresource	(none)absentinstance->undefinedresource(PLRMErrors);gssubstitutesfonts(gsoutlier)
+Resource-Operators	findresource	(none) absent instance -> undefinedresource (PLRM Errors)
 Resource-Operators	findcolorrendering	stackoverflow,stackunderflow,typecheck
 Resource-Operators	resourcestatus	stackoverflow,stackunderflow,typecheck,undefinednonexistentcategory->undefined(wasfalse);fix+teste852c0d4
 Resource-Operators	resourceforall	invalidaccess,stackoverflow,stackunderflow,typecheck,undefined
@@ -256,7 +256,7 @@ Coordinate-System-and-Matrix-Operators	initmatrix	-
 Coordinate-System-and-Matrix-Operators	identmatrix	rangecheck,stackunderflow,typecheck
 Coordinate-System-and-Matrix-Operators	transform	rangecheck,stackunderflow,typecheckshort/longmatrixwasOOBread->rangecheck(fix+test8cac62db)
 Coordinate-System-and-Matrix-Operators	defaultmatrix	rangecheck,stackunderflow,typecheck
-Coordinate-System-and-Matrix-Operators	currentmatrix	rangecheck,stackunderflow,typecheckelementsmaybeintegerswheregscoercestoreal(permitted;note)
+Coordinate-System-and-Matrix-Operators	currentmatrix	rangecheck,stackunderflow,typecheck elements may be integers rather than reals (permitted; note)
 Coordinate-System-and-Matrix-Operators	setmatrix	rangecheck,stackunderflow,typecheck
 Coordinate-System-and-Matrix-Operators	translate	rangecheck,stackunderflow,typecheck
 Coordinate-System-and-Matrix-Operators	scale	rangecheck,stackunderflow,typecheck
@@ -286,7 +286,7 @@ Path-Construction-Operators	strokepath	limitcheck
 Path-Construction-Operators	ustrokepath	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
 Path-Construction-Operators	charpath	invalidfont,limitcheck,nocurrentpoint,stackunderflow,typecheck
 Path-Construction-Operators	uappend	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
-Path-Construction-Operators	clippath	nonebbox=defaultpagesize(lettervsgsA4;environmental)
+Path-Construction-Operators	clippath	none bbox = default page size (letter here; environmental)
 Path-Construction-Operators	setbbox	rangecheck,stackunderflow,typecheck
 Path-Construction-Operators	pathbbox	nocurrentpoint,stackoverflow
 Path-Construction-Operators	pathforall	invalidaccess,rangecheck,stackoverflow,stackunderflow,typecheck
@@ -305,7 +305,7 @@ Painting-Operators	ustroke	invalidaccess,limitcheck,rangecheck,stackunderflow,ty
 Painting-Operators	ufill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheckencoded-userpathformverified
 Painting-Operators	ueofill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheckverified
 Painting-Operators	shfill	rangecheck,undefinedresultexercisedbycorpus/graphicstests
-Painting-Operators	image	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflowoperand+dictformswork;missing-keydict->undefinedvsgstypecheck(benignnuance)
+Painting-Operators	image	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflow operand and dict forms work; a dict missing a key -> undefined
 Painting-Operators	colorimage	typecheck,undefined,rangecheck,stackunderflow,undefinedresultgray/rgboperandformsverifiedstandalone
 Painting-Operators	imagemask	invalidaccess,ioerror,limitcheck,stackunderflow,typecheckoperandformverified
 Insideness-Testing-Operators	infill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheckverified
@@ -401,8 +401,8 @@ Operators-defined-in-procedure-sets-(PLRM-Table-A.1)	settrapzone	-
 Unclassified-/-other	SharedFontDirectory	stackoverflowpresent
 Unclassified-/-other	currentshared	stackoverflowfalse(nosharedVM)
 Unclassified-/-other	eexec	(none)present;exercisedbyType1fontloading(corpus)
-Unclassified-/-other	globalvmstatus	(none)implemented(gsundefinedhere;xpostmorecomplete)
-Unclassified-/-other	internaldict	invalidaccess,stackunderflow,undefinedsecretint->dict;wrongint->invalidaccess(matchesgs)
+Unclassified-/-other	globalvmstatus	(none) implemented
+Unclassified-/-other	internaldict	invalidaccess,stackunderflow,undefined secret int -> dict; wrong int -> invalidaccess
 Unclassified-/-other	scheck	stackunderflow
 Unclassified-/-other	serverdict	stackoverflowpresent(dicttype)
 Unclassified-/-other	setshared	stackunderflow,typecheck
