@@ -1,10 +1,35 @@
-# Every operator PLRM 8.2 defines, with the errors the specification gives it.
+# Every operator PLRM 8.2 defines, and the errors the specification gives it.
 #
 # Derived from the specification, not from this interpreter: the point of
 # the file is to be the one side of the comparison that xpost cannot move.
 # COMPLIANCE says what this interpreter does about each; a guard holds that
 # document to this list, so an operator the specification defines and the
 # document never mentions is a failure rather than a silence.
+#
+# WHAT IS HELD AND WHAT IS NOT. The operator names are held: two guards read
+# them, so a name that goes missing or arrives unlisted is a failure. The
+# ERROR LISTS ARE HELD BY NOTHING. No guard reads the third field, and rows
+# in it disagree with the specification in both directions -- closepath
+# carries invalidaccess and ioerror, which PLRM 8.2 does not give it, and
+# lacks typecheck, which it does; mark carries six errors where the
+# specification gives one. Rows also record no errors at all where the
+# specification gives several. Nobody has counted how many, and a count
+# taken by matching this file against the specification's text is itself
+# only as good as the matching.
+#
+# So the first line above says what this file is FOR and not what it
+# achieves. As it stands the error lists are a record of what was written
+# down rather than a statement about the specification that anything
+# checks, and a reader wanting the errors an operator can raise should read
+# PLRM 8.2 and not this. Correcting them is worth doing behind a guard that
+# reads them and not before, since nothing would hold a corrected set
+# either.
+#
+# VMerror is omitted throughout. It appears in no row, and the
+# specification gives it to many operators, so its absence is a decision
+# taken across the whole file rather than a set of individual omissions --
+# recorded here so that whether to carry it is a choice someone can make
+# rather than something they have to discover.
 #
 # That silence is what this exists for. COMPLIANCE named 318 operators and
 # the specification defines rather more, and the difference was not visible
