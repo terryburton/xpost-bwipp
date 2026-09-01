@@ -5202,6 +5202,172 @@ static const Xpost_Enc_Coding faxenc_coding =
     faxenc_encode, faxenc_finish, faxenc_release
 };
 
+/* Predictor stage on the encode side (PLRM Table 3.20), the mirror of the
+   decode stage above. The bytes a program writes are differenced a row at
+   a time and the differences handed to the compressing encoder beneath, so
+   that a decoder given a Predictor of the same kind reads back what was
+   written.
+
+   Predictor 2 differences each byte against the one a pixel to its left.
+   Predictor 10 and above are the PNG row filters: 10 selects None for
+   every row, 11 Sub, 12 Up, 13 Average and 14 Paeth, and 15 leaves the
+   choice to the row. Each PNG row is written with a leading byte naming
+   the filter used for it, which is the byte the decode stage reads first,
+   so an encoder and a decoder at 10 and above need not agree on the
+   number.
+
+   A row is gathered whole before any of it is written, because every
+   filter but None reads a neighbour that the row above supplies. A final
+   row the program left short is written as it stands: the decode stage
+   reads a row until its source runs out, so a short row comes back
+   short. */
+typedef struct
+{
+    Xpost_EncBase base;
+    int predictor;
+    int rowbytes;    /* bytes in one raw row */
+    int bpp;         /* bytes between a byte and its left neighbour */
+    unsigned char *cur;    /* the raw row being gathered */
+    unsigned char *prev;   /* the raw row before it */
+    unsigned char *out;    /* the differences to be written */
+    int pos;         /* bytes gathered into cur */
+} Xpost_PredEncFile;
+
+/* one PNG row filter over the gathered row, into out */
+static void
+predenc_filter(Xpost_PredEncFile *ff, int ft, int have, unsigned char *out)
+{
+    int i;
+
+    for (i = 0; i < have; i++)
+    {
+        int a = (i >= ff->bpp) ? ff->cur[i - ff->bpp] : 0;
+        int b = ff->prev[i];
+        int c = (i >= ff->bpp) ? ff->prev[i - ff->bpp] : 0;
+        int x = ff->cur[i];
+
+        switch (ft)
+        {
+            case 0: break;
+            case 1: x -= a; break;
+            case 2: x -= b; break;
+            case 3: x -= (a + b) / 2; break;
+            default: x -= _paeth(a, b, c); break;
+        }
+        out[i] = (unsigned char)x;
+    }
+}
+
+/* Which of the five filters to write this row with, under predictor 15.
+
+   The one whose differences are smallest read as signed bytes: a
+   difference near zero is a byte the compressor beneath can say in fewer
+   bits, and that is the whole purpose of differencing the row at all. */
+static int
+predenc_choose(Xpost_PredEncFile *ff, int have)
+{
+    int best = 0;
+    long bestsum = -1;
+    int ft;
+
+    for (ft = 0; ft <= 4; ft++)
+    {
+        long sum = 0;
+        int i;
+
+        predenc_filter(ff, ft, have, ff->out);
+        for (i = 0; i < have; i++)
+        {
+            int v = ff->out[i];
+
+            sum += (v < 128) ? v : 256 - v;
+        }
+        if (bestsum < 0 || sum < bestsum)
+        {
+            bestsum = sum;
+            best = ft;
+        }
+    }
+    return best;
+}
+
+/* difference the gathered row and write it to the encoder beneath */
+static int
+predenc_row(Xpost_PredEncFile *ff, int have)
+{
+    int i;
+
+    if (ff->predictor == 2)
+    {
+        /* horizontal differencing, on whole bytes, which is how the
+           decode stage undoes it */
+        for (i = have - 1; i >= ff->bpp; i--)
+            ff->out[i] = (unsigned char)(ff->cur[i] - ff->cur[i - ff->bpp]);
+        for (i = 0; i < ff->bpp && i < have; i++)
+            ff->out[i] = ff->cur[i];
+    }
+    else
+    {
+        int ft = (ff->predictor == 15) ? predenc_choose(ff, have)
+                                       : ff->predictor - 10;
+
+        predenc_filter(ff, ft, have, ff->out);
+        if (xpost_file_putc(ff->base.target, ft) == EOF)
+            return EOF;
+    }
+    for (i = 0; i < have; i++)
+        if (xpost_file_putc(ff->base.target, ff->out[i]) == EOF)
+            return EOF;
+    memcpy(ff->prev, ff->cur, (size_t)have);
+    return 0;
+}
+
+static int
+predenc_encode(Xpost_EncBase *base, int c)
+{
+    Xpost_PredEncFile *ff = (Xpost_PredEncFile *)base;
+    int ret = c;
+
+    ff->cur[ff->pos++] = (unsigned char)c;
+    /* the byte that completes a row starts the next one, whatever became
+       of the row just filled */
+    if (ff->pos == ff->rowbytes)
+    {
+        if (predenc_row(ff, ff->rowbytes) == EOF)
+            ret = EOF;
+        ff->pos = 0;
+    }
+    return ret;
+}
+
+static int
+predenc_finish(Xpost_EncBase *base)
+{
+    Xpost_PredEncFile *ff = (Xpost_PredEncFile *)base;
+    int have = ff->pos;
+
+    ff->pos = 0;
+    if (have > 0 && predenc_row(ff, have) == EOF)
+        return EOF;
+    return 0;
+}
+
+static void
+predenc_release(Xpost_EncBase *base)
+{
+    Xpost_PredEncFile *ff = (Xpost_PredEncFile *)base;
+
+    free(ff->cur);
+    free(ff->prev);
+    free(ff->out);
+    ff->cur = ff->prev = ff->out = NULL;
+}
+
+static const Xpost_Enc_Coding predenc_coding =
+{
+    predenc_encode, predenc_finish, predenc_release
+};
+
 /* An encode filter: the target it writes and the latch that says its
    end-of-data has been written, whatever the coding above them. */
 static Xpost_Object
@@ -5311,6 +5477,46 @@ Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object
     ff->early = early;
     lzwenc_reset(ff);
     bitenc_put(&ff->base, 256, 9);   /* opening clear */
+    return f;
+}
+
+Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
+                                                  Xpost_Object tgt,
+                                                  int predictor, int colors,
+                                                  int bpc, int columns)
+{
+    Xpost_EncBase *base;
+    Xpost_Object f;
+    Xpost_PredEncFile *ff;
+    int rowbits;
+
+    if (colors < 1 || columns < 1 || columns > (1 << 20))
+        return invalid;
+    if (bpc != 1 && bpc != 2 && bpc != 4 && bpc != 8 && bpc != 16)
+        return invalid;
+    f = _enc_cons(mem, tgt, sizeof(Xpost_PredEncFile), &predenc_coding, &base);
+    ff = (Xpost_PredEncFile *)base;
+    if (!ff)
+        return f;
+    rowbits = colors * bpc * columns;
+    ff->predictor = predictor;
+    ff->rowbytes = (rowbits + 7) / 8;
+    ff->bpp = (colors * bpc + 7) / 8;
+    if (ff->bpp < 1)
+        ff->bpp = 1;
+    ff->cur = calloc(1, (size_t)ff->rowbytes);
+    ff->prev = calloc(1, (size_t)ff->rowbytes);
+    ff->out = calloc(1, (size_t)ff->rowbytes);
+    if (!ff->cur || !ff->prev || !ff->out)
+    {
+        predenc_release(&ff->base);
+        return _enc_cons_abandon(mem, f, &ff->base);
+    }
+    /* the stage stands over the compressor, which the program never sees
+       and so can never close: it belongs to the stage now, and closing the
+       stage closes it, so the compressed stream still gets its
+       end-of-data */
+    xpost_file_hand_over(mem, tgt);
     return f;
 }
 

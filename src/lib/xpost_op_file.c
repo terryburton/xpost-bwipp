@@ -364,11 +364,17 @@ int xpost_op_file_filter_int (Xpost_Context *ctx,
     return 0;
 }
 
-/* Layer the predictor stage over a decoding filter just built, taking
+/* Layer the predictor stage over a compressing filter just built, taking
    its parameters from the filter's dictionary (PLRM Table 3.20). The
-   filter object is read and replaced in place. */
+   filter object is read and replaced in place.
+
+   Both directions come here, and the parameters mean the same thing in
+   each: over a decoder the stage undoes the differencing the data was
+   compressed with, and over an encoder it applies it, so the two answer
+   the same dictionary with the same row layout. */
 static
-int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f)
+int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f,
+                     int enc)
 {
     Xpost_Object p;
     int predictor, colors, bpc, columns;
@@ -397,13 +403,15 @@ int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f)
     if (bpc < 8)
         return rangecheck;
 
-    layered = xpost_file_cons_filter_predictor(ctx->lo, *f, predictor,
+    layered = (enc ? xpost_file_cons_filter_enc_predictor
+                   : xpost_file_cons_filter_predictor)(ctx->lo, *f, predictor,
                                                colors, bpc, columns);
     if (xpost_object_get_type(layered) == invalidtype)
         return ioerror;
     layered.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
-    layered.tag |= (XPOST_OBJECT_TAG_ACCESS_FILE_READ
-                    << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
+    layered.tag |= (unsigned int)(enc ? XPOST_OBJECT_TAG_ACCESS_FILE_WRITE
+                                      : XPOST_OBJECT_TAG_ACCESS_FILE_READ)
+                    << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
     *f = layered;
     return 0;
 }
@@ -540,9 +548,8 @@ int xpost_op_file_filter_dict (Xpost_Context *ctx,
             return ioerror;
         f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
         f.tag |= (unsigned int)access << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
-        if (!enc)
         {
-            int ret = _layer_predictor(ctx, dict, &f);
+            int ret = _layer_predictor(ctx, dict, &f, enc);
 
             if (ret)
                 return ret;
@@ -650,11 +657,14 @@ int xpost_op_file_filter_dict (Xpost_Context *ctx,
         xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));
         return 0;
     }
-    /* the two compressing decoders may have been given a predictor;
-       everything else takes its parameters and needs no stage */
-    if (cname && strcmp(cname, "FlateDecode") == 0)
+    /* the two compressing filters may have been given a predictor, in
+       either direction; everything else takes its parameters and needs no
+       stage */
+    if (cname && (strcmp(cname, "FlateDecode") == 0
+               || strcmp(cname, "FlateEncode") == 0))
     {
         Xpost_Object f;
+        int enc = cname[5] == 'E';
         int ret;
 
         free(cname);
@@ -662,7 +672,7 @@ int xpost_op_file_filter_dict (Xpost_Context *ctx,
         if (ret)
             return ret;
         f = xpost_stack_pop(ctx->lo, ctx->os);
-        ret = _layer_predictor(ctx, dict, &f);
+        ret = _layer_predictor(ctx, dict, &f, enc);
         if (ret)
             return ret;
         xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));

@@ -20,6 +20,9 @@
 #   bitcnt     Xpost_BitEncBase: bits gathered short of a byte. The
 #              drain shifts the buffer down by it and the padding
 #              shifts up by eight less it.
+#   bpp        Xpost_PredEncFile: bytes between a byte and the one a
+#              pixel to its left, taken away from a subscript to reach
+#              that neighbour.
 #   codewidth  Xpost_LzwEncFile: the current code width, compared
 #              against one shifted left by it.
 #   n          Xpost_A85EncFile: bytes of the group of four, the tail
@@ -28,6 +31,8 @@
 #              indexing that block.
 #   nextcode   Xpost_LzwEncFile: the next string table entry, indexing
 #              the suffix, sibling and child tables.
+#   pos        Xpost_PredEncFile: bytes gathered into the current row,
+#              indexing a buffer holding exactly one row.
 #   prefix     Xpost_LzwEncFile: the string built so far, indexing the
 #              child table.
 #   rowi       Xpost_DctEncFile: bytes of the current scanline,
@@ -38,12 +43,14 @@
 # The count below is the size of the list, so that retiring an entry is
 # two edits and a population that shrank says so with a number.
 
-entries 7
+entries 9
 
 bitcnt
+bpp
 codewidth
 n
 nextcode
+pos
 prefix
 rowi
 rowpos

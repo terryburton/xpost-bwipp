@@ -58,4 +58,93 @@ want eq (rows may each use their own filter) assert
 { src << /Predictor 2 /Columns 0 >> /FlateDecode filter } /rangecheck (a row of no columns) raises
 { src << /Predictor 2 /Columns 2000000000 >> /FlateDecode filter } /rangecheck (a row of more columns than the stage sizes) raises
 
+% ------------------------------------------------ the other direction
+% PLRM Table 3.20: the parameter is given to the encoding filters too,
+% where it selects the differencing to APPLY. So the question is asked as
+% a round trip, in all four combinations of the two ends having it: the
+% two that agree must return what was written, and the two that disagree
+% must not. Without the encoding half only the disagreeing pair round
+% trips, which is what the four cases together tell apart -- one that
+% asked the agreeing pair alone would pass on an encoder that ignored the
+% parameter and a decoder that was handed undifferenced data.
+
+/nm (predrt.scratch) def
+/rt.src 96 string def
+0 1 rt.src length 1 sub {
+    /rt.i exch def rt.src rt.i rt.i 37 mul 13 add 255 and put
+} for
+
+/rt { % encparams-or-null decparams-or-null /Encode /Decode  .  bool
+    /rt.dn exch def /rt.en exch def /rt.dp exch def /rt.ep exch def
+    /rt.f nm (w) file def
+    /rt.e rt.ep null eq
+        { rt.f rt.en filter }{ rt.f rt.ep rt.en filter } ifelse def
+    rt.e rt.src writestring
+    rt.e closefile
+    rt.f closefile
+    /rt.g nm (r) file def
+    /rt.d rt.dp null eq
+        { rt.g rt.dn filter }{ rt.g rt.dp rt.dn filter } ifelse def
+    /rt.got 256 string def
+    /rt.k rt.d rt.got readstring pop length def
+    rt.d closefile
+    rt.g closefile
+    rt.got 0 rt.k getinterval rt.src eq
+} bind def
+
+/pd { % predictor  .  <<params>>
+    << /Predictor 3 -1 roll /Colors 3 /BitsPerComponent 8 /Columns 4 >>
+} bind def
+
+% the four combinations, for each compressor and for horizontal
+% differencing and a PNG row filter alike
+/fourway { % predictor /Encode /Decode (case)  .  -
+    /fw.w exch def /fw.d exch def /fw.e exch def /fw.p exch def
+    fw.p pd fw.p pd fw.e fw.d rt
+        fw.w (round trips with the parameter at both ends) assert2
+    fw.p pd null fw.e fw.d rt not
+        fw.w (does not round trip with the parameter only on the encoder) assert2
+    null fw.p pd fw.e fw.d rt not
+        fw.w (does not round trip with the parameter only on the decoder) assert2
+    null null fw.e fw.d rt
+        fw.w (round trips with the parameter at neither end) assert2
+} bind def
+
+2  /FlateEncode /FlateDecode (flate, predictor 2:) fourway
+12 /FlateEncode /FlateDecode (flate, predictor 12:) fourway
+15 /FlateEncode /FlateDecode (flate, predictor 15:) fourway
+2  /LZWEncode /LZWDecode (lzw, predictor 2:) fourway
+12 /LZWEncode /LZWDecode (lzw, predictor 12:) fourway
+15 /LZWEncode /LZWDecode (lzw, predictor 15:) fourway
+
+% every PNG function the parameter can name
+10 pd 10 pd /FlateEncode /FlateDecode rt (the none function round trips) assert
+11 pd 11 pd /FlateEncode /FlateDecode rt (the sub function round trips) assert
+13 pd 13 pd /FlateEncode /FlateDecode rt (the average function round trips) assert
+14 pd 14 pd /FlateEncode /FlateDecode rt (the paeth function round trips) assert
+
+% PLRM Table 3.20: at 10 and above the two ends need not name the same
+% function, because each row says which one it used
+11 pd 12 pd /FlateEncode /FlateDecode rt
+    (a sub-filtered stream is read by a decoder asked for up) assert
+15 pd 10 pd /LZWEncode /LZWDecode rt
+    (a per-row choice is read by a decoder asked for none) assert
+
+% a last row the program left short, and a sample wider than a byte
+<< /Predictor 12 /Colors 3 /BitsPerComponent 8 /Columns 7 >> dup
+    /FlateEncode /FlateDecode rt
+    (a final row shorter than the rest round trips) assert
+<< /Predictor 2 /Colors 1 /BitsPerComponent 16 /Columns 5 >> dup
+    /LZWEncode /LZWDecode rt
+    (sixteen-bit samples round trip) assert
+
+% the parameters an encoding stage is defined for, refused as the
+% decoding one refuses them
+{ nm (w) file << /Predictor 99 >> /FlateEncode filter } /rangecheck
+    (an encoder predictor out of range) raises
+{ nm (w) file << /Predictor 2 /BitsPerComponent 4 >> /LZWEncode filter }
+    /rangecheck (an encoder sample narrower than a byte) raises
+
+nm deletefile
+
 verdict

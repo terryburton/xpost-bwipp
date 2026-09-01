@@ -396,6 +396,18 @@ Xpost_Object xpost_file_cons_filter_enc_a85(Xpost_Memory_File *mem, Xpost_Object
 Xpost_Object xpost_file_cons_filter_enc_rle(Xpost_Memory_File *mem, Xpost_Object tgt, int recsize);
 Xpost_Object xpost_file_cons_filter_enc_flate(Xpost_Memory_File *mem, Xpost_Object tgt);
 Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object tgt, int early);
+
+/**
+ * @brief difference the data an LZW or Flate filter is about to compress.
+ *
+ * Layers over the compressing filter: predictor 2 is horizontal
+ * differencing, 10 and above the PNG row filters, one of which 15 picks
+ * per row (PLRM Table 3.20).
+ */
+Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
+                                                  Xpost_Object tgt,
+                                                  int predictor, int colors,
+                                                  int bpc, int columns);
 Xpost_Object xpost_file_cons_filter_enc_ccitt(Xpost_Memory_File *mem, Xpost_Object tgt, int k, int columns, int rows, int blackis1, int byteal, int eol, int eob);
 Xpost_Object xpost_file_cons_filter_enc_dct(Xpost_Memory_File *mem, Xpost_Object tgt, int columns, int rows, int colors, double qfactor, int colortransform, const int *hsamp, const int *vsamp);
 Xpost_Object xpost_file_cons_filter_eexec(Xpost_Memory_File *mem, Xpost_Object src);
