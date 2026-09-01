@@ -934,6 +934,88 @@ clear
     (a FontSet that was never built is not found) check
 clear
 
+% --- composefont takes its operands the three ways PLRM 8.2 gives ------
+%
+% "The CMap can be specified by a name or string operand to be looked up
+% (by findresource) as a key in the CMap resource category, or the
+% operand can be an actual CMap dictionary. Similarly, each element of
+% array can be a name or a string to be looked up as a key in the
+% CIDFont or Font resource category (first in CIDFont and then, if not
+% found, in Font), or the array element can be an actual CIDFont or font
+% dictionary."
+%
+% A form is worth having only if it composes the same font as the others,
+% so what each is held to is the page: the fonts composed the other ways
+% mark what the font composed from names marks. Refusals alone would not
+% tell an operand form that is taken from one that is refused along with
+% everything else, so the refusals below sit beside those pages.
+/p.name (composefont operands:) def
+/nx.d 0 def /nx.r null def /nx.ds 0 def
+/nx.err { % proc  .  errorname or null
+    count 1 sub /nx.d exch def
+    countdictstack /nx.ds exch def
+    stopped { $error /errorname get $error /newerror false put }{ null } ifelse
+    % the dictionary stack first, and before anything here is defined: a
+    % procedure that raised inside a begin left that dictionary on the
+    % stack, and a resource dictionary is read-only, so a def while it is
+    % current is refused
+    countdictstack nx.ds sub dup 0 gt { { end } repeat }{ pop } ifelse
+    /nx.r exch def
+    count nx.d sub dup 0 gt { { pop } repeat }{ pop } ifelse
+    nx.r
+} bind def
+
+{ /CIDShowByName   /CIDShowTestCMap  [ /CIDShowTest ]  composefont pop }
+    nx.err null eq (a CMap and a descendant given as names compose) check
+{ /CIDShowByString (CIDShowTestCMap) [ (CIDShowTest) ] composefont pop }
+    nx.err null eq (and given as strings) check
+{ /CIDShowByDict   /CIDShowTestCMap /CMap findresource
+                   [ /CIDShowTest /CIDFont findresource ] composefont pop }
+    nx.err null eq (and given as dictionaries) check
+% and each operand separately, so that a form taken for one of them and
+% not the other is a failure of its own rather than of the pair
+{ /CIDShowStrCMap (CIDShowTestCMap) [ /CIDShowTest ] composefont pop }
+    nx.err null eq (a CMap given as a string beside a descendant named) check
+{ /CIDShowStrDesc /CIDShowTestCMap [ (CIDShowTest) ] composefont pop }
+    nx.err null eq (and a descendant given as a string beside a CMap named) check
+/cf.n /CIDShowByName def
+/cf { cf.n findfont 20 scalefont setfont 10 20 moveto CODES show } bind def
+/cf.snap { /cf.n exch def /cf load greysnap } bind def
+/CFN /CIDShowByName cf.snap def
+CFN inkof 0 gt (the font composed from names marks the page) check
+/CIDShowByString /Font resourcestatus { pop pop
+    /CIDShowByString cf.snap CFN differs 0 eq
+        (the one composed from strings marks the same) check }
+    { false (the one composed from strings was not defined) check } ifelse
+/CIDShowByDict /Font resourcestatus { pop pop
+    /CIDShowByDict cf.snap CFN differs 0 eq
+        (and the one composed from dictionaries marks the same) check }
+    { false (the one composed from dictionaries was not defined) check } ifelse
+
+% a descendant the CIDFont category does not carry is looked for in the
+% Font category, which is where the base font of PLRM 8.2's own example
+% lives
+/CIDOracleFont /CIDFont resourcestatus { pop pop false }{ true } ifelse
+    (the oracle font is no CIDFont) check
+{ /CIDShowBaseDesc /CIDShowTestCMap [ /CIDOracleFont ] composefont pop }
+    nx.err null eq /cf.base exch def
+cf.base (a descendant named only in the Font category is found there) check
+cf.base {
+    /CIDShowBaseDesc findfont /FDepVector get 0 get /FontType get 42 eq
+        (and it is the font that name carries) check
+} if
+
+% and what no category carries is undefined, whichever operand it is
+{ /CIDShowNoCMap /NoSuchCMapAnywhere [ /CIDShowTest ] composefont }
+    nx.err /undefinedresource eq
+    (a CMap name no category carries is undefined) check
+{ /CIDShowNoDesc /CIDShowTestCMap [ /NoSuchFontAnywhere ] composefont }
+    nx.err /undefinedresource eq
+    (and so is a descendant name) check
+{ /CIDShowBadCMap 42 [ /CIDShowTest ] composefont }
+    nx.err /typecheck eq
+    (a CMap operand of no such form is a wrong type) check
+
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
 quit

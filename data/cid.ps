@@ -872,6 +872,20 @@ end
 %  operator is 8.2, which takes the CMap by name, by string or as a
 %  dictionary -- the three forms the signature admits.
 %
+%  An operand that names its resource rather than being it is looked up
+%  where PLRM 8.2 says to look: the CMap in the CMap category, and each
+%  descendant in the CIDFont category and then, if it is not there, in
+%  the Font category. A name and a string are the same key written two
+%  ways, so both are looked up and only a dictionary is taken as it
+%  stands.
+%
+%  A descendant neither category carries is asked of the CIDFont
+%  category, so that the refusal names the category a descendant is
+%  looked for in first. Asked of the Font category it would not be a
+%  refusal at all: that category answers an unavailable font with a
+%  substitute rather than with an error, and a composite silently built
+%  over a substitute is a page of the wrong glyphs and nothing said.
+%
 /composefont [ /anytype /anytype /arraytype ] {  % key cmap fonts  .  font
     1 index type dup /nametype ne exch dup /stringtype ne exch /dicttype ne and and
         { /composefont cvx /typecheck signalerror } if
@@ -882,9 +896,15 @@ end
     % into it on first use; the copy is where that face goes. The copy is
     % shallow, so the glyph directory stays the one object the program adds
     % to, and glyphs delivered after the font is composed still arrive.
-    [ exch { dup type /nametype eq { /CIDFont findresource } if
+    [ exch { dup type dup /nametype eq exch /stringtype eq or
+             { dup /CIDFont resourcestatus
+                   { pop pop /CIDFont }
+                   { dup /Font resourcestatus
+                         { pop pop /Font }{ /CIDFont } ifelse } ifelse
+               findresource } if
              dup length 4 add dict copy } forall ]
-    exch dup type /nametype eq { /CMap findresource } if
+    exch dup type dup /nametype eq exch /stringtype eq or
+        { /CMap findresource } if
     exch
     8 dict begin
     /FDepVector exch def
