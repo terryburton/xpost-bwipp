@@ -181,15 +181,24 @@ Level 3 operators
  [X] shfill (sampled functions at byte depths; FunctionTypes 0, 2 and
      3 -- the type 4 calculator functions rangecheck, and functions of
      more than one input are served by type 0 only)
- [X] composite fonts (FMapTypes 2 through 8 over any descendants,
+ [/] composite fonts (FMapTypes 2 through 8 over any descendants,
      and FMapType 9 through composefont with CIDFont descendants of
      CIDFontType 2, incremental GlyphDirectory delivery, and
      CIDFontType 0, charstrings through StartData; escapes select
-     within one modal level. The CIDInit procedure set is complete:
-     notdef mappings and usematrix are taken, though a single-descendant
-     job applies neither)
+     within one modal level. An FMapType 9 font paints every character
+     from the first entry of its FDepVector: the CMap's font number is
+     taken and not applied, so a CMap naming a second descendant reaches
+     the first one's glyphs. A CID outside the count the descendant
+     declares is answered by the glyph for CID 0, but one inside that
+     count whose glyph the descendant's font program does not carry is
+     a rangecheck, where an undefined character is substituted for. The
+     CIDInit procedure set is complete: notdef mappings and usematrix
+     are taken and neither is applied, so the substitution that is made
+     is the glyph for CID 0 with the CMap's own notdef mapping for the
+     code not consulted)
  [X] cshow through a CID-keyed composite (PLRM 8.2), the special measure
-     included: the procedure is handed the character code, currentfont
+     included: the procedure is handed the character code, or its last
+     byte where the code is more than one byte long, currentfont
      answers with the descendant the mapping selected and rootfont with
      the font setfont was given, and a show of the single byte the
      procedure was given paints the glyph the originally selected CID
