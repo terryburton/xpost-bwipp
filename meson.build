@@ -5932,6 +5932,21 @@ test('check-plrm-errors',
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
+# The other error class that can be driven from the specification: what
+# an operator answers when it is handed operands of the wrong type. What
+# makes it drivable is the syntax line that opens each entry: it names
+# one operand per position, and a null is of a type every named operand
+# kind excludes -- so the register carries the COUNT and needs no mapping
+# from an operand's name to a type. The count is the half that has to be
+# right: handed too few an operator raises stackunderflow, which looks
+# like a wrong-type refusal and is the arity check answering. One run for
+# all of them.
+test('check-plrm-typecheck',
+  find_program('tests/check-plrm-typecheck.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ])
+
 # PLRM 4.8 defines eleven colour space families, and this is the family
 # where a member has twice been reached by whichever code its author
 # happened to write. Membership is derived from the roster in

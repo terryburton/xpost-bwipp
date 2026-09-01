@@ -1,0 +1,457 @@
+# What each operator answers when it is handed operands of the wrong
+# type, and which operators that question can be put to at all.
+#
+# DERIVED FROM THE SPECIFICATION. tests/plrm-errors records the errors
+# PLRM 8.2 lists for each operator; this records which of them can be
+# provoked, and that takes something the error lists do not carry: what
+# type each operand is supposed to be. The manual does carry it, in the
+# syntax line that opens every entry --
+#
+#     int string put
+#     bool proc if
+#     num1 num2 add
+#
+# -- where the operand names are typed by convention. So the same line
+# that tells an entry from a mention also says what an operator takes,
+# and the question can be put to every operator whose operands all have
+# a definite type.
+#
+# ---- how it is asked
+#
+# By handing the operator nulls, one per operand the syntax line names.
+# A null is of a type every named operand kind excludes, so the answer
+# should be typecheck; and the COUNT is the count the line gives, so
+# what answers is the type check and not the arity check. That second
+# half is the trap. An operand list read short raises stackunderflow
+# instead, which is a perfectly plausible-looking answer to a
+# wrong-typed call, and a gate that accepted it would be testing
+# nothing.
+#
+# ---- which operators the question cannot be put to
+#
+# skip rows, with the reason. Three kinds of syntax line put an operator
+# out of reach: one naming no operands, one naming a variable number,
+# and one whose operand is named any, obj, key or value -- kinds the
+# specification lets be an object of any type, so a null is not wrong
+# for them and nothing follows from the answer.
+#
+# procset rows name the operators that answer undefined to a bare call
+# because they are not on any dictionary stack: each is a member of a
+# procedure set, reached by finding that set as a resource. The set each
+# belongs to is verified against the sets the interpreter publishes.
+#
+# The wrapped row is the one syntax line that runs across more than one
+# physical line, so the extraction reads a suffix of its operands and
+# derives a count too short. It is found two ways that agree: the probe
+# answers stackunderflow, and the line above it in the text is operand
+# words naming no operator.
+#
+# ---- when a different error is the right answer
+#
+# An operator may answer some other error before it looks at the type: a
+# mark it counts down to and does not find, a current font it asks for
+# first. Those are not failures and are not forced to typecheck; the row
+# records the error, and the error is one the specification lists for
+# that operator, checked against its entry rather than accepted because
+# it looked reasonable.
+#
+# ---- the lines
+#
+#   drive   <name>  <operands>  <answer>  [<why the answer is not typecheck>]
+#   procset <name>  <the procedure set or sets it belongs to>
+#   wrapped <name>  <why its operand count cannot be read>
+#   skip    <name>  <why the question cannot be put to it>
+#   covered <n>     how many operators answer typecheck
+#
+# Every operator the specification defines has exactly one line here, so
+# one that stops being defined, or arrives, is a line that no longer
+# matches rather than a silence.
+
+drive	abs	1	typecheck
+drive	add	2	typecheck
+drive	aload	1	typecheck
+drive	anchorsearch	2	typecheck
+drive	and	2	typecheck
+drive	arc	5	typecheck
+drive	arcn	5	typecheck
+drive	arct	5	typecheck
+drive	arcto	5	typecheck
+drive	array	1	typecheck
+drive	ashow	3	typecheck
+drive	atan	2	typecheck
+drive	awidthshow	6	typecheck
+drive	begin	1	typecheck
+drive	bind	1	typecheck
+drive	bitshift	2	typecheck
+drive	bytesavailable	1	typecheck
+drive	ceiling	1	typecheck
+drive	charpath	2	typecheck
+drive	closefile	1	typecheck
+drive	concat	1	typecheck
+drive	concatmatrix	3	typecheck
+drive	cos	1	typecheck
+drive	cshow	2	typecheck
+drive	currentdevparams	1	typecheck
+drive	currentgstate	1	typecheck
+drive	currentmatrix	1	typecheck
+drive	curveto	6	typecheck
+drive	cvi	1	typecheck
+drive	cvn	1	typecheck
+drive	cvrs	3	typecheck
+drive	defaultmatrix	1	typecheck
+drive	deletefile	1	typecheck
+drive	dict	1	typecheck
+drive	dictstack	1	typecheck
+drive	div	2	typecheck
+drive	dtransform	2	typecheck
+drive	echo	1	typecheck
+drive	eexec	1	typecheck
+drive	execform	1	typecheck
+drive	execstack	1	typecheck
+drive	execuserobject	1	typecheck
+drive	executeonly	1	typecheck
+drive	exp	2	typecheck
+drive	file	2	typecheck
+drive	filenameforall	3	typecheck
+drive	fileposition	1	typecheck
+drive	findcolorrendering	1	typecheck
+drive	floor	1	typecheck
+drive	flushfile	1	typecheck
+drive	for	4	typecheck
+drive	forall	2	typecheck
+drive	ge	2	typecheck
+drive	get	2	typecheck
+drive	getinterval	3	typecheck
+drive	glyphshow	1	invalidfont	it asks for the current font before it looks at its operand; the specification gives it invalidfont
+drive	gt	2	typecheck
+drive	identmatrix	1	typecheck
+drive	idiv	2	typecheck
+drive	if	2	typecheck
+drive	ifelse	3	typecheck
+drive	image	5	typecheck
+drive	imagemask	5	typecheck
+drive	ineofill	2	typecheck
+drive	infill	2	typecheck
+drive	instroke	2	typecheck
+drive	internaldict	1	typecheck
+drive	inueofill	3	typecheck
+drive	inufill	3	typecheck
+drive	inustroke	3	typecheck
+drive	invertmatrix	2	typecheck
+drive	kshow	2	typecheck
+drive	le	2	typecheck
+drive	length	1	typecheck
+drive	lineto	2	typecheck
+drive	ln	1	typecheck
+drive	log	1	typecheck
+drive	loop	1	typecheck
+drive	lt	2	typecheck
+drive	makefont	2	typecheck
+drive	makepattern	2	typecheck
+drive	maxlength	1	typecheck
+drive	mod	2	typecheck
+drive	moveto	2	typecheck
+drive	mul	2	typecheck
+drive	neg	1	typecheck
+drive	noaccess	1	typecheck
+drive	not	1	typecheck
+drive	or	2	typecheck
+drive	pathforall	4	typecheck
+drive	print	1	typecheck
+drive	putinterval	3	typecheck
+drive	rcheck	1	typecheck
+drive	rcurveto	6	typecheck
+drive	read	1	typecheck
+drive	readhexstring	2	typecheck
+drive	readline	2	typecheck
+drive	readonly	1	typecheck
+drive	readstring	2	typecheck
+drive	rectclip	4	typecheck
+drive	rectfill	4	typecheck
+drive	rectstroke	4	typecheck
+drive	renamefile	2	typecheck
+drive	repeat	2	typecheck
+drive	resetfile	1	typecheck
+drive	resourceforall	4	typecheck
+drive	restore	1	typecheck
+drive	rlineto	2	typecheck
+drive	rmoveto	2	typecheck
+drive	rotate	1	typecheck
+drive	round	1	typecheck
+drive	run	1	typecheck
+drive	scale	2	typecheck
+drive	scalefont	2	typecheck
+drive	search	2	typecheck
+drive	setbbox	4	typecheck
+drive	setblackgeneration	1	typecheck
+drive	setcachedevice	6	typecheck
+drive	setcachedevice2	10	typecheck
+drive	setcachelimit	1	typecheck
+drive	setcacheparams	4	unmatchedmark	it counts down to a mark and finds none first; the specification gives it unmatchedmark
+drive	setcharwidth	2	typecheck
+drive	setcmykcolor	4	typecheck
+drive	setcolorrendering	1	typecheck
+drive	setcolorspace	1	typecheck
+drive	setcolortransfer	4	typecheck
+drive	setdash	2	typecheck
+drive	setdevparams	2	typecheck
+drive	setfileposition	2	typecheck
+drive	setflat	1	typecheck
+drive	setfont	1	typecheck
+drive	setglobal	1	typecheck
+drive	setgray	1	typecheck
+drive	setgstate	1	typecheck
+drive	sethalftone	1	typecheck
+drive	sethsbcolor	3	typecheck
+drive	setlinecap	1	typecheck
+drive	setlinejoin	1	typecheck
+drive	setlinewidth	1	typecheck
+drive	setmatrix	1	typecheck
+drive	setmiterlimit	1	typecheck
+drive	setobjectformat	1	typecheck
+drive	setoverprint	1	typecheck
+drive	setpacking	1	typecheck
+drive	setpagedevice	1	typecheck
+drive	setpattern	1	typecheck
+drive	setrgbcolor	3	typecheck
+drive	setscreen	3	typecheck
+drive	setshared	1	typecheck
+drive	setsmoothness	1	typecheck
+drive	setstrokeadjust	1	typecheck
+drive	setsystemparams	1	typecheck
+drive	settransfer	1	typecheck
+drive	setucacheparams	2	unmatchedmark	it counts down to a mark and finds none first; the specification gives it unmatchedmark
+drive	setundercolorremoval	1	typecheck
+drive	setuserparams	1	typecheck
+drive	setvmthreshold	1	typecheck
+drive	shfill	1	typecheck
+drive	show	1	typecheck
+drive	sin	1	typecheck
+drive	sqrt	1	typecheck
+drive	srand	1	typecheck
+drive	startjob	2	typecheck
+drive	status	1	typecheck
+drive	string	1	typecheck
+drive	stringwidth	1	typecheck
+drive	sub	2	typecheck
+drive	token	1	typecheck
+drive	transform	2	typecheck
+drive	translate	2	typecheck
+drive	truncate	1	typecheck
+drive	ueofill	1	typecheck
+drive	ufill	1	typecheck
+drive	undefineuserobject	1	typecheck
+drive	upath	1	typecheck
+drive	ustroke	1	typecheck
+drive	ustrokepath	1	typecheck
+drive	vmreclaim	1	typecheck
+drive	wcheck	1	typecheck
+drive	widthshow	4	typecheck
+drive	write	2	typecheck
+drive	writehexstring	2	typecheck
+drive	writestring	2	typecheck
+drive	xor	2	typecheck
+drive	xshow	2	typecheck
+drive	xyshow	2	typecheck
+drive	yshow	2	typecheck
+procset	GetSubstituteCRD	ColorRendering
+procset	addglyph	BitmapFontInit
+procset	beginbfchar	CIDInit
+procset	beginbfrange	CIDInit
+procset	begincidchar	CIDInit
+procset	begincidrange	CIDInit
+procset	begincodespacerange	CIDInit
+procset	beginnotdefchar	CIDInit
+procset	beginnotdefrange	CIDInit
+procset	beginusematrix	CIDInit
+procset	endcidrange	CIDInit
+procset	endcodespacerange	CIDInit
+procset	endnotdefrange	CIDInit
+procset	endusematrix	CIDInit
+procset	removeall	BitmapFontInit
+procset	removeglyphs	BitmapFontInit
+procset	settrapparams	Trapping
+procset	usefont	CIDInit
+skip	<<	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	=	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	==	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	>>	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	FontDirectory	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	GetHalftoneName	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	GetPageDeviceName	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	GlobalFontDirectory	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	ISOLatin1Encoding	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	SharedFontDirectory	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	StandardEncoding	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	StartData	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	[	no entry of the specification text resolves to this name, so it has no syntax line to read
+skip	]	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	astore	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	begincmap	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	beginrearrangedfont	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	cachestatus	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	clear	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	cleardictstack	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	cleartomark	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	clip	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	clippath	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	cliprestore	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	clipsave	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	closepath	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	colorimage	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	composefont	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	copy	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	copypage	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	count	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	countdictstack	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	countexecstack	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	counttomark	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	currentblackgeneration	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcacheparams	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcmykcolor	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcolor	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcolorrendering	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcolorscreen	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcolorspace	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentcolortransfer	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentdash	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentdict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentfile	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentflat	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentfont	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentglobal	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentgray	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currenthalftone	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currenthsbcolor	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentlinecap	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentlinejoin	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentlinewidth	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentmiterlimit	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentobjectformat	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentoverprint	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentpacking	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentpagedevice	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentpoint	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentrgbcolor	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentscreen	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentshared	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentsmoothness	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentstrokeadjust	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentsystemparams	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currenttransfer	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currenttrapparams	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentundercolorremoval	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	currentuserparams	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	cvlit	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	cvr	no entry of the specification text resolves to this name, so it has no syntax line to read
+skip	cvs	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	cvx	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	def	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	definefont	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	defineresource	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	defineuserobject	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	dup	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	end	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	endbfchar	the syntax line offers alternative operand lists, and which one a wrong type is wrong for is not one question
+skip	endbfrange	the syntax line offers alternative operand lists, and which one a wrong type is wrong for is not one question
+skip	endcidchar	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	endcmap	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	endnotdefchar	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	endrearrangedfont	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	eoclip	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	eofill	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	eq	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	erasepage	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	errordict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	exch	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	exec	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	executive	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	exit	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	false	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	fill	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	filter	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	findencoding	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	findfont	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	findresource	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	flattenpath	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	flush	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	gcheck	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	globaldict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	globalvmstatus	no entry of the specification text resolves to this name, so it has no syntax line to read
+skip	grestore	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	grestoreall	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	gsave	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	gstate	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	idtransform	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	index	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	initclip	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	initgraphics	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	initmatrix	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	itransform	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	known	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	languagelevel	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	load	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	mark	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	matrix	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	ne	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	newpath	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	null	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	nulldevice	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	packedarray	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	pathbbox	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	pop	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	printobject	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	product	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	prompt	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	pstack	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	put	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	quit	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	rand	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	realtime	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	resourcestatus	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	reversepath	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	revision	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	roll	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	rootfont	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	rrand	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	save	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	scheck	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	selectfont	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	serialnumber	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	serverdict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	setcolor	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	settrapzone	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	shareddict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	showpage	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	stack	the syntax line takes a variable number of operands, so no fixed count can be pushed
+skip	start	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	statusdict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	stop	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	stopped	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	store	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	stroke	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	strokepath	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	systemdict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	true	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	type	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	uappend	no entry of the specification text resolves to this name, so it has no syntax line to read
+skip	ucache	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	ucachestatus	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	undef	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	undefinefont	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	undefineresource	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	usecmap	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	userdict	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	usertime	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	version	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	vmstatus	the syntax line gives it no operands, so there is no operand to make the wrong type
+skip	where	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	writeobject	an operand is named any, obj, key or value, which the specification lets be an object of any type
+skip	xcheck	an operand is named any, obj, key or value, which the specification lets be an object of any type
+wrapped	setcolorscreen	its syntax line runs across four physical lines and the extraction reads the last, so the count derived is 3 where the operator takes 12; the probe answers stackunderflow, which is the tell
+
+# A ratchet: the count may rise and may not fall. The row-by-row
+# comparison above is what names an operator that went wrong; this is
+# here so that a probe answering nothing cannot pass by agreeing with an
+# expectation that has emptied.
+covered	184

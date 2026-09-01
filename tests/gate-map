@@ -511,6 +511,8 @@ guards path tests/machinery_reachable.golden
 guards path tests/nonplrm-names
 guards path tests/check-plrm-errors.sh
 guards path tests/plrm-errors
+guards path tests/check-plrm-typecheck.sh
+guards path tests/plrm-typecheck
 guards path tests/testlib.ps
 guards path tests/testlib-prepend.sh
 guards path tests/testlib-facts
