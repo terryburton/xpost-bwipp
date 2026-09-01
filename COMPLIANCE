@@ -433,9 +433,13 @@ Known behavioural deviations
      pixels were painted and which pixels were left unchanged" and, for that
      reason, does not permit colour-setting operators in a description that is
      to be cached -- so a description that sets one has already left what the
-     restriction covers. The operator is not refused: PLRM places the
-     restriction on the program rather than on the interpreter, and refusing
-     it would make an error of programs that run today.
+     restriction covers. The operator is not refused where a glyph
+     description sets it: PLRM places the restriction on the program rather
+     than on the interpreter, and refusing it would make an error of programs
+     that run today. The paint procedure of an uncoloured tiling pattern,
+     which PLRM 4.9.2 holds to the same restriction, does refuse: a cell
+     there is painted in the colour set beneath it, so a procedure setting
+     one of its own gives every colour of the pattern the same cell.
 
  [X] currentcontext, fork  a context identifier is a context-typed object
      rather than the integer PLRM 2nd ed 7.1 describes. It carries the same

@@ -746,6 +746,7 @@ end } put
 %
 /setscreen [ [ /numbertype /numbertype /proctype ]
              [ /numbertype /numbertype /nametype ] ] {
+    //.uncoloredcell /on get { /setscreen cvx /undefined signalerror } if
     graphicsdict /currgstate get exch /screenproc exch put
     graphicsdict /currgstate get exch /screenangle exch put
     graphicsdict /currgstate get exch /screenfreq exch put
@@ -785,6 +786,7 @@ end } put
                   /numbertype /numbertype /anytype
                   /numbertype /numbertype /anytype
                   /numbertype /numbertype /anytype ] {
+    //.uncoloredcell /on get { /setcolorscreen cvx /undefined signalerror } if
     //.installcolorscreen exec
 } .defop
 
@@ -1509,6 +1511,7 @@ readonly put
 %  any other type.
 %
 /sethalftone [ /dicttype ] {  % halftonedict  .  -
+    //.uncoloredcell /on get { /sethalftone cvx /undefined signalerror } if
     dup type /dicttype ne {
         /sethalftone cvx /typecheck signalerror
     } if

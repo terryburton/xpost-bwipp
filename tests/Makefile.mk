@@ -554,6 +554,7 @@ tests/run-setpagedevice-failure-test.sh \
 tests/run-statementedit-test.sh \
 tests/run-strict-ps-test.sh \
 tests/run-svg-clipid-test.sh \
+tests/run-uncolored-cell-test.sh \
 tests/run-svg-test.sh \
 tests/run-vecout-gc-test.sh \
 tests/run-vm-image-test.sh \
@@ -578,6 +579,7 @@ tests/save_restore_matrix_test.ps \
 tests/save_restore_sweep_cost_test.ps \
 tests/shading_function_arity_test.ps \
 tests/resource_hijack_test.ps \
+tests/uncolored_pattern_test.ps \
 tests/save_restore_test.ps \
 tests/scanner_eof_test.ps \
 tests/sealed_dict_restore_test.c \

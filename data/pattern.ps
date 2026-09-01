@@ -268,6 +268,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
         % A degenerate mapping tiles without bound: refuse it
         i1 i0 sub 1 add j1 j0 sub 1 add mul dup 65536 le exch 0 gt and {
+            /wasuncol //.uncoloredcell /on get def
+            {
             i0 1 i1 { /i exch def
                 j0 1 j1 { /j exch def
                     gsave
@@ -292,11 +294,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
                     % The paint procedure runs on the caller's stacks:
                     % its defs are its own, out of this dict's names.
+                    //.uncoloredcell /on pat /PaintType get 2 eq put
                     pat dup /PaintProc get
                     null 1 //.pcallout exec
+                    //.uncoloredcell /on wasuncol put
                     grestore
                 } for
             } for
+            } stopped
+            //.uncoloredcell /on wasuncol put
+            { stop } if
         } if
         } ifelse
     } if
@@ -442,6 +449,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % standing, and what spoiled this one did not spoil that.
         /wasin //.cellstate /incell get def
         /wasbad //.cellstate /spoiled get def
+        /wasuncol //.uncoloredcell /on get def
         //.cellstate /incell true put
         //.cellstate /spoiled false put
         {
@@ -486,8 +494,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
                 % The paint procedure runs on the caller's stacks: its
                 % defs are its own, out of this dict's names.
+                //.uncoloredcell /on pat /PaintType get 2 eq put
                 pat dup /PaintProc get
                 null 1 //.pcallout exec
+                //.uncoloredcell /on wasuncol put
                 grestore
             } null 0 //.callout exec
         } stopped {
@@ -500,6 +510,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             at false DEVICE dup /.patterntake get exec pop
             //.cellstate /incell wasin put
             //.cellstate /spoiled wasbad put
+            //.uncoloredcell /on wasuncol put
             end
             stop
         } if
@@ -508,6 +519,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         at bad not DEVICE dup /.patterntake get exec /chunks exch def
         //.cellstate /incell wasin put
         //.cellstate /spoiled wasbad put
+        //.uncoloredcell /on wasuncol put
         bad {
             % nothing filed: the cells are walked instead
             end false

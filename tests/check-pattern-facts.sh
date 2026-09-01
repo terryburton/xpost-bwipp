@@ -254,8 +254,15 @@ while read -r ent kase want; do
     # component. Painting it the coloured way would report the family
     # refusing a value it accepts.
     if [ "$ent$kase" = PaintTypetwo ]; then
+        # An uncoloured cell is painted in the colour set beneath it and may
+        # not set one of its own (PLRM 4.9.2), so this case cannot be asked
+        # with the shared paint procedure, which sets one. Asked with that
+        # one it would report the family refusing a value it accepts.
         ans=$(outcome "[ /Pattern /DeviceGray ] setcolorspace
-                       $d matrix makepattern 0 exch setcolor
+                       << /PatternType 1 /PaintType 2 /TilingType 1
+                          /BBox [0 0 4 4] /XStep 4 /YStep 4
+                          /PaintProc { pop 0 0 4 4 rectfill } >>
+                       matrix makepattern 0 exch setcolor
                        5 5 30 30 rectfill")
     else
         ans=$(outcome "[ /Pattern ] setcolorspace $d matrix makepattern setcolor

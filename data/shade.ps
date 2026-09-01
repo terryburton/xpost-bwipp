@@ -1234,6 +1234,7 @@ end
 %  left.
 %
 systemdict /shfill [ /dicttype ] {  % dict  .  -
+    //.uncoloredcell /on get { /shfill cvx /undefined signalerror } if
     % The type is settled before the gsave, because an error unwinds the
     % operand, dictionary and execution stacks and not the graphics
     % stack. Raising after the gsave would leave it unmatched, and a

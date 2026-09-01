@@ -1734,6 +1734,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 /image [ [ /integertype /integertype /integertype /arraytype /anytype ]
          [ /dicttype ] ] {
+    //.uncoloredcell /on get { /image cvx /undefined signalerror } if
     {
     dup type /dicttype eq {
         dup /ImageType get
@@ -1802,6 +1803,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  signature.
 %
 /colorimage [ /booleantype /integertype ] {  % width height bits matrix datasrc... multi ncomp  .  -
+    //.uncoloredcell /on get { /colorimage cvx /undefined signalerror } if
     {
     4 dict begin
     /nc exch def

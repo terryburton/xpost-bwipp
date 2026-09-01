@@ -788,6 +788,7 @@ end
 %  Separation and DeviceN through their alternative.
 %
 /setcolorspace [ /anytype ] {  % array|name  .  -
+    //.uncoloredcell /on get { /setcolorspace cvx /undefined signalerror } if
     dup //.xpostsys /.csvalidate get exec
 
     %[ currentcolor .setcolordict currentcolorspace get counttomark 2 add -1 roll
@@ -888,6 +889,7 @@ end
 %  operators then paint with it.
 %
 /setpattern [ /dicttype ] {
+    //.uncoloredcell /on get { /setpattern cvx /undefined signalerror } if
     % A pattern dictionary, which is one that has been through
     % makepattern. The same question makepattern asked, asked the same
     % way: this operator is reached with dictionaries that never went
@@ -1480,6 +1482,7 @@ end
 %  before it reads the stack.
 %
 /setcolor [ [ /numbertype ] [ /dicttype ] [ /nulltype ] ] {
+    //.uncoloredcell /on get { /setcolor cvx /undefined signalerror } if
     currentcolorspace
 
     % PLRM 4.9.1: the colour value in a Pattern space is a null object,
@@ -1763,6 +1766,7 @@ end
 %  they may be used without a setcolorspace before them.
 %
 /setgray [ /numbertype ] {  % num  .  -
+    //.uncoloredcell /on get { /setgray cvx /undefined signalerror } if
     graphicsdict /currgstate get /setspace /DeviceGray put
     graphicsdict /currgstate get /colorspace /DeviceGray put
     graphicsdict /currgstate get exch //.c01 exec /colorcomp1 exch put
@@ -1783,6 +1787,7 @@ end
 %  Enter DeviceRGB and set three components (PLRM 8.2).
 %
 /setrgbcolor [ /numbertype /numbertype /numbertype ] {  % r g b  .  -
+    //.uncoloredcell /on get { /setrgbcolor cvx /undefined signalerror } if
     graphicsdict /currgstate get /setspace /DeviceRGB put
     graphicsdict /currgstate get /colorspace /DeviceRGB put
     graphicsdict /currgstate get exch //.c01 exec /colorcomp3 exch put
@@ -1809,6 +1814,7 @@ end
 %  above 1 is the same colour as a hue of 1 and not the same as a hue of 0.
 %
 /sethsbcolor [ /numbertype /numbertype /numbertype ] {  % hue saturation brightness  .  -
+    //.uncoloredcell /on get { /sethsbcolor cvx /undefined signalerror } if
     3 { //.c01 exec 3 1 roll } repeat
     7 dict begin
     //.hsbnames {exch def}forall
@@ -1856,6 +1862,7 @@ end
 %  Enter DeviceCMYK and set four components (PLRM 8.2).
 %
 /setcmykcolor [ /numbertype /numbertype /numbertype /numbertype ] {  % c m y k  .  -
+    //.uncoloredcell /on get { /setcmykcolor cvx /undefined signalerror } if
     graphicsdict /currgstate get /setspace /DeviceCMYK put
     graphicsdict /currgstate get /colorspace /DeviceCMYK put
     graphicsdict /currgstate get exch //.c01 exec /colorcomp4 exch put

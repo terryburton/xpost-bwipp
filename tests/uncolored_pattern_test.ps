@@ -1,0 +1,103 @@
+%!testlib
+% The paint procedure of an uncoloured tiling pattern may not set a colour
+% (PLRM 4.9.2 and the restriction stated with it): such a cell is painted
+% in the colour set beneath it, so a procedure choosing one of its own
+% would give the same cell to every colour the pattern is asked for. All
+% eighteen operators the restriction names raise undefined there.
+%
+% Both directions are held. A suite that only proved the refusals could
+% not tell an interpreter that enforces the restriction from one that has
+% stopped painting patterns at all, so the cases that must still work --
+% an uncoloured cell that sets no colour, and a COLOURED pattern, where
+% choosing a colour is the whole point -- carry as much weight here as the
+% refusals do.
+
+/ucell {                                % { paintproc }  .  patterndict
+    /uc.proc exch def
+    << /PatternType 1 /PaintType 2 /TilingType 1
+       /BBox [0 0 10 10] /XStep 10 /YStep 10 /PaintProc /uc.proc load >>
+} def
+/ufill {                                % patterndict gray  .  -
+    [/Pattern /DeviceGray] setcolorspace
+    exch matrix makepattern exch exch setcolor 0 0 40 40 rectfill
+} bind def
+
+% ---- every operator the restriction names ------------------------------
+
+/CASES [
+  { pop 0.5 setgray }                                              (setgray)
+  { pop 0 0 1 setrgbcolor }                                        (setrgbcolor)
+  { pop 0 0 0.5 sethsbcolor }                                      (sethsbcolor)
+  { pop 0 0 0 1 setcmykcolor }                                     (setcmykcolor)
+  { pop /DeviceGray setcolorspace }                                (setcolorspace)
+  { pop 0.5 setcolor }                                             (setcolor)
+  { pop << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 4 4]
+       /XStep 4 /YStep 4 /PaintProc { pop 0 0 2 2 rectfill } >>
+    matrix makepattern setpattern }                            (setpattern)
+  { pop 2 2 8 [2 0 0 -2 0 2] { <FF00 00FF> } image }               (image)
+  { pop 2 2 8 [2 0 0 -2 0 2] { <FF00 00FF> } false 1 colorimage } (colorimage)
+  { pop << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 10 0]
+       /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >>
+    >> shfill }                                                (shfill)
+  { pop 60 0 { pop } setscreen }                                   (setscreen)
+  { pop 60 0 {pop} 60 0 {pop} 60 0 {pop} 60 0 {pop} setcolorscreen } (setcolorscreen)
+  { pop << /HalftoneType 1 /Frequency 60 /Angle 0
+       /SpotFunction { pop } >> sethalftone }                  (sethalftone)
+  { pop { } settransfer }                                          (settransfer)
+  { pop { } { } { } { } setcolortransfer }                         (setcolortransfer)
+  { pop { } setblackgeneration }                                   (setblackgeneration)
+  { pop { } setundercolorremoval }                                 (setundercolorremoval)
+  { pop currentcolorrendering setcolorrendering }                  (setcolorrendering)
+] def
+
+0 2 CASES length 2 sub {
+    /ci exch def
+    gsave
+    { CASES ci get ucell 0.75 ufill } /undefined
+    CASES ci 1 add get raises
+    grestore
+    clear
+} for
+
+% ---- and the cases that must still work --------------------------------
+
+gsave { { pop 0 0 5 5 rectfill } ucell 0.75 ufill } (an uncoloured cell setting no colour) works grestore
+gsave { { pop 0 0 5 5 rectfill  2 2 3 3 rectfill } ucell 0.2 ufill }
+      (an uncoloured cell painting twice) works grestore
+gsave { { pop 5 5 4 4 rectfill } ucell 0.75 ufill
+        { pop 5 5 4 4 rectfill } ucell 0.10 ufill } (the same uncoloured cell in two colours) works grestore
+
+% imagemask paints through the colour already set rather than choosing one,
+% and the restriction does not name it.
+gsave { { pop 10 10 scale 2 2 true [2 0 0 -2 0 2] { <40> } imagemask } ucell 0.75 ufill }
+      (imagemask in an uncoloured cell) works grestore
+
+% A COLOURED pattern's procedure paints in colours of its own; that is what
+% PaintType 1 means, and none of the above touches it.
+gsave { << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 10 10]
+           /XStep 10 /YStep 10 /PaintProc { pop 0.25 setgray 0 0 5 5 rectfill } >>
+        /Pattern setcolorspace matrix makepattern setcolor 0 0 40 40 rectfill }
+      (a coloured cell setting a colour) works grestore
+
+% ---- nesting -----------------------------------------------------------
+%
+% The restriction belongs to the procedure it is in and not to whatever is
+% painting underneath it, so it has to be put back as each one returns.
+% An uncoloured pattern inside a coloured one leaves the coloured one free
+% to go on choosing colours after it.
+
+gsave { << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 20 20]
+           /XStep 20 /YStep 20 /PaintProc { pop
+             0.3 setgray 0 0 8 8 rectfill
+             gsave { pop 0 0 2 2 rectfill } ucell 0.6 ufill grestore
+             0.9 setgray 0 16 4 4 rectfill } >>
+        /Pattern setcolorspace matrix makepattern setcolor 0 0 40 40 rectfill }
+      (a coloured cell still setting colours after an uncoloured one) works grestore
+
+% The other way round, a nested pattern needs setcolorspace to be set up at
+% all, so an uncoloured procedure cannot reach one.
+gsave { { pop /Pattern setcolorspace } ucell 0.75 ufill } /undefined
+      (a pattern nested inside an uncoloured cell) raises grestore
+clear
+
+verdict

@@ -37,6 +37,26 @@ true setglobal
 currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see .xpostsys in init.ps
 
 %
+%  While the paint procedure of an UNCOLOURED tiling pattern runs, the
+%  operators that set a colour or a colour-related graphics state
+%  parameter raise undefined (PLRM 4.9.2 and the restriction stated with
+%  it). Such a cell is painted in the colour set beneath it, which is why
+%  it may not choose one: the same pattern in another colour is another
+%  cell, and a procedure that painted in a colour of its own would give
+%  every one of them the same.
+%
+%  The flag stands here and not in the graphics state. A paint procedure
+%  may gsave and grestore as it likes, and the restriction is not
+%  something a grestore is entitled to lift. It stands in the job store
+%  with the rest of the state a job boundary winds back.
+%
+%  It is declared in this module because this is the first one to define
+%  an operator the restriction covers; every module after it splices the
+%  same dictionary.
+%
+.jobstore /.uncoloredcell << /on false >> put
+
+%
 %  .gstatetemplate yields a freshly-initialized dictionary
 %  with the following values. currmatrix and scratchmatrix
 %  are newly-allocated arrays. The template embeds local objects (the initial
@@ -435,6 +455,7 @@ end
 %  installed.
 %
 /settransfer [ /proctype ] {  % proc  .  -
+    //.uncoloredcell /on get { /settransfer cvx /undefined signalerror } if
     /settransfer exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /transfer exch put
     graphicsdict /currgstate get
@@ -465,6 +486,7 @@ end
 %  the one; undercolour removal reduces the others.
 %
 /setblackgeneration [ /proctype ] {  % proc  .  -
+    //.uncoloredcell /on get { /setblackgeneration cvx /undefined signalerror } if
     /setblackgeneration exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /blackgen exch put
 } .defop
@@ -472,6 +494,7 @@ end
     graphicsdict /currgstate get /blackgen get
 } .defop
 /setundercolorremoval [ /proctype ] {  % proc  .  -
+    //.uncoloredcell /on get { /setundercolorremoval cvx /undefined signalerror } if
     /setundercolorremoval exch //.xpostsys /.sampletransfer get exec
     graphicsdict /currgstate get exch /ucr exch put
 } .defop
@@ -523,6 +546,7 @@ end
 %  it prices such a colour.
 %
 /setcolorrendering [ /dicttype ] {  % dict  .  -
+    //.uncoloredcell /on get { /setcolorrendering cvx /undefined signalerror } if
     dup //.crdvalidate exec
     graphicsdict /currgstate get exch /colorrendering exch put
 } .defop
@@ -656,6 +680,7 @@ end
 %  one in the same range (PLRM 8.2), and setting it is what calls it.
 %
 /setcolortransfer [ /proctype /proctype /proctype /proctype ] {  % redproc greenproc blueproc grayproc  .  -
+    //.uncoloredcell /on get { /setcolortransfer cvx /undefined signalerror } if
     4 array astore /setcolortransfer exch
     //.xpostsys /.samplecolortransfer get exec
     aload pop

@@ -5924,6 +5924,24 @@ test('resource-hijack',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The paint procedure of an uncoloured tiling pattern may not set a colour:
+# the cell is painted in the colour set beneath it, so a procedure choosing
+# one of its own would give every colour the same cell. Both directions are
+# held -- the eighteen refusals, and the cells that must still paint.
+test('uncolored-pattern',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/uncolored_pattern_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
+# The same restriction on the other path to a paint procedure, and the
+# invariant it protects: a device that files a cell files one per colour.
+test('uncolored-cell',
+  find_program('tests/run-uncolored-cell-test.sh'),
+  args: [ xpost_exe ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('check-plrm-operators',
   find_program('tests/check-plrm-operators.sh'),
   priority: guard_priority,
