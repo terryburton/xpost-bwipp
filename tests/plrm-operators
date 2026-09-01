@@ -332,7 +332,7 @@ Device-Setup-and-Output-Operators	nulldevice	-
 Glyph-and-Font-Operators	definefont	dictfull,invalidaccess,invalidfont,limitcheck,rangecheck
 Glyph-and-Font-Operators	composefont	dictfull,invalidaccess,invalidfont,limitcheck,rangecheck
 Glyph-and-Font-Operators	undefinefont	stackunderflow,typecheck
-Glyph-and-Font-Operators	findfont	invalidfont,stackunderflow,typecheck	substitutesforunknown(bothengines)
+Glyph-and-Font-Operators	findfont	invalidfont,stackunderflow,typecheck	substitutes for a name it has no face for
 Glyph-and-Font-Operators	scalefont	invalidfont,stackunderflow,typecheck,undefined
 Glyph-and-Font-Operators	makefont	invalidfont,rangecheck,stackunderflow,typecheck
 Glyph-and-Font-Operators	setfont	invalidfont,stackunderflow,typecheck
@@ -347,7 +347,7 @@ Glyph-and-Font-Operators	xshow	invalidaccess,invalidfont,nocurrentpoint,rangeche
 Glyph-and-Font-Operators	xyshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
 Glyph-and-Font-Operators	yshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
 Glyph-and-Font-Operators	glyphshow	invalidaccess,invalidfont,nocurrentpoint,stackunderflow,typecheck
-Glyph-and-Font-Operators	stringwidth	invalidaccess,invalidfont,rangecheck,stackunderflow,typecheck	widthdiffersbyfont-metric/single-prec(~0.07%);notabug
+Glyph-and-Font-Operators	stringwidth	invalidaccess,invalidfont,rangecheck,stackunderflow,typecheck	width is the font metric carried in single precision; the ~0.07% that costs is not a defect
 Glyph-and-Font-Operators	cshow	invalidaccess,invalidfont,rangecheck,stackunderflow,typecheck
 Glyph-and-Font-Operators	kshow	invalidaccess,invalidfont,nocurrentpoint,stackunderflow,typecheck
 Glyph-and-Font-Operators	FontDirectory	stackoverflow
