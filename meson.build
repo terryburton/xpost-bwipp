@@ -5951,6 +5951,19 @@ test('check-function-facts',
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 240)
 
+# PLRM 3.10 gives a function three sayings about its own numbers --
+# Encode places the input in a sample table, Decode reads a sample out,
+# and Range clips the result whatever the type computed it. A reader
+# that honours none of them still paints a gradient, so each is asked
+# for with a mapping that collapses or reverses the domain, which no
+# reader that ignored it can paint.
+test('check-function-mapping',
+  find_program('tests/check-function-mapping.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
+
 test('check-colorrendering-facts',
   find_program('tests/check-colorrendering-facts.sh'),
   priority: guard_priority,

@@ -71,6 +71,7 @@ tests/shading-facts \
 tests/check-form-facts.sh \
 tests/form-facts \
 tests/check-function-facts.sh \
+tests/check-function-mapping.sh \
 tests/function-facts \
 tests/check-colorrendering-facts.sh \
 tests/check-plrm-errors.sh \

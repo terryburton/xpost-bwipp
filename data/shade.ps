@@ -68,15 +68,23 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 %  What a sampled function needs, defined in the CALLER's dictionary from
 %  the f it holds: the sample width, the range and how many components
-%  that makes, and the source the samples come out of. It opens no
-%  dictionary of its own, because what it defines is what the caller
-%  reads -- and both evaluators read the same things.
+%  that makes, the interval each component's samples are read out into,
+%  and the source the samples come out of. It opens no dictionary of its
+%  own, because what it defines is what the caller reads -- and both
+%  evaluators read the same things.
+%
+%  Decode is what a sample means. PLRM 3.10.1 maps a sample from the
+%  whole width of its representation onto the interval Decode gives for
+%  that component, and a dictionary that names no Decode is read out over
+%  its Range instead. The two are the same interval only by default, so a
+%  function that gives one is asking for something else.
 %
 /.fnsampled {  % -  .  -
     /bps f /BitsPerSample get def
     //.fnsamplebits bps known not { /shfill cvx /rangecheck signalerror } if
     /rng f /Range get def
     /nc rng length 2 idiv def
+    /dec f /Decode 2 copy known { get }{ pop pop rng } ifelse def
     /ds f /DataSource get def
     /litds false def
     /max 2 bps exp 1 sub def
@@ -91,6 +99,32 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 /.fnsample {  % index  .  value
     bps mul /bp exch def
     bps //.mrdbits exec
+} def
+
+%
+%  A function's outputs, held to the Range it declares. PLRM 3.10 gives
+%  Range as one interval of two numbers per output value and puts each
+%  value inside its own interval, an outlying one taking the nearer
+%  boundary; a function that declares no Range is not clipped at all,
+%  which is why the callers ask before calling.
+%
+%  It is asked of the answer rather than of each branch that computes
+%  one, because Range belongs to the function dictionary and not to the
+%  arithmetic of a type: a stitching function clips what its
+%  subfunctions gave it, and those clip themselves first.
+%
+/.fnclip {  % c0..cn-1 n  .  c0..cn-1 n
+    4 dict begin
+    /cn exch def
+    /rg f /Range get def
+    cn array astore /vs exch def
+    0 1 cn 1 sub { /jx exch def
+        vs jx get
+        dup rg jx 2 mul get lt { pop rg jx 2 mul get } if
+        dup rg jx 2 mul 1 add get gt { pop rg jx 2 mul 1 add get } if
+    } for
+    cn
+    end
 } def
 
 %
@@ -150,27 +184,39 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         hi lo eq { e0 }{ t lo sub hi lo sub div e1 e0 sub mul e0 add } ifelse
         f /Functions get k get //.xpostsys /.fneval get exec
     }{ 0 eq {
-        % Sampled with one input: linear interpolation between the
-        % bracketing samples.
+        % Sampled with one input. PLRM 3.10.1 places the parameter in the
+        % sample table through Encode, clips the placed position to the
+        % table's own extent, and interpolates between the samples that
+        % bracket it. The default Encode spans the table, which is why a
+        % dictionary that names none behaves as though it named [0 Size-1].
         /size f /Size get 0 get def
         //.fnsampled exec
+        /enc f /Encode 2 copy known { get }{ pop pop [ 0 size 1 sub ] } ifelse def
         /x t d0 sub d1 d0 sub dup 0 eq { pop 1 } if div
-           size 1 sub mul def
+           enc 1 get enc 0 get sub mul enc 0 get add def
+        x 0 lt { /x 0 def } if
+        x size 1 sub gt { /x size 1 sub def } if
         /i0 x floor cvi def
         i0 size 1 sub ge { /i0 size 2 sub def } if
         i0 0 lt { /i0 0 def } if
+        % The sample after i0, except at the end of a table and in a
+        % table of one, where the nearest sample on that side is i0
+        % itself and there is nothing further to reach for.
+        /i1 i0 1 add def
+        i1 size 1 sub ge { /i1 size 1 sub def } if
         /fr x i0 sub def
         0 1 nc 1 sub { /c exch def
             i0 nc mul c add //.fnsample exec
-            i0 1 add nc mul c add //.fnsample exec
+            i1 nc mul c add //.fnsample exec
             1 index sub fr mul add max div
-            rng c 2 mul 1 add get rng c 2 mul get sub mul
-            rng c 2 mul get add
+            dec c 2 mul 1 add get dec c 2 mul get sub mul
+            dec c 2 mul get add
         } for
         nc
     }{
         /shfill cvx /rangecheck signalerror
     } ifelse } ifelse } ifelse
+    f /Range known { //.fnclip exec } if
     end
     } ifelse
 } def
@@ -281,10 +327,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             1 fy sub mul
             i0 j1 c samp 1 fx sub mul i1 j1 c samp fx mul add
             fy mul add
-            rng c 2 mul 1 add get rng c 2 mul get sub mul
-            rng c 2 mul get add
+            dec c 2 mul 1 add get dec c 2 mul get sub mul
+            dec c 2 mul get add
         } for
         nc
+        f /Range known { //.fnclip exec } if
         end
     } ifelse
 } def
