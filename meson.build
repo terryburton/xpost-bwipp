@@ -5916,6 +5916,22 @@ test('check-plrm-operators',
   suite: cost_fast,
   args: [ meson.current_source_dir(), xpost_exe ])
 
+# The errors beside those operators, which nothing has ever read. The
+# register they sat in has carried them since it was written and the
+# guard beside it uses the names alone, so the column drifted: rows with
+# errors the specification does not give, rows missing ones it does, and
+# free text run onto the end of the list. tests/plrm-errors is derived
+# afresh from the specification and says how, and this asks a running
+# interpreter for the one error a caller can provoke knowing nothing
+# about an operator but its name -- stackunderflow, from an empty operand
+# stack. One run for all of them; the exclusions each carry the reason
+# they are one, and an exclusion that starts answering correctly fails.
+test('check-plrm-errors',
+  find_program('tests/check-plrm-errors.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ])
+
 # PLRM 4.8 defines eleven colour space families, and this is the family
 # where a member has twice been reached by whichever code its author
 # happened to write. Membership is derived from the roster in

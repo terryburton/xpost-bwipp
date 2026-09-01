@@ -73,6 +73,8 @@ tests/form-facts \
 tests/check-function-facts.sh \
 tests/function-facts \
 tests/check-colorrendering-facts.sh \
+tests/check-plrm-errors.sh \
+tests/plrm-errors \
 tests/check-plrm-operators.sh \
 tests/plrm-operators \
 tests/check-colourspace-facts.sh \

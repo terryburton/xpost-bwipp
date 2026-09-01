@@ -1,0 +1,461 @@
+# The errors PLRM 8.2 gives each operator, and what this interpreter
+# answers when the one that can be asked mechanically is asked.
+#
+# DERIVED FROM THE SPECIFICATION, not from this interpreter, which is the
+# whole of what makes it worth comparing against: it is the side of the
+# comparison xpost cannot move.
+#
+# ---- how it was derived, so it can be derived again
+#
+# From the text of the specification (a PDF-to-text rendering of PLRM 3rd
+# edition), by reading each operator's entry in section 8.2. An entry
+# opens with the operator's name on a line of its own, then its syntax
+# line -- the same name among the operands it takes and the results it
+# leaves -- and ends with an Errors: list and a See Also: line.
+#
+# The name/syntax pair is what has to be anchored on, and getting that
+# wrong is the trap this file exists past. A name is printed in many
+# places besides its own entry: an example that ends in it, a
+# cross-reference, a running head. Each of those is followed by some
+# OTHER entry's Errors: list, so a scan that takes the next Errors: after
+# any occurrence of the name reports a neighbour's errors and looks
+# entirely plausible doing it. Read that way, closepath comes back with
+# arc's four errors and mark with a list belonging to whatever entry
+# follows the example it appears in.
+#
+# Three tests together pick the entry out. Its name line is preceded by
+# the previous entry's See Also:; its syntax line is formulaic -- short,
+# no sentence punctuation, no word that belongs to prose rather than to a
+# list of operands; and the Errors: list is the first after that line. Of
+# the 382 operators the specification defines, 380 resolve to exactly one
+# entry that way and none to more than one.
+#
+# The generator is not kept in the tree and the specification text is not
+# either: neither is something a checkout has, so a gate that read them
+# would answer differently on a machine that happened to have a copy. The
+# table is data here, and the paragraph above is what regenerates it.
+#
+# ---- the lines
+#
+#   errors  <name>  <the errors the specification lists, or - for none>
+#   nosuch  <name>  <why the specification text yields no list for it>
+#   procset <name>  <why a bare call does not answer stackunderflow>
+#   answers <n>     how many operators answer stackunderflow when asked
+#
+# tests/check-plrm-errors.sh asks a running interpreter for one of these
+# errors -- stackunderflow, the one that can be provoked without knowing
+# anything about an operator beyond its name, by calling it with an empty
+# operand stack. Every operator whose specification list carries
+# stackunderflow must answer stackunderflow, and every operator excluded
+# from that must NOT: an exclusion that starts answering correctly is one
+# that has outlived its reason.
+#
+# The other error classes are not asked. typecheck would need an operand
+# of a wrong type per operator, and which type is wrong is per-operator
+# knowledge this file does not carry; the errors are recorded all the
+# same, because the table is the specification's side and a later gate
+# that can drive another class has it to read.
+
+errors	<<	stackoverflow
+errors	=	stackunderflow
+errors	==	stackunderflow
+errors	>>	VMerror,invalidaccess,rangecheck,typecheck,unmatchedmark
+errors	FontDirectory	stackoverflow
+errors	GetHalftoneName	stackoverflow
+errors	GetPageDeviceName	stackoverflow
+errors	GetSubstituteCRD	stackoverflow,stackunderflow,typecheck
+errors	GlobalFontDirectory	stackoverflow
+errors	ISOLatin1Encoding	stackoverflow
+errors	SharedFontDirectory	stackoverflow
+errors	StandardEncoding	stackoverflow
+errors	StartData	VMerror,invalidfont,ioerror,stackunderflow,typecheck
+errors	[	stackoverflow
+errors	]	VMerror,stackoverflow,unmatchedmark
+errors	abs	stackunderflow,typecheck
+errors	add	stackunderflow,typecheck,undefinedresult
+errors	addglyph	invalidfont,limitcheck,rangecheck,stackunderflow,typecheck
+errors	aload	invalidaccess,stackoverflow,stackunderflow,typecheck
+errors	anchorsearch	invalidaccess,stackoverflow,stackunderflow,typecheck
+errors	and	stackunderflow,typecheck
+errors	arc	limitcheck,rangecheck,stackunderflow,typecheck
+errors	arcn	limitcheck,rangecheck,stackunderflow,typecheck
+errors	arct	limitcheck,nocurrentpoint,rangecheck,stackunderflow,typecheck
+errors	arcto	limitcheck,nocurrentpoint,stackunderflow,typecheck,undefinedresult
+errors	array	VMerror,limitcheck,rangecheck,stackunderflow,typecheck
+errors	ashow	invalidaccess,invalidfont,nocurrentpoint,stackunderflow,typecheck
+errors	astore	invalidaccess,stackunderflow,typecheck
+errors	atan	stackunderflow,typecheck,undefinedresult
+errors	awidthshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
+errors	begin	dictstackoverflow,invalidaccess,stackunderflow,typecheck
+errors	beginbfchar	typecheck
+errors	beginbfrange	typecheck
+errors	begincidchar	typecheck
+errors	begincidrange	typecheck
+errors	begincmap	typecheck
+errors	begincodespacerange	typecheck
+errors	beginnotdefchar	typecheck
+errors	beginnotdefrange	typecheck
+errors	beginrearrangedfont	typecheck
+errors	beginusematrix	typecheck
+errors	bind	typecheck
+errors	bitshift	stackunderflow,typecheck
+errors	bytesavailable	invalidaccess,ioerror,stackunderflow,typecheck
+errors	cachestatus	stackoverflow
+errors	ceiling	stackunderflow,typecheck
+errors	charpath	invalidfont,limitcheck,nocurrentpoint,stackunderflow,typecheck
+errors	clear	-
+errors	cleardictstack	-
+errors	cleartomark	unmatchedmark
+errors	clip	limitcheck
+errors	clippath	-
+errors	cliprestore	-
+errors	clipsave	limitcheck
+errors	closefile	ioerror,stackunderflow,typecheck
+errors	closepath	limitcheck
+errors	colorimage	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflow
+errors	composefont	dictfull,invalidaccess,invalidfont,limitcheck,rangecheck
+errors	concat	rangecheck,stackunderflow,typecheck
+errors	concatmatrix	rangecheck,stackunderflow,typecheck
+errors	copy	invalidaccess,rangecheck,stackoverflow,stackunderflow,typecheck
+errors	copypage	limitcheck,undefined
+errors	cos	stackunderflow,typecheck
+errors	count	stackoverflow
+errors	countdictstack	stackoverflow
+errors	countexecstack	stackoverflow
+errors	counttomark	stackoverflow,unmatchedmark
+errors	cshow	invalidaccess,invalidfont,rangecheck,stackunderflow,typecheck
+errors	currentblackgeneration	stackoverflow
+errors	currentcacheparams	stackoverflow
+errors	currentcmykcolor	stackoverflow
+errors	currentcolor	stackoverflow
+errors	currentcolorrendering	stackoverflow
+errors	currentcolorscreen	stackoverflow
+errors	currentcolorspace	stackoverflow
+errors	currentcolortransfer	stackoverflow
+errors	currentdash	stackoverflow
+errors	currentdevparams	VMerror,stackoverflow,undefined
+errors	currentdict	stackoverflow
+errors	currentfile	stackoverflow
+errors	currentflat	stackoverflow
+errors	currentfont	stackoverflow
+errors	currentglobal	stackoverflow
+errors	currentgray	stackoverflow
+errors	currentgstate	invalidaccess,stackunderflow,typecheck
+errors	currenthalftone	VMerror,stackoverflow
+errors	currenthsbcolor	stackoverflow
+errors	currentlinecap	stackoverflow
+errors	currentlinejoin	stackoverflow
+errors	currentlinewidth	stackoverflow
+errors	currentmatrix	rangecheck,stackunderflow,typecheck
+errors	currentmiterlimit	stackoverflow
+errors	currentobjectformat	stackoverflow
+errors	currentoverprint	stackoverflow
+errors	currentpacking	stackoverflow
+errors	currentpagedevice	VMerror,stackoverflow
+errors	currentpoint	nocurrentpoint,stackoverflow,undefinedresult
+errors	currentrgbcolor	stackoverflow
+errors	currentscreen	stackoverflow
+errors	currentshared	stackoverflow
+errors	currentsmoothness	stackoverflow
+errors	currentstrokeadjust	stackoverflow
+errors	currentsystemparams	VMerror,stackoverflow
+errors	currenttransfer	stackoverflow
+errors	currenttrapparams	stackoverflow
+errors	currentundercolorremoval	stackoverflow
+errors	currentuserparams	VMerror,stackoverflow
+errors	curveto	limitcheck,nocurrentpoint,rangecheck,stackunderflow,typecheck
+errors	cvi	invalidaccess,rangecheck,stackunderflow,syntaxerror,typecheck
+errors	cvlit	stackunderflow
+errors	cvn	invalidaccess,limitcheck,stackunderflow,typecheck
+nosuch	cvr	the extraction renders this entry's syntax lines under the neighbouring operator's name, so no line of the text pairs cvr with the entry that is its own
+errors	cvrs	invalidaccess,rangecheck,stackunderflow,typecheck
+errors	cvs	invalidaccess,rangecheck,stackunderflow,typecheck
+errors	cvx	stackunderflow
+errors	def	VMerror,dictfull,invalidaccess,limitcheck,stackunderflow,typecheck
+errors	defaultmatrix	rangecheck,stackunderflow,typecheck
+errors	definefont	dictfull,invalidaccess,invalidfont,limitcheck,rangecheck
+errors	defineresource	invalidaccess,stackunderflow,typecheck,undefined
+errors	defineuserobject	VMerror,limitcheck,rangecheck,stackunderflow,typecheck
+errors	deletefile	invalidfileaccess,ioerror,stackunderflow,typecheck
+errors	dict	VMerror,limitcheck,stackunderflow,typecheck
+errors	dictstack	invalidaccess,rangecheck,stackunderflow,typecheck
+errors	div	stackunderflow,typecheck,undefinedresult
+errors	dtransform	rangecheck,stackunderflow,typecheck
+errors	dup	stackoverflow,stackunderflow
+errors	echo	stackunderflow,typecheck
+errors	eexec	dictstackoverflow,invalidaccess,invalidfileaccess,limitcheck
+errors	end	dictstackunderflow
+errors	endbfchar	limitcheck
+errors	endbfrange	limitcheck
+errors	endcidchar	limitcheck
+errors	endcidrange	limitcheck
+errors	endcmap	limitcheck
+errors	endcodespacerange	limitcheck
+errors	endnotdefchar	limitcheck
+errors	endnotdefrange	limitcheck
+errors	endrearrangedfont	limitcheck
+errors	endusematrix	limitcheck
+errors	eoclip	limitcheck
+errors	eofill	limitcheck
+errors	eq	invalidaccess,stackunderflow
+errors	erasepage	-
+errors	errordict	stackoverflow
+errors	exch	stackunderflow
+errors	exec	stackunderflow
+errors	execform	VMerror,limitcheck,rangecheck,stackunderflow,typecheck,undefined
+errors	execstack	invalidaccess,rangecheck,stackunderflow,typecheck
+errors	execuserobject	invalidaccess,rangecheck,stackunderflow,typecheck,undefined
+errors	executeonly	invalidaccess,stackunderflow,typecheck
+errors	executive	undefined
+errors	exit	invalidexit
+errors	exp	stackunderflow,typecheck,undefinedresult
+errors	false	stackoverflow
+errors	file	Standard,file,input,object
+errors	filenameforall	invalidaccess,ioerror,rangecheck,stackoverflow,stackunderflow
+errors	fileposition	ioerror,stackunderflow,typecheck
+errors	fill	limitcheck
+errors	filter	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflow
+errors	findcolorrendering	stackoverflow,stackunderflow,typecheck
+errors	findencoding	stackunderflow,typecheck,undefinedresource
+errors	findfont	invalidfont,stackunderflow,typecheck
+errors	findresource	stackunderflow,typecheck,undefined,undefinedresource
+errors	flattenpath	limitcheck
+errors	floor	stackunderflow,typecheck
+errors	flush	ioerror
+errors	flushfile	ioerror,stackunderflow,typecheck
+errors	for	stackoverflow,stackunderflow,typecheck
+errors	forall	invalidaccess,stackoverflow,stackunderflow,typecheck
+errors	gcheck	ge
+errors	ge	invalidaccess,stackunderflow,typecheck
+errors	get	invalidaccess,rangecheck,stackunderflow,typecheck,undefined
+errors	getinterval	invalidaccess,rangecheck,stackunderflow,typecheck
+errors	globaldict	stackoverflow
+nosuch	globalvmstatus	the specification text carries no entry under this name at all
+errors	glyphshow	invalidaccess,invalidfont,nocurrentpoint,stackunderflow,typecheck
+errors	grestore	-
+errors	grestoreall	-
+errors	gsave	limitcheck
+errors	gstate	VMerror,invalidaccess,stackoverflow
+errors	gt	invalidaccess,stackunderflow,typecheck
+errors	identmatrix	rangecheck,stackunderflow,typecheck
+errors	idiv	stackunderflow,typecheck,undefinedresult
+errors	idtransform	rangecheck,stackunderflow,typecheck,undefinedresult
+errors	if	stackunderflow,typecheck
+errors	ifelse	stackunderflow,typecheck
+errors	image	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflow
+errors	imagemask	invalidaccess,ioerror,limitcheck,stackunderflow,typecheck
+errors	index	rangecheck,stackunderflow,typecheck
+errors	ineofill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	infill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	initclip	-
+errors	initgraphics	-
+errors	initmatrix	-
+errors	instroke	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	internaldict	interrupt
+errors	inueofill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	inufill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	inustroke	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	invertmatrix	rangecheck,stackunderflow,typecheck,undefinedresult
+errors	itransform	rangecheck,stackunderflow,typecheck,undefinedresult
+errors	known	invalidaccess,stackunderflow,typecheck
+errors	kshow	invalidaccess,invalidfont,nocurrentpoint,stackunderflow,typecheck
+errors	languagelevel	stackoverflow,undefined
+errors	le	invalidaccess,stackunderflow,typecheck
+errors	length	invalidaccess,stackunderflow,typecheck
+errors	lineto	limitcheck,nocurrentpoint,rangecheck,stackunderflow,typecheck
+errors	ln	rangecheck,stackunderflow,typecheck
+errors	load	invalidaccess,stackunderflow,typecheck,undefined
+errors	log	rangecheck,stackunderflow,typecheck
+errors	loop	stackunderflow,typecheck
+errors	lt	invalidaccess,stackunderflow,typecheck
+errors	makefont	VMerror,invalidfont,rangecheck,stackunderflow,typecheck
+errors	makepattern	VMerror,limitcheck,rangecheck,stackunderflow,typecheck,undefined
+errors	mark	stackoverflow
+errors	matrix	VMerror,stackoverflow
+errors	maxlength	invalidaccess,stackunderflow,typecheck
+errors	mod	stackunderflow,typecheck,undefinedresult
+errors	moveto	limitcheck,rangecheck,stackunderflow,typecheck
+errors	mul	stackunderflow,typecheck,undefinedresult
+errors	ne	invalidaccess,stackunderflow
+errors	neg	stackunderflow,typecheck
+errors	newpath	-
+errors	noaccess	invalidaccess,stackunderflow,typecheck
+errors	not	stackunderflow,typecheck
+errors	null	nulldevice
+errors	nulldevice	-
+errors	or	stackunderflow,typecheck
+errors	packedarray	VMerror,invalidaccess,rangecheck,stackunderflow,typecheck
+errors	pathbbox	nocurrentpoint,stackoverflow
+errors	pathforall	invalidaccess,rangecheck,stackoverflow,stackunderflow,typecheck
+errors	pop	stackunderflow
+errors	print	invalidaccess,ioerror,stackunderflow,typecheck
+errors	printobject	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflow
+errors	product	stackoverflow
+errors	prompt	-
+errors	pstack	-
+errors	put	dictfull,invalidaccess,rangecheck,stackunderflow,typecheck
+errors	putinterval	invalidaccess,rangecheck,stackunderflow,typecheck
+errors	quit	invalidaccess
+errors	rand	stackoverflow
+errors	rcheck	stackunderflow,typecheck
+errors	rcurveto	limitcheck,nocurrentpoint,stackunderflow,typecheck,undefinedresult
+errors	read	invalidaccess,ioerror,stackoverflow,stackunderflow,typecheck
+errors	readhexstring	invalidaccess,ioerror,rangecheck,stackunderflow,typecheck
+errors	readline	invalidaccess,ioerror,rangecheck,stackunderflow,typecheck
+errors	readonly	invalidaccess,stackunderflow,typecheck
+errors	readstring	invalidaccess,ioerror,rangecheck,stackunderflow,typecheck
+errors	realtime	stackoverflow
+errors	rectclip	limitcheck,stackunderflow,typecheck
+errors	rectfill	limitcheck,stackunderflow,typecheck
+errors	rectstroke	limitcheck,rangecheck,stackunderflow,typecheck
+errors	removeall	invalidfont,stackunderflow,typecheck
+errors	removeglyphs	invalidfont,rangecheck,stackunderflow,typecheck
+errors	renamefile	invalidfileaccess,ioerror,stackunderflow,typecheck
+errors	repeat	rangecheck,stackunderflow,typecheck
+errors	resetfile	stackunderflow,typecheck
+errors	resourceforall	invalidaccess,stackoverflow,stackunderflow,typecheck,undefined
+errors	resourcestatus	stackoverflow,stackunderflow,typecheck,undefined
+errors	restore	invalidrestore,stackunderflow,typecheck
+errors	reversepath	limitcheck
+errors	revision	stackoverflow
+errors	rlineto	limitcheck,nocurrentpoint,rangecheck,stackunderflow,typecheck
+errors	rmoveto	limitcheck,nocurrentpoint,rangecheck,stackunderflow,typecheck
+errors	roll	rangecheck,stackunderflow,typecheck
+errors	rootfont	stackoverflow
+errors	rotate	rangecheck,stackunderflow,typecheck
+errors	round	stackunderflow,typecheck
+errors	rrand	stackoverflow
+errors	run	ioerror,limitcheck,stackunderflow,typecheck,undefinedfilename
+errors	save	limitcheck,stackoverflow
+errors	scale	rangecheck,stackunderflow,typecheck
+errors	scalefont	invalidfont,stackunderflow,typecheck,undefined
+errors	scheck	stackunderflow
+errors	search	invalidaccess,stackoverflow,stackunderflow,typecheck
+errors	selectfont	invalidfont,rangecheck,stackunderflow,typecheck
+errors	serialnumber	stackoverflow
+errors	serverdict	stackoverflow
+errors	setbbox	rangecheck,stackunderflow,typecheck
+errors	setblackgeneration	stackunderflow,typecheck,undefined
+errors	setcachedevice	stackunderflow,typecheck,undefined
+errors	setcachedevice2	stackunderflow,typecheck,undefined
+errors	setcachelimit	stackunderflow,typecheck
+errors	setcacheparams	invalidaccess,typecheck,unmatchedmark
+errors	setcharwidth	stackunderflow,typecheck,undefined
+errors	setcmykcolor	stackunderflow,typecheck,undefined
+errors	setcolor	stackunderflow,typecheck,undefined
+errors	setcolorrendering	limitcheck,rangecheck,stackunderflow,typecheck,undefined
+errors	setcolorscreen	limitcheck,rangecheck,stackunderflow,typecheck
+errors	setcolorspace	rangecheck,stackunderflow,typecheck,undefined
+errors	setcolortransfer	stackunderflow,typecheck,undefined
+errors	setdash	limitcheck,rangecheck,stackunderflow,typecheck
+errors	setdevparams	configurationerror,invalidaccess,limitcheck,rangecheck
+errors	setfileposition	ioerror,rangecheck,stackunderflow,typecheck,undefinedfilename
+errors	setflat	stackunderflow,typecheck
+errors	setfont	invalidfont,stackunderflow,typecheck
+errors	setglobal	stackunderflow,typecheck
+errors	setgray	stackunderflow,typecheck,undefined
+errors	setgstate	invalidaccess,stackunderflow,typecheck
+errors	sethalftone	limitcheck,rangecheck,stackunderflow,typecheck,undefined
+errors	sethsbcolor	stackunderflow,typecheck,undefined
+errors	setlinecap	rangecheck,stackunderflow,typecheck
+errors	setlinejoin	rangecheck,stackunderflow,typecheck
+errors	setlinewidth	stackunderflow,typecheck
+errors	setmatrix	rangecheck,stackunderflow,typecheck
+errors	setmiterlimit	rangecheck,stackunderflow,typecheck
+errors	setobjectformat	rangecheck,stackunderflow,typecheck
+errors	setoverprint	stackunderflow,typecheck
+errors	setpacking	stackunderflow,typecheck
+errors	setpagedevice	configurationerror,invalidaccess,limitcheck,rangecheck
+errors	setpattern	rangecheck,stackunderflow,typecheck,undefined
+errors	setrgbcolor	stackunderflow,typecheck,undefined
+errors	setscreen	limitcheck,rangecheck,stackunderflow,typecheck
+errors	setshared	stackunderflow,typecheck
+errors	setsmoothness	rangecheck,stackoverflow
+errors	setstrokeadjust	stackunderflow,typecheck
+errors	setsystemparams	invalidaccess,limitcheck,stackunderflow,typecheck
+errors	settransfer	stackunderflow,typecheck
+errors	settrapparams	VMerror,limitcheck,rangecheck,stackunderflow,typecheck
+errors	settrapzone	limitcheck
+errors	setucacheparams	rangecheck,typecheck,unmatchedmark
+errors	setundercolorremoval	stackunderflow,typecheck,undefined
+errors	setuserparams	invalidaccess,limitcheck,stackunderflow,typecheck
+errors	setvmthreshold	rangecheck
+errors	shareddict	stackoverflow
+errors	shfill	rangecheck,undefinedresult
+errors	show	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
+errors	showpage	limitcheck,undefined
+errors	sin	stackunderflow,typecheck
+errors	sqrt	rangecheck,stackunderflow,typecheck
+errors	srand	stackunderflow,typecheck
+errors	stack	-
+errors	start	-
+errors	startjob	invalidaccess,stackunderflow,typecheck
+errors	status	invalidaccess,stackoverflow,stackunderflow,typecheck
+errors	statusdict	stop
+errors	stop	-
+errors	stopped	stackunderflow
+errors	store	dictfull,invalidaccess,limitcheck,stackunderflow
+errors	string	VMerror,limitcheck,rangecheck,stackunderflow,typecheck
+errors	stringwidth	invalidaccess,invalidfont,rangecheck,stackunderflow,typecheck
+errors	stroke	limitcheck
+errors	strokepath	limitcheck
+errors	sub	stackunderflow,typecheck,undefinedresult
+errors	systemdict	stackoverflow
+errors	token	invalidaccess,ioerror,limitcheck,stackoverflow,stackunderflow
+errors	transform	rangecheck,stackunderflow,typecheck
+errors	translate	rangecheck,stackunderflow,typecheck
+errors	true	stackoverflow
+errors	truncate	stackunderflow,typecheck
+errors	type	stackunderflow
+errors	uappend	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	ucache	-
+errors	ucachestatus	stackoverflow
+errors	ueofill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	ufill	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	undef	invalidaccess,stackunderflow,typecheck
+errors	undefinefont	stackunderflow,typecheck
+errors	undefineresource	stackunderflow,typecheck,undefined
+errors	undefineuserobject	rangecheck,stackunderflow,typecheck
+errors	upath	VMerror,invalidaccess,stackoverflow,typecheck
+errors	usecmap	stackoverflow
+errors	usefont	stackoverflow
+errors	userdict	stackoverflow
+errors	usertime	stackoverflow
+errors	ustroke	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	ustrokepath	invalidaccess,limitcheck,rangecheck,stackunderflow,typecheck
+errors	version	stackoverflow
+errors	vmreclaim	rangecheck,stackunderflow,typecheck
+errors	vmstatus	stackoverflow
+errors	wcheck	stackunderflow,typecheck
+errors	where	invalidaccess,stackoverflow,stackunderflow,typecheck
+errors	widthshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
+errors	write	invalidaccess,ioerror,stackunderflow,typecheck
+errors	writehexstring	invalidaccess,ioerror,stackunderflow,typecheck
+errors	writeobject	invalidaccess,ioerror,limitcheck,rangecheck,stackunderflow
+errors	writestring	invalidaccess,ioerror,stackunderflow,typecheck
+errors	xcheck	stackunderflow
+errors	xor	stackunderflow,typecheck
+errors	xshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
+errors	xyshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
+errors	yshow	invalidaccess,invalidfont,nocurrentpoint,rangecheck,stackunderflow
+
+# Operators the specification gives stackunderflow and that answer
+# undefined to a bare call, because they are not on any dictionary stack:
+# each is a member of a procedure set, reached by finding that set as a
+# resource and executing the operator inside it. Answering undefined to a
+# name nothing defines is correct; the specification's error is what the
+# operator gives once it is reached, which is a question this gate cannot
+# put without building each set's context.
+procset	GetSubstituteCRD	a member of the ColorRendering procedure set
+procset	StartData	a member of the CIDInit and FontSetInit procedure sets
+procset	addglyph	a member of the BitmapFontInit procedure set
+procset	removeall	a member of the BitmapFontInit procedure set
+procset	removeglyphs	a member of the BitmapFontInit procedure set
+procset	settrapparams	a member of the Trapping procedure set
+
+# A ratchet: the count may rise and may not fall. It is the weaker half
+# of what this holds -- the set comparison above names which operator
+# went wrong, where a count only says that one did -- and it is here so
+# that a probe answering nothing at all cannot pass by agreeing with an
+# empty expectation.
+answers	219
