@@ -299,13 +299,28 @@ clear
     (and it is not enumerable either) assert
 
 % The categories themselves exist, so a program asking is answered rather
-% than stopped (PLRM: an absent category raises undefined).
+% than stopped (PLRM: an absent category raises undefined). The names are
+% PLRM 3.9.1's own -- every implicit category the specification defines --
+% and not the set this interpreter happens to hold, because a list taken
+% from the implementation cannot report what is missing from both. The
+% three it does not declare are held to being absent for the same reason:
+% one quietly appearing is as much a change as one quietly going, and
+% either way what a program is told about a font type would have moved.
 /missingimplicit 0 def
-[ /ShadingType /FunctionType /HalftoneType /ImageType /PatternType /FormType
-  /ColorRenderingType /Filter /ColorSpaceFamily ]
+[ /Filter /ColorSpaceFamily /Emulator /IODevice /ColorRenderingType
+  /FormType /HalftoneType /ImageType /PatternType /FunctionType
+  /ShadingType ]
 { /Category resourcestatus { pop pop }{ /missingimplicit missingimplicit 1 add store } ifelse
 } forall
-missingimplicit 0 eq (the implicit resource categories are all there) assert
+missingimplicit 0 eq
+    (every implicit category this interpreter declares is there) assert
+
+/extraimplicit 0 def
+[ /FontType /FMapType /TrappingType ]
+{ /Category resourcestatus { pop pop /extraimplicit extraimplicit 1 add store }{ } ifelse
+} forall
+extraimplicit 0 eq
+    (the implicit categories left undeclared are still undeclared) assert
 
 
 % --- the procedure runs in the program's own context ------------------
@@ -339,5 +354,75 @@ rfprivate not (the machinery's own members are out of its reach) assert
 /rfstore 0 def
 (*) { pop /rfstore rfstore 1 add def } 60 string /Filter resourceforall
 rfstore 0 gt (what the procedure defined outlived the enumeration) assert
+
+% --- a category the interpreter made is not the program's to replace ---
+% The resource operators dispatch through the procedures a category
+% carries (PLRM 3.9.2), so replacing or removing one of the categories
+% this interpreter defines would hand a program the inside of every
+% operation on it, or leave those operations undefined for the rest of
+% the job. Defining categories of one's own (PLRM 3.9.3) is untouched,
+% which is what the last four rows hold.
+{ /Font 5 dict /Category defineresource }
+    /invalidaccess (replacing a standard category) raises
+{ /Category 5 dict /Category defineresource }
+    /invalidaccess (replacing the category of categories) raises
+{ /Font /Category undefineresource }
+    /invalidaccess (removing a standard category) raises
+{ /Category /Category undefineresource }
+    /invalidaccess (removing the category of categories) raises
+
+% the refusals left the category working
+/Courier /Font resourcestatus { pop pop true }{ false } ifelse
+    (the refused category still answers) assert
+
+% and a program's own category is still its own: defined, found,
+% enumerated and removed without complaint
+currentglobal true setglobal
+/XpostOwnCat /Generic /Category findresource dup length 2 add dict copy
+    dup /Category /XpostOwnCat put /Category defineresource pop
+setglobal
+/XpostOwnCat /Category findresource type /dicttype eq
+    (a program's own category is defined) assert
+/oc1 1 def
+/k 42 /XpostOwnCat defineresource pop
+/k /XpostOwnCat findresource 42 eq (its instances are found) assert
+/occount 0 def
+(*) { pop /occount occount 1 add def } 60 string /XpostOwnCat resourceforall
+occount 1 eq (its instances enumerate) assert
+/XpostOwnCat /Category undefineresource
+{ /XpostOwnCat /Category findresource } /undefinedresource
+    (a program's own category is removed) raises
+
+% --- an implicit category's instances are not a program's to change ---
+% PLRM 3.9.1: the instances of an implicit category ARE the capabilities
+% the interpreter has, so defineresource and undefineresource are not
+% allowed on them. A program that could add one would have every program
+% that asked told the interpreter can do something it cannot; one that
+% could remove one would have the interpreter deny what it still does.
+{ /XpostNoSuchType 99 /ShadingType defineresource pop }
+    /invalidaccess (adding a shading type) raises
+{ 4 /ShadingType undefineresource }
+    /invalidaccess (removing a shading type) raises
+{ /XpostNoSuchFilter /XpostNoSuchFilter /Filter defineresource pop }
+    /invalidaccess (adding a filter) raises
+{ /ASCII85Decode /Filter undefineresource }
+    /invalidaccess (removing a filter) raises
+
+% and the capability the refusals guard is still declared and still there
+/ASCII85Decode /Filter resourcestatus { pop pop true }{ false } ifelse
+    (the filter the refusal guarded is still declared) assert
+(87cURD]~>) /ASCII85Decode filter 32 string readstring pop (Hello) eq
+    (and still builds) assert
+4 /ShadingType resourcestatus { pop pop true }{ false } ifelse
+    (the shading type is still declared) assert
+
+% The refusal is the implicit categories' and not every category's: an
+% explicit one takes an instance and gives it back, which is what says
+% the rows above are about being implicit rather than about the operators.
+/XpostProbeSet 5 dict /ProcSet defineresource type /dicttype eq
+    (an explicit category still takes an instance) assert
+/XpostProbeSet /ProcSet undefineresource
+{ /XpostProbeSet /ProcSet findresource } /undefinedresource
+    (and still gives it up) raises
 
 verdict

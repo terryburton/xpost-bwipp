@@ -4083,6 +4083,17 @@ currentglobal true setglobal
             % registers need of it -- the names it holds, whether a member
             % is still writable, what the host said -- they ask for by name
             % and are answered with names and values, never the dictionary.
+            % The categories this interpreter makes are settled by now:
+            % every boot file that defines one has run, and nothing after
+            % this point may add to the set or take from it. Sealing it
+            % here is what makes resource.ps refuse a program that would
+            % replace or remove one. A dictionary's access attribute is a
+            % property of its value and not of the reference (PLRM 3.3.2),
+            % so the references the machinery froze into its own bodies
+            % are sealed along with this one.
+            //.xpostsys /.stdcategories 2 copy known
+                { get readonly pop }{ pop pop } ifelse
+
             .internaldict /.jobstore known
               { .internaldict /.jobstore undef } if
 

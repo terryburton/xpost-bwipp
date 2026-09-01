@@ -32,6 +32,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .jobstore /.resources 32 dict put
 
 %
+%  The categories this interpreter makes. A program may define categories of
+%  its own (PLRM 3.9.3), and this is not those: it is the set whose
+%  procedures the resource operators dispatch through, so replacing one
+%  hands a program the inside of every operation on that category.
+%
+%  Written while the boot files run and sealed by the lockdown, so it is a
+%  constant of the machinery rather than state the run keeps, and it lives
+%  with the machinery's own names for that reason.
+%
+.xpostsys /.stdcategories 40 dict put
+
+%
 %  The font machinery caches, beside them and for the same reason: a face
 %  is opened once and the objects synthesized from it -- the CharStrings
 %  dictionary a Type 1 or CFF face publishes, the sfnts array a Type 42
@@ -51,6 +63,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  recursive, so it carries an implementation dictionary of its own alongside
 %  the ones it holds for everything else.
 %
+//.stdcategories /Category true put
 //.resources /Category get /Category <<
     /Category /Category
     /DefineResource   {  % key instance  .  instance
@@ -154,7 +167,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             //.xpostsys /.defresourceforall get exec } executeonly
 >> put
 
+%
+%  The categories this interpreter makes. A program may define categories of
+%  its own (PLRM 3.9.3) and this is not those: it is the set whose
+%  procedures the resource operators dispatch through, so replacing one
+%  would hand a program the inside of every operation on that category.
+%  Both implementations this is checked against refuse it, and the
+%  refusal belongs here rather than in each operator.
+%
 .xpostsys /.defcategory {  % name  .  -
+    dup //.stdcategories exch true put
     dup //.resources exch known { pop }{
         dup //.catinstances exec
         //.resources /Category get exch dup
@@ -294,6 +316,32 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     pop
 
 %
+%  PLRM 3.9.1: an implicit category's instances are the capabilities this
+%  interpreter has -- a filter it can build, a shading type it can paint --
+%  and the operators that add and remove instances are not allowed on them.
+%  A program that could add one would change what the interpreter says it
+%  can do rather than what it can do, and every program that asked after
+%  the capability would be told wrongly; one that could remove an instance
+%  would have the interpreter deny a capability it still has.
+%
+%  The instances are registered through the same door while the interpreter
+%  is being built, so the refusal begins where the building ends: what this
+%  interpreter declares about itself is settled at the point there is no
+%  more of it to load.
+%
+.xpostsys /.implicitdefine {  % key instance  .  instance
+    //.internaldict /LOCKDOWN_DONE known
+        { pop pop /defineresource cvx /invalidaccess signalerror } if
+    Category //.xpostsys /.defdefineresource get exec
+} executeonly put
+
+.xpostsys /.implicitundefine {  % key  .  -
+    //.internaldict /LOCKDOWN_DONE known
+        { pop /undefineresource cvx /invalidaccess signalerror } if
+    Category //.xpostsys /.defundefineresource get exec
+} executeonly put
+
+%
 %  What each category takes, from PLRM Tables 3.7, 3.8 and 3.9. A category
 %  named here constrains its instances to the one type; one absent from the
 %  list -- /Generic -- takes any, which PLRM 3.9.3 states by noting that the
@@ -316,6 +364,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     //.resources /Category get 3 -1 roll get
     /InstanceType 3 -1 roll put
 } forall
+
+%
+%  The implicit categories, which PLRM 3.9.1 names, refuse both. They are
+%  named here because being implicit is not something a category dictionary
+%  records: PLRM says which categories are implicit and this is that list,
+%  less the three this interpreter does not declare.
+%
+[ /Filter /ColorSpaceFamily /Emulator /IODevice /ColorRenderingType
+  /FormType /HalftoneType /ImageType /PatternType /FunctionType
+  /ShadingType ]
+{ //.resources /Category get exch get
+  dup /DefineResource //.implicitdefine put
+      /UndefineResource //.implicitundefine put } forall
 
 %
 %  The implementation dictionaries are complete now, so seal them. PLRM
@@ -402,6 +463,12 @@ setglobal
 %
 .xpostsys /.defdefineresource {  % key instance category  .  instance
     dup /Category eq {
+        % A category this interpreter made is not a program's to replace.
+        % The operators dispatch through the procedures a category carries,
+        % so a replacement is the inside of every operation on it.
+        2 index //.stdcategories exch known {
+            pop pop pop /defineresource cvx /invalidaccess signalerror
+        } if
         % Defining an instance of /Category is defining a category, so it
         % gets the table its instances will live in; the implementation
         % dictionary is the instance being defined.
@@ -631,6 +698,13 @@ setglobal
 %  that is the one that gives it up.
 %
 .xpostsys /.defundefineresource {  % key category  .  -
+    % A category this interpreter made is not a program's to remove. The
+    % operators dispatch through the procedures a category carries, so a
+    % run that removed one would leave every operation on it undefined
+    % for the rest of the job. A program's own categories stay its own.
+    2 copy /Category eq exch //.stdcategories exch known and {
+        pop pop /undefineresource cvx /invalidaccess signalerror
+    } if
     % Each arm reaches the same shape before it acts: the key and the
     % category, in that order, so that the instance dictionary the
     % category names is what the key is removed from. The three arms
@@ -817,6 +891,24 @@ setglobal
 %  Obtain the category's implementation dictionary and run one of its
 %  procedures under it, which is the whole of what a resource operator does.
 %
+%
+%  Ensure a category is in virtual memory, if it can be. A category is
+%  itself an instance of /Category and can be sitting on the search path,
+%  so the operators have to be able to load one before they can reach its
+%  procedures.
+%
+%  The question being asked is whether the category is there, and that is
+%  answered by looking again afterwards rather than by what the attempt
+%  raised on the way: a category that cannot be loaded is simply absent,
+%  and the error a half-written resource file happens to signal is not
+%  the answer to the question the caller asked. So the outcome and
+%  whatever the attempt left behind are both dropped here, and the caller
+%  looks for itself.
+%
+.xpostsys /.trycategoryload {  % category  .  -
+    mark exch { /Category //.loadresource exec pop } stopped pop cleartomark
+} executeonly put
+
 .xpostsys /.catdispatch {  % ...operands category /Entry /operator  .  ...results
     8 dict begin
         % the depth the caller was at, so the unwinding below is to an
@@ -830,11 +922,7 @@ setglobal
         % has to be able to load one before it can reach its procedures.
         //.resources /Category get cat 2 copy known not {
             pop pop
-            % a category that cannot be loaded is simply absent: what the
-            % attempt raises on the way is not the answer to the question
-            % asked, which is answered below
-            mark { cat /Category //.loadresource exec pop } stopped
-                { cleartomark }{ cleartomark } ifelse
+            cat //.trycategoryload exec
             //.resources /Category get cat 2 copy known not {
                 % resourcestatus answers for a category that exists; one
                 % that does not is a question that cannot be asked, and it
@@ -898,8 +986,7 @@ setglobal
 /resourceforall [ /stringtype /proctype /stringtype /nametype ] {  % template proc scratch category  .  -
     dup //.resources /Category get exch 2 copy known not {
         pop pop
-        mark 1 index { /Category //.loadresource exec pop } stopped
-            { cleartomark }{ cleartomark } ifelse
+        dup //.trycategoryload exec
         dup //.resources /Category get exch 2 copy known not {
             pop pop /resourceforall cvx /undefinedresource signalerror
         } if

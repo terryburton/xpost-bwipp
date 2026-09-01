@@ -207,12 +207,15 @@ Level 3 operators
      no FontSet, so a font a document sends this way is unavailable;
      findresource reports the set undefined. Compact font format
      containers are not read
- [X] implicit resource categories: a program may ask what this
+ [/] implicit resource categories: a program may ask what this
      interpreter can do -- ShadingType, FunctionType, HalftoneType,
      ImageType, PatternType, FormType, ColorRenderingType, Filter,
-     ColorSpaceFamily and IODevice answer for what is implemented.
-     FontType and FMapType are NOT declared, so a program asking after
-     a font type is answered undefined rather than truthfully
+     ColorSpaceFamily, Emulator and IODevice answer for what is
+     implemented. FontType, FMapType and TrappingType are not declared,
+     so a program asking after a font type, a font mapping or trapping is
+     answered undefined rather than truthfully: definefont takes a
+     dictionary without proving the type behind it is implemented, and
+     there is no trapping to report
 
 Extensions
 ----------

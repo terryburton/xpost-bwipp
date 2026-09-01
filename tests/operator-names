@@ -49,6 +49,7 @@ rows are fine for a different reason: .endpage names
 .defdefineresource	defineresource
 .deffindresource	findresource
 .defresourcestatus	resourcestatus
+.defundefineresource        undefineresource
 .doclip                     clip
 .endpage                    EndPage
 .fmapnext                   show
@@ -62,6 +63,8 @@ rows are fine for a different reason: .endpage names
 .htvalidate                 sethalftone
 .imagetype3                 image
 .imagetype4                 image
+.implicitdefine             defineresource
+.implicitundefine           undefineresource
 .loadgraphics               setpagedevice
 .meshsh                     shfill
 .mrdflag                    shfill
