@@ -4659,12 +4659,15 @@ int _loadfont1(Xpost_Context *ctx,
         {
             Xpost_Object s = xpost_array_get(ctx, subrs, i);
 
-            /* A Type 1 font may over-allocate its Subrs array and leave slots
-               unfilled (null): CMR10 declares 38 and fills only 15. Emit a
-               minimal charstring-encrypted "return" for such a slot, so a
-               callsubr on it is a harmless no-op the way the reference
-               interpreters treat an empty subroutine, rather than rejecting the
-               whole font (or leaving a hole freetype faults on). */
+            /* A Type 1 font may over-allocate its Subrs array and leave
+               slots unfilled (null): CMR10 declares 38 and fills only 15.
+               Such a slot holds a subroutine the font never wrote, and no
+               charstring of that font calls one it never wrote. Emit a
+               minimal charstring-encrypted "return" for it, so the array
+               is the length the font declared and a call on an unfilled
+               slot does nothing -- rather than refusing a font whose
+               glyphs are all present over a slot none of them reaches, or
+               leaving a hole in the array for freetype to fault on. */
             if (xpost_object_get_type(s) != stringtype)
             {
                 unsigned char cs[5];
