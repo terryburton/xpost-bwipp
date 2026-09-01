@@ -105,10 +105,15 @@ userdict begin
     % is not built until further down this file, so the slot is stamped
     % with it there; a graphics state made before that has no conversion
     % to run and says so rather than rendering under an empty dictionary.
-    /blackgen {}  % k  .  k
-    /ucr {}  % k  .  k
+    %
+    % Every procedure slot below stands empty here and is stamped by the
+    % accessor, which is where the procedures a state starts with are
+    % written; the note on the accessor says why they are written there
+    % and not here.
+    /blackgen null  % k  .  k
+    /ucr null  % k  .  k
     /colorrendering null
-    /transfer {}  % num  .  num
+    /transfer null  % num  .  num
 
     % a halftone dictionary's own transfer function, null unless the
     % installed screen carried one. It is not the slot above and does
@@ -119,9 +124,9 @@ userdict begin
 
     % Colour transfer functions; the unprefixed grey slot above is
     % shared with settransfer and is the one painting applies.
-    /redtransfer {}  % num  .  num
-    /greentransfer {}  % num  .  num
-    /bluetransfer {}  % num  .  num
+    /redtransfer null  % num  .  num
+    /greentransfer null  % num  .  num
+    /bluetransfer null  % num  .  num
 
     % halftone screens: frequency, angle and spot function per
     % component, recorded for currentscreen and currentcolorscreen
@@ -129,16 +134,16 @@ userdict begin
     % unprefixed slots are the grey channel, shared with setscreen.
     /screenfreq 60
     /screenangle 45
-    /screenproc { 180 mul cos exch 180 mul cos add 2 div }  % x y  .  v
+    /screenproc null  % x y  .  v
     /redscreenfreq 60
     /redscreenangle 45
-    /redscreenproc { 180 mul cos exch 180 mul cos add 2 div }  % x y  .  v
+    /redscreenproc null  % x y  .  v
     /greenscreenfreq 60
     /greenscreenangle 45
-    /greenscreenproc { 180 mul cos exch 180 mul cos add 2 div }  % x y  .  v
+    /greenscreenproc null  % x y  .  v
     /bluescreenfreq 60
     /bluescreenangle 45
-    /bluescreenproc { 180 mul cos exch 180 mul cos add 2 div }  % x y  .  v
+    /bluescreenproc null  % x y  .  v
 
     % a halftone installed as a dictionary; null while the screens
     % came from setscreen or setcolorscreen.
@@ -207,12 +212,48 @@ end
 %  The template proc lives in privatedict, off the dict stack; it freezes
 %  the template dictionary defined above, so that dictionary needs no
 %  userdict anchor and .finalize drops it. Callers reach the proc through
-%  .privatedict.
+%  .privatedict. Every route to the template runs it, so what it stamps
+%  is what a graphics state is built from.
+%
+%  It stamps the values that are not constants of the template: the two
+%  matrices, freshly allocated, and the procedures the colour and
+%  halftone parameters start out holding.
+%
+%  Those procedures are written HERE, in this body, and where a
+%  procedure is written is what decides whether a program may read it.
+%  currenttransfer and the operators beside it hand a program the
+%  procedure the state is holding (PLRM 7.3), and the way a program
+%  builds on the one already installed is to take it apart -- ask its
+%  length, copy it into a longer array in front of its own -- which
+%  wants read access (PLRM 3.3.2, and length under 8.2).
+%
+%  The lockdown reduces the access of every procedure the machinery's
+%  object graph reaches, and it reduces two positions differently. One
+%  stored under a name in a dictionary is closed to reading: a body the
+%  machinery runs is not a program's to read a namespace out of. One
+%  written inside another body is left readable, because reaching it
+%  means reading the body around it and that one is closed. A procedure
+%  written into the template above would be in the first position and a
+%  procedure written here is in the second, and the slot carries
+%  whatever this body last put in it. So what a graphics state hands
+%  back is a procedure the language's own operators can be used on, and
+%  the one a state is born with and the one a program installs itself
+%  answer alike.
 %
 .privatedict /.gstatetemplate {  % -  .  gstate
     //.gstatetemplate  % Use template
     dup /currmatrix [ 1 0 0 1 0 0 ] put  % Allocate fresh arrays
     dup /scratchmatrix [ 1 0 0 1 0 0 ] put
+    dup /blackgen {} put  % k  .  k
+    dup /ucr {} put  % k  .  k
+    dup /transfer {} put  % num  .  num
+    dup /redtransfer {} put  % num  .  num
+    dup /greentransfer {} put  % num  .  num
+    dup /bluetransfer {} put  % num  .  num
+    dup /screenproc { 180 mul cos exch 180 mul cos add 2 div } put  % x y  .  v
+    dup /redscreenproc { 180 mul cos exch 180 mul cos add 2 div } put  % x y  .  v
+    dup /greenscreenproc { 180 mul cos exch 180 mul cos add 2 div } put  % x y  .  v
+    dup /bluescreenproc { 180 mul cos exch 180 mul cos add 2 div } put  % x y  .  v
 } put
 setglobal
 

@@ -3391,6 +3391,18 @@ test('gstate-object',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The access of the procedures a graphics state starts out holding. The
+# operators that read them hand the program the procedure the state is
+# holding, and a program builds on one by taking it apart, which wants
+# read access. A state that answered one way for the procedure it was
+# born with and another for one the program installed disagrees with
+# itself about the same slot.
+test('gstate-default-access',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/gstate_default_access_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Every colour space family through every colour operator. Each family
 # decides for itself how many components it takes and how a colour in it
 # is recorded, so one working says little about the next.

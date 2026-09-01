@@ -362,6 +362,7 @@ tests/graphics_load_stop_test.c \
 tests/graphics_regression_test.ps \
 tests/graphicsdict_slots.golden \
 tests/gscratch_procedures_test.ps \
+tests/gstate_default_access_test.ps \
 tests/gstate_matrix_test.ps \
 tests/gstate_object_test.ps \
 tests/guard-paths.sh \

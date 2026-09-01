@@ -14,7 +14,7 @@
 # has lapsed, and the line is left telling its next reader something
 # untrue.
 #
-# Twelve of the thirteen below are listings that ask for no page. A
+# The twelve below are listings that ask for no page. A
 # book teaches by the smallest program that shows the thing, and for a
 # prologue, a query, a font written to disk or an error handler that is
 # the program with no page in it: the chapter's script would supply the
@@ -31,25 +31,6 @@
 #           the stack. Nothing is stroked and the showpage at the foot
 #           is never reached. div, and a cvi where an integer is meant,
 #           is what the line wanted; the listing is kept as printed.
-#
-# bb_06-printing-images -- the one entry here that is not a property of
-#           the listing, and the count beside it in pages is one,
-#           because one is what the listing draws. It hangs a negating
-#           procedure on the front of the current transfer function the
-#           way its book does, by taking the old one apart: length,
-#           an array of the two lengths added, putinterval. The
-#           procedure currenttransfer answers with before a program has
-#           set one has execute access and no read access in this tree,
-#           and length wants read access (PLRM 8.2, length), so the job
-#           ends there and the image is never sent. Nothing in PLRM
-#           7.3 gives that procedure an access attribute either way,
-#           but the two halves of the graphics state disagree about it
-#           here -- a transfer function a program installs itself comes
-#           back readable -- and this entry goes when they stop.
-#           gb_02-04 does the same concatenation and draws, because it
-#           packages the old procedure with /exec load instead of
-#           reading it, which is the form PLRM Appendix G's note under
-#           settransfer recommends.
 #
 # gb_02-01-listing -- three orderings of the operands of findfont,
 #           scalefont and setfont, to show which of them leave the
@@ -110,7 +91,6 @@
 #           the trailer, so that a job which dies in between says how
 #           far it got. There is nothing else in it.
 bb_05-centered-dash-patterns
-bb_06-printing-images
 gb_02-01-listing
 gb_02-05-listing
 gb_09-05-listing

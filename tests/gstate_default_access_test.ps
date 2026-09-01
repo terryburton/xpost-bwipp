@@ -1,0 +1,155 @@
+%!testlib
+% The access of the procedures a graphics state starts out holding.
+% Run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A graphics state carries a transfer function, a black generation and an
+% undercolour removal procedure and a spot function per component, and the
+% operators that read them hand the program the procedure the state is
+% holding (PLRM 7.3). A program that means to build on the one already
+% installed rather than replace it takes it apart -- asks its length,
+% copies it into a longer array in front of its own -- and that wants read
+% access (PLRM 3.3.2, and length under PLRM 8.2). So the procedure a state
+% starts out holding has to be readable, and the state must not answer one
+% way for the procedure it was born with and another for one the program
+% installed itself.
+%
+% Nothing in PLRM 7.3 gives these procedures an access attribute, and this
+% suite claims only what the operators above need: readable, and not
+% writable. A procedure the state hands out is shared by every state built
+% from the same start, so a program that could write one would be writing
+% what every later graphics state renders through.
+%
+% The controls at the foot are what keep this from passing by everything
+% being readable: a procedure the program itself closes still refuses.
+
+% A procedure is held in a name and taken back with load, never by
+% executing the name: a name holding an executable array runs it.
+/proccase {                             % proc (subject)  .  -
+    /pa.subject exch def
+    /pa.proc exch def
+    /pa.proc load rcheck pa.subject (is readable) assert2
+    /pa.proc load wcheck not pa.subject (is not writable) assert2
+    /pa.proc load xcheck pa.subject (is executable) assert2
+    { /pa.proc load length pop } (answers length) pa.subject works2
+} def
+
+% ---------------------------------------------- what the state starts with
+
+initgraphics
+
+% The procedure the state started with, kept so that a case which needs
+% the initial state back can put it back: initgraphics does not reset the
+% transfer function (PLRM 8.2), and no operator restores its default.
+/pristine currenttransfer def
+
+currenttransfer (the initial transfer function) proccase
+
+currentcolortransfer
+    (the initial grey colour transfer function) proccase
+    (the initial blue colour transfer function) proccase
+    (the initial green colour transfer function) proccase
+    (the initial red colour transfer function) proccase
+
+currentblackgeneration (the initial black generation procedure) proccase
+currentundercolorremoval (the initial undercolour removal procedure) proccase
+
+currentscreen exch pop exch pop (the initial spot function) proccase
+
+currentcolorscreen
+    exch pop exch pop (the initial grey spot function) proccase
+    exch pop exch pop (the initial blue spot function) proccase
+    exch pop exch pop (the initial green spot function) proccase
+    exch pop exch pop (the initial red spot function) proccase
+
+% ---------------------------------------------- the two halves agree
+%
+% The defect this suite was written for was not that the initial
+% procedures were closed but that the state disagreed with itself: a
+% procedure the program installed came back readable and the one the state
+% started with did not. So the question is asked of both and the answers
+% are compared, rather than each being asserted separately -- a comparison
+% goes red if either half moves.
+
+/born currenttransfer def
+{ 1 exch sub } settransfer
+/installed currenttransfer def
+
+/born load rcheck /installed load rcheck eq
+    (the initial transfer function and an installed one) (agree on read access) assert2
+/born load xcheck /installed load xcheck eq
+    (the initial transfer function and an installed one) (agree on execute access) assert2
+
+% ---------------------------------------------- the concatenation itself
+%
+% The whole of the reason, spelled as a program writes it: put a procedure
+% in front of the one already installed by building an array long enough
+% for both and copying each into its place.
+
+/pristine load settransfer
+{ /concat.old currenttransfer def
+  /concat.new /concat.old load length { 1 exch sub } length add array def
+  /concat.new load 0 /concat.old load putinterval
+  /concat.new load /concat.old load length { 1 exch sub } putinterval
+  /concat.new load cvx settransfer
+} (a procedure is concatenated onto the transfer function the state started with)
+works
+
+% and the result runs: the concatenation is a transfer function like any
+% other, and setting one is what samples it (PLRM 7.3)
+currenttransfer length { 1 exch sub } length eq
+    (the concatenated transfer function) (is the old one and the new one) assert2
+
+% ---------------------------------------------- the round trip
+%
+% Read out, changed, and put back through the operator that installs it.
+% Each pair is its own question: the operators do not share a slot, and
+% one of them round-tripping says nothing about the next.
+
+% A procedure read out of the state, lengthened by a step that leaves the
+% value it was called with alone, and handed back. The step is there so
+% that what goes back is a different array from what came out: an operator
+% that handed back a procedure it had not stored would pass a round trip
+% that put the same object back.
+/roundtrip {                            % proc  .  proc'
+    /rt.old exch def
+    /rt.new /rt.old load length 2 add array def
+    /rt.new load 0 /rt.old load putinterval
+    /rt.new load /rt.old load length 1.0 put
+    /rt.new load /rt.old load length 1 add /mul cvx put
+    /rt.new load cvx
+} def
+
+/pristine load settransfer
+{ currenttransfer roundtrip settransfer } (a transfer function round-trips) works
+{ currentblackgeneration roundtrip pop } (a black generation procedure is read out) works
+{ currentundercolorremoval roundtrip pop } (an undercolour removal procedure is read out) works
+{ currentcolortransfer roundtrip 4 1 roll
+  roundtrip 4 1 roll roundtrip 4 1 roll roundtrip 4 1 roll
+  setcolortransfer } (the colour transfer functions round-trip) works
+{ currentscreen roundtrip setscreen } (a spot function round-trips) works
+
+% ---------------------------------------------- the controls
+%
+% Read access is a question the interpreter can answer wrongly in one
+% direction only by answering it wrongly in both. A procedure the program
+% closes itself is still closed, so a run in which everything became
+% readable fails here.
+
+/shut { 1 add } executeonly def
+/shuttight { 1 add } noaccess def
+
+/shut load rcheck not
+    (a procedure the program closed to reading) (is not readable) assert2
+{ /shut load length pop } /invalidaccess
+    (refuses length) (a procedure the program closed to reading) raises2
+{ /shuttight load length pop } /invalidaccess
+    (refuses length) (a procedure the program closed to every access) raises2
+
+% and the state hands back what it was given, closed and all: a program
+% that installs a closed procedure gets a closed one back, which is the
+% other half of the two halves agreeing
+/shut load settransfer
+currenttransfer rcheck not
+    (a closed transfer function the program installed) (comes back closed) assert2
+
+verdict
