@@ -1123,4 +1123,52 @@ end
 
 end end end
 
+%
+%  The composite font mapping algorithms a show string is walked by, as
+%  PLRM Table 3.8 has a program ask after them (see the note in
+%  shade.ps). PLRM Table 5.9 names the algorithm each FMapType value
+%  selects; these are the ones that decode here -- the byte mappings
+%  through .fmapnext and the CMap mapping through .cmapwalk. A code
+%  outside them selects no algorithm, and a string shown through a font
+%  carrying one raises rangecheck rather than painting.
+%
+%  A list, and for the reason the function types are one: the algorithm
+%  is settled by a chain of comparisons rather than by a lookup, so
+%  there is no dispatch dictionary to read the set off. The list is held
+%  to what a string actually decodes through by
+%  tests/check-font-facts.sh, which offers a composite of every code and
+%  compares what walks against what is declared here.
+%
+currentglobal true setglobal
+[ 2 3 4 5 6 7 8 9 ] { dup /FMapType defineresource pop } forall
+setglobal
+
+%
+%  The font dictionary types this interpreter has machinery for, as PLRM
+%  Table 3.8 has a program ask after them. PLRM Table 5.1 gives the base
+%  font types and PLRM Table 5.11 the FontType a CIDFont carries for each
+%  CIDFontType; both are keys of the one category, because both are
+%  values a FontType entry may take. A CIDFont is not a base font, and
+%  the number stamped into it is still a font type a program is handed
+%  and can ask after.
+%
+%  Declared here rather than beside the machinery that settles it,
+%  because it is not one file's to settle: the base types are validated
+%  by definefont and the CIDFont types come from the table a CIDFont is
+%  stamped from, both in data/font.ps, and this file is the next the boot
+%  reads, so it is the first point at which the whole set stands.
+%
+%  The CIDFont half is not written down at all -- it is read off
+%  .cidtypemap, which is what decides the stamp, so a CIDFontType added
+%  there is answered for from the moment it is stamped and there is
+%  nothing else to say. The base half is a list, definefont settling the
+%  type by a chain of comparisons rather than by a lookup, and
+%  tests/check-font-facts.sh holds it to what definefont takes, to what
+%  the text operators paint with, and to what the stamp issues.
+%
+currentglobal true setglobal
+[ 0 1 2 3 42 ] { dup /FontType defineresource pop } forall
+//.cidtypemap { exch pop dup /FontType defineresource pop } forall
+setglobal
+
 //.internaldict /QUIET known { }{ (eof cid.ps\n)print } ifelse

@@ -207,15 +207,20 @@ Level 3 operators
      no FontSet, so a font a document sends this way is unavailable;
      findresource reports the set undefined. Compact font format
      containers are not read
- [/] implicit resource categories: a program may ask what this
-     interpreter can do -- ShadingType, FunctionType, HalftoneType,
-     ImageType, PatternType, FormType, ColorRenderingType, Filter,
-     ColorSpaceFamily, Emulator and IODevice answer for what is
-     implemented. FontType, FMapType and TrappingType are not declared,
-     so a program asking after a font type, a font mapping or trapping is
-     answered undefined rather than truthfully: definefont takes a
-     dictionary without proving the type behind it is implemented, and
-     there is no trapping to report
+ [X] implicit resource categories: every category PLRM Table 3.8 defines
+     is declared, and each answers for what is implemented. Two of them
+     want a word. TrappingType is declared and holds nothing: PLRM 6.3.1
+     defines one trapping type and no trapping is performed here, so an
+     empty category is the truthful answer -- it tells a program this
+     interpreter traps nothing, where an absent category would tell it
+     the interpreter does not know what a trapping type is. FMapType
+     holds the mapping algorithms of PLRM Table 5.9 that a show string is
+     walked by here, which is not the 1 through 9 PLRM 3.9.1 gives as the
+     LanguageLevel 3 set: that table defines no algorithm for 1, none is
+     implemented, and the category declines it. definefont is a separate
+     question and still takes a font dictionary without proving the type
+     behind it is implemented, so what a program is told it may use and
+     what it may hand over are not the same set
 
 Extensions
 ----------

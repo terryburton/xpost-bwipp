@@ -226,18 +226,23 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  instances are defined by whichever module implements the capability, not
 %  here, so the answer cannot drift from the code that has to be true for it.
 %
-%  Absent by intent: /TrappingType, which this interpreter has no trapping to
-%  report; and /FMapType and /FontType, whose support has not been established
-%  to the standard the others were -- definefont accepts a dictionary without
-%  proving the type behind it is implemented, so a declaration made on that
-%  evidence would be a guess.
+%  /TrappingType is declared and holds nothing, and that is an answer
+%  rather than an omission. PLRM 6.3.1 makes a trapping type the Type
+%  entry of a trapping details dictionary and names one such type, 1001;
+%  no trapping is performed here, so there is no type to hold. An empty
+%  category and an absent one say different things to the program that
+%  asks: with the category there, 1001 /TrappingType resourcestatus
+%  answers false, which is "this interpreter traps nothing"; without it
+%  the same question raises an error, which is "this interpreter does not
+%  know what a trapping type is". PLRM Table A.2 puts the category in the
+%  language, so the second of those would be untrue.
 %
 [ /Font /CIDFont /CMap /FontSet /Encoding /Form /Pattern /ProcSet
   /ColorSpace /Halftone /ColorRendering /IdiomSet /InkParams /TrapParams
   /OutputDevice /ControlLanguage /Localization /PDL /HWOptions
   /Filter /ColorSpaceFamily /Emulator /IODevice
   /ColorRenderingType /FormType /HalftoneType /ImageType /PatternType
-  /FunctionType /ShadingType
+  /FunctionType /ShadingType /FontType /FMapType /TrappingType
   /Generic ]
 { //.defcategory exec } forall
 
@@ -359,7 +364,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
    /ColorRenderingType /integertype /FormType /integertype
    /HalftoneType /integertype /ImageType /integertype
    /PatternType /integertype /FunctionType /integertype
-   /ShadingType /integertype >>
+   /ShadingType /integertype /FontType /integertype
+   /FMapType /integertype /TrappingType /integertype >>
 {
     //.resources /Category get 3 -1 roll get
     /InstanceType 3 -1 roll put
@@ -368,12 +374,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 %  The implicit categories, which PLRM 3.9.1 names, refuse both. They are
 %  named here because being implicit is not something a category dictionary
-%  records: PLRM says which categories are implicit and this is that list,
-%  less the three this interpreter does not declare.
+%  records: PLRM says which categories are implicit and this is that list.
 %
 [ /Filter /ColorSpaceFamily /Emulator /IODevice /ColorRenderingType
   /FormType /HalftoneType /ImageType /PatternType /FunctionType
-  /ShadingType ]
+  /ShadingType /FontType /FMapType /TrappingType ]
 { //.resources /Category get exch get
   dup /DefineResource //.implicitdefine put
       /UndefineResource //.implicitundefine put } forall

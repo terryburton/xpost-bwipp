@@ -300,27 +300,69 @@ clear
 
 % The categories themselves exist, so a program asking is answered rather
 % than stopped (PLRM: an absent category raises undefined). The names are
-% PLRM 3.9.1's own -- every implicit category the specification defines --
-% and not the set this interpreter happens to hold, because a list taken
-% from the implementation cannot report what is missing from both. The
-% three it does not declare are held to being absent for the same reason:
-% one quietly appearing is as much a change as one quietly going, and
-% either way what a program is told about a font type would have moved.
+% PLRM Table 3.8's own -- every implicit category the specification
+% defines -- and not the set this interpreter happens to hold, because a
+% list taken from the implementation cannot report what is missing from
+% both.
 /missingimplicit 0 def
 [ /Filter /ColorSpaceFamily /Emulator /IODevice /ColorRenderingType
-  /FormType /HalftoneType /ImageType /PatternType /FunctionType
-  /ShadingType ]
+  /FMapType /FontType /FormType /HalftoneType /ImageType /PatternType
+  /FunctionType /ShadingType /TrappingType ]
 { /Category resourcestatus { pop pop }{ /missingimplicit missingimplicit 1 add store } ifelse
 } forall
 missingimplicit 0 eq
-    (every implicit category this interpreter declares is there) assert
+    (every implicit category the specification defines is there) assert
 
-/extraimplicit 0 def
-[ /FontType /FMapType /TrappingType ]
-{ /Category resourcestatus { pop pop /extraimplicit extraimplicit 1 add store }{ } ifelse
-} forall
-extraimplicit 0 eq
-    (the implicit categories left undeclared are still undeclared) assert
+% A declaration answers for what is implemented AND declines what is
+% not. Both halves are asserted of each category below: one answering
+% yes to every key would be a category rather than a declaration, and
+% one answering no to every key reads exactly like an empty one.
+
+% FontType. PLRM Table 5.1 names the font types; type 1 is painted here,
+% type 14 is named by the same table and nothing here implements it, and
+% 99 was never given a meaning at all.
+1 /FontType resourcestatus { pop pop true }{ false } ifelse
+    (a font type this interpreter paints with is declared) assert
+1 /FontType findresource 1 eq
+    (and findresource answers with the key, as PLRM 3.9.1 has it do) assert
+14 /FontType resourcestatus not
+    (a font type the specification names and nothing here implements is not) assert
+99 /FontType resourcestatus not
+    (nor is a code that is no font type at all) assert
+{ 14 /FontType findresource } /undefinedresource
+    (and findresource refuses the one that is not implemented) raises
+
+% FMapType. PLRM Table 5.9 gives the mapping algorithms an FMapType
+% value may select, from 2 up. The 8/8 mapping is walked here; 1 names
+% no algorithm in that table and neither does 10.
+2 /FMapType resourcestatus { pop pop true }{ false } ifelse
+    (a composite font mapping this interpreter walks is declared) assert
+1 /FMapType resourcestatus not
+    (a mapping code the table does not define is not) assert
+10 /FMapType resourcestatus not
+    (nor is one past the end of it) assert
+
+% TrappingType. The category is declared and holds nothing, which is the
+% answer an interpreter that performs no trapping has to give. PLRM
+% 6.3.1 defines one trapping type, 1001, and this answers false for it:
+% an answer, where an undeclared category would raise an error instead
+% and say something else -- that the interpreter does not know what a
+% trapping type is.
+1001 /TrappingType resourcestatus not
+    (the trapping type the specification defines is not performed here) assert
+/trapinstances 0 def
+(*) { pop /trapinstances trapinstances 1 add store } 40 string
+    /TrappingType resourceforall
+trapinstances 0 eq
+    (and the category holds no trapping type at all) assert
+% the control for that count: the same enumeration, over a category that
+% does hold instances. Without it an empty answer cannot be told from a
+% probe that sees nothing whatever it is pointed at.
+/shadeinstances 0 def
+(*) { pop /shadeinstances shadeinstances 1 add store } 40 string
+    /ShadingType resourceforall
+shadeinstances 0 gt
+    (while the same enumeration finds the shading types) assert
 
 
 % --- the procedure runs in the program's own context ------------------
@@ -423,6 +465,19 @@ occount 1 eq (its instances enumerate) assert
     /invalidaccess (adding a filter) raises
 { /ASCII85Decode /Filter undefineresource }
     /invalidaccess (removing a filter) raises
+{ 14 14 /FontType defineresource pop }
+    /invalidaccess (adding a font type) raises
+{ 1 /FontType undefineresource }
+    /invalidaccess (removing a font type) raises
+{ 1 1 /FMapType defineresource pop }
+    /invalidaccess (adding a composite font mapping) raises
+{ 2 /FMapType undefineresource }
+    /invalidaccess (removing a composite font mapping) raises
+% the empty category refuses just as the full ones do: a program that
+% could add an instance would have this interpreter claim trapping it
+% does not perform, which is the whole reason the category is empty
+{ 1001 1001 /TrappingType defineresource pop }
+    /invalidaccess (adding a trapping type) raises
 
 % and the capability the refusals guard is still declared and still there
 /ASCII85Decode /Filter resourcestatus { pop pop true }{ false } ifelse
@@ -431,6 +486,12 @@ occount 1 eq (its instances enumerate) assert
     (and still builds) assert
 4 /ShadingType resourcestatus { pop pop true }{ false } ifelse
     (the shading type is still declared) assert
+1 /FontType resourcestatus { pop pop true }{ false } ifelse
+    (the font type the refusal guarded is still declared) assert
+2 /FMapType resourcestatus { pop pop true }{ false } ifelse
+    (and so is the composite font mapping) assert
+1001 /TrappingType resourcestatus not
+    (and the trapping type the refusal guarded is still absent) assert
 
 % The refusal is the implicit categories' and not every category's: an
 % explicit one takes an instance and gives it back, which is what says

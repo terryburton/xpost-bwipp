@@ -336,6 +336,167 @@ if ! diff_out=$(diff "$work/cid.want" "$work/cid.got" 2>&1); then
     fail=1
 fi
 
+# ---- what a program is told it may use, for the font types
+#
+# Everything above is what this interpreter does with a font. What a
+# PROGRAM is told it may use is a second statement of the same thing:
+# the /FontType resource category (PLRM Table 3.8), whose instances are
+# declared in data/cid.ps.
+#
+# A declaration held to a written list would be a claim held to a claim,
+# and something missing from both reads exactly like something that does
+# not exist. So it is held to what was PROBED above instead, in three
+# parts, whose union is what this interpreter has font machinery for:
+#
+#   the types definefont accepts
+#   the types a text operator paints with
+#   the types the CIDFontType stamp issues
+#
+# 42 reaches the union through the routes and not through the acceptance
+# probe, which strips the font data on purpose. 14 reaches it through
+# none of the three, which is what holds the declaration to DECLINING a
+# type the specification names and nothing here implements: a category
+# answering for everything asked of it is not a declaration.
+{
+    awk '$2 == "accepted" { print $1 }' "$work/got.type"
+    awk '$3 == "ok"       { print $2 }' "$work/got.route"
+    awk -F'\t' 'NF == 3   { print $3 }' "$work/cid.got"
+} | LC_ALL=C sort -n -u > "$work/font.want"
+
+printf '(*) { =only (\\n) print } 32 string /FontType resourceforall\n' \
+    > "$work/fontdecl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/fontdecl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | LC_ALL=C sort -n -u > "$work/font.decl"
+
+if [ ! -s "$work/font.want" ] || [ ! -s "$work/font.decl" ]; then
+    echo "FAILURES: one side of the font type declaration is empty (probed"
+    echo "      $(grep -c . "$work/font.want"), declared $(grep -c . "$work/font.decl")),"
+    echo "      and two sets one of which is empty agree about nothing"
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/font.want" "$work/font.decl" \
+    "implemented here and not offered as a /FontType resource. A program
+      asking what it may use is told less than the truth; the declaration
+      in data/cid.ps is where to say so:" \
+    "offered as a /FontType resource and implemented by nothing probed
+      here. A program is promised font machinery this interpreter does
+      not have:"
+[ "$guard_held" -eq 0 ] || fail=1
+
+# ---- the composite font mappings, derived and then held
+#
+# PLRM Table 5.9 gives the mapping algorithm each FMapType value selects.
+# Which of them this interpreter walks is not written in any dispatch
+# table -- the algorithm is chosen by a chain of comparisons -- so it is
+# derived the way the font types are: every code is offered a composite
+# font and a string, and a code is walked when the show comes back
+# without an error.
+#
+# The composite carries every entry any mapping wants and is shown a
+# string that decodes under all of them: two bytes per character, both
+# selecting descendant 0, neither an escape nor a shift code. A string
+# that suited only one mapping would report the rest as unsupported.
+#
+# The CMap mapping is the one that cannot be probed that way: it needs a
+# CMap and a CID-keyed descendant rather than an Encoding and an
+# FDepVector. It is offered its own font, built the way composefont
+# builds one, and the sweep's answer for that code is discarded.
+#
+# The probe carries its own control. A probe that stopped showing
+# anything would report every code as walked, and the codes PLRM names
+# no algorithm for would then be in the derived set and not in the
+# declaration, which fails here rather than passing quietly.
+fmapfont() {        # <code> -> the PostScript defining /FM
+    if [ "$1" = 9 ]; then
+        cat <<'PS'
+/CIDInit /ProcSet findresource begin
+10 dict begin
+  begincmap
+  /CMapName /XpostFMapCMap def
+  /CIDSystemInfo << /Registry (X) /Ordering (X) /Supplement 0 >> def
+  1 begincodespacerange <00> <FF> endcodespacerange
+  1 begincidrange <00> <FF> 0 endcidrange
+  endcmap
+  CMapName currentdict end /CMap defineresource pop
+end
+8 dict begin
+  /CIDFontName /XpostFMapCID def
+  /CIDFontType 4 def
+  /CIDSystemInfo << /Registry (X) /Ordering (X) /Supplement 0 >> def
+  /FontMatrix [1 0 0 1 0 0] def
+  /FontBBox [0 0 8 8] def
+  /CIDCount 256 def
+CIDFontName currentdict end /CIDFont defineresource pop
+/FM /XpostFMapT0 /XpostFMapCMap [ /XpostFMapCID ] composefont def
+PS
+    else
+        cat <<PS
+/D 10 dict def
+D /FontType 0 put
+D /FMapType $1 put
+D /FontMatrix [1 0 0 1 0 0] put
+D /Encoding [ 0 1 ] put
+D /FDepVector [ Base 12 scalefont Base 12 scalefont ] put
+D /EscChar 255 put
+D /ShiftIn 15 put
+D /ShiftOut 14 put
+D /SubsVector <0080> put
+/FM /XpostFMap$1 D definefont def
+PS
+    fi
+}
+
+fmapwalks() {       # <code> -> "walks" or "<errorname>"
+    {
+        printf '<< /PageSize [80 40] >> setpagedevice\n/S 120 string def\n'
+        printf '/Base /Helvetica findfont def\n'
+        printf 'mark {\n'
+        fmapfont "$1"
+        printf 'FM 12 scalefont setfont 5 10 moveto (\\000a\\000a) show\n'
+        printf '} stopped\n'
+        printf '{ cleartomark (E ) print $error /errorname get S cvs print (\\n) print }\n'
+        printf '{ cleartomark (E walks\\n) print } ifelse\nshowpage\n'
+    } > "$work/fm.ps"
+    ( cd "$work" && XPOST_DATA_DIR="$srcdata" \
+      "$xpost" -q --no-sandbox -d pgm -o fm.pgm fm.ps </dev/null 2>/dev/null ) \
+      | awk '$1 == "E" { print $2; exit }'
+}
+
+: > "$work/fmap.want"
+c=1
+while [ "$c" -le 12 ]; do
+    [ "$c" = 9 ] || {
+        [ "$(fmapwalks "$c")" = walks ] && echo "$c" >> "$work/fmap.want"
+    }
+    c=$((c + 1))
+done
+[ "$(fmapwalks 9)" = walks ] && echo 9 >> "$work/fmap.want"
+LC_ALL=C sort -n -u "$work/fmap.want" -o "$work/fmap.want"
+
+printf '(*) { =only (\\n) print } 32 string /FMapType resourceforall\n' \
+    > "$work/fmapdecl.ps"
+XPOST_DATA_DIR="$srcdata" "$xpost" -q --no-sandbox -d null -o /dev/null \
+    "$work/fmapdecl.ps" </dev/null 2>/dev/null \
+    | tr -d '\r' | awk 'NF == 1 { print }' | LC_ALL=C sort -n -u > "$work/fmap.decl"
+
+if [ ! -s "$work/fmap.want" ] || [ ! -s "$work/fmap.decl" ]; then
+    echo "FAILURES: one side of the composite font mapping declaration is"
+    echo "      empty (walked $(grep -c . "$work/fmap.want"), declared"
+    echo "      $(grep -c . "$work/fmap.decl")), and two sets one of which is"
+    echo "      empty agree about nothing"
+    exit 1
+fi
+guard_held=0
+guard_hold "$work/fmap.want" "$work/fmap.decl" \
+    "walked by this interpreter and not offered as an /FMapType resource.
+      A program asking which mappings it may use is told less than the
+      truth; the declaration in data/cid.ps is where to say so:" \
+    "offered as an /FMapType resource and walking no string here. A
+      program is promised a mapping algorithm this interpreter refuses:"
+[ "$guard_held" -eq 0 ] || fail=1
+
 guard_held=0
 guard_hold_divergence font-facts "$work/reg.diverge" "$work/got.diverge"
 [ "$guard_held" -eq 0 ] || fail=1
@@ -347,7 +508,8 @@ if [ -n "$thorns" ]; then
 fi
 
 [ "$fail" = 0 ] || exit 1
-printf 'SUCCESS (%s font type(s) held to what definefont accepts, %s operator-by-type route(s), %s CIDFontType stamp(s) held through both operators, %s divergence(s) each found by its own probe)\n' \
+printf 'SUCCESS (%s font type(s) held to what definefont accepts, %s operator-by-type route(s), %s CIDFontType stamp(s) held through both operators, %s font type(s) and %s composite font mapping(s) declared to a program and held to what was probed, %s divergence(s) each found by its own probe)\n' \
     "$(grep -c . "$work/reg.type")" "$(grep -c . "$work/reg.route")" \
-    "$ncid" "$(grep -c . "$work/reg.diverge")"
+    "$ncid" "$(grep -c . "$work/font.decl")" "$(grep -c . "$work/fmap.decl")" \
+    "$(grep -c . "$work/reg.diverge")"
 exit 0
