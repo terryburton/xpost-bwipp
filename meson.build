@@ -2671,6 +2671,22 @@ test('font-glyph-identity',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A nul is a character of a string. PLRM 3.3.7 makes a string a counted
+# array whose elements are "integers in the range 0 to 255", holding
+# "arbitrary binary data" where a program wants it to, so the count is
+# what says where a string ends and the byte 0 is an element like any
+# other. For text that means the encoding vector of PLRM 5.2 has an
+# entry at code 0 like every other code, and a font naming a glyph there
+# must paint it. Each road to a glyph is asked separately -- the face
+# route, the Type 3 route, the composite route and the outline route --
+# and asked for the ink it left, since a width can be right while
+# nothing is drawn.
+test('string-nul',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/string_nul_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # A Type 3 description that sets a colour of its own is outside what PLRM
 # 5.5 permits in a cached description, and the two routes it can take
 # then disagree: the cache remembers coverage and replays it in the

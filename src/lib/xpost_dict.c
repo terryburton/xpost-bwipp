@@ -576,7 +576,11 @@ Xpost_Object xpost_dict_convert_extended_to_number (Xpost_Object e)
    string key would leave a permanent name behind for a key that matched
    nothing, so an untrusted program probing with unbounded distinct strings
    would grow the name table without end. A store (lookup_only false) still
-   interns, because its key is about to live in the dictionary. */
+   interns, because its key is about to live in the dictionary.
+
+   The name a string resolves to is the whole of the string. A string
+   is a counted array of bytes and a nul is one of them (PLRM 3.3.7),
+   so the count the string carries is what says where the key ends. */
 static
 Xpost_Object clean_key (Xpost_Context *ctx,
                         Xpost_Object k,
@@ -587,10 +591,11 @@ Xpost_Object clean_key (Xpost_Context *ctx,
         default: break;
         case stringtype:
         {
+            unsigned int n = k.comp_.sz;
             char *s = xpost_string_allocate_cstring(ctx, k);
             k = lookup_only
-                ? xpost_name_find_n(ctx, s, (unsigned int)strlen(s))
-                : xpost_name_cons(ctx, s);
+                ? xpost_name_find_n(ctx, s, n)
+                : xpost_name_cons_n(ctx, s, n);
             free(s);
             break;
         }

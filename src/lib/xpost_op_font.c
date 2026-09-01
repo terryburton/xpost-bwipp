@@ -3982,6 +3982,7 @@ int _show(Xpost_Context *ctx,
     char *cstr;
     real xpos, ypos;
     char *ch;
+    char *chend;
     Xpost_Object devdic;
     Xpost_Object putpix;
     textstate ts;
@@ -4011,9 +4012,17 @@ int _show(Xpost_Context *ctx,
         return invalidfont;
     XPOST_LOG_INFO("loaded font data from dict");
 
-    /* get a c-style nul-terminated string */
+    /* the string's characters, copied out of VM so that a device method
+       reached through a glyph -- which is the program's own procedure and
+       may write the string -- cannot move the text out from under the
+       walk. The walk runs to the count the string carries: every byte of
+       a string is one of its characters, a nul among them (PLRM 3.3.7),
+       and the terminator the copy ends with is there for the C
+       interfaces a glyph's name goes through */
     cstr = xpost_string_allocate_cstring(ctx, str);
-    XPOST_LOG_INFO("append nul to string");
+    if (!cstr)
+        return VMerror;
+    chend = cstr + str.comp_.sz;
 
     ret = _get_current_point(ctx, gs, &xpos, &ypos);
     if (ret){
@@ -4037,7 +4046,7 @@ int _show(Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->es, finalize);
 
     /* render text in char *cstr  with font data  at pen position xpos ypos */
-    for (ch = cstr; *ch; ch++) {
+    for (ch = cstr; ch < chend; ch++) {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
                 ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
         {
@@ -5460,6 +5469,7 @@ int _ashow(Xpost_Context *ctx,
     char *cstr;
     real xpos, ypos;
     char *ch;
+    char *chend;
     Xpost_Object devdic;
     Xpost_Object putpix;
     textstate ts;
@@ -5489,9 +5499,10 @@ int _ashow(Xpost_Context *ctx,
         return invalidfont;
     XPOST_LOG_INFO("loaded font data from dict");
 
-    /* get a c-style nul-terminated string */
     cstr = xpost_string_allocate_cstring(ctx, str);
-    XPOST_LOG_INFO("append nul to string");
+    if (!cstr)
+        return VMerror;
+    chend = cstr + str.comp_.sz;
 
     ret = _get_current_point(ctx, gs, &xpos, &ypos);
     if (ret){
@@ -5515,7 +5526,7 @@ int _ashow(Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->es, finalize);
 
     /* render text in char *cstr  with font data  at pen position xpos ypos */
-    for (ch = cstr; *ch; ch++)
+    for (ch = cstr; ch < chend; ch++)
     {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
                    ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
@@ -5556,6 +5567,7 @@ int _widthshow(Xpost_Context *ctx,
     char *cstr;
     real xpos, ypos;
     char *ch;
+    char *chend;
     Xpost_Object devdic;
     Xpost_Object putpix;
     textstate ts;
@@ -5585,9 +5597,10 @@ int _widthshow(Xpost_Context *ctx,
         return invalidfont;
     XPOST_LOG_INFO("loaded font data from dict");
 
-    /* get a c-style nul-terminated string */
     cstr = xpost_string_allocate_cstring(ctx, str);
-    XPOST_LOG_INFO("append nul to string");
+    if (!cstr)
+        return VMerror;
+    chend = cstr + str.comp_.sz;
 
     ret = _get_current_point(ctx, gs, &xpos, &ypos);
     if (ret){
@@ -5611,7 +5624,7 @@ int _widthshow(Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->es, finalize);
 
     /* render text in char *cstr  with font data  at pen position xpos ypos */
-    for (ch = cstr; *ch; ch++)
+    for (ch = cstr; ch < chend; ch++)
     {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
                    ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
@@ -5657,6 +5670,7 @@ int _awidthshow(Xpost_Context *ctx,
     char *cstr;
     real xpos, ypos;
     char *ch;
+    char *chend;
     Xpost_Object devdic;
     Xpost_Object putpix;
     textstate ts;
@@ -5686,9 +5700,10 @@ int _awidthshow(Xpost_Context *ctx,
         return invalidfont;
     XPOST_LOG_INFO("loaded font data from dict");
 
-    /* get a c-style nul-terminated string */
     cstr = xpost_string_allocate_cstring(ctx, str);
-    XPOST_LOG_INFO("append nul to string");
+    if (!cstr)
+        return VMerror;
+    chend = cstr + str.comp_.sz;
 
     ret = _get_current_point(ctx, gs, &xpos, &ypos);
     if (ret){
@@ -5712,7 +5727,7 @@ int _awidthshow(Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->es, finalize);
 
     /* render text in char *cstr  with font data  at pen position xpos ypos */
-    for (ch = cstr; *ch; ch++)
+    for (ch = cstr; ch < chend; ch++)
     {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
                 ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
@@ -5757,6 +5772,7 @@ int _stringwidth(Xpost_Context *ctx,
     char *cstr;
     real xpos = 0, ypos = 0;
     char *ch;
+    char *chend;
     Xpost_Object encoding;
     Xpost_Object charstrings;
     textstate mts;
@@ -5783,14 +5799,15 @@ int _stringwidth(Xpost_Context *ctx,
                 && _char_device_matrix(ctx, gs, fontdict, mts.cdmat);
     XPOST_LOG_INFO("loaded font data from dict");
 
-    /* get a c-style nul-terminated string */
     cstr = xpost_string_allocate_cstring(ctx, str);
-    XPOST_LOG_INFO("append nul to string");
+    if (!cstr)
+        return VMerror;
+    chend = cstr + str.comp_.sz;
 
     /* accumulate the advances without rendering: the outline metrics
        carry the advance; a glyph with no outline (a bitmap strike)
        renders as a fallback */
-    for (ch = cstr; *ch; ch++)
+    for (ch = cstr; ch < chend; ch++)
     {
         unsigned int glyph_index;
         long bx0, by0, bx1, by1;
@@ -5984,6 +6001,7 @@ int _stringoutline(Xpost_Context *ctx,
     double penx = 0.0, peny = 0.0;
     char *cstr;
     char *ch;
+    char *chend;
     outlinecollect oc;
     Xpost_Object arr;
     int ret;
@@ -6010,6 +6028,7 @@ int _stringoutline(Xpost_Context *ctx,
     cstr = xpost_string_allocate_cstring(ctx, str);
     if (!cstr)
         return VMerror;
+    chend = cstr + str.comp_.sz;
 
     memset(&oc, 0, sizeof oc);
     oc.ctx = ctx;
@@ -6018,7 +6037,7 @@ int _stringoutline(Xpost_Context *ctx,
     oc.nc = xpost_object_cvlit(name_c);
     oc.nh = xpost_object_cvlit(name_h);
 
-    for (ch = cstr; *ch; ch++)
+    for (ch = cstr; ch < chend; ch++)
     {
         unsigned int glyph_index;
         long advance_x, advance_y;

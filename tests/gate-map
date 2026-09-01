@@ -220,6 +220,7 @@ font test noface-refusal
 font test outline-font
 font test record-glyph
 font test render-state-bank
+font test string-nul
 font test check-glyph-render-route
 font test check-type42-charstrings
 font width witness

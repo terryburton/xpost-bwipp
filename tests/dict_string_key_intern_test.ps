@@ -39,6 +39,41 @@ d (beta) known not (undef by string key removes the named entry) assert
 { d /noSuchKey undef } outcome
 eq (undef of an absent string key matches undef of an absent name key) assert
 
+% ---- the name a string key resolves to is the whole string
+
+% A string is a counted array of bytes whose elements are "integers in
+% the range 0 to 255" (PLRM 3.3.7), so a 0 among them is a character of
+% the key like any other and the count is what says where the key ends.
+% Two strings differing only past a 0 are different keys, and neither is
+% the key the bytes before the 0 spell.
+
+/dn 4 dict def
+dn <410042> (whole) put
+
+dn <410042> known (a string key carrying a nul is found by itself) assert
+dn <410042> get (whole) eq (and reads back the value stored under it) assert
+dn <4100> known not
+    (a key one character shorter is a different key) assert
+dn (A) known not
+    (and so are the characters before the nul alone) assert
+dn <41004243> known not
+    (and so is a key one character longer) assert
+
+% the same two keys as names, which is the resolution a string key has to
+% agree with: cvn takes every byte of the string (PLRM 3.3.7), so the
+% names differ and the dictionary must not answer one for the other
+<410042> cvn <4100> cvn eq not
+    (two names differing past a nul are different names) assert
+dn <410042> cvn known (the name a nul-carrying string key resolves to is stored) assert
+dn <4100> cvn known not (and the shorter name is not) assert
+
+% a store keyed by such a string reaches only its own entry: putting the
+% shorter key leaves the longer one where it was
+dn <4100> (part) put
+dn <410042> get (whole) eq (a store under the shorter key leaves the longer one alone) assert
+dn <4100> get (part) eq (and the shorter key holds what was stored under it) assert
+dn length 2 eq (so the two keys occupy two entries) assert
+
 % ---- a stored key is a literal name, whoever stored it
 
 % forall hands back the object stored beside the value, so the attribute a

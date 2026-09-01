@@ -1,0 +1,276 @@
+%!testlib
+% A nul is a character of a string, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% PLRM 3.3.7 says what a string is: "similar to an array", its elements
+% "integers in the range 0 to 255", and "String objects may also be used
+% to hold arbitrary binary data". Nothing there gives the byte 0 a role.
+% It is an element like any other, and the count the string carries is
+% the only thing that says where the string ends.
+%
+% What that settles for text is PLRM 5.2's encoding vector, "the font's
+% encoding vector ... an array of 256 names": a show resolves a
+% character code through it, and code 0 has an entry there like every
+% other code. A font naming a glyph at code 0 must paint it, and a
+% string carrying a 0 among its characters must show every glyph its
+% characters name.
+%
+% Each road to a glyph is asked separately, because a font reaches its
+% glyphs by more than one and a check on one is not a check on the
+% others:
+%
+%   the face route, where the showing operator walks the string itself
+%   the Type 3 route, where the font's own procedure builds each glyph
+%   the composite route, where a code decodes through the FMapType and
+%     is shown through the descendant it selects
+%   the outline route, where the glyphs are appended to the path
+%     instead of painted straight onto the page, which is where
+%     charpath and a font whose glyphs are stroked go
+%
+% The subject is INK and not only a width, because a width can be right
+% while nothing is drawn. Every road is asked for the page it painted
+% and held against the page the same glyphs painted spelled without a
+% nul. Two controls sit under that: the string WITHOUT the nul, whose
+% page must differ, and the same string with a TRAILING nul, which must
+% paint the glyph named at code 0 rather than one character less or one
+% character more.
+
+% a face answers for the roads that reach one: a build without a face
+% library resolves no faces, and the Type 3 road is then the only road
+% there is
+/sn.faces systemdict /NOFACES known not def
+
+/.fillpoly     1183615869 internaldict /.fillpoly get def
+/.fillrectgray 1183615869 internaldict /.fillrectgray get def
+
+% --- a raster to draw into and read back ---
+/sn.w 120 def
+/sn.h 40 def
+/DEV sn.w sn.h .privatedict /newPGMIMAGEdevice get exec def
+DEV begin
+    /defaultmatrix [ 1 0 0 -1 0 sn.h ] def
+    /FillPoly /.fillpoly load def
+    /FillRect /.fillrectgray load def
+end
+.privatedict /.gstatetemplate get exec /device DEV put
+graphicsdict /currgstate get /device DEV put
+initgraphics
+
+/sn.snap { % - . [rows]
+    [ 0 1 sn.h 1 sub { DEV /ImgData get exch get dup length string copy } for ]
+} bind def
+/sn.same { % [rows] [rows] . bool
+    /sn.b exch def /sn.a exch def
+    true 0 1 sn.h 1 sub {
+        /sn.i exch def
+        sn.a sn.i get sn.b sn.i get eq and
+    } for
+} bind def
+/sn.ink { % [rows] . n
+    0 exch { { 128 lt { 1 add } if } forall } forall
+} bind def
+/sn.paint { % proc . [rows]
+    1 setgray 0 0 sn.w sn.h rectfill 0 setgray
+    2 8 moveto exec sn.snap
+} bind def
+% the advance a showing operator leaves, measured on a page of its own
+/sn.adv { % proc . dx
+    gsave nulldevice 0 0 moveto exec currentpoint pop grestore
+} bind def
+
+% --- the fonts, each naming a glyph at code 0 ---
+%
+% The face road: a copy of a text font whose encoding names a real
+% glyph at code 0, which is the ordinary re-encoding idiom of PLRM 5.6.
+% /B is named there, so a code 0 in a string paints exactly what the
+% character B paints and the two pages can be held against each other.
+sn.faces {
+    /Times-Roman findfont dup length dict copy begin
+        /Encoding StandardEncoding 256 array copy def
+        Encoding 0 /B put
+        currentdict
+    end /SNface exch definefont pop
+
+    % the same font as an outline font, whose glyphs are its outlines
+    % stroked rather than filled coverage: that is the road through the
+    % path machinery rather than through the glyph raster
+    /SNface findfont dup length dict copy begin
+        /PaintType 2 def
+        /StrokeWidth 20 def
+        currentdict
+    end /SNstroked exch definefont pop
+
+    % and a composite over it, whose two-byte codes select the same
+    % descendant and hand it the second byte
+    << /FontType 0 /FMapType 2 /FontMatrix matrix
+       /Encoding [0 0]
+       /FDepVector [ /SNface findfont /SNface findfont ] >>
+    /SNcomposite exch definefont pop
+} if
+
+% The Type 3 road: a font describing its glyphs as procedures. The glyph
+% at code 0 is a different size from the one at 65, so which was painted
+% can be read off the page.
+<< /FontType 3
+   /FontMatrix [0.001 0 0 0.001 0 0]
+   /FontBBox [0 0 1000 1000]
+   /Encoding 256 array 0 1 255 { 1 index exch /.notdef put } for
+       dup 0 /wide put dup 65 /narrow put dup 66 /wide put
+   /CharProcs << /wide   { 750 0 setcharwidth 0 0 700 700 rectfill }
+                 /narrow { 400 0 setcharwidth 0 0 300 300 rectfill }
+                 /.notdef { 0 0 setcharwidth } >>
+   /BuildChar { exch begin Encoding exch get CharProcs exch get exec end } bind
+>> /SNbuild exch definefont pop
+
+% ---- 1. the face road: the showing operators walk the string ----------
+sn.faces {
+/SNface findfont 20 scalefont setfont
+
+% Nothing below says anything unless the two spellings can be told
+% apart on this page at all.
+/sn.abb { (ABB) show } sn.paint def
+/sn.ab  { (AB)  show } sn.paint def
+sn.abb sn.ink 0 gt (the three-glyph string leaves ink) assert
+sn.ab  sn.ink 0 gt (the two-glyph string leaves ink) assert
+sn.abb sn.ab sn.same not (the two are told apart on the page) assert
+
+% the glyph named at code 0, alone
+{ <00> show } sn.paint { (B) show } sn.paint sn.same
+    (a code 0 paints the glyph its encoding names there) assert
+{ <00> show } sn.paint sn.ink 0 gt
+    (and that glyph leaves ink) assert
+{ <00> show } sn.adv { (B) show } sn.adv eq
+    (a code 0 advances the point by that glyph's width) assert
+
+% an interior nul, against the same glyphs spelled without one
+{ <410042> show } sn.paint sn.abb sn.same
+    (a nul among a string's characters shows the glyph named at code 0) assert
+{ <410042> show } sn.paint sn.ab sn.same not
+    (and the string does not paint as though it ended at the nul) assert
+<410042> stringwidth pop (ABB) stringwidth pop eq
+    (stringwidth measures every character of such a string) assert
+<410042> stringwidth pop (AB) stringwidth pop eq not
+    (and does not measure it as ending at the nul) assert
+
+% a TRAILING nul: one character more than the string without it, and not
+% one character less than the string with it
+{ <414200> show } sn.paint sn.abb sn.same
+    (a trailing nul is a character and paints its glyph) assert
+{ (AB) show } sn.paint sn.ab sn.same
+    (a string with no nul paints exactly its own characters) assert
+<414200> stringwidth pop (ABB) stringwidth pop eq
+    (stringwidth counts a trailing nul as one character) assert
+(AB) stringwidth pop (ABB) stringwidth pop eq not
+    (and counts no character a string without a nul does not have) assert
+
+% ---- 2. the rest of the showing family --------------------------------
+% Each is show with something added between glyphs (PLRM 8.2), so each
+% is asked the same question: the page it paints for the spelling with
+% the nul is the page it paints for the spelling without.
+{ 6 0 <410042> ashow } sn.paint { 6 0 (ABB) ashow } sn.paint sn.same
+    (ashow shows every character of a string carrying a nul) assert
+% the code widthshow keys its displacement on is one the two spellings
+% share, so what is left between them is the character at the nul
+{ 6 0 65 <410042> widthshow } sn.paint { 6 0 65 (ABB) widthshow } sn.paint sn.same
+    (widthshow shows every character of one) assert
+{ 6 0 65 3 0 <410042> awidthshow } sn.paint
+{ 6 0 65 3 0 (ABB) awidthshow } sn.paint sn.same
+    (awidthshow shows every character of one) assert
+{ { pop pop } <410042> kshow } sn.paint
+{ { pop pop } (ABB) kshow } sn.paint sn.same
+    (kshow shows every character of one) assert
+{ <410042> [14 14 14] xshow } sn.paint
+{ (ABB) [14 14 14] xshow } sn.paint sn.same
+    (xshow shows every character of one) assert
+{ <410042> [8 8 8] yshow } sn.paint
+{ (ABB) [8 8 8] yshow } sn.paint sn.same
+    (yshow shows every character of one) assert
+{ <410042> [14 2 14 2 14 2] xyshow } sn.paint
+{ (ABB) [14 2 14 2 14 2] xyshow } sn.paint sn.same
+    (xyshow shows every character of one) assert
+[ { pop pop } <410042> cshow ] dup length 3 eq
+    exch dup 0 get 65 eq exch dup 1 get 0 eq exch 2 get 66 eq and and and
+    (cshow reports the nul among the codes it walks) assert
+
+% and each of them, on the page, differs from the string read as ending
+% at the nul: a family member that stopped there would paint sn.ab's
+% glyphs with its own spacing, which is what this refuses
+{ 6 0 <410042> ashow } sn.paint { 6 0 (AB) ashow } sn.paint sn.same not
+    (ashow does not read the string as ending at the nul) assert
+{ <410042> [14 14 14] xshow } sn.paint
+{ (AB) [14 14] xshow } sn.paint sn.same not
+    (xshow does not read the string as ending at the nul) assert
+
+% ---- 3. the outline road ----------------------------------------------
+% charpath appends the glyphs to the current path rather than painting
+% them, and a font whose glyphs are stroked shows through the same
+% machinery. Both take the outlines from the string in one call, which
+% is a different walk from the one that paints.
+{ <410042> true charpath fill } sn.paint
+{ (ABB) true charpath fill } sn.paint sn.same
+    (charpath takes the outline of every character of such a string) assert
+{ <410042> true charpath fill } sn.paint
+{ (AB) true charpath fill } sn.paint sn.same not
+    (and not of the characters before the nul alone) assert
+% and the path itself, taken through pathbbox. A path holding nothing
+% has no bounding box to report, so each is run as a case that may raise
+% and answers null where it did.
+/sn.pb0 null def
+/sn.pbB null def
+{ newpath 0 0 moveto <00> false charpath
+  pathbbox 4 array astore /sn.pb0 exch def } outcome pop
+{ newpath 0 0 moveto (B) false charpath
+  pathbbox 4 array astore /sn.pbB exch def } outcome pop
+newpath
+sn.pb0 null ne sn.pbB null ne and
+    (charpath answers a bounding box for both) assert
+sn.pb0 null ne { sn.pb0 2 get sn.pb0 0 get gt }{ false } ifelse
+    (charpath over a code 0 leaves a path as wide as the glyph) assert
+sn.pb0 null ne sn.pbB null ne and {
+    true 0 1 3 { dup sn.pb0 exch get exch sn.pbB exch get eq and } for
+}{ false } ifelse
+    (and it is the path the glyph named there makes) assert
+
+/SNstroked findfont 20 scalefont setfont
+{ <410042> show } sn.paint { (ABB) show } sn.paint sn.same
+    (an outline font shows every character of such a string) assert
+{ <410042> show } sn.paint { (AB) show } sn.paint sn.same not
+    (and not the characters before the nul alone) assert
+{ <410042> show } sn.paint sn.ink 0 gt
+    (an outline font's glyphs leave ink) assert
+
+% ---- 4. the composite road --------------------------------------------
+% A composite font decodes each code through its FMapType and shows it
+% through the descendant selected. The 8/8 mapping takes the descendant
+% from the first byte and the character from the second, so a nul in
+% either position is an ordinary value: <0000> is descendant 0,
+% character 0.
+/SNcomposite findfont 20 scalefont setfont
+{ <000000410000> show } sn.paint /sn.c3 exch def
+{ <004100420042> show } sn.paint /sn.cplain exch def
+sn.c3 sn.ink 0 gt (a composite code carrying nuls leaves ink) assert
+{ <0000> show } sn.adv 0 gt
+    (a composite code selecting character 0 advances the point) assert
+{ <000000410000> show } sn.paint
+{ <004200410042> show } sn.paint sn.same
+    (a composite shows the glyph its descendant names at code 0) assert
+} if
+
+% ---- 5. the Type 3 road -----------------------------------------------
+% The font's own procedure builds each glyph, so this road never hands
+% the string to anything that reads it as a C string. It is the control
+% that says the question above is answerable at all: a road already
+% walking by count answers it the same before and after.
+/SNbuild findfont 20 scalefont setfont
+{ <00> show } sn.paint /sn.t30 exch def
+{ (B) show } sn.paint /sn.t3B exch def
+{ (A) show } sn.paint /sn.t3A exch def
+sn.t30 sn.ink 0 gt (a Type 3 glyph at code 0 leaves ink) assert
+sn.t30 sn.t3B sn.same (and is the glyph the encoding names there) assert
+sn.t30 sn.t3A sn.same not (and not the glyph named at another code) assert
+{ <410041> show } sn.paint { (ABA) show } sn.paint sn.same
+    (a Type 3 font shows every character of a string carrying a nul) assert
+{ <410041> show } sn.paint { (AA) show } sn.paint sn.same not
+    (and not the characters before the nul alone) assert
+
+verdict

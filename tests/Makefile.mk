@@ -287,6 +287,7 @@ tests/form_serial_restore_test.ps \
 tests/font_glyphkey_test.ps \
 tests/font_glyph_identity_test.ps \
 tests/font_glyph_colour_test.ps \
+tests/string_nul_test.ps \
 tests/font_face_error_test.c \
 tests/font_face_cycle_test.c \
 tests/memory_grow_test.c \
