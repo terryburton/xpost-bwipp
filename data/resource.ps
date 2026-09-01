@@ -220,6 +220,81 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 { //.defcategory exec } forall
 
 %
+%  The Font category answers through the font machinery. PLRM 3.9.2 makes
+%  findfont, definefont and undefinefont the same operations as /Font
+%  findresource, defineresource and undefineresource, so the category's
+%  procedures ARE those operators rather than something kept in step with
+%  them. findfont substitutes for a name the host cannot resolve (PLRM
+%  5.2), and findresource inherits that: the two are one operation, so
+%  they answer alike -- which is what both implementations this tree is
+%  adjudicated against do.
+%
+%  The names are reached at run time and not frozen: the font operators
+%  are defined after this file is read.
+%
+%  ResourceStatus is the one that is not simply an operator. An instance
+%  in a font directory is in VM and reports 0 0; a name the host carries
+%  is obtainable but not loaded and reports status 2 with an unknown size,
+%  which is what PLRM 3.9 has these operators answer for an instance
+%  "whether or not it resides in VM". A substituted face is not the
+%  instance asked for, so a name that only resolves to a default is
+%  reported absent.
+%
+%
+%  What the host answered about a name, kept for the rest of the job. The
+%  configuration lookup behind it costs about a millisecond and the answer
+%  does not change while a job runs, so asking twice is asking once too
+%  often. Job-scoped, like the memo of instances known absent.
+%
+.jobstore /.fontavail 32 dict put
+
+//.resources /Category get /Font get
+    dup /FindResource     {  % key  .  instance
+            findfont } executeonly put
+    dup /DefineResource   {  % key instance  .  instance
+            definefont } executeonly put
+    dup /UndefineResource {  % key  .  -
+            undefinefont } executeonly put
+    dup /ResourceForAll   {  % template proc scratch category  .  -
+            % The fonts in virtual memory and the faces the host holds,
+            % under the names those faces call themselves by. PLRM 3.9 has
+            % these operators answer for an instance "whether or not it
+            % resides in VM", and the configuration is an index of the
+            % host's faces, so what a program can ask for is what is
+            % enumerated. A face carrying no name of its own is not a name
+            % a program could ask for and is left out.
+            //.xpostsys /.catinstancedict get exec
+            //.fonthostfaces exec 1 index length add 16 add dict
+            exch { 2 index 3 1 roll put } forall
+            0 1 //.fonthostfaces exec 1 sub {
+                //.fonthostface exec
+                dup null eq
+                    { pop }
+                    { cvn 2 copy known
+                          { pop }
+                          { 1 index exch null put } ifelse }
+                ifelse
+            } for
+            //.xpostsys /.enumerateinstances get exec } executeonly put
+    dup /ResourceStatus   {  % key  .  status size true | false
+            % A key may be given as a string, which names the same instance
+            % a name key does (PLRM 3.9); the memo below is keyed by the
+            % name, so a string is interned before anything is asked of it
+            dup type /stringtype eq { cvn } if
+            dup FontDirectory exch known
+                { pop 0 0 true }
+                { dup GlobalFontDirectory exch known
+                      { pop 0 0 true }
+                      { dup //.fontavail exch 2 copy known
+                            { get exch pop }
+                            { pop exch dup //.fontnameavailable
+                              dup 4 1 roll put } ifelse
+                        { 2 -1 true }{ false } ifelse }
+                  ifelse }
+            ifelse } executeonly put
+    pop
+
+%
 %  What each category takes, from PLRM Tables 3.7, 3.8 and 3.9. A category
 %  named here constrains its instances to the one type; one absent from the
 %  list -- /Generic -- takes any, which PLRM 3.9.3 states by noting that the
@@ -288,6 +363,27 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 currentglobal false setglobal
 .gscratch /.lresources 32 dict put
 setglobal
+
+%
+%  The local table of a category, created on first use
+%
+%
+%  The Font category's instances ARE the font directories. PLRM 3.9.2 makes
+%  findfont, definefont and undefinefont the same operations as /Font
+%  findresource, defineresource and undefineresource, so they answer out of
+%  one store or they answer differently: a font defined by one route and
+%  fetched by the other came back as some other font, with findfont
+%  substituting silently for what the category could not see.
+%
+%  Pointing the tables at the directories rather than keeping two stores in
+%  step makes the two routes one by construction. The directories are in
+%  place by this point: init.ps settles them before it reads this file.
+%
+//.resources /Font GlobalFontDirectory put
+currentglobal false setglobal
+//.gscratch /.lresources get /Font FontDirectory put
+setglobal
+
 .xpostsys /.linstof {  % category  .  instances
     //.gscratch /.lresources get exch 2 copy known not {
         2 copy 8 dict put

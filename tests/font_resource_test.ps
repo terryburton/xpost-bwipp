@@ -1,0 +1,99 @@
+%!testlib
+% An operator PLRM declares equivalent to a resource operation answers as
+% that operation does, run through `xpost -q --no-sandbox -d null`.
+%
+% PLRM 3.9.2 states four such equivalences and no more:
+%
+%     findfont      = /Font findresource
+%     definefont    = /Font defineresource
+%     undefinefont  = /Font undefineresource
+%     findencoding  = /Encoding findresource
+%
+% The population is closed and named by the specification, so this is a
+% register rather than a sample. The encoding row earns its place twice
+% over: it is the same shape as the three font rows and it passes, so a
+% red row here is a divergence and not an untestable idea.
+%
+% What makes the font rows worth asserting is that they fail SILENTLY.
+% findfont substitutes for a name it cannot resolve (PLRM 5.2), so a font
+% defined through the category and fetched with findfont comes back as some
+% OTHER font with no error raised -- the wrong typeface on the page and
+% nothing to say so. "findfont succeeded" therefore asserts nothing; every
+% case below carries a marker and checks that what comes back is what went
+% in.
+%
+% The two asymmetries are asserted too, being deliberate: findfont goes on
+% substituting for an unknown name, and findresource goes on raising.
+
+% A case whose subject currently RAISES has to catch. An assertion that
+% lets the error out kills the run and reports nothing, which is a test
+% that cannot fail usefully; the mark keeps what a raising body left
+% behind from reaching the next case.
+/safebool {                             % { body } . bool
+    mark exch stopped
+        { cleartomark false }
+        { /r exch def cleartomark r } ifelse
+} bind def
+
+% The subject is a font this suite builds rather than one the host
+% supplies: the four equivalences are about which store answers, not about
+% where a face comes from, and a build with no face library answers them
+% just as well. It carries a marker, because "findfont succeeded" asserts
+% nothing where findfont substitutes.
+/marked {                               % - . font
+    << /FontType 3 /FontMatrix [0.001 0 0 0.001 0 0]
+       /FontBBox [0 0 1000 1000] /Encoding StandardEncoding
+       /XMarker 4242 /BuildGlyph { pop pop } >>
+} bind def
+/hasmark {                              % font . bool
+    dup type /dicttype eq { /XMarker known }{ pop false } ifelse
+} bind def
+
+% ------------------------------------------- the encoding row (control)
+{ /StandardEncoding findencoding
+  /StandardEncoding /Encoding findresource eq } safebool
+    (findencoding answers as /Encoding findresource) assert
+
+% ------------------------------------------------- what definefont made
+/DefinedByOperator marked definefont pop
+{ /DefinedByOperator /Font findresource hasmark } safebool
+    (the font definefont defined is the one /Font findresource answers) assert
+{ /DefinedByOperator /Font resourcestatus { pop pop true }{ false } ifelse } safebool
+    (the font definefont defined is known to resourcestatus) assert
+
+% --------------------------------------------- what defineresource made
+/DefinedByResource marked /Font defineresource pop
+{ /DefinedByResource findfont hasmark } safebool
+    (the font /Font defineresource defined is the one findfont answers) assert
+
+% ------------------------------------------------------- and undefining
+{ /DefinedByOperator /Font undefineresource true } safebool pop
+{ FontDirectory /DefinedByOperator known not } safebool
+    (/Font undefineresource removes what definefont defined) assert
+
+% ------------------------------------------ and where the two agree
+% The last two rows are the ones that need a face, and a build without a
+% face library has none to substitute or to report: findfont raises
+% invalidfont there rather than answering with something else. The rows are
+% asked of the build that can answer them, and the reason is said out loud
+% rather than left as a suite that quietly tests less than it names.
+systemdict /NOFACES known {
+    (note: this build carries no face library, so the two rows that need)
+      print ( one go unasked\n) print flush
+}{
+    % findfont substitutes for a name the host cannot resolve (PLRM 5.2),
+    % and findresource is the same operation, so it substitutes too: a font
+    % comes back here, not an error.
+    { /NoSuchFaceHereXYZ findfont type /dicttype eq } safebool
+        (findfont substitutes for a name it cannot resolve) assert
+    { /NoSuchFaceHereXYZ /Font findresource type /dicttype eq } safebool
+        (findresource substitutes too, being the same operation) assert
+
+    % A host face that is genuinely present is obtainable but not yet in VM,
+    % which PLRM 3.9 has resourcestatus report whether or not it resides
+    % there.
+    { /Helvetica /Font resourcestatus { pop pop true }{ false } ifelse } safebool
+        (a host face reports available through resourcestatus) assert
+} ifelse
+
+verdict

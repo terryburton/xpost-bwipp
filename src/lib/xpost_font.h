@@ -128,6 +128,15 @@ const char *xpost_font_face_last_file(void);
  */
 int xpost_font_face_last_is_substitute(void);
 
+/* whether the host carries a face of this name rather than a substitute
+   for it; asked of the configuration, opening nothing */
+int xpost_font_name_is_available(const char *name);
+
+/* the host's faces as the configuration holds them: how many there are,
+   and the name each calls itself by (NULL where a face carries none) */
+int xpost_font_host_face_count(void);
+const char *xpost_font_host_face_name(int i);
+
 /**
  * @brief Copy the name the face carries for itself (nul-terminated).
  *

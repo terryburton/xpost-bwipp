@@ -1101,6 +1101,89 @@ xpost_font_face_last_is_substitute(void)
     return _xpost_font_last_substitute;
 }
 
+/* How many faces the configuration holds, and the name each calls
+   itself by.
+
+   The configuration is an index of the host's faces, built and cached by
+   the library that owns it and already loaded here, so enumerating the
+   faces a program could ask for is a question put to something that
+   exists rather than a catalogue this interpreter has to keep. The set
+   belongs to the configuration and is not this module's to free.
+
+   Faces outnumber names: a name is carried by one face, but a face may
+   carry none, and several faces of a family answer to one name in
+   different sizes. The caller sees every face and makes what it needs of
+   the names. */
+int
+xpost_font_host_face_count(void)
+{
+#if defined(HAVE_FREETYPE2) && defined(HAVE_FONTCONFIG)
+    FcFontSet *set;
+
+    if (!_xpost_font_fc_config)
+        return 0;
+    set = FcConfigGetFonts(_xpost_font_fc_config, FcSetSystem);
+    return set ? set->nfont : 0;
+#else
+    return 0;
+#endif
+}
+
+/* The name the i-th face calls itself by, or NULL where it has none.
+   The string is the configuration's; a caller keeping it copies it. */
+const char *
+xpost_font_host_face_name(int i)
+{
+#if defined(HAVE_FREETYPE2) && defined(HAVE_FONTCONFIG)
+    FcFontSet *set;
+    FcChar8 *psname;
+
+    if (!_xpost_font_fc_config || i < 0)
+        return NULL;
+    set = FcConfigGetFonts(_xpost_font_fc_config, FcSetSystem);
+    if (!set || i >= set->nfont)
+        return NULL;
+    if (FcPatternGetString(set->fonts[i], FC_POSTSCRIPT_NAME, 0, &psname)
+        != FcResultMatch)
+        return NULL;
+    return (const char *)psname;
+#else
+    (void)i;
+    return NULL;
+#endif
+}
+
+/* Whether the host genuinely carries a face of this name, as against a
+   default standing in for one it has not got. The resource operators
+   answer for an instance they can obtain, and a substitute is not that
+   instance: a program asking whether a font is available is entitled to
+   no rather than to the name of something else.
+
+   Asked of the configuration alone -- the file a name resolves to is
+   found and given back again, and no face is opened, so this costs a
+   lookup and not a load. */
+int
+xpost_font_name_is_available(const char *name)
+{
+#if defined(HAVE_FREETYPE2) && defined(HAVE_FONTCONFIG)
+    int idx = 0;
+    char *filename;
+
+    if (!name)
+        return 0;
+    _xpost_font_last_substitute = 0;
+    filename = _xpost_font_face_filename_and_index_get(name, &idx);
+    if (!filename)
+        return 0;
+    free(filename);
+    return !_xpost_font_last_substitute;
+#else
+    /* a build without the configuration has no host faces to answer for */
+    (void)name;
+    return 0;
+#endif
+}
+
 /* Opens the face a name resolves to through the platform's
    configuration, and records the file it came from so that a caller
    can publish the program itself. */

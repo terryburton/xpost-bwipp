@@ -51,8 +51,22 @@ cats {
         { pop pop (a missing instance is reported present) nm note }
         { } ifelse }
       (reports a missing instance absent) nm works2
-    { /XpostNoSuchInstanceAtAll cat findresource }
-      (refuses to find a missing instance) nm refuses2
+    % /Font is the exception, and deliberately. PLRM 3.9.2 makes findfont
+    % and /Font findresource one operation, and PLRM 5.2 has findfont
+    % SUBSTITUTE for a name the host cannot resolve rather than raise. So
+    % the category answers with a font, as both implementations this tree
+    % is adjudicated against do. What it must not do is answer with
+    % nothing.
+    % A build with no face library has nothing to substitute FROM, so
+    % there the category refuses like every other: the exception belongs
+    % to the substitution, not to the category.
+    cat /Font eq systemdict /NOFACES known not and {
+        { /XpostNoSuchInstanceAtAll cat findresource type /dicttype eq }
+          (substitutes a font for a missing instance) nm works2
+    }{
+        { /XpostNoSuchInstanceAtAll cat findresource }
+          (refuses to find a missing instance) nm refuses2
+    } ifelse
 
     % and whatever it does hold, it can find and give a status for --
     % the two operators have to agree with the enumeration.

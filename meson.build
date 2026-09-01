@@ -3431,6 +3431,16 @@ test('op-wrapsig',
 
 # What a font found by name says its character codes mean: the encoding
 # the face itself supplies, not the standard one over the top of it.
+# An operator PLRM 3.9.2 declares equivalent to a resource operation answers
+# as that operation does. The population is four and the specification names
+# it, so this is a register and not a sample; the encoding row passes and is
+# what shows a red row is a divergence rather than an untestable idea.
+test('font-resource',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/font_resource_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('font-encoding',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/font_encoding_test.ps') ],

@@ -130,6 +130,14 @@ Level 2 operators
      is held to the type its category takes and left read-only;
      resourceforall enumerates the instances a category holds, not every
      instance obtainable from outside virtual memory)
+ [X] findfont, definefont and undefinefont as the Font category's
+     operations (3.9.2 makes each the same operation as the corresponding
+     resource operator, and they answer alike: a font defined by either
+     route is found by both, a name the host carries reports available
+     through resourcestatus, and a name it does not carry is substituted
+     for by both rather than refused by one of them. The category
+     enumerates the fonts the directories hold, not every face the host
+     could resolve)
  [X] resource discovery by filename (GenericResourceDir, GenericResourcePathSep,
      ResourceFileName; the directory is %null when the search path is empty)
  [X] idiom recognition (IdiomSet resource category, IdiomRecognition user

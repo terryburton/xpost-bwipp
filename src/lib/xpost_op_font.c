@@ -1290,6 +1290,73 @@ static void xpost_op_font_quit(void)
    a host face, through the substitution the platform offers. What comes
    back is a font dictionary; setfont puts it in the graphics state. */
 
+/* -  .fonthostfaces  int
+   int  .fonthostface  string|null
+
+   The host's faces as the configuration holds them, so that the Font
+   category can enumerate what a program could ask for. Two operators
+   rather than one array: the set runs to a thousand faces on an ordinary
+   machine, and a caller wanting only the names a template matches should
+   not have to be handed every one of them in virtual memory first. */
+static
+int _fonthostfaces(Xpost_Context *ctx)
+{
+    xpost_stack_push(ctx->lo, ctx->os,
+                     xpost_int_cons(xpost_font_host_face_count()));
+    return 0;
+}
+
+static
+int _fonthostface(Xpost_Context *ctx,
+                  Xpost_Object index)
+{
+    const char *nm = xpost_font_host_face_name(index.int_.val);
+    Xpost_Object s;
+
+    if (!nm)
+    {
+        xpost_stack_push(ctx->lo, ctx->os, null);
+        return 0;
+    }
+    s = xpost_string_cons(ctx, (unsigned int)strlen(nm),
+                          (/*@temp@*/ char *)nm);
+    if (xpost_object_get_type(s) == invalidtype)
+        return VMerror;
+    /* the flag is LIT and not EXE, so an object built here is executable
+       until it is said to be literal -- and a name a caller makes of an
+       executable string runs where it meant to look it up */
+    xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(s));
+    return 0;
+}
+
+/* name|string  .fontnameavailable  bool
+
+   Whether the host carries a face of this name, as against a default
+   standing in for one it has not got. The resource operators answer with
+   it: /Font resourcestatus reports an instance that can be obtained but
+   is not yet in VM, and a substituted face is not that instance. Opens
+   nothing -- the configuration is asked and the answer given back. */
+static
+int _fontnameavailable(Xpost_Context *ctx,
+                       Xpost_Object fontname)
+{
+    Xpost_Object fontstr;
+    char *fname;
+    int avail;
+
+    if (xpost_object_get_type(fontname) == nametype)
+        fontstr = xpost_name_get_string(ctx, fontname);
+    else
+        fontstr = fontname;
+    fname = xpost_string_allocate_cstring(ctx, fontstr);
+    if (!fname)
+        return VMerror;
+    avail = xpost_font_name_is_available(fname);
+    free(fname);
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(avail));
+    return 0;
+}
+
 static
 int _findfont(Xpost_Context *ctx,
               Xpost_Object fontname)
@@ -6071,6 +6138,18 @@ int xpost_oper_init_font_ops(Xpost_Context *ctx,
         }
     }
 
+    op = xpost_operator_cons(ctx, ".fonthostfaces",
+                             (Xpost_Op_Func)_fonthostfaces, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".fonthostface",
+                             (Xpost_Op_Func)_fonthostface, 1, integertype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".fontnameavailable",
+                             (Xpost_Op_Func)_fontnameavailable, 1, nametype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".fontnameavailable",
+                             (Xpost_Op_Func)_fontnameavailable, 1, stringtype);
+    INSTALL;
     op = xpost_operator_cons(ctx, "findfont", (Xpost_Op_Func)_findfont, 1, nametype);
     INSTALL;
     op = xpost_operator_cons(ctx, "findfont", (Xpost_Op_Func)_findfont, 1, stringtype);

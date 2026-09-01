@@ -104,8 +104,8 @@ xpost_dev_band_page_begin
 xpost_dev_blit_row
 xpost_dev_buffer_emit_call
 xpost_dev_class_install
-xpost_dev_class_publish
 xpost_dev_class_option_default
+xpost_dev_class_publish
 xpost_dev_create_begin
 xpost_dev_dict_number
 xpost_dev_fillpoly_compiled
@@ -251,8 +251,11 @@ xpost_font_face_std_name_at
 xpost_font_face_transform
 xpost_font_face_units
 xpost_font_faces_held
+xpost_font_host_face_count
+xpost_font_host_face_name
 xpost_font_init
 xpost_font_mask_cache_flush
+xpost_font_name_is_available
 xpost_font_quit
 xpost_fpurge
 xpost_free_alloc
@@ -328,8 +331,8 @@ xpost_memory_page_size
 xpost_memory_put
 xpost_memory_register_free_list_alloc_function
 xpost_memory_register_garbage_collect_function
-xpost_memory_revert_arm
 xpost_memory_return_grain
+xpost_memory_revert_arm
 xpost_memory_table_alloc
 xpost_memory_table_alloc_special
 xpost_memory_table_dump
@@ -511,7 +514,6 @@ xpost_stack_topdown_fetch
 xpost_stack_topdown_find_type
 xpost_stack_topdown_replace
 xpost_startjob_password_set
-xpost_system_params_password_set
 xpost_stderr_handler_set
 xpost_stdout_handler_set
 xpost_strbuf_appendf
@@ -523,6 +525,7 @@ xpost_string_get_memory
 xpost_string_get_pointer
 xpost_string_put
 xpost_string_put_memory
+xpost_system_params_password_set
 xpost_temp_dir
 xpost_token_string_scan
 xpost_unlinkat_beneath
