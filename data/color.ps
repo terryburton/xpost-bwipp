@@ -742,12 +742,18 @@ end
 } put
 
 %
-%  Paint in every colorant the device has at the tint given. PLRM 4.8.4:
-%  the colorant name All "refers collectively to all colorants available on
-%  a device", and painting in it "apply[s] tint values to all available
+%  Take the tint into every colorant the device has. PLRM 4.8.4: the
+%  colorant name All "refers collectively to all colorants available on a
+%  device", and painting in it "appl[ies] tint values to all available
 %  colorants at once" -- registration marks being the use it names. The
 %  space's alternative and tint transform are ignored, so the tint reaches
 %  the device's own colorants and nothing stands between.
+%
+%  None reaches here too. Its colour is arrived at the same way, because
+%  the transform is ignored for both names alike and there is nothing else
+%  left to read the tint through; what makes None different is that it
+%  marks nothing, which is settled from the space where the painting is
+%  done and not from the colour the space holds.
 %
 .xpostsys /.sepallcolor {  % tint  .  -
     DEVICE /nativecolorspace 2 copy known { get }{ pop pop /DeviceGray } ifelse
@@ -775,7 +781,7 @@ end
 .xpostsys /.sepconv {  % -  .  -
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
-    dup //.sepcolorant exec /All eq {
+    dup //.sepcolorant exec dup /All eq exch /None eq or {
         pop //.sepallcolor exec
     }{
     dup 0 get /Separation eq { DEVICE /.registersep known } { false } ifelse {

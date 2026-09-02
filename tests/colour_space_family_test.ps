@@ -558,5 +558,11 @@
 [ /Separation /Spot1 /DeviceGray { pop 1 } ] setcolorspace
 1 setcolor currentgray 1.0 sub abs 0.001 lt
 (Separation /Spot1) (still reaches its colour through its own tint transform) assert2
+% None ignores the transform for the same reason All does, so it arrives at
+% the same colour; what sets it apart is that it marks nothing, which is
+% settled where the painting is done rather than in the colour it holds.
+[ /Separation /None /DeviceGray { pop 1 } ] setcolorspace
+1 setcolor currentgray 0.0 sub abs 0.001 lt
+(Separation /None) (ignores its transform exactly as All does) assert2
 
 verdict
