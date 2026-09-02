@@ -5289,7 +5289,25 @@ int _loadcidfont2(Xpost_Context *ctx,
             else if (tag == 0x6c6f6361)
                 len = 4 * ((size_t)nglyphs + 1);
             else
+            {
+                /* A table is held to lying within the data here, where
+                   the room for it is counted, and not only below where
+                   it is copied. The directory states the length, so
+                   without this the sum is the font program's to choose:
+                   a length no data can cover is still counted in, and
+                   enough of them carry the sum past what a size_t as
+                   wide as the two 32-bit fields will hold -- leaving a
+                   small allocation that each table then passes the copy
+                   check against and is written beyond. */
+                size_t srcoff = _sfnt_u32(e + 8);
+
                 len = _sfnt_u32(e + 12);
+                if (srcoff > total || len > total - srcoff)
+                {
+                    free(buf);
+                    return invalidfont;
+                }
+            }
             outtotal = (outtotal + 3) & ~(size_t)3;
             outtotal += len;
         }
