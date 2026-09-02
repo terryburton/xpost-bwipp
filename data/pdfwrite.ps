@@ -129,7 +129,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % The shading types this writer holds natively (PDF 8.7.4.5). The mesh
     % types carry their geometry in a stream it does not restate.
-    /ShadingTypes << 1 true 2 true 3 true >>
+    /ShadingTypes << 1 true 2 true 3 true 4 true 5 true >>
 
     /.copydict //.classcopydict
     /.instance //.classinstance
@@ -579,6 +579,41 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         } ifelse
     } bind
 
+    % Pack a mesh's vertices into the stream a written document carries.
+    %
+    % The widths are this writer's to choose, since the language's array
+    % form declares none: a flag in one byte, a coordinate in four, a
+    % colour component in two. Every vertex is then a whole number of
+    % bytes, which is what lets a row be written without carrying a part
+    % of one over -- the alternative is a bit-level accumulator for a
+    % saving no consumer notices.
+    %
+    % A coordinate is written as its position in the range the mesh
+    % actually spans, which is what the Decode entry names; a component as
+    % its position in nought to one. So the numbers a program gave are the
+    % numbers a consumer reads back, to the precision the widths carry.
+    /.meshputint {  % value nbytes  .  -
+        /mbw exch def /mbv exch def
+        0 1 mbw 1 sub { /mbi exch def
+            mbstr mbn mbi add
+                mbv mbw 1 sub mbi sub 8 mul neg bitshift 255 and
+            put
+        } for
+        /mbn mbn mbw add def
+    } bind
+
+    %  A number as its position in the range it is declared over, in two
+    %  bytes. Two rather than four because an integer here is thirty-two
+    %  bits wide and scaling to the top of four bytes would leave it: two
+    %  bytes over a page's own extent is finer than a device pixel, which
+    %  is as much as any consumer will draw.
+    /.meshputval {  % value lo hi  .  -
+        /mvhi exch def /mvlo exch def
+        mvlo sub mvhi mvlo sub dup 0 eq { pop 1 } if div
+        dup 0 lt { pop 0 } if dup 1 gt { pop 1 } if
+        65535 mul round cvi 2 .meshputint
+    } bind
+
     % A reference to what .emitfnobj answered, in the form the entry takes.
     /.fnref {  % n | [n...]  .  -
         dup type dup /arraytype eq exch /packedarraytype eq or {
@@ -598,7 +633,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /sh exch def
         /d 10 dict def
         d /st sh /ShadingType get put
-        d /cs sh /ColorSpace get put
+        d /cs sh /ColorSpace get //.xpostsys /.shdevcsname get exec put
+        %  A mesh states its geometry at its vertices rather than through a
+        %  function of one variable. What is recorded is the numbers as the
+        %  program gave them, packed at Emit into the widths the writer
+        %  declares: the language allows an array where a written document
+        %  wants a stream, and one is restated as the other.
+        sh /DataSource known {
+            sh /ShadingType get dup 4 eq exch 5 eq or {
+                d /mesh [ sh /DataSource get { } forall ] put
+                sh /VerticesPerRow known
+                    { d /vpr sh /VerticesPerRow get put } if
+            } if
+        } if
+
         sh /Coords known { d /coords sh /Coords get put } if
         sh /Extend known { d /extend sh /Extend get put } if
         sh /Domain known { d /domain sh /Domain get put } if
@@ -610,7 +658,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % recorded here and written before the shading is named, so the
         % consumer reads those numbers in the space they were stated in.
         d /ctm matrix currentmatrix put
-        d /fn sh /Function get .fndescribe put
+        % A mesh states its colours at its vertices and names no function.
+        sh /Function known { d /fn sh /Function get .fndescribe put } if
         d
         end
         exch setglobal
@@ -1611,7 +1660,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         0 1 nsh 1 sub {
             /shi exch def
             /shd .state /.pdfshadings get shi get def
-            /shfo shd /fn get .emitfnobj def
+            /shmesh shd /mesh 2 copy known { get }{ pop pop null } ifelse def
+            /shfo shd /fn 2 copy known { get .emitfnobj }{ pop pop null } ifelse def
             /sho .nextobj def sho .recordoff
             shobjs shi sho put
             sho 20 string cvs .vw ( 0 obj\n<< /ShadingType ) .vw
@@ -1626,8 +1676,63 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             shd /extend known
                 { ( /Extend [) .vw shd /extend get
                     { { (true) }{ (false) } ifelse .vw ( ) .vw } forall (]) .vw } if
-            ( /Function ) .vw shfo .fnref
-            ( >>\nendobj\n) .vw
+            shfo null ne { ( /Function ) .vw shfo .fnref } if
+
+            % A mesh carries its geometry as a stream: the vertices packed
+            % at the widths named here, over the extent the Decode entry
+            % gives. A free-form mesh states a flag with each vertex and a
+            % lattice states none, stating how many vertices make a row
+            % instead (PDF 8.7.4.5).
+            shmesh null ne {
+                /shnc shd /cs get dup /DeviceGray eq { pop 1 }{
+                     /DeviceCMYK eq { 4 }{ 3 } ifelse } ifelse def
+                /shstride shd /st get 4 eq { 3 shnc add }{ 2 shnc add } ifelse def
+                /shnv shmesh length shstride idiv def
+
+                % the extent the coordinates actually span, which is what
+                % a consumer reads them back over
+                /shx0 1e10 def /shx1 -1e10 def /shy0 1e10 def /shy1 -1e10 def
+                0 1 shnv 1 sub { /shk exch def
+                    /shb shk shstride mul shd /st get 4 eq { 1 add } if def
+                    shmesh shb get dup shx0 lt { dup /shx0 exch def } if
+                        dup shx1 gt { /shx1 exch def }{ pop } ifelse
+                    shmesh shb 1 add get dup shy0 lt { dup /shy0 exch def } if
+                        dup shy1 gt { /shy1 exch def }{ pop } ifelse
+                } for
+                shx1 shx0 le { /shx1 shx0 1 add def } if
+                shy1 shy0 le { /shy1 shy0 1 add def } if
+
+                /mbstr shnv shd /st get 4 eq { 1 add } if
+                       shnv shnc 2 mul mul add
+                       shnv 4 mul add string def
+                /mbn 0 def
+                0 1 shnv 1 sub { /shk exch def
+                    /shb shk shstride mul def
+                    shd /st get 4 eq {
+                        shmesh shb get cvi 1 .meshputint
+                        /shb shb 1 add def
+                    } if
+                    shmesh shb get shx0 shx1 .meshputval
+                    shmesh shb 1 add get shy0 shy1 .meshputval
+                    0 1 shnc 1 sub { /shc exch def
+                        shmesh shb 2 add shc add get 0 1 .meshputval
+                    } for
+                } for
+
+                ( /BitsPerCoordinate 16 /BitsPerComponent 16) .vw
+                shd /st get 4 eq { ( /BitsPerFlag 8) .vw } if
+                shd /vpr known { ( /VerticesPerRow ) .vw shd /vpr get 20 string cvs .vw } if
+                ( /Decode [) .vw
+                shx0 .pdfnumstr .vw ( ) .vw shx1 .pdfnumstr .vw ( ) .vw
+                shy0 .pdfnumstr .vw ( ) .vw shy1 .pdfnumstr .vw
+                shnc { ( 0 1) .vw } repeat
+                (] /Length ) .vw mbn 20 string cvs .vw
+                ( >>\nstream\n) .vw
+                mbstr 0 mbn getinterval .vw
+                (\nendstream\nendobj\n) .vw
+            }{
+                ( >>\nendobj\n) .vw
+            } ifelse
         } for
 
         % This page's pattern objects. Every number is taken before any

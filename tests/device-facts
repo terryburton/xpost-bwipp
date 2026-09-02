@@ -284,11 +284,12 @@ question ShadingTypes pdfwrite svgwrite
     why the claim is stated where the writing is. A device with no shading
     construct states nothing and is asked nothing.
 family per-device
-answer pdfwrite set:1,2,3 data/pdfwrite.ps
+answer pdfwrite set:1,2,3,4,5 data/pdfwrite.ps
     PDF holds function-based, axial and radial shadings as dictionaries a
-    page names (PDF 8.7.4.5), with their functions as objects beside them.
-    The mesh types are not claimed: their geometry is a stream this writer
-    does not restate.
+    page names (PDF 8.7.4.5), with their functions as objects beside them,
+    and the two Gouraud meshes as the same dictionary carrying a stream of
+    packed vertices. The patch meshes are not claimed: their geometry is
+    control points this writer does not yet restate.
 answer svgwrite set:2 data/svgwrite.ps
     SVG has a gradient for the axial case and nothing that answers the
     others: a function-based shading has no SVG form, and a radial one
@@ -694,6 +695,8 @@ method PaintStencil dscwrite pdfwrite svgwrite
 method ShadingPaint pdfwrite svgwrite
 method PaintImageMasked pdfwrite svgwrite
 method .shdescribe pdfwrite
+method .meshputint pdfwrite
+method .meshputval pdfwrite
 method .svgshrgb svgwrite
 method .fndescribe pdfwrite
 method .emitfnobj pdfwrite

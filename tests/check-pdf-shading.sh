@@ -57,11 +57,23 @@ mk stitched '0 0 300 300 rectclip
                 /Functions [ << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >>
                              << /FunctionType 2 /Domain [0 1] /C0 [1] /C1 [0] /N 1 >> ] >> >> shfill'
 
-# a mesh type stays decomposed -- the negative control for scope
-mk mesh '0 0 200 200 rectclip
+# the two Gouraud meshes reach the file as meshes, their vertices packed
+# into the stream a written document carries
+mk gouraud '0 0 200 200 rectclip
 << /ShadingType 4 /ColorSpace /DeviceRGB /BitsPerCoordinate 8 /BitsPerComponent 8
    /BitsPerFlag 8 /Decode [0 255 0 255 0 1 0 1 0 1]
-   /DataSource <00 0A0A FF0000  00 F00A 00FF00  00 7FF0 0000FF> >> shfill'
+   /DataSource [ 0  10 10  1 0 0   0  190 10  0 1 0   0  100 190  0 0 1 ] >> shfill'
+
+# SCOPE. A patch mesh states control points this writer does not restate,
+# so it must still decompose -- without this the checks above would pass on
+# a writer that claimed every type and wrote the wrong thing for most.
+mk patch '0 0 200 200 rectclip
+<< /ShadingType 6 /ColorSpace /DeviceRGB /BitsPerCoordinate 8 /BitsPerComponent 8
+   /BitsPerFlag 8 /Decode [0 255 0 255 0 1 0 1 0 1]
+   /DataSource [ 0
+      10 10  10 70  10 130  10 190   70 190  130 190  190 190  190 130
+      190 70  190 10  130 10  70 10
+      1 0 0  0 1 0  0 0 1  1 1 0 ] >> shfill'
 
 # a page with no shading names no shading resource -- the control that proves
 # the checks below are reading this feature and not something always present
@@ -88,12 +100,16 @@ grep -q '/FunctionType 0' "$work/funcbased.pdf" \
 grep -q '/Matrix' "$work/funcbased.pdf" \
     || { echo "FAIL: function-based carries no /Matrix"; fail=1; }
 
-# scope: the mesh type is still decomposed, and says so by naming no shading
-grep -q '/ShadingType 4' "$work/mesh.pdf" \
-    && { echo "FAIL: a mesh shading was written as a shading dictionary"; fail=1; }
-# ...and it must still have painted something
-test "$(wc -c < "$work/mesh.pdf")" -gt 700 \
-    || { echo "FAIL: the mesh page painted nothing"; fail=1; }
+grep -q '/ShadingType 4' "$work/gouraud.pdf" \
+    || { echo "FAIL: a free-form mesh did not reach the file as one"; fail=1; }
+grep -q '/BitsPerCoordinate' "$work/gouraud.pdf" \
+    || { echo "FAIL: the mesh carries no packed-vertex widths"; fail=1; }
+
+# scope: a patch mesh is still decomposed, and says so by naming no shading
+grep -q '/ShadingType 6' "$work/patch.pdf" \
+    && { echo "FAIL: a patch mesh was written as a shading dictionary"; fail=1; }
+test "$(wc -c < "$work/patch.pdf")" -gt 700 \
+    || { echo "FAIL: the patch page painted nothing"; fail=1; }
 
 grep -q '/FunctionType 3' "$work/stitched.pdf" \
     || { echo "FAIL: a stitching function did not reach the file"; fail=1; }

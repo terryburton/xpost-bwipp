@@ -1379,6 +1379,24 @@ end
 %  one is worse than the decomposition.
 /.shdevcs << /DeviceGray true /DeviceRGB true /DeviceCMYK true >> readonly def
 
+%  The device space a shading paints in, or null where it paints in
+%  something a writer would have to state a resource for. PLRM 4.8 lets a
+%  device space be written as the bare name or as an array holding it, and
+%  a shading dictionary in the corpus does both, so both are read here.
+/.shdevcsname {  % any  .  name | null
+    dup type /nametype eq {
+        //.shdevcs 1 index known { }{ pop null } ifelse
+    }{
+        dup type dup /arraytype eq exch /packedarraytype eq or {
+            dup length 1 eq {
+                0 get dup type /nametype eq
+                    { //.shdevcs 1 index known { }{ pop null } ifelse }
+                    { pop null } ifelse
+            }{ pop null } ifelse
+        }{ pop null } ifelse
+    } ifelse
+} def
+
 /.shdevfn1 {  % fndict  .  bool
     dup type /dicttype ne { pop false }{
     dup /FunctionType known not { pop false }{
@@ -1399,12 +1417,33 @@ end
     }{ //.shdevfn1 exec } ifelse
 } def
 
+%  The mesh types carry their geometry rather than a function of it, and
+%  PLRM 4.9.3 lets that geometry arrive as an array of numbers instead of a
+%  stream of packed samples. A writer states it packed, so the array is
+%  offered only where the writer can restate it; a stream source is not
+%  offered at all, being readable once and already spent by the time this
+%  is asked.
+/.shmeshtypes << 4 true 5 true >> readonly def
+
+/.shdevmeshok {  % shdict  .  bool
+    dup /ShadingType get //.shmeshtypes exch known {
+        dup /DataSource 2 copy known {
+            get type dup /arraytype eq exch /packedarraytype eq or
+        }{ pop pop false } ifelse
+    }{ pop false } ifelse
+} def
+
 /.shtodevice {  % shdict  .  bool
     DEVICE /ShadingPaint known {
         dup /ShadingType get //.shdevtypes exec
-        1 index /ColorSpace get dup type /nametype eq
-            { //.shdevcs exch known }{ pop false } ifelse and {
-            dup /Function 2 copy known { get //.shdevfnok exec }{ pop pop false } ifelse
+        1 index /ColorSpace get //.shdevcsname exec dup null ne
+            exch pop and {
+            % an analytic type is offered with its function; a mesh type
+            % carries its colours at its vertices and has none to check
+            dup //.shdevmeshok exec
+                { true }
+                { dup /Function 2 copy known { get //.shdevfnok exec }{ pop pop false } ifelse }
+            ifelse
             { DEVICE dup /ShadingPaint get exec true }{ pop false } ifelse
         }{ pop false } ifelse
     }{ pop false } ifelse
