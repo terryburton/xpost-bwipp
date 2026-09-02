@@ -92,6 +92,7 @@ src/lib/xpost_record.h \
 src/lib/xpost_spill.h \
 src/lib/xpost_stack.h \
 src/lib/xpost_string.h \
+src/lib/xpost_white.h \
 src/lib/xpost_vm_image.h \
 src/lib/xpost_op_array.h \
 src/lib/xpost_op_boolean.h \

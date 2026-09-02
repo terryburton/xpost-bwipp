@@ -3170,6 +3170,16 @@ test('scanner-eof',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The white-space set (PLRM 3.2.2, Table 3.1): six characters and no
+# others. A null separates tokens and a vertical tab does not, and the
+# same six are what the decoding filters ignore and what cvi and cvr
+# skip before the numeral they read.
+test('scanner-white-space',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/scanner_white_space_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Radix number range (PLRM 3.2): unsigned twos-complement in the integer width,
 # limitcheck beyond it. Integer-width-specific, so xpost-only (see the file).
 test('op-radix',

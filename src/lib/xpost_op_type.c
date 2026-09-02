@@ -31,6 +31,7 @@
 #include <stddef.h>
 
 #include <assert.h>
+#include <ctype.h> /* isdigit */
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
@@ -51,6 +52,7 @@
 #include "xpost_operator.h"
 #include "xpost_op_type.h"
 #include "xpost_op_token.h"
+#include "xpost_white.h"  /* the language's white-space set (PLRM 3.2.2, Table 3.1) */
 
 /* any  type  name
    return type of any as a nametype object */
@@ -395,12 +397,13 @@ int Ncvi(Xpost_Context *ctx,
     return 0;
 }
 
-/* a numeral token's end: white space, a delimiter, or the string's */
+/* a numeral token's end: white space, a delimiter, or the string's. A
+   nul is white space (PLRM 3.2.2, Table 3.1) and is also where the copy
+   being read ends, and the numeral has ended either way. */
 static
 int _num_token_end(char c)
 {
-    return c == '\0' || c == ' ' || c == '\t' || c == '\n'
-        || c == '\r' || c == '\f'
+    return xpost_white_space((unsigned char)c)
         || c == '(' || c == ')' || c == '<' || c == '>'
         || c == '[' || c == ']' || c == '{' || c == '}'
         || c == '/' || c == '%';
@@ -420,6 +423,7 @@ int _num_token_end(char c)
    *isint set, and the other forms are answered in *out as before. */
 static
 int _string_to_number(const char *t,
+                      unsigned int len,
                       double *out,
                       integer *ival,
                       int *isint)
@@ -430,9 +434,24 @@ int _string_to_number(const char *t,
     *isint = 0;
     *ival = 0;
 
-    while (*t == ' ' || *t == '\t' || *t == '\n'
-        || *t == '\r' || *t == '\f')
+    /* leading white space is skipped as the scanner skips it. A nul is
+       one of the six white-space characters (PLRM 3.2.2, Table 3.1) and
+       is also what terminates the copy being read, so the string's own
+       length is what tells a nul it holds from the end of the text. */
+    while (len != 0 && xpost_white_space((unsigned char)*t))
+    {
         t++;
+        len--;
+    }
+
+    /* the numeral begins where the scanner would begin one: a token
+       starting with anything but a digit, a sign or a dot is a name, and
+       so is one the reader below would reach only by skipping a
+       character the language does not call white space. */
+    if (len == 0
+        || (!isdigit((unsigned char)*t) && *t != '+' && *t != '-'
+            && *t != '.'))
+        return typecheck;
 
     /* radix numeral, e.g. 16#ff, read by the scanner's own reader so that
        a numeral is the same numeral to token and to cvi. Text the reader
@@ -494,17 +513,17 @@ int Scvi(Xpost_Context *ctx,
        needs read access */
     if (!xpost_object_is_readable(ctx, s))
         return invalidaccess;
-    /* the numeral is read as C text, which ends at the first nul: a
-       string carrying one would be read only that far and denote the
-       numeral standing before it, with the rest of its characters
-       unread. A string counts its characters (PLRM 3.3), so one holding
-       a nul is not a numeral, and is answered as any other string that
-       is not */
-    if (!xpost_string_is_cstring(ctx, s))
-        return typecheck;
+    /* A nul the string holds is not read as its end here: PLRM's cvi
+       entry has the operator "invoke the equivalent of the token
+       operator" over the characters, and a nul is one of the six the
+       language calls white space (PLRM 3.2.2, Table 3.1). So a numeral
+       led by one is a numeral with white space before it, and the count
+       below is what separates the characters from the end of the copy.
+       A nul standing inside the numeral itself ends it, and what
+       follows is not a numeral. */
 
     t = xpost_string_allocate_cstring(ctx, s);
-    ret = _string_to_number(t, &dbl, &ival, &isint);
+    ret = _string_to_number(t, s.comp_.sz, &dbl, &ival, &isint);
     free(t);
     if (ret)
         return ret;
@@ -575,12 +594,11 @@ int Scvr(Xpost_Context *ctx,
     /* as cvi above: the numeral is read out of the string */
     if (!xpost_object_is_readable(ctx, str))
         return invalidaccess;
-    /* as cvi above: a string holding a nul is not a numeral */
-    if (!xpost_string_is_cstring(ctx, str))
-        return typecheck;
+    /* as cvi above: a leading nul is white space the token equivalent
+       skips, not the end of the text. */
 
     s = xpost_string_allocate_cstring(ctx, str);
-    ret = _string_to_number(s, &num, &ival, &isint);
+    ret = _string_to_number(s, str.comp_.sz, &num, &ival, &isint);
     free(s);
     if (ret)
         return ret;

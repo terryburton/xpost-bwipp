@@ -42,6 +42,7 @@
 #include "xpost_context.h"
 #include "xpost_error.h"
 #include "xpost_string.h"
+#include "xpost_white.h"  /* the language's white-space set (PLRM 3.2.2, Table 3.1) */
 #include "xpost_array.h"
 #include "xpost_dict.h"
 #include "xpost_file.h"
@@ -117,7 +118,7 @@ int isreg(int c)
        follow, exactly as whitespace or a delimiter would (PLRM 3.14.2);
        bytes 160..255 are regular characters and may appear in names */
     return (c != EOF) && !(c >= 128 && c <= 159) &&
-           (c >= 128 || (!isspace(c) && !isdel(c)));
+           (c >= 128 || (!xpost_white_space(c) && !isdel(c)));
 }
 
 //int isxdigit (int c) { return strchr("0123456789ABCDEFabcdef", c) != NULL; }
@@ -503,7 +504,7 @@ int grok(Xpost_Context *ctx,
                         unsigned int tuple;
                         int k;
 
-                        if (isspace(c))
+                        if (xpost_white_space(c))
                             continue;
                         if (c == '~')
                         {
@@ -584,7 +585,7 @@ int grok(Xpost_Context *ctx,
                 }
                 for ( ; c != '>' && c != EOF; c = next(ctx, src))
                 {
-                    if (isspace(c))
+                    if (xpost_white_space(c))
                         continue;
                     if (isxdigit(c))
                         c = strchr(x, toupper(c)) - x;
@@ -594,7 +595,7 @@ int grok(Xpost_Context *ctx,
                         return syntaxerror;
                     }
                     d = c << 4; // hi nib
-                    while (isspace(c = next(ctx, src)))
+                    while (xpost_white_space(c = next(ctx, src)))
                         /**/;
                     if (isxdigit(c))
                         c = strchr(x, toupper(c)) - x;
@@ -744,7 +745,7 @@ int grok(Xpost_Context *ctx,
                 }
                 else
                 {
-                    if ((isspace)(*s))
+                    if (xpost_white_space((unsigned char)*s))
                     {
                         ns = 0;
                     }
@@ -799,7 +800,7 @@ int snip(Xpost_Context *ctx,
                 c = next(ctx, src);
             } while(c != '\n' && c != '\r' && c != '\f' && c != EOF);
         }
-    } while(c != EOF && isspace(c));
+    } while(c != EOF && xpost_white_space(c));
     if (c == EOF) return 0;
     *buf = c;
     return 1; // true, and size of buffer
@@ -836,7 +837,7 @@ int puff(Xpost_Context *ctx,
         if (c2 != '\n' && c2 != EOF)
             back(ctx, c2, src);
     }
-    else if (!isspace(c) && c != EOF)
+    else if (!xpost_white_space(c) && c != EOF)
         back(ctx, c, src);
     return s - buf;
 }

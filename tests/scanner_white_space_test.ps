@@ -1,0 +1,181 @@
+%!testlib
+% The set of characters that separates one token from the next.
+%
+% PLRM 3.2.2, Table 3.1 names six and no others: null, tab, line feed,
+% form feed, carriage return and space. The two edges of that set are
+% what this suite is about, because a set that is nearly right is wrong
+% in both directions at once and each direction hides the other.
+%
+% A NULL IS WHITE SPACE. Text arrives with them -- binary data read as a
+% program, a buffer handed over at its full length rather than at its
+% content's -- and the character between two tokens is a separator, not
+% a character of either. Read as a regular character it joins the token
+% being built, and a token assembled through a nul-terminated buffer is
+% then the EMPTY name whatever followed it: the answer is not a wrong
+% token but no token, with the rest of the text consumed into it.
+%
+% A VERTICAL TAB IS NOT. Table 3.1 does not list it, so it is a regular
+% character: it may appear in a name (PLRM 3.2.2, "Names") and a numeral
+% does not begin past one. That is asserted here rather than left to
+% fall out of the code, because it decides how `1<VT>2` tokenises and
+% nothing else in the suite would notice the answer changing.
+%
+% The same six are what the decoding filters ignore -- ASCIIHexDecode
+% and ASCII85Decode (PLRM 3.13.3) spell them out in words -- and what
+% cvi and cvr skip before the numeral they read out of a string, since
+% cvi "invokes the equivalent of the token operator" (PLRM, cvi).
+%
+% Every case writes its bytes as a hexadecimal string literal, so the
+% characters under test are named by their codes and this file holds no
+% control character of its own.
+
+/.d0 0 def
+/.tok null def
+/.rem -1 def
+/.val null def
+/.n 0 def
+/.a null def
+/.b null def
+
+% (bytes)  tokencount  int
+% How many tokens the scanner reads out of the bytes. Counted with token
+% rather than by executing them, so a token that scans as a name is
+% counted rather than looked up and run.
+/tokencount {                           % (bytes)  .  int
+    0 exch
+    { token { pop exch 1 add exch } { exit } ifelse } loop
+} bind def
+
+% (bytes) (what)  separates  -
+% The bytes are two numerals with one character between them, and the
+% scanner reads two tokens out of them.
+/separates {                            % (bytes) (what)  .  -
+    exch tokencount 2 eq exch assert
+} bind def
+
+% (bytes)  execdepth  obj...  int
+% How many objects executing the bytes leaves behind. The reported
+% defect was measured this way, so it is asked this way.
+/execdepth {                            % (bytes)  .  obj... int
+    count 1 sub /.d0 exch store
+    cvx exec
+    count .d0 sub
+} bind def
+
+% ---- the six separate two numerals
+
+<312032> (a space separates two numerals) separates
+<310932> (a tab separates two numerals) separates
+<310A32> (a line feed separates two numerals) separates
+<310C32> (a form feed separates two numerals) separates
+<310D32> (a carriage return separates two numerals) separates
+<310032> (a null separates two numerals) separates
+
+% ---- and the vertical tab does not
+
+<310B32> tokencount 1 eq
+  (a vertical tab does not separate: 1<VT>2 is one token) assert
+
+% held as a literal: an executable name stored under a name is executed
+% by the lookup that reads it back, and this one is undefined on purpose
+<310B32> token pop exch pop cvlit /.tok exch store
+.tok type /nametype eq
+  (a token holding a vertical tab is a name, not a number) assert
+.tok 40 string cvs length 3 eq
+  (and the vertical tab is one of that name's three characters) assert
+
+{ <310B32> cvx exec } /undefined
+  (executing 1<VT>2 looks up one name and does not find it) raises
+
+% ---- the reported defect, in the four shapes it was measured in
+
+% Each case that the unaligned set turned into an error is run through
+% the framework's runner, so one refusal does not carry off the cases
+% after it and leave them unasked.
+
+{ <003132> cvi /.val exch store }
+  (cvi reads a numeral led by a null) works
+.val 12 eq
+  (a null before a numeral is skipped, as token skips it) assert
+
+( 12) cvi 12 eq
+  (a space before a numeral is skipped) assert
+
+/.val null store
+{ <003132> cvr /.val exch store }
+  (cvr reads a numeral led by a null) works
+.val 12.0 eq
+  (and answers the same numeral as cvi) assert
+
+% held as a literal for the same reason as above: without the null in
+% the set this token is an executable name, and reading it back would
+% execute it
+{ <003132> token { /.tok exch cvlit store /.rem exch length store } if }
+  (a null-led string yields a token) works
+.tok 12 eq .rem 0 eq and
+  (a null-led string scans as the integer 12, with nothing of it left) assert
+
+{ <3120003220> execdepth /.n exch store
+  .n 2 eq { /.b exch store /.a exch store } if }
+  (a null between two numerals separates them) works
+.n 2 eq
+  (executing 1<SP><NUL>2<SP> leaves two objects) assert
+.n 2 eq { .a 1 eq .b 2 eq and } { false } ifelse
+  (and they are the two numerals, with no undefined name between them) assert
+
+/.n 0 store
+{ <312032> execdepth /.n exch store
+  .n 2 eq { /.b exch store /.a exch store } if }
+  (a space between two numerals separates them) works
+.n 2 eq
+  (executing 1<SP>2 leaves two objects) assert
+.n 2 eq { .a 1 eq .b 2 eq and } { false } ifelse
+  (and they are the two numerals) assert
+
+% ---- a numeral does not begin past a character outside the set
+
+{ <0B3132> cvi } /typecheck
+  (a numeral does not begin past a vertical tab) raises
+{ <0B3132> cvr } /typecheck
+  (cvr refuses the text cvi refuses) raises
+
+% ---- inside a hexadecimal string literal, where white space is ignored
+
+/.tok null store
+{ <3C33310033323E> token { /.tok exch store pop } if }
+  (a null inside a hexadecimal string literal is ignored) works
+.tok null ne { .tok (12) eq } { false } ifelse
+  (and the literal is the two characters either side of it) assert
+
+{ <3C33310B33323E> token } /syntaxerror
+  (a vertical tab inside a hexadecimal string literal is not white space) raises
+
+% ---- and inside an ASCII base-85 string literal, likewise
+%
+% <~0f8~> is the two bytes (15); the cases below are the same literal
+% with one character put between its third and fourth.
+
+/.tok null store
+{ <3C7E306600387E3E> token { /.tok exch store pop } if }
+  (a null inside an ASCII base-85 string literal is ignored) works
+.tok null ne { .tok (15) eq } { false } ifelse
+  (and the literal decodes to what it decodes to without one) assert
+
+{ <3C7E30660B387E3E> token } /syntaxerror
+  (a vertical tab inside an ASCII base-85 string literal is not white space) raises
+
+% ---- and inside the filter whose entry names the same six characters
+
+/.tok null store
+{ <34310034323E> /ASCIIHexDecode filter 8 string readstring pop /.tok exch store }
+  (a null in an ASCIIHexDecode stream is ignored) works
+.tok null ne { .tok (AB) eq } { false } ifelse
+  (and the bytes either side of it decode) assert
+
+/.tok null store
+{ <306600387E3E> /ASCII85Decode filter 8 string readstring pop /.tok exch store }
+  (a null in an ASCII85Decode stream is ignored) works
+.tok null ne { .tok (15) eq } { false } ifelse
+  (and the group it falls inside still decodes) assert
+
+verdict

@@ -127,21 +127,35 @@ nulname /ASCIIHexDecode eq not (the two names are not equal) assert
 end
 
 % --- a string read as a numeral --------------------------------------
-% The numeral is the whole string (PLRM 3.2 gives the syntax and no
-% terminator), so a string whose characters run on past a numeral is not
-% one, whether what follows is a nul or anything else.
+% cvi and cvr "invoke the equivalent of the token operator" over the
+% characters (PLRM 8.2), so what separates a numeral from what follows
+% it is what separates any two tokens: the six characters PLRM Table 3.1
+% calls white space, a nul among them. A nul is therefore read here
+% exactly as a space is, and the cases below say so by asking the same
+% question of both -- a rule stated as an equality rather than as a
+% refusal, because it is the agreement that is the point. A character
+% the language does not call white space still ends nothing and leaves a
+% string that is no numeral at all.
 
 { (12) cvi 12 eq (cvi reads a plain numeral) assert }
     (cvi, plain numeral) works
-{ <313200323334> cvi pop }
-    /typecheck (cvi, numeral followed by a nul) raises
+{ <313200323334> cvi (12) cvi eq
+    (a nul after a numeral separates it, as a space does) assert }
+    (cvi, numeral followed by a nul) works
+{ <3132203233> cvi <313200323334> cvi eq
+    (and the two separators are read alike) assert }
+    (cvi, nul and space agree) works
 { (12x) cvi pop }
     /typecheck (cvi, numeral followed by a letter) raises
 
 { (1.5) cvr 1.5 eq (cvr reads a plain numeral) assert }
     (cvr, plain numeral) works
-{ <312e3500393939> cvr pop }
-    /typecheck (cvr, numeral followed by a nul) raises
+{ <312e3500393939> cvr 1.5 eq
+    (a nul after a numeral separates it, as a space does) assert }
+    (cvr, numeral followed by a nul) works
+{ <312e3520393939> cvr <312e3500393939> cvr eq
+    (and the two separators are read alike) assert }
+    (cvr, nul and space agree) works
 { (1.5x) cvr pop }
     /typecheck (cvr, numeral followed by a letter) raises
 

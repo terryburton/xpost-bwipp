@@ -594,6 +594,7 @@ tests/resource_hijack_test.ps \
 tests/uncolored_pattern_test.ps \
 tests/save_restore_test.ps \
 tests/scanner_eof_test.ps \
+tests/scanner_white_space_test.ps \
 tests/sealed_dict_restore_test.c \
 tests/semantics_test.ps \
 tests/setdash_finite_test.ps \

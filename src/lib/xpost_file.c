@@ -24,7 +24,6 @@
 
 #include <stdlib.h>
 #include <stddef.h>
-#include <ctype.h>
 
 #ifdef HAVE_ZLIB
 # include <zlib.h>
@@ -60,6 +59,7 @@
 #include "xpost_file.h"  /* double-check prototypes */
 #include "xpost_strbuf.h"  /* a rereadable file captures its source in one */
 #include "xpost_string.h"  /* a procedure stream hands over its bytes in one */
+#include "xpost_white.h"  /* the decoding filters ignore the language's white space */
 #include "xpost_interpreter.h"  /* a procedure stream runs the procedure */
 
 /* --- file-access sandbox -------------------------------------------------
@@ -1423,10 +1423,10 @@ static void
 a85_eat_eod(Xpost_FilterFile *ff)
 {
     int nc;
-    do { nc = xpost_file_getc(ff->base.source); } while (nc != EOF && isspace(nc));
+    do { nc = xpost_file_getc(ff->base.source); } while (nc != EOF && xpost_white_space(nc));
     if (nc == '~')
     {
-        do { nc = xpost_file_getc(ff->base.source); } while (nc != EOF && isspace(nc));
+        do { nc = xpost_file_getc(ff->base.source); } while (nc != EOF && xpost_white_space(nc));
         if (nc != '>' && nc != EOF)
             xpost_file_ungetc(ff->base.source, nc);
         ff->base.eod = 1;
@@ -1463,7 +1463,7 @@ a85_readch(Xpost_File *f)
             ff->base.eod = 1;
             break;
         }
-        if (isspace(c))
+        if (xpost_white_space(c))
             continue;
         if (c == '~')
         {
@@ -1471,7 +1471,7 @@ a85_readch(Xpost_File *f)
             do
             {
                 c = xpost_file_getc(ff->base.source);
-            } while (c != EOF && isspace(c));
+            } while (c != EOF && xpost_white_space(c));
             if (c != '>' && c != EOF)
                 xpost_file_ungetc(ff->base.source, c);
             ff->base.eod = 1;
@@ -2543,7 +2543,7 @@ hex_readch(Xpost_File *f)
     do
     {
         c = xpost_file_getc(ff->base.source);
-    } while (c != EOF && isspace(c));
+    } while (c != EOF && xpost_white_space(c));
     if (c == EOF || c == '>')
     {
         ff->base.eod = 1;
@@ -2560,7 +2560,7 @@ hex_readch(Xpost_File *f)
     do
     {
         c = xpost_file_getc(ff->base.source);
-    } while (c != EOF && isspace(c));
+    } while (c != EOF && xpost_white_space(c));
     if (c == EOF || c == '>')
     {
         ff->base.eod = 1;
@@ -2580,7 +2580,7 @@ hex_readch(Xpost_File *f)
         {
             /* the byte is complete; eagerly consume a trailing '>' so a
                following read of an abandoned filter is not stranded on it */
-            do { c = xpost_file_getc(ff->base.source); } while (c != EOF && isspace(c));
+            do { c = xpost_file_getc(ff->base.source); } while (c != EOF && xpost_white_space(c));
             if (c == '>')
                 ff->base.eod = 1;
             else if (c != EOF)
