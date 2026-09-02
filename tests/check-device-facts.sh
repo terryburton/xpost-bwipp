@@ -166,13 +166,20 @@ EOF
 { cat "$work/enc.ps"; echo "/record .dump"; } > "$work/askrec.ps"
 
 : > "$work/said"
+# What the devices state is read off what the program printed. The error
+# stream is kept, for the report below, but not mixed into the answers: an
+# interpreter may say something there about a run -- a device retired
+# having marked no page, say -- and a status message merged into a device's
+# answer is read as part of it.
 out=$( cd "$work" && XPOST_DATA_DIR="$srcdata" \
-       "$xpost" -q -d null -o facts.scratch ask.ps </dev/null 2>&1 )
+       "$xpost" -q -d null -o facts.scratch ask.ps </dev/null 2>"$work/ask.err" )
 rc=$?
+diag=$(cat "$work/ask.err" 2>/dev/null)
 printf '%s\n' "$out" >> "$work/said"
 if [ $rc -ne 0 ] || ! grep -q '^K ' "$work/said"; then
     echo "FAILURES: the interpreter could not be asked what its devices state:"
     printf '%s\n' "$out" | sed 's/^/      /' | head -8
+    [ -n "${diag:-}" ] && printf '%s\n' "$diag" | sed 's/^/      /' | head -4
     exit 1
 fi
 
