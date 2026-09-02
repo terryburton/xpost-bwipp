@@ -129,7 +129,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % The shading types this writer holds natively (PDF 8.7.4.5). The mesh
     % types carry their geometry in a stream it does not restate.
-    /ShadingTypes << 1 true 2 true 3 true 4 true 5 true >>
+    /ShadingTypes << 1 true 2 true 3 true 4 true 5 true 6 true 7 true >>
 
     /.copydict //.classcopydict
     /.instance //.classinstance
@@ -640,7 +640,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         %  declares: the language allows an array where a written document
         %  wants a stream, and one is restated as the other.
         sh /DataSource known {
-            sh /ShadingType get dup 4 eq exch 5 eq or {
+            sh /ShadingType get dup 4 ge exch 7 le and {
                 d /mesh [ sh /DataSource get { } forall ] put
                 sh /VerticesPerRow known
                     { d /vpr sh /VerticesPerRow get put } if
@@ -1686,41 +1686,66 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             shmesh null ne {
                 /shnc shd /cs get dup /DeviceGray eq { pop 1 }{
                      /DeviceCMYK eq { 4 }{ 3 } ifelse } ifelse def
-                /shstride shd /st get 4 eq { 3 shnc add }{ 2 shnc add } ifelse def
-                /shnv shmesh length shstride idiv def
+                /shst shd /st get def
 
-                % the extent the coordinates actually span, which is what
-                % a consumer reads them back over
+                %  How much of a record follows the flag, in coordinate
+                %  pairs and in colours. A Gouraud record is one vertex; a
+                %  patch record is a whole patch, and a patch that shares
+                %  an edge with the one before states neither that edge's
+                %  points nor its two colours again (PDF 8.7.4.5). A
+                %  lattice states no flag at all.
+                /shshape {  % flag  .  npoints ncolours
+                    shst 4 eq { pop 1 1 }{
+                    shst 5 eq { pop 1 1 }{
+                    shst 6 eq { 0 eq { 12 4 }{ 8 2 } ifelse }{
+                                0 eq { 16 4 }{ 12 2 } ifelse } ifelse } ifelse } ifelse
+                } def
+
+                %  Walk the records once to find the extent the coordinates
+                %  span, and once more to pack them. The cursor moves by
+                %  what each record turned out to hold, so a mesh whose
+                %  records differ in length is read as it is written.
                 /shx0 1e10 def /shx1 -1e10 def /shy0 1e10 def /shy1 -1e10 def
-                0 1 shnv 1 sub { /shk exch def
-                    /shb shk shstride mul shd /st get 4 eq { 1 add } if def
-                    shmesh shb get dup shx0 lt { dup /shx0 exch def } if
-                        dup shx1 gt { /shx1 exch def }{ pop } ifelse
-                    shmesh shb 1 add get dup shy0 lt { dup /shy0 exch def } if
-                        dup shy1 gt { /shy1 exch def }{ pop } ifelse
-                } for
+                /shp 0 def
+                { shp shmesh length ge { exit } if
+                    shst 5 eq { 0 }{ shmesh shp get cvi } ifelse
+                    shshape /shnco exch def /shnpt exch def
+                    shst 5 eq { }{ /shp shp 1 add def } ifelse
+                    0 1 shnpt 1 sub { pop
+                        shmesh shp get
+                            dup shx0 lt { dup /shx0 exch def } if
+                            dup shx1 gt { /shx1 exch def }{ pop } ifelse
+                        shmesh shp 1 add get
+                            dup shy0 lt { dup /shy0 exch def } if
+                            dup shy1 gt { /shy1 exch def }{ pop } ifelse
+                        /shp shp 2 add def
+                    } for
+                    /shp shp shnco shnc mul add def
+                } loop
                 shx1 shx0 le { /shx1 shx0 1 add def } if
                 shy1 shy0 le { /shy1 shy0 1 add def } if
 
-                /mbstr shnv shd /st get 4 eq { 1 add } if
-                       shnv shnc 2 mul mul add
-                       shnv 4 mul add string def
+                /mbstr shmesh length 2 mul 64 add string def
                 /mbn 0 def
-                0 1 shnv 1 sub { /shk exch def
-                    /shb shk shstride mul def
-                    shd /st get 4 eq {
-                        shmesh shb get cvi 1 .meshputint
-                        /shb shb 1 add def
-                    } if
-                    shmesh shb get shx0 shx1 .meshputval
-                    shmesh shb 1 add get shy0 shy1 .meshputval
-                    0 1 shnc 1 sub { /shc exch def
-                        shmesh shb 2 add shc add get 0 1 .meshputval
+                /shp 0 def
+                { shp shmesh length ge { exit } if
+                    shst 5 eq { 0 }{ shmesh shp get cvi } ifelse
+                    dup /shflag exch def
+                    shshape /shnco exch def /shnpt exch def
+                    shst 5 eq { }{ shflag 1 .meshputint /shp shp 1 add def } ifelse
+                    0 1 shnpt 1 sub { pop
+                        shmesh shp get shx0 shx1 .meshputval
+                        shmesh shp 1 add get shy0 shy1 .meshputval
+                        /shp shp 2 add def
                     } for
-                } for
+                    0 1 shnco shnc mul 1 sub { pop
+                        shmesh shp get 0 1 .meshputval
+                        /shp shp 1 add def
+                    } for
+                } loop
 
                 ( /BitsPerCoordinate 16 /BitsPerComponent 16) .vw
-                shd /st get 4 eq { ( /BitsPerFlag 8) .vw } if
+                shd /st get 5 eq not { ( /BitsPerFlag 8) .vw } if
                 shd /vpr known { ( /VerticesPerRow ) .vw shd /vpr get 20 string cvs .vw } if
                 ( /Decode [) .vw
                 shx0 .pdfnumstr .vw ( ) .vw shx1 .pdfnumstr .vw ( ) .vw

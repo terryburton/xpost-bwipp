@@ -64,9 +64,9 @@ mk gouraud '0 0 200 200 rectclip
    /BitsPerFlag 8 /Decode [0 255 0 255 0 1 0 1 0 1]
    /DataSource [ 0  10 10  1 0 0   0  190 10  0 1 0   0  100 190  0 0 1 ] >> shfill'
 
-# SCOPE. A patch mesh states control points this writer does not restate,
-# so it must still decompose -- without this the checks above would pass on
-# a writer that claimed every type and wrote the wrong thing for most.
+# A patch mesh states a whole patch per record, of a length its opening
+# flag decides: a patch sharing an edge with the one before restates
+# neither that edge nor its two colours.
 mk patch '0 0 200 200 rectclip
 << /ShadingType 6 /ColorSpace /DeviceRGB /BitsPerCoordinate 8 /BitsPerComponent 8
    /BitsPerFlag 8 /Decode [0 255 0 255 0 1 0 1 0 1]
@@ -105,11 +105,20 @@ grep -q '/ShadingType 4' "$work/gouraud.pdf" \
 grep -q '/BitsPerCoordinate' "$work/gouraud.pdf" \
     || { echo "FAIL: the mesh carries no packed-vertex widths"; fail=1; }
 
-# scope: a patch mesh is still decomposed, and says so by naming no shading
 grep -q '/ShadingType 6' "$work/patch.pdf" \
-    && { echo "FAIL: a patch mesh was written as a shading dictionary"; fail=1; }
-test "$(wc -c < "$work/patch.pdf")" -gt 700 \
-    || { echo "FAIL: the patch page painted nothing"; fail=1; }
+    || { echo "FAIL: a patch mesh did not reach the file as one"; fail=1; }
+grep -q '/BitsPerFlag' "$work/patch.pdf" \
+    || { echo "FAIL: the patch mesh states no flag width"; fail=1; }
+# SCOPE. A shading in a space needing a resource of its own is not claimed,
+# and must still decompose -- without this the checks above would pass on a
+# writer that claimed everything and wrote the wrong thing for most of it.
+mk cie '0 0 200 200 rectclip
+<< /ShadingType 2
+   /ColorSpace [ /CIEBasedABC << /WhitePoint [0.9505 1 1.089] >> ]
+   /Coords [0 0 200 0]
+   /Function << /FunctionType 2 /Domain [0 1] /C0 [0 0 0] /C1 [1 1 1] /N 1 >> >> shfill'
+grep -q '/ShadingType' "$work/cie.pdf" \
+    && { echo "FAIL: a shading in a space this cannot state was written as one"; fail=1; }
 
 grep -q '/FunctionType 3' "$work/stitched.pdf" \
     || { echo "FAIL: a stitching function did not reach the file"; fail=1; }
