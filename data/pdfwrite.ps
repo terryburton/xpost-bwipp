@@ -1626,8 +1626,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         //.vecout /np get 0 eq {
             //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
             .gscratch /.vecoutfile undef
-            (%%[ Warning: the job marked no page; no PDF was written ]%%\n)
-                print flush
+            % To the error stream, not to the program's own output: a device
+            % is made and retired on paths a program never asked about, so
+            % this can be said where something is reading what the program
+            % printed, and a diagnostic mixed into that is read as data.
+            (%stderr) (w) file
+            dup (%%[ Warning: the job marked no page; no PDF was written ]%%\n)
+                writestring
+            dup flushfile closefile
             //.vecout /name get dup (%stdout) ne
                 { deletefile }{ pop } ifelse
         }{
