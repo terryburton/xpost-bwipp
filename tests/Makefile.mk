@@ -151,6 +151,7 @@ tests/check-test-timeouts.sh \
 tests/check-vecbase.sh \
 tests/run-dsc-roundtrip-test.sh \
 tests/check-pdf-overprint.sh \
+tests/check-pdf-empty-job.sh \
 tests/check-vector-stroke-clip.sh \
 tests/check-resource-file.sh \
 tests/check-compaction-safe-point.sh \

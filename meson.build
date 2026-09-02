@@ -2375,6 +2375,16 @@ test('pdf-overprint',
   suite: cost_fast,
   timeout: 120)
 
+# A job that marks no page produces no PDF and reports why: a page tree with
+# no pages in it is not a document a consumer will open.
+test('pdf-empty-job',
+  find_program('tests/check-pdf-empty-job.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 120)
+
 # A stroke under a clip reaches a vector device as the stroke it is: the
 # device is given the clip and draws the whole line beneath it, rather than
 # having the line cut to the clip as a fill's outline is -- which where the

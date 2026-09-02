@@ -1407,6 +1407,21 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % current, for the document info.
     /.endfile {  % IMAGE  .  -
     16 {
+        % A job that marked no page has no document to write. A PDF whose
+        % page tree is empty is not a document a consumer will open -- it
+        % reports the page count as invalid and stops -- so writing one
+        % leaves a file that can only disappoint whoever opens it next.
+        % The file opened for the output is taken back instead, and the run
+        % says why, so what is left behind is nothing rather than something
+        % unreadable.
+        //.vecout /np get 0 eq {
+            //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
+            .gscratch /.vecoutfile undef
+            (%%[ Warning: the job marked no page; no PDF was written ]%%\n)
+                print flush
+            //.vecout /name get dup (%stdout) ne
+                { deletefile }{ pop } ifelse
+        }{
         //.vecout /headered get not {
             (%PDF-1.4\n) .vw //.vecout /headered true put
         } if
@@ -1469,6 +1484,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % Close the file unless it is stdout, and give up the local hold
         //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
         .gscratch /.vecoutfile undef
+        } ifelse
     } //.indevwork exec } bind
 >> def
 
