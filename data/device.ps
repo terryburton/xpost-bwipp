@@ -103,6 +103,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % on is the arithmetic's business and not the text's: asking first
     % wrote 4 for one and 4.00 for the other, so the same page carried
     % different bytes depending on how wide a real is in the build.
+    % A magnitude that cannot be scaled by a hundred and stay an integer is
+    % written as the whole number it is: there is no hundredth to write at
+    % that size, and scaling first would leave the range rather than round.
+    dup abs 21000000 gt {
+        cvi 20 string cvs
+    }{
     100 mul round cvi
     dup 100 mod 0 eq {
         100 idiv 20 string cvs
@@ -114,6 +120,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         dup 10 lt { (.0) }{ (.) } ifelse exch
         20 string cvs //.strcat exec
         //.strcat exec
+    } ifelse
     } ifelse
 } put
 
