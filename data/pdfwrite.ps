@@ -22,6 +22,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.pdfwritebind0 [ /pcchunks /pcmat /pctt /pcys /pcxs /pcbb ] readonly put
 .xpostsys /.pdfwritebind1 [ /piint /pidec /pirows /pim /pinc /pih /piw ] readonly put
 .xpostsys /.pdfwritebind2 [ /psint /psdata /psm /pspol /psh /psw ] readonly put
+.xpostsys /.pdfwritebind5 [ /mkrng /mkmh /mkmw /mkbits /miint /midec /mirows /mim /minc /mih /miw ] readonly put
 .xpostsys /.pdfwritebind3 [ /spy3 /spx3 /spy2 /spx2 /spy1 /spx1 ] readonly put
 .xpostsys /.pdfwritebind4 [ /y /x ] readonly put
 .xpostsys /.imagebind3 [ /y2 /x2 /y1 /x1 ] readonly put
@@ -1207,6 +1208,60 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         (/Im) .put piidx 20 string cvs .put ( Do\n) .put .qrestore
     } //.indevwork exec }
 
+    % Take an image that carries a mask. PDF states both kinds the
+    % language has -- a range of sample values to drop (PDF 8.9.6.4,
+    % colour-key masking) and a stencil naming which samples to drop --
+    % so the image goes over whole and the mask goes into its dictionary.
+    % Without this the paint route resolves the mask against the samples
+    % and writes one rectangle per sample: a masked photograph came out
+    % as 189849 filled paths and three megabytes, against thirty-three
+    % kilobytes for the same page written as an image.
+    %
+    % The mask is filed as it stands. Colour-key ranges are normalised
+    % here and PDF wants them in sample space, so Emit scales them by
+    % what the samples are written with; a stencil keeps its own grid,
+    % which PDF allows a mask to have (PDF 8.9.6.4).
+    /PaintImageMasked {  % w h ncomp mat rows decode interp mbits mw mh mranges IMAGE  .  -
+    24 { //.pdfwritebind5 {exch def} forall
+        %  A stencil is filed BEFORE the image that names it, so that its
+        %  object number is taken first and the image can refer to it: Emit
+        %  numbers these in the order they are filed.
+        %
+        %  The bits arrive as one string over the mask's own grid, byte
+        %  padded at the end of each row, which is how an image's rows are
+        %  written here too -- so they are cut into rows rather than
+        %  restated.
+        /mkidx null def
+        mkbits null ne {
+            /mkrb mkmw 7 add 8 idiv def
+            /mkrows mkmh array def
+            0 1 mkmh 1 sub { /mky exch def
+                mkrows mky
+                    mkbits mky mkrb mul mkrb getinterval
+                    dup length string copy
+                put
+            } for
+            /mkidx .state /.pdfimages get length def
+            .state /.pdfimages [ .state /.pdfimages get aload pop
+                << /w mkmw /h mkmh /rows mkrows /mask true /pol false /int false >> ] put
+        } if
+
+        /miidx .state /.pdfimages get length def
+        .state /.pdfimages [ .state /.pdfimages get aload pop
+            << /w miw /h mih /nc minc /rows mirows /dec midec /int miint
+               /mbits mkidx /mrng mkrng >> ] put
+        .qsave
+        .emitclip
+        [ miw 0 0 mih neg 0 mih ] mim matrix concatmatrix
+        dup 0 get .pdfnum ( ) .put
+        dup 1 get .pdfnum ( ) .put
+        dup 2 get .pdfnum ( ) .put
+        dup 3 get .pdfnum ( ) .put
+        dup 4 get .pdfnum ( ) .put
+        5 get .pdfnum ( cm\n) .put
+        (/Im) .put miidx 20 string cvs .put ( Do\n) .put .qrestore
+    } //.indevwork exec }
+
     % Take a stencil: the bits file as an image XObject the same way a
     % sampled image's rows do, marked as a mask so Emit writes it with
     % ImageMask rather than a colour space. PDF has the construct the
@@ -1517,6 +1572,28 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             imid not {
                 ( /Decode [) .vw ime /dec get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
+            } if
+
+            % Colour-key masking (PDF 8.9.6.4): the sample values a
+            % consumer is to drop, as one min-max pair per component. The
+            % language states them normalised and PDF wants them in the
+            % space the samples are written in, which here is eight bits.
+            ime /mrng known { ime /mrng get null ne }{ false } ifelse {
+                ( /Mask [) .vw
+                ime /mrng get {
+                    255 mul round cvi dup 0 lt { pop 0 } if
+                    dup 255 gt { pop 255 } if
+                    20 string cvs .vw ( ) .vw
+                } forall
+                (]) .vw
+            } if
+
+            % A stencil mask keeps its own grid and is written as an image
+            % of its own, which the colour image names (PDF 8.9.6.4). A set
+            % bit leaves the pixel unpainted, which is what a mask means by
+            % default, so no decode is written for it.
+            ime /mbits known { ime /mbits get null ne }{ false } ifelse {
+                ( /Mask ) .vw imgobjs ime /mbits get get 20 string cvs .vw ( 0 R) .vw
             } if
             } ifelse
             ime /int get { ( /Interpolate true) .vw } if

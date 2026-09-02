@@ -692,6 +692,7 @@ method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage dscwrite pdfwrite svgwrite
 method PaintStencil dscwrite pdfwrite svgwrite
 method ShadingPaint pdfwrite svgwrite
+method PaintImageMasked pdfwrite
 method .shdescribe pdfwrite
 method .svgshrgb svgwrite
 method .fndescribe pdfwrite

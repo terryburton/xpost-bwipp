@@ -114,6 +114,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  into the fills it resolves to instead, the route every device without
 %  the construct takes.
 %
+%  And the masked-image writer, for the same reason again: what it emits
+%  is a PDF image dictionary carrying a mask, which a DSC program has no
+%  place for. A masked image is resolved against its mask and painted, the
+%  route every device without the construct takes.
+%
+.xpost_DSCWRITE /PaintImageMasked undef
+
 .xpost_DSCWRITE /ShadingTypes undef
 .xpost_DSCWRITE /ShadingPaint undef
 .xpost_DSCWRITE /.shdescribe undef

@@ -1048,8 +1048,17 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % nothing and by another as no clip at all -- so an image under
         % one is not handed over: PLRM 4.8.1 paints an image only where
         % the clipping path admits it, and none of this one is painted.
+        %  A device that writes what it is asked to paint can be given a
+        %  masked image whole, where it says it can take one: both kinds of
+        %  mask are things a written document can carry, and the route
+        %  below would otherwise put one rectangle per sample into it. What
+        %  it is handed is the mask as it stands -- the bits on their own
+        %  grid, or the ranges -- since a writer states them as they are
+        %  rather than resolving them against the samples.
         DEVICE /PaintImage known
-        mbits null eq and mranges null eq and {
+        mbits null eq mranges null eq and
+            DEVICE /PaintImageMasked known or
+        and {
             /m mat matrix invertmatrix matrix currentmatrix
                matrix concatmatrix def
             /allrows height array def
@@ -1078,7 +1087,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             //.clipvoid exec not {
                 width height ncomp m allrows decode interp
-                DEVICE dup /PaintImage get exec
+                mbits null eq mranges null eq and {
+                    DEVICE dup /PaintImage get exec
+                }{
+                    mbits mw mh mranges
+                    DEVICE dup /PaintImageMasked get exec
+                } ifelse
                 true //.setpagemarked exec
             } if
         }{
