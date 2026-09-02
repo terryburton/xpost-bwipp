@@ -158,4 +158,33 @@
     } ifelse
 } for
 
+% A reusable stream names the filters to run its source through, and the
+% parameters those filters take come with them in DecodeParms (PLRM
+% 3.13.3): one dictionary against a lone name, an array running alongside
+% an array of them. SubFileDecode can be reached no other way here, having
+% no operands of its own in a chain to read its end-of-data from -- PLRM
+% 3.13.2 says its parameters "must be specified in the parameter
+% dictionary if the SubFileDecode filter is used as one of the filters in
+% a ReusableStreamDecode filter".
+{ (abcdef@gh) << /Filter /SubFileDecode
+                 /DecodeParms << /EODCount 0 /EODString (@) >> >>
+  /ReusableStreamDecode filter 20 string readstring pop (abcdef) eq } outcome
+    dup /ok eq { pop true } { pop false } ifelse
+(ReusableStreamDecode) (gives a SubFileDecode in its chain the end-of-data DecodeParms names) assert2
+
+% the same filter reached through an array of one, with its parameters in
+% the array running alongside
+{ (abcdef@gh) << /Filter [ /SubFileDecode ]
+                 /DecodeParms [ << /EODCount 0 /EODString (@) >> ] >>
+  /ReusableStreamDecode filter 20 string readstring pop (abcdef) eq } outcome
+    dup /ok eq { pop true } { pop false } ifelse
+(ReusableStreamDecode) (takes those parameters from an array beside an array of filters) assert2
+
+% a filter that takes no parameters is still built where the chain names
+% none for it
+{ (414243>) << /Filter /ASCIIHexDecode >> /ReusableStreamDecode filter
+  10 string readstring pop (ABC) eq } outcome
+    dup /ok eq { pop true } { pop false } ifelse
+(ReusableStreamDecode) (still builds a filter the chain gives no parameters) assert2
+
 verdict

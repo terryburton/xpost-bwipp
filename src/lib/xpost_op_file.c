@@ -477,6 +477,27 @@ int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f,
    What every filter takes from the dictionary whatever its name --
    CloseSource and CloseTarget -- is read by the caller below, so that a
    filter cannot be added here and be the one that does not answer them. */
+/* Layer one filter of a reusable stream's chain over the stream so far,
+   giving it the parameter dictionary the chain named for it. A filter
+   named without one is built as it would be by the operator's
+   two-operand form, which is what a chain did before any of them could
+   be given parameters. */
+static int _filter_dict_build (Xpost_Context *ctx, Xpost_Object F,
+                               Xpost_Object dict, Xpost_Object name);
+
+static
+int _rsd_layer (Xpost_Context *ctx, Xpost_Object cur, Xpost_Object fn,
+                Xpost_Object parms)
+{
+    if (xpost_object_get_type(parms) != dicttype)
+        return xpost_op_file_filter(ctx, cur, fn);
+    /* the filter reads its parameters out of it, so it has to permit
+       being read (PLRM 3.3.2) */
+    if (!xpost_object_is_readable(ctx, parms))
+        return invalidaccess;
+    return _filter_dict_build(ctx, cur, parms, fn);
+}
+
 static
 int _filter_dict_build (Xpost_Context *ctx,
                         Xpost_Object F,
@@ -624,6 +645,16 @@ int _filter_dict_build (Xpost_Context *ctx,
            through before buffering: layer each in order */
         Xpost_Object flt = xpost_dict_get(ctx, dict,
             xpost_name_cons(ctx, "Filter"));
+        /* the parameters those filters take, where they take any: one
+           dictionary against a lone filter name, an array running
+           alongside an array of them (PLRM 3.13.3). A filter given none
+           is built as the operator's two-operand form builds it.
+           SubFileDecode has to be given its parameters here -- it has no
+           operands of its own in a chain to read them from, which is why
+           PLRM 3.13.2 requires the dictionary form of it in a reusable
+           stream. */
+        Xpost_Object prm = xpost_dict_get(ctx, dict,
+            xpost_name_cons(ctx, "DecodeParms"));
         Xpost_Object cur = F;
         Xpost_Object first = xpost_object_cvlit(null);
         int ret;
@@ -631,7 +662,7 @@ int _filter_dict_build (Xpost_Context *ctx,
         free(cname);
         if (xpost_object_get_type(flt) == nametype)
         {
-            ret = xpost_op_file_filter(ctx, cur, flt);
+            ret = _rsd_layer(ctx, cur, flt, prm);
             if (ret)
                 return ret;
             cur = xpost_stack_pop(ctx->lo, ctx->os);
@@ -644,10 +675,17 @@ int _filter_dict_build (Xpost_Context *ctx,
             for (i = 0; i < flt.comp_.sz; i++)
             {
                 Xpost_Object fn = xpost_array_get(ctx, flt, i);
+                Xpost_Object pn = xpost_object_cvlit(null);
 
                 if (xpost_object_get_type(fn) != nametype)
                     return typecheck;
-                ret = xpost_op_file_filter(ctx, cur, fn);
+                if (xpost_object_get_type(prm) == arraytype
+                    && i < prm.comp_.sz)
+                    pn = xpost_array_get(ctx, prm, i);
+                else if (xpost_object_get_type(prm) == dicttype
+                         && flt.comp_.sz == 1)
+                    pn = prm;
+                ret = _rsd_layer(ctx, cur, fn, pn);
                 if (ret)
                     return ret;
                 cur = xpost_stack_pop(ctx->lo, ctx->os);
