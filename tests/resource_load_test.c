@@ -159,12 +159,17 @@ int main(void)
     check(strcmp(xpost_error_name_get(ctx), "undefinedresource") == 0,
           "absent instance is undefinedresource");
 
-    /* a category that is neither in VM nor on disk errors */
+    /* A category that is neither in VM nor on disk errors -- and errors
+       differently from the two cases above, which are instances missing
+       from a category that exists. PLRM 8.2, under findresource: "If the
+       specified resource category does not exist, an undefined error
+       occurs. If the category exists but there is no instance whose name
+       is key, an undefinedresource error occurs." */
     st = xpost_run(ctx, XPOST_INPUT_STRING,
         "/x /NoSuchCategory findresource", 0);
     check(st == XPOST_RUN_ERRORED, "unknown category errors");
-    check(strcmp(xpost_error_name_get(ctx), "undefinedresource") == 0,
-          "unknown category is undefinedresource");
+    check(strcmp(xpost_error_name_get(ctx), "undefined") == 0,
+          "unknown category is undefined, not undefinedresource");
 
     xpost_destroy(ctx);
     xpost_quit();

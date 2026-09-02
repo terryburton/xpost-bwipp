@@ -551,10 +551,16 @@ length 1 eq (resourceforall enumerates categories) assert
 /st.key /st.private undefineresource
 /st.key /st.private resourcestatus { pop pop false } { true } ifelse (undefineresource removes it) assert
 count /st.d0 exch def
+% PLRM 8.2, under findresource: "If the specified resource category does
+% not exist, an undefined error occurs. If the category exists but there
+% is no instance whose name is key, an undefinedresource error occurs."
+% Both names are among that operator's errors, so the pair is a
+% distinction and not a choice, and a category nobody has defined is the
+% first of the two.
 { /st.key /st.ghost findresource } stopped
-{ count st.d0 sub { pop } repeat $error /errorname get /undefinedresource eq }
+{ count st.d0 sub { pop } repeat $error /errorname get /undefined eq }
 { count st.d0 sub { pop } repeat false } ifelse
-(a missing category reports undefinedresource) assert
+(a missing category reports undefined) assert
 setglobal
 
 % undefineresource has three arms, chosen by whether the category and

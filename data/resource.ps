@@ -407,16 +407,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
-%  The table of instances a category holds, or undefinedresource if no
-%  such category has been defined. Every resource operator below reaches
-%  its category through here, so the refusal for a category that is not
-%  there is written once -- and is raised under the name of the operator
-%  that asked, which the caller hands over, because PLRM 3.11.1 has the
-%  error name the operator the program actually called.
+%  The table of instances a category holds, or undefined if no such
+%  category has been defined. Every resource operator below reaches its
+%  category through here, so the refusal for a category that is not there
+%  is written once -- and is raised under the name of the operator that
+%  asked, which the caller hands over, because PLRM 3.11.1 has the error
+%  name the operator the program actually called.
+%
+%  A category that does not exist and an instance that is not in one are
+%  different questions with different answers. PLRM 8.2, under
+%  findresource: "If the specified resource category does not exist, an
+%  undefined error occurs. If the category exists but there is no instance
+%  whose name is key, an undefinedresource error occurs" -- and both names
+%  appear among that operator's errors, which is what makes the pair a
+%  distinction rather than a choice.
 %
 .xpostsys /.instof {  % category /operator  .  instances
     exch //.resources exch 2 copy known not {
-        pop pop cvx /undefinedresource signalerror
+        pop pop cvx /undefined signalerror
     } if
     get exch pop
 } put
@@ -624,7 +632,7 @@ setglobal
         category /Category //.loadresource exec pop
     } if
     //.resources category known not {
-        end /findresource cvx /undefinedresource signalerror
+        end /findresource cvx /undefined signalerror
     } if
 
     % a local instance shadows a global one of the same name
@@ -929,11 +937,14 @@ setglobal
             pop pop
             cat //.trycategoryload exec
             //.resources /Category get cat 2 copy known not {
-                % resourcestatus answers for a category that exists; one
-                % that does not is a question that cannot be asked, and it
-                % says so with undefined rather than undefinedresource.
-                pop pop op cvx
-                op /resourcestatus eq { /undefined }{ /undefinedresource } ifelse
+                % A category that does not exist is a question that
+                % cannot be asked, whichever operator asks it. PLRM 8.2
+                % gives it an undefined -- under findresource, and under
+                % resourceforall and resourcestatus, whose error lists
+                % carry undefined and not undefinedresource at all --
+                % keeping undefinedresource for a category that is there
+                % and holds no such instance.
+                pop pop op cvx /undefined
                 end signalerror
             } if
         } if
