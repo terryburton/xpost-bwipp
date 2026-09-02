@@ -97,18 +97,9 @@
 #           eight-bit array and as their sixteen-bit widening screen a
 #           sixteen-step ramp to the same page, dot for dot.
 #
-# sh_radial_sampled p1 -- this one IS this interpreter's, and it is here
-#           because it is being worked on rather than because it cannot
-#           be closed. The listing shades two radial figures through
-#           sampled functions, and the interpreter raises rangecheck in
-#           get partway through the first, leaving most of the page
-#           unpainted -- so almost all of the reference's ink has nothing
-#           near it. The entry goes when the function is read the way
-#           PLRM 3.13.4's sampled type asks for.
 gb_07-04-listing p1
 gb_07-05-listing p1
 gb_08-02-listing p1
 gb_10-02-listing p1
 gb_10-04-listing p1
 ht_type16_file p1
-sh_radial_sampled p1

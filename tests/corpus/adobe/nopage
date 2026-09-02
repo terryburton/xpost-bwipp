@@ -105,17 +105,6 @@
 #           data from, so the elision is all there is; it goes if one is
 #           ever found.
 #
-# sh_axial_gray, sh_radial_gray -- both draw in this tree once the
-#           interpreter takes the function they carry, and until then
-#           they raise typecheck before any shading is painted. Each
-#           gives its exponential-interpolation function scalar bounds,
-#           "/C0 0" and "/C1 1", where PLRM 3.14's table for FunctionType
-#           2 types both keys as arrays; the interpreter takes the length
-#           of what it was given and a number has none. Their siblings
-#           sh_axial_rgb_bbox and sh_radial_cie write arrays and draw.
-#           The entries lapse the day the interpreter accepts the scalar
-#           form, which is the whole of what stands between these two
-#           listings and a page.
 bb_05-centered-dash-patterns
 gb_02-01-listing
 gb_02-05-listing
@@ -129,5 +118,3 @@ gb_14-03-listing
 gb_14-04-listing
 gb_15-02-listing
 ht_type16_two_tiles
-sh_axial_gray
-sh_radial_gray
