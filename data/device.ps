@@ -97,10 +97,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  print noise.
 %
 .xpostsys /.num2str {  % num  .  str
-    dup truncate 1 index eq {
-        cvi 20 string cvs
+    % Rounded to the two places that get written, before it is asked
+    % whether the number is whole. A value a hair either side of a whole
+    % one is the same number at this precision, and which side it landed
+    % on is the arithmetic's business and not the text's: asking first
+    % wrote 4 for one and 4.00 for the other, so the same page carried
+    % different bytes depending on how wide a real is in the build.
+    100 mul round cvi
+    dup 100 mod 0 eq {
+        100 idiv 20 string cvs
     }{
-        100 mul round cvi
         dup 0 lt { (-) exch neg }{ () exch } ifelse
         dup 100 idiv 20 string cvs
         3 -1 roll exch //.strcat exec
