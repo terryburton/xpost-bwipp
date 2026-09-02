@@ -2117,10 +2117,15 @@ test('crd-render',
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
   timeout: 120)
 
-# Adobe's separation / custom-colour convenience operators
+# The separation / custom-colour convenience operators
 # (findcmykcustomcolor, findrgbcustomcolor, setcustomcolor) are shorthand
-# over the Separation colour space: this holds their packaged objects and
-# the space they install to the shape both reference interpreters build.
+# over the Separation colour space (PLRM 4.8.4). They are an extension the
+# specification does not define, so what holds them is the space they are
+# shorthand FOR: the packaged object carries the components and the name the
+# separation is of, and setcustomcolor installs the Separation space those
+# describe. A program that used the long form and one that used the shorthand
+# are then painting through the same space, which is the whole of what the
+# shorthand promises.
 test('custom-color',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/custom_color_test.ps') ],
@@ -2206,8 +2211,12 @@ test('graphics-regression',
           'XPOST_UNSEALED_DEVICES': '1' })
 
 # Render classes: Type 3 and composite fonts, the shading types, tiling and
-# shading patterns, and screen/halftone setup. Standard PostScript that prints
-# SUCCESS on the reference interpreters too, so it stands as a conformance test.
+# shading patterns, and screen/halftone setup. What makes it a conformance
+# suite rather than a record of this interpreter is what it is written in: only
+# operators PLRM defines, no extension and no dotted private name, and every
+# case asserted against what the specification says the operator does. A suite
+# that reached for anything of this implementation's own would be holding the
+# implementation to itself.
 test('render-classes',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/render_classes_test.ps') ],
@@ -2926,9 +2935,13 @@ test('op-matrix-gstate',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
-# A wrong-typed operand is a typecheck, not a stackunderflow, when a higher-arity
-# signature's operands are absent (PLRM/Distiller; gs differs for the matrix
-# builders, so this one is xpost-only).
+# A wrong-typed operand is a typecheck, not a stackunderflow, when a
+# higher-arity signature's operands are absent. PLRM 8.2 gives typecheck for
+# an operand of the wrong type and stackunderflow for one that is not there,
+# and an operand that is present and wrong is the first of those whatever a
+# longer signature would also have wanted. The specification does not settle
+# it for the matrix builders, whose signatures overlap; the answer held here
+# is this interpreter's own, and the cases say which.
 test('op-dispatch-typecheck',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/op_dispatch_typecheck_test.ps') ],
@@ -3163,7 +3176,12 @@ test('dict-capacity',
   timeout: 300)
 
 # Unterminated string literals: end of input inside (...), <...> or <~...~>
-# is a syntaxerror on both scan paths (PLRM is silent; Distiller and gs agree).
+# is a syntaxerror on both scan paths. PLRM 3.2 gives each literal its
+# closing delimiter and does not say what an input that ends before one is,
+# so what this holds is that the two scan paths answer alike -- a literal
+# left open by the file and one left open by a string being scanned are the
+# same fault, and a reader that answered them differently would be reporting
+# where the text came from rather than what was wrong with it.
 test('scanner-eof',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/scanner_eof_test.ps') ],
@@ -3196,7 +3214,10 @@ test('op-cvi',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
-# Graphics-state number parameters are reals (PLRM), matching Distiller and gs.
+# Graphics-state number parameters are reals: PLRM 8.2 has currentlinewidth,
+# currentmiterlimit, currentflat and the rest answer with a number, and this
+# holds them to the real type rather than to whichever type the value was set
+# from, so a program reading one back gets the same type every time.
 test('op-gstate-types',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/op_gstate_types_test.ps') ],
@@ -5754,9 +5775,13 @@ test('vendor-bwipp',
   suite: [ 'vendor', 'slow' ],
   timeout: 1800)
 
-# Binary tokens (PLRM 3.14): the conformance corpus against a golden
-# record generated from the reference interpreter, which revalidates
-# the golden when a reference interpreter is present.
+# Binary tokens (PLRM 3.14): the conformance corpus against the golden record
+# committed beside it, whose adjudication is written out case by case in
+# tests/binary_token_test.ps. The run is self-contained and needs no other
+# tool: it compares what the interpreter wrote against the record whole, and
+# never regenerates the record from that output -- a baseline taken from what
+# the interpreter did locks in whatever it did, a fault included, and can no
+# longer report one.
 test('binary-tokens',
   find_program('tests/run-bintok-test.sh'),
   args: [ xpost_exe,

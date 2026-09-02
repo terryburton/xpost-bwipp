@@ -29,7 +29,7 @@
  * An output device is a PostScript dictionary: a class dictionary whose
  * Create method returns an instance dictionary, on which the graphics
  * pipeline looks methods up by name and executes them with the instance
- * as the topmost operand. The reference implementations are the
+ * as the topmost operand. The contract is written out in full by the
  * PostScript base classes in data/ppmimage.ps (DeviceRGB) and
  * data/pgmimage.ps (DeviceGray); data/nulldev.ps is the minimal
  * conforming device. A C device specializes a base class: it copies the
