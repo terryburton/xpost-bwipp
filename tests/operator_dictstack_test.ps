@@ -100,7 +100,10 @@
 { //boom setundercolorremoval } (setundercolorremoval with a raising procedure) probe
 
 % colour spaces carrying a procedure of the program's
-{ [ /Separation /All /DeviceGray //boom ] setcolorspace 0.5 setcolor
+% An ordinary colorant name, because the special names All and None ignore
+% the tint transform (PLRM 4.8.4) and a transform that is never consulted
+% cannot raise -- which is what this case is here to watch being unwound.
+{ [ /Separation /Spot1 /DeviceGray //boom ] setcolorspace 0.5 setcolor
   0 0 10 10 rectfill }
     (a Separation whose tint transform raises) probe
 { [ /Indexed /DeviceRGB 1 //boom ] setcolorspace }

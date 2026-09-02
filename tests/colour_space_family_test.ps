@@ -541,4 +541,22 @@
 { [ /DeviceN [ (A) (B) ] /DeviceRGB { pop pop 0 0 0 } ] setcolorspace } outcome /ok eq
 (DeviceN) (still takes them as strings) assert2
 
+% PLRM 4.8.4 gives the colorant name All a meaning the tint transform has no
+% part in: painting in it "appl[ies] tint values to all available colorants
+% at once", and the space "ignore[s] the alternativeSpace and tintTransform
+% parameters (though dummy values must still be provided)". So the transform
+% below, which answers white whatever it is given, must not be consulted --
+% a tint of one is full ink and a tint of a half is half of it. The same
+% transform under an ordinary colorant name is consulted, which is what
+% makes this a test of the name rather than of the tint.
+[ /Separation /All /DeviceGray { pop 1 } ] setcolorspace
+1 setcolor currentgray 0.0 sub abs 0.001 lt
+(Separation /All) (paints full ink at a tint of one, where its transform says white) assert2
+[ /Separation /All /DeviceGray { pop 1 } ] setcolorspace
+0.5 setcolor currentgray 0.5 sub abs 0.001 lt
+(Separation /All) (carries the tint itself, not the constant its transform returns) assert2
+[ /Separation /Spot1 /DeviceGray { pop 1 } ] setcolorspace
+1 setcolor currentgray 1.0 sub abs 0.001 lt
+(Separation /Spot1) (still reaches its colour through its own tint transform) assert2
+
 verdict

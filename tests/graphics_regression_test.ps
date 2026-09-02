@@ -651,7 +651,16 @@ gsave
    /Function << /FunctionType 2 /Domain [ 0 1 ] /C0 [ 0 ] /C1 [ 1 ] /N 1 >>
 >> shfill
 grestore
-32 32 inkat (a radial shading is dark at its centre) assert
+% PLRM 4.9.3: the blend circles are painted in order of increasing s and the
+% painting is opaque, so "if a point lies within more than one blend circle,
+% its final color will be that of the last of the enclosing circles to be
+% painted, corresponding to the greatest value of s". These circles are
+% concentric and the smaller has a radius, so the centre lies inside every
+% one of them -- including the last, which carries the ending colour. The
+% centre therefore takes the colour of the rim and not of the starting
+% circle, which is the one place a starting radius above zero can be told
+% apart from a starting point.
+32 32 inkat not (a radial shading takes the last enclosing circle's colour at its centre) assert
 32 53 inkat not (a radial shading lightens to its rim) assert
 12 12 inkat not (an unextended radial shading leaves the corners) assert
 erasepage

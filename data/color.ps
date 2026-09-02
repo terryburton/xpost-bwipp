@@ -723,6 +723,45 @@ end
 } put
 
 %
+%  The colorant a Separation space names, or null for a space that is not a
+%  Separation. PLRM 4.8.4 admits the name as a name or as a string, so both
+%  arrive here and one kind leaves.
+%
+%  One reading rather than one per special name: All and None are answered
+%  from the same place, and a space that satisfied one test and not the
+%  other would be a space painting in every colorant and in none.
+%
+.xpostsys /.sepcolorant {  % space  .  name|null
+    dup type /arraytype eq {
+        dup length 2 ge {
+            dup 0 get /Separation eq {
+                1 get dup type /stringtype eq { cvn } if
+            }{ pop null } ifelse
+        }{ pop null } ifelse
+    }{ pop null } ifelse
+} put
+
+%
+%  Paint in every colorant the device has at the tint given. PLRM 4.8.4:
+%  the colorant name All "refers collectively to all colorants available on
+%  a device", and painting in it "apply[s] tint values to all available
+%  colorants at once" -- registration marks being the use it names. The
+%  space's alternative and tint transform are ignored, so the tint reaches
+%  the device's own colorants and nothing stands between.
+%
+.xpostsys /.sepallcolor {  % tint  .  -
+    DEVICE /nativecolorspace 2 copy known { get }{ pop pop /DeviceGray } ifelse
+    dup /DeviceCMYK eq {
+        pop dup dup dup setcmykcolor
+    }{
+        /DeviceRGB eq
+            { 1 exch sub dup dup setrgbcolor }
+            { 1 exch sub setgray }
+        ifelse
+    } ifelse
+} put
+
+%
 %  The alternative-space colour a Separation or DeviceN tint transforms to
 %
 %  The tint transform is the program's, so it runs beneath the boundary:
@@ -736,6 +775,9 @@ end
 .xpostsys /.sepconv {  % -  .  -
     graphicsdict /.csstash get aload pop
     graphicsdict /.csspace get
+    dup //.sepcolorant exec /All eq {
+        pop //.sepallcolor exec
+    }{
     dup 0 get /Separation eq { DEVICE /.registersep known } { false } ifelse {
         % A device that preserves separations also receives the
         % (tint, space) pair: convert first (the device-space
@@ -759,6 +801,7 @@ end
         3 get //.pexec exec
         graphicsdict /.csspace get 2 get //.csalt exec
         setcolor
+    } ifelse
     } ifelse
 } put
 
@@ -1110,15 +1153,7 @@ end
 %  colorant, which is the opposite of painting in none.
 %
 .xpostsys /.spacenomarks {  % space  .  bool
-    dup type /arraytype eq {
-        dup length 2 ge {
-            dup 0 get /Separation eq {
-                1 get
-                dup type /stringtype eq { cvn } if
-                /None eq
-            }{ pop false } ifelse
-        }{ pop false } ifelse
-    }{ pop false } ifelse
+    //.sepcolorant exec /None eq
 } put
 
 %
