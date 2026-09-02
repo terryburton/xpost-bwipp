@@ -950,6 +950,34 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  rather than reached through .cunit because this runs once per
 %  component per pixel of an image.
 %
+%  The tables a sampled image's bytes are read through: one per component,
+%  each mapping a sample to the value the Decode entry puts it at, and each
+%  already carried into the range the device paints in.
+%
+%  PLRM 4.10.5 gives Decode as a min-max pair per component and a sample as
+%  its place between them, so what a device writer needs is the same 256
+%  answers per component however it goes on to write them. Three writers
+%  wanted the identical table and each built its own; it is built here once
+%  and they read it.
+%
+.xpostsys /.decodeluts {  % decode ncomp  .  [ lut ... ]
+    2 dict begin
+    /dlnc exch def /dldec exch def
+    [ 0 1 dlnc 1 sub { /c exch def
+        /dlt 256 string def
+        0 1 255 { /v exch def
+            dlt v
+            v 255 div
+            dldec c 2 mul 1 add get dldec c 2 mul get sub mul
+            dldec c 2 mul get add
+            //.xpostsys /.c255 get exec
+            put
+        } for dlt
+    } for ]
+    end
+} put
+
+%
 .xpostsys /.c255 {  % v  .  byte
     dup 0 lt { pop 0 } if dup 1 gt { pop 1 } if
     255 mul round cvi

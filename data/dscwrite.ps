@@ -168,17 +168,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 20 { //.dscwritebind0 {exch def} forall
 
     % one byte-to-byte table per component, so the samples go out decoded
-    /diluts [ 0 1 dinc 1 sub { /c exch def
-        /dilt 256 string def
-        0 1 255 { /v exch def
-            dilt v
-            v 255 div
-            didec c 2 mul 1 add get didec c 2 mul get sub mul
-            didec c 2 mul get add
-            //.xpostsys /.c255 get exec
-            put
-        } for dilt
-    } for ] def
+        /diluts didec dinc //.xpostsys /.decodeluts get exec def
     /dihex 2 string def
 
     .qsave

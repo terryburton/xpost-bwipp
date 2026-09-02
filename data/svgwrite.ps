@@ -22,7 +22,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.svgwritebind1 [ /siint /sidec /sirows /sim /sinc /sih /siw ] readonly put
 .xpostsys /.svgwritebind2 [ /smint /smdata /smm /smpol /smh /smw ] readonly put
 .xpostsys /.svgwritebind3 [ /spb /spg /spr ] readonly put
-.xpostsys /.pdfwritebind3 [ /spy3 /spx3 /spy2 /spx2 /spy1 /spx1 ] readonly put
+%  The shading-path argument names are the PDF writer's, defined where it
+%  defines them: both writers bind the same six, and stating them twice in
+%  the one dictionary they share meant whichever file loaded second decided
+%  what the name held. Identical today, and a divergence nothing could see
+%  the moment one of them changed.
 .xpostsys /.svgwritebind4 [ /svchunks /svmat /svtt /svys /svxs /svbb ] readonly put
 .xpostsys /.svgwritebind5 [ /y /x /b /g /r ] readonly put
 .xpostsys /.svgwritebind6 [ /y2 /x2 /y1 /x1 /b /g /r ] readonly put
@@ -285,17 +289,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % bytes, so they are compared as bytes.
     /PaintImageMasked {  % w h ncomp mat rows decode interp mbits mw mh mranges IMAGE  .  -
     28 { //.svgwritebind7 {exch def} forall
-        /qkluts [ 0 1 qknc 1 sub { /c exch def
-            /qklt 256 string def
-            0 1 255 { /v exch def
-                qklt v
-                v 255 div
-                qkdec c 2 mul 1 add get qkdec c 2 mul get sub mul
-                qkdec c 2 mul get add
-                //.xpostsys /.c255 get exec
-                put
-            } for qklt
-        } for ] def
+        /qkluts qkdec qknc //.xpostsys /.decodeluts get exec def
         /qkrb qkbits null ne { qkmw 7 add 8 idiv }{ 0 } ifelse def
         [ 0 1 qkh 1 sub { /y exch def
             /sr qkrows y get def
@@ -369,17 +363,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     24 { //.svgwritebind1 {exch def} forall
 
         % Per-component decode tables to bytes
-        /siluts [ 0 1 sinc 1 sub { /c exch def
-            /silt 256 string def
-            0 1 255 { /v exch def
-                silt v
-                v 255 div
-                sidec c 2 mul 1 add get sidec c 2 mul get sub mul
-                sidec c 2 mul get add
-                //.xpostsys /.c255 get exec
-                put
-            } for silt
-        } for ] def
+        /siluts sidec sinc //.xpostsys /.decodeluts get exec def
         % PNG where this build can write one, since that is a format a
         % reader of this document is required to have (SVG 1.1 4.6), and
         % the bitmap below where it cannot: a document with a picture
