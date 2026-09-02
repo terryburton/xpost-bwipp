@@ -54,7 +54,14 @@ want eq (rows may each use their own filter) assert
 { src << /Predictor 16 >> /FlateDecode filter } /rangecheck (a predictor above the png range) raises
 { src << /Predictor (two) >> /FlateDecode filter } /typecheck (a predictor that is not an integer) raises
 { src << /Predictor 2 /BitsPerComponent 4 >> /FlateDecode filter } /rangecheck (a sample narrower than a byte) raises
-{ src << /Predictor 2 /Colors 9 >> /FlateDecode filter } /rangecheck (more colours than a pixel carries) raises
+% PLRM 3.13.3 types Colors as "1 or greater", not as the count a device
+% space happens to take, so a stream naming more of them is a stream this
+% stage carries. What it is still held to is a row it can size.
+{ src << /Predictor 2 /Colors 9 >> /FlateDecode filter pop } outcome /ok eq
+    (more colours than a device space takes) assert
+{ src << /Predictor 2 /Colors 0 >> /FlateDecode filter } /rangecheck (a sample of no components) raises
+{ src << /Predictor 12 /Colors 40000 /Columns 40000 >> /FlateDecode filter } /rangecheck
+    (a row too large for the stage to hold) raises
 { src << /Predictor 2 /Columns 0 >> /FlateDecode filter } /rangecheck (a row of no columns) raises
 { src << /Predictor 2 /Columns 2000000000 >> /FlateDecode filter } /rangecheck (a row of more columns than the stage sizes) raises
 
@@ -146,5 +153,24 @@ want eq (rows may each use their own filter) assert
     /rangecheck (an encoder sample narrower than a byte) raises
 
 nm deletefile
+
+% PLRM 3.13.3 types the sample width at 1, 2, 4 or 8 bits. The PNG
+% predictors difference over whole bytes whatever that width is -- their
+% stride is one sample rounded up to a byte -- so a sample narrower than a
+% byte is carried by the same arithmetic the wider ones use. Each case
+% below is a known image differenced by a known filter, and what is
+% required back is the image.
+<78DA6362E0665255852000049D00F2> << /Predictor 13 /Colors 1 /BitsPerComponent 1 /Columns 16 >>
+    exch /r.d exch def /r.p exch def r.d r.p /FlateDecode filter 8 string readstring pop
+    <000B25304A556F7A> eq (one bit a sample, differenced against the row above) assert
+<78DA6362E016536452050204010011C60207> << /Predictor 13 /Colors 1 /BitsPerComponent 2 /Columns 16 >>
+    exch /r.d exch def /r.p exch def r.d r.p /FlateDecode filter 16 string readstring pop
+    <000B162125303B464A55606B6F7A8590> eq (two bits a sample) assert
+<78DA6364E08600465518C30BC6C887320021B00217> << /Predictor 12 /Colors 1 /BitsPerComponent 4 /Columns 16 >>
+    exch /r.d exch def /r.p exch def r.d r.p /FlateDecode filter 32 string readstring pop
+    <000B16212C37424D25303B46515C67724A55606B76818C976F7A85909BA6B1BC> eq (four bits a sample, differenced against the sample before it) assert
+<78DA6364E0168303465503248E572882030040FA0397> << /Predictor 12 /Colors 3 /BitsPerComponent 4 /Columns 8 >>
+    exch /r.d exch def /r.p exch def r.d r.p /FlateDecode filter 36 string readstring pop
+    <000B16212C37424D58636E7925303B46515C67727D88939E4A55606B76818C97A2ADB8C3> eq (four bits over three components, so the stride is two bytes) assert
 
 verdict

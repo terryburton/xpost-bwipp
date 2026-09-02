@@ -446,13 +446,24 @@ int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f,
     colors = _dict_int(ctx, dict, "Colors", 1);
     bpc = _dict_int(ctx, dict, "BitsPerComponent", 8);
     columns = _dict_int(ctx, dict, "Columns", 1);
-    if (colors < 1 || colors > 4 || columns < 1 || columns > (1 << 20))
+    if (colors < 1 || columns < 1 || columns > (1 << 20))
         return rangecheck;
     if (bpc != 1 && bpc != 2 && bpc != 4 && bpc != 8 && bpc != 16)
         return rangecheck;
-    /* the differencing the predictors undo is defined on whole bytes
-       here, so a sample narrower than one is not screened out silently */
-    if (bpc < 8)
+    /* PLRM 3.13.3 asks only that Colors be one or more, so the count is
+       not held to the four a device space happens to take -- a DeviceN
+       stream carries as many as it names. What bounds it here is that
+       the stage keeps two rows, so a row has to be a size at all. */
+    if (colors > (1 << 24) / (bpc * columns))
+        return rangecheck;
+    /* Predictor 2 differences each sample against the one before it, and
+       it does that over whole bytes here, so a sample narrower than a
+       byte would be taken against the wrong neighbour: refused rather
+       than decoded wrongly. The PNG predictors are defined on bytes
+       whatever the sample width -- their stride is the sample rounded up
+       to a byte, which is what this stage already computes -- so they
+       take the narrow widths PLRM types. */
+    if (predictor == 2 && bpc < 8)
         return rangecheck;
 
     layered = (enc ? xpost_file_cons_filter_enc_predictor
