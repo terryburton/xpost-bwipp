@@ -515,30 +515,91 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /t1 sh /Domain 2 copy known { get 1 get }{ pop pop 1 } ifelse def
     /ex sh /Extend 2 copy known { get }{ pop pop [ false false ] } ifelse def
 
-    % Step count from the device size of the swept ring
-    /nb cx1 cx0 sub cy1 cy0 sub dtransform dup mul exch dup mul add sqrt
-        cr1 cr0 sub 0 dtransform dup mul exch dup mul add sqrt add
-        round cvi 16 2 copy lt { exch } if pop
-        256 2 copy gt { exch } if pop def
-    /inout cr1 cr0 ge def
-    ex inout { 1 }{ 0 } ifelse get {
-        inout { t1 }{ t0 } ifelse //.shcolor exec
-        newpath
-        inout { cx1 cy1 }{ cx0 cy0 } ifelse
-        2 copy //.clipbig exec 0 360 arc fill
+    /dr cr1 cr0 sub def
+
+    % How far beyond each end the blend circles run, where Extend asks for
+    % them (PLRM 4.9.3): at the smaller end as far as the s whose radius is
+    % zero, at the larger end as far as the s whose circle covers what is
+    % being painted. A family whose radius never changes has no smaller
+    % end, and is carried until the moving centre has taken it clear; one
+    % that neither grows nor moves extends nowhere.
+    /big cx1 cy1 //.clipbig exec
+         cx0 cy0 //.clipbig exec 2 copy lt { exch } if pop def
+    /dc cx1 cx0 sub dup mul cy1 cy0 sub dup mul add sqrt def
+    /slo 0 def
+    /shi 1 def
+    ex 0 get {
+        dr 0 ne
+            { /slo dr 0 gt { cr0 neg dr div }{ big cr0 sub dr div } ifelse def }
+            { dc 0 gt { /slo big dc div neg def } if }
+        ifelse
+    } if
+    ex 1 get {
+        dr 0 ne
+            { /shi dr 0 gt { big cr0 sub dr div }{ cr0 neg dr div } ifelse def }
+            { dc 0 gt { /shi 1 big dc div add def } if }
+        ifelse
     } if
 
-    % Paint from the larger circle to the smaller
-    nb -1 0 { /i exch def
-        /s i nb div def
-        inout not { /s 1 s sub def } if
-        s t1 t0 sub mul t0 add //.shcolor exec
-        newpath
-        cx0 cx1 cx0 sub s mul add
-        cy0 cy1 cy0 sub s mul add
-        cr0 cr1 cr0 sub s mul add
-        dup 0 gt { 0 360 arc fill }{ pop pop pop } ifelse
-    } for
+    %  A point takes the colour of the greatest s whose circle it lies ON
+    %  (PLRM 4.9.3: the circles are painted in order of increasing s, each
+    %  over those before it). What is laid down for each step is therefore
+    %  the region the rim SWEEPS between that step and the next -- the
+    %  symmetric difference of the two discs, which is what filling both
+    %  circles under the even-odd rule gives -- and the steps go in
+    %  increasing s, so where a rim passes a point twice the later pass is
+    %  the one left showing.
+    %
+    %  Filling whole discs instead answers with the greatest s CONTAINING
+    %  the point. The two agree only while the family is shrinking: for a
+    %  growing one every interior point is inside every later disc, so the
+    %  answer is s = 1 everywhere and the shading comes out flat.
+    %
+    %  Each circle is begun from its own start point rather than continued
+    %  from the last, so the two are separate subpaths and the rule has two
+    %  boundaries to count rather than one figure joined by a line.
+    /.blendcircle {  % s  .  -
+        dup cr0 exch dr mul add /rr exch def
+        dup cx0 exch cx1 cx0 sub mul add /xx exch def
+        cy0 exch cy1 cy0 sub mul add /yy exch def
+        rr 0 gt {
+            xx rr add yy moveto
+            xx yy rr 0 360 arc closepath
+        } if
+    } def
+
+    %  How many steps a stretch of the parameter is worth: what the rim
+    %  moves across the device over it, in whole device units, held between
+    %  a floor that keeps a short stretch from being one jump and a ceiling
+    %  that keeps a long extension from running away.
+    /.blendsteps {  % s0 s1  .  int
+        exch sub abs dc dr abs add mul
+        0 dtransform dup mul exch dup mul add sqrt
+        round cvi 8 2 copy lt { exch } if pop
+        1024 2 copy gt { exch } if pop
+    } def
+
+    %  One stretch, painted in increasing s. Beyond either end the colour
+    %  is that end's own: the extension carries the starting or ending
+    %  colour outward rather than reading the function outside its domain.
+    /.blendrun {  % s0 s1  .  -
+        2 copy .blendsteps /bn exch def
+        /bhi exch def /blo exch def
+        0 1 bn 1 sub { /bi exch def
+            /sa blo bhi blo sub bi bn div mul add def
+            /sb blo bhi blo sub bi 1 add bn div mul add def
+            sa 0 lt { t0 }{ sa 1 gt { t1 }{ sa t1 t0 sub mul t0 add } ifelse } ifelse
+            //.shcolor exec
+            newpath sa .blendcircle sb .blendcircle eofill
+        } for
+    } def
+
+    %  The stretches are painted in increasing s, and the declared range is
+    %  given its own steps so that extending the shading cannot coarsen the
+    %  part the function actually describes.
+    slo 0 lt { slo 0 .blendrun } if
+    0 1 .blendrun
+    shi 1 gt { 1 shi .blendrun } if
     end
 } def
 
