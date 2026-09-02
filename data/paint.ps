@@ -1129,7 +1129,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     allrows y buf dup length string copy put
                 } ifelse
             } for
-            //.clipvoid exec not {
+            % An image of no samples paints nothing, which is settled here
+            % rather than in each device: a device is not asked to paint
+            % it, exactly as it is not asked when the clip admits nothing.
+            % Asked, the devices did not agree -- most took the empty grid
+            % and marked nothing, and the one that hands its samples to an
+            % encoder refused a picture of no width.
+            //.clipvoid exec not width 0 gt and height 0 gt and {
                 width height ncomp m allrows decode interp
                 mbits null eq mranges null eq and {
                     DEVICE dup /PaintImage get exec
@@ -1697,6 +1703,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /w dd /Width get def
     /h dd /Height get def
     /bpc dd /BitsPerComponent get def
+    % The depth is asked for here because interleave type 1 does not hand
+    % it to the painter: its row procedure de-interleaves the mask from the
+    % samples and yields the row already at eight bits, so the painter --
+    % where every other route has its depth checked -- is told eight and
+    % never sees what the dictionary declared. PLRM Table 4.25 allows 1, 2,
+    % 4, 8 and 12, and Table 4.24 has the mask carry the image's own depth
+    % under this interleave, so the one check answers for both.
+    //.imgbits bpc known not
+        { end /image cvx /rangecheck signalerror } if
     /n //.ncomponents exec def
     /mw md /Width get def
     /mh md /Height get def
