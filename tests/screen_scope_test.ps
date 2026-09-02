@@ -37,4 +37,19 @@ scr.depth scr.top eq
 scr.proc not
     (the spot function did not see the builder's own names) assert
 
+% PLRM 8.2 has setscreen "perform the equivalent of sethalftone", which it
+% cannot do by taking what sethalftone will not. A frequency is cells to
+% the inch, so at zero or below it names no screen, and a halftone
+% dictionary stating one is already refused. What setscreen did instead
+% was record the frequency and install nothing, so currenthalftone handed
+% back a dictionary that its own sethalftone refused -- a program could
+% not put back the screen it had just been given.
+{ 0 0 { pop } setscreen } /rangecheck
+    (a screen of no frequency) raises
+{ -10 0 { pop } setscreen } /rangecheck
+    (a screen of negative frequency) raises
+60 0 { pop } setscreen
+{ currenthalftone sethalftone } outcome /ok eq
+    (the screen setscreen installs is one sethalftone takes back) assert
+
 verdict

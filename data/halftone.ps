@@ -775,6 +775,15 @@ end } put
 /setscreen [ [ /numbertype /numbertype /proctype ]
              [ /numbertype /numbertype /nametype ] ] {
     //.uncoloredcell /on get { /setscreen cvx /undefined signalerror } if
+    % A frequency is cells to the inch, so at zero or below it names no
+    % screen -- the same reason a halftone dictionary stating one is
+    % refused (.htextent below). PLRM 8.2 has setscreen "perform the
+    % equivalent of sethalftone", which it cannot do by taking what
+    % sethalftone will not: what was recorded instead was a screen that
+    % installed nothing, and currenthalftone then reported a dictionary
+    % its own sethalftone refused -- so a program could not put back the
+    % screen it had just been given.
+    2 index 0 le { /setscreen cvx /rangecheck signalerror } if
     graphicsdict /currgstate get exch /screenproc exch put
     graphicsdict /currgstate get exch /screenangle exch put
     graphicsdict /currgstate get exch /screenfreq exch put
@@ -1194,10 +1203,10 @@ readonly put
 %
 %  Every entry stating an extent must state a positive one. A side of
 %  zero or less encloses no area and a frequency of zero or less names no
-%  screen, and a cell with no places in it cannot be screened with; PLRM
-%  gives these entries a type but no bound, so the bound is the one both
-%  of the interpreters this is measured against apply, refusing the
-%  dictionary rather than building an empty cell from it.
+%  screen, and a cell with no places in it cannot be screened with. PLRM
+%  gives these entries a type and not a bound, so the bound comes from
+%  what the entry is for: the dictionary is refused rather than built into
+%  a cell with no places in it.
 %
 %  The rule is put to the dictionary rather than to a list of keys per
 %  type, and .htvalidate asks it once after the type has had its say, so
