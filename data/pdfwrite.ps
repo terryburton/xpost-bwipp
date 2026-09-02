@@ -126,6 +126,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % 8.7.3.1), so it can.
     /PatternOverlap true
 
+    % The shading types this writer holds natively (PDF 8.7.4.5). The mesh
+    % types carry their geometry in a stream it does not restate.
+    /ShadingTypes << 1 true 2 true 3 true >>
+
     /.copydict //.classcopydict
     /.instance //.classinstance
 

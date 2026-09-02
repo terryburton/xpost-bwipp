@@ -271,6 +271,31 @@ answer dscwrite set:DeviceCMYK,DeviceRGB,Process data/dscwrite.ps
     given.
 disposition settled
 
+question ShadingTypes pdfwrite svgwrite
+    Which smooth-shading types this writer holds natively, as a set the
+    shading operator reads before it decomposes anything (PLRM 4.9.3,
+    data/shade.ps). A type in the set goes over whole and the consumer's
+    own arithmetic draws it; a type absent is resolved here into the fills
+    it decomposes to, as it always was.
+    There is no family answer, and it is a property of the format rather
+    than of the device: what one format states as a single object another
+    has no way to say at all. A device claiming a type it cannot write
+    would put a name in its output that its output never defines, which is
+    why the claim is stated where the writing is. A device with no shading
+    construct states nothing and is asked nothing.
+family per-device
+answer pdfwrite set:1,2,3 data/pdfwrite.ps
+    PDF holds function-based, axial and radial shadings as dictionaries a
+    page names (PDF 8.7.4.5), with their functions as objects beside them.
+    The mesh types are not claimed: their geometry is a stream this writer
+    does not restate.
+answer svgwrite set:2 data/svgwrite.ps
+    SVG has a gradient for the axial case and nothing that answers the
+    others: a function-based shading has no SVG form, and a radial one
+    needs a focal radius not every consumer reads. Only the axial type is
+    claimed, and the rest decompose.
+disposition settled
+
 question PatternOverlap pdfwrite svgwrite
     Whether the tiling construct this writer has can hold a cell larger
     than the step between cells. PLRM Table 4.9 lets XStep and YStep
@@ -666,8 +691,9 @@ method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage dscwrite pdfwrite svgwrite
 method PaintStencil dscwrite pdfwrite svgwrite
-method ShadingPaint pdfwrite
+method ShadingPaint pdfwrite svgwrite
 method .shdescribe pdfwrite
+method .svgshrgb svgwrite
 method .fndescribe pdfwrite
 method .emitfnobj pdfwrite
 method .fnref pdfwrite
@@ -779,6 +805,7 @@ state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
 state .pdfpatterns dscwrite pdfwrite
 state .pdfshadings dscwrite pdfwrite
+state .svggrads svgwrite
 fixed .pdfstrokecolor dscwrite pdfwrite
 state .playclass record
 state .playdev record

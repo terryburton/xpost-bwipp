@@ -153,6 +153,7 @@ tests/run-dsc-roundtrip-test.sh \
 tests/check-pdf-overprint.sh \
 tests/check-pdf-empty-job.sh \
 tests/check-pdf-shading.sh \
+tests/check-svg-shading.sh \
 tests/check-vector-stroke-clip.sh \
 tests/check-resource-file.sh \
 tests/check-compaction-safe-point.sh \

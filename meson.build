@@ -2375,6 +2375,16 @@ test('pdf-overprint',
   suite: cost_fast,
   timeout: 120)
 
+# An axial shading reaches the SVG as a gradient the consumer draws, rather
+# than as the flat cells a decomposition leaves.
+test('svg-shading',
+  find_program('tests/check-svg-shading.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # Analytic shadings reach the PDF as shading dictionaries rather than as the
 # flat cells a decomposition would leave: the consumer draws the gradient.
 test('pdf-shading',

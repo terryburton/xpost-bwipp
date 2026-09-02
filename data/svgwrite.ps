@@ -131,6 +131,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .svgids /clipser 0 put
         .svgids /clipfor 0 put
         .state /.svgclipopen .dev /.svgclipopen get put
+        .state /.svggrads 0 put  % gradients named on this page
         .state /.svgmasks 64 dict put  % masks already written, so a repeated glyph is written once
         .state /.svgpatterns 0 array put  % tiling cells already written as pattern elements
     .dev
@@ -807,6 +808,97 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % makes the identity safe to trust: two handovers in a row naming the
     % same region are the same region, whatever the counter does over the
     % length of a run.
+    % The shading types this writer holds natively. SVG has a gradient for
+    % the axial case and nothing for the others: a function-based shading
+    % has no SVG form at all, and a radial one needs a focal radius that
+    % not every consumer reads. Those decompose, as they always have.
+    /ShadingTypes << 2 true >>
+
+    % A colour, whatever space the shading states it in, as the RGB an SVG
+    % stop takes. The count is the function's own, so the space is read off
+    % what it answered rather than named twice.
+    /.svgshrgb {  % c0..cn-1 n  .  -
+        dup 1 eq { pop dup dup .svgrgb }{
+        dup 3 eq { pop .svgrgb }{
+        4 eq {
+            % PLRM 7.2.4: each additive component is what the subtractive
+            % one and the black together leave.
+            4 -1 roll 1 index add 1 exch sub dup 0 lt { pop 0 } if  % k c m y r
+            4 1 roll                                                % r k c m y
+            3 -1 roll 1 index add 1 exch sub dup 0 lt { pop 0 } if  % r k m y? ..
+            3 1 roll exch 1 index add 1 exch sub dup 0 lt { pop 0 } if
+            exch pop .svgrgb
+        }{  % a count this writer cannot read: black, and the shading is
+           % still drawn where it would otherwise vanish
+          { pop } repeat 0 0 0 .svgrgb } ifelse } ifelse } ifelse
+    } bind
+
+    % Paint an axial shading as an SVG gradient the consumer draws.
+    %
+    % The colour ramp is sampled into stops: SVG interpolates between them,
+    % so what is written is a description of the ramp and not the bands a
+    % decomposition would leave. The geometry is not sampled at all -- the
+    % axis goes over as it stands, under the mapping from the space the
+    % program painted in.
+    %
+    % PLRM 4.9.3 leaves the shading unpainted beyond an end it does not
+    % extend, and SVG has no spread that stops. A stop of no opacity at
+    % that end says the same thing: pad carries it outward, so beyond the
+    % axis nothing is laid down.
+    /ShadingPaint {  % shdict IMAGE  .  -
+    24 {
+        /shsh exch def
+        /shfn shsh /Function get def
+        /shco shsh /Coords get def
+        /shex shsh /Extend 2 copy known { get }{ pop pop [false false] } ifelse def
+        /shid .state /.svggrads get def
+        .state /.svggrads shid 1 add put
+        /shn 32 def          % stops across the ramp
+        /shg 0.0001 def      % how far inside a guard stop leaves the ramp
+
+        % Where the ramp itself sits in the gradient's offsets: hard against
+        % the end this shading extends, a hair inside the end it does not,
+        % so a guard stop of no opacity has somewhere to sit.
+        /shlo shex 0 get { 0 }{ shg } ifelse def
+        /shhi shex 1 get { 1 }{ 1 shg sub } ifelse def
+
+        /shopen .clipgroup def
+
+        (<linearGradient id="xg) .put shid 20 string cvs .put
+        (" gradientUnits="userSpaceOnUse" gradientTransform="matrix\() .put
+        matrix currentmatrix { .svgnum ( ) .put } forall
+        (\)" x1=") .put shco 0 get .svgnum
+        (" y1=") .put shco 1 get .svgnum
+        (" x2=") .put shco 2 get .svgnum
+        (" y2=") .put shco 3 get .svgnum
+        ("  spreadMethod="pad">\n) .put
+
+        shex 0 get not {
+            (<stop offset="0" stop-color="rgb\(0%,0%,0%\)" stop-opacity="0"/>\n) .put
+        } if
+        0 1 shn {
+            /shi exch def
+            /sht shi shn div def
+            (<stop offset=") .put
+            shlo sht shhi shlo sub mul add .svgnum
+            (" stop-color=) .put
+            sht shfn //.xpostsys /.fneval get exec .svgshrgb
+            (/>\n) .put
+        } for
+        shex 1 get not {
+            (<stop offset="1" stop-color="rgb\(0%,0%,0%\)" stop-opacity="0"/>\n) .put
+        } if
+        (</linearGradient>\n) .put
+
+        % The shading paints the whole region it is given; the clip above is
+        % what bounds it, so the shape carrying the gradient is the page.
+        (<rect x="0" y="0" width=") .put width .svgnum
+        (" height=") .put height .svgnum
+        (" fill="url\(#xg) .put shid 20 string cvs .put (\)"/>\n) .put
+
+        shopen { (</g>\n) .put } if
+    } //.indevwork exec } bind
+
     /ClipPath {  % path evenodd serial IMAGE  .  -
     12 {
         /.svgcser exch def
