@@ -113,6 +113,7 @@ static Xpost_Object name_FontType;
 static Xpost_Object name_GlyphData;
 static Xpost_Object name_GlyphExtents;
 static Xpost_Object name_Metrics;
+static Xpost_Object name_PaintType;
 static Xpost_Object name_Private;
 static Xpost_Object name_PutPix;
 static Xpost_Object name_ScreenPaint;
@@ -172,6 +173,7 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_GlyphData, "GlyphData" },
     { &name_GlyphExtents, "GlyphExtents" },
     { &name_Metrics, "Metrics" },
+    { &name_PaintType, "PaintType" },
     { &name_Private, "Private" },
     { &name_PutPix, "PutPix" },
     { &name_ScreenPaint, "ScreenPaint" },
@@ -2066,6 +2068,16 @@ have_charstrings: ;
        FontMatrix in dictionary copies */
     ret = xpost_dict_put(ctx, fontdict, name_FontType,
                        xpost_int_cons(istt ? 42 : cffreal ? 2 : 1));
+    if (ret)
+        goto fail;
+    /* PLRM Table 5.4 requires PaintType of a Type 1 font dictionary, and
+       the types above keep the Type 1 conventions. Every place that reads
+       it here already treats its absence as a filled outline, which is
+       what nought means, so stating it says what the interpreter was
+       doing anyway -- and lets a program read the entry it is entitled
+       to, rather than meeting an undefined where the specification
+       promises a number. */
+    ret = xpost_dict_put(ctx, fontdict, name_PaintType, xpost_int_cons(0));
     if (ret)
         goto fail;
     {
