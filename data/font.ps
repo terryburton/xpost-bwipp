@@ -280,11 +280,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % the cache is sized from and the glyph is clipped to.
     %
     % A font whose glyphs come out of a face carries the box in the data
-    % those glyphs come from, and the loaders here put it in the
-    % dictionary from the face they build -- so a program that leaves
-    % the entry out is not withholding something unknowable, it is
-    % leaving out an entry the specification asks it for. The loader
-    % supplying it afterwards is a convenience and not the requirement.
+    % those glyphs come from, and a loader here states it in the
+    % dictionary from the face it builds where the dictionary declares
+    % no box of its own -- so a program that leaves the entry out is not
+    % withholding something unknowable, it is leaving out an entry the
+    % specification asks it for. The loader supplying it afterwards is a
+    % convenience and not the requirement, and it is asked here so that
+    % this convenience is never what a base font's box is: a declared
+    % box is read in the space its FontMatrix names (PLRM Tables 5.2 and
+    % 5.3) and stands as the program wrote it.
     %
     % Asked of the base fonts and not of a Type 0, which is the branch
     % above. A composite font's glyphs are its descendants' and its box

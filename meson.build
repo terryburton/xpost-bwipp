@@ -3590,6 +3590,16 @@ test('font-substitute',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# The glyph coordinate system a font program declares: FontBBox states a
+# box in it (PLRM Table 5.3) and FontMatrix maps it to user space (PLRM
+# Table 5.2), so the rectangle a font occupies is the two together and
+# definefont must leave it where the program put it.
+test('font-bbox-matrix',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/font_bbox_matrix_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The two font directories hold different populations: the local one goes
 # away with the save level that defined its fonts, the global one does not.
 # What definefont checks of a font dictionary: the entries a type requires,

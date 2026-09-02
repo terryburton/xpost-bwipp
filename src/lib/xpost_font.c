@@ -1278,10 +1278,10 @@ xpost_font_face_get_bbox(void *face, Xpost_Object *bboxarray, real em){
     FT_Face f = face;
     real s = 1.0;
 
-    /* FontBBox belongs to character space, whose scale is a convention
-       of the font type (1000 units per em for Type 1, one unit for
-       Type 42): normalize the face's design units to the em size the
-       caller's dictionary declares through its FontMatrix */
+    /* FontBBox belongs to the glyph coordinate system, whose scale is a
+       convention of the font type (1000 units per em for Type 1, one
+       unit for Type 42): the face's design units are normalized to the
+       em the caller names */
     if (f->units_per_EM > 0)
         s = em / f->units_per_EM;
     bboxarray[0] = xpost_real_cons(f->bbox.xMin * s);

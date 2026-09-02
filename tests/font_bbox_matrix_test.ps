@@ -1,0 +1,223 @@
+%!testlib
+% What definefont leaves of the glyph coordinate system a program
+% declared, run through `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A font states its glyph coordinate system in two entries that mean
+% something only together. PLRM Table 5.3 gives FontBBox as "an array of
+% four numbers in the glyph coordinate system giving the left, bottom,
+% right, and top coordinates ... of the font bounding box", and Table 5.2
+% gives FontMatrix as "an array that transforms the glyph coordinate
+% system into the user coordinate system". Neither entry names a
+% rectangle by itself: the box is a set of numbers and the matrix says
+% what they are numbers of, so the rectangle a font occupies is the box
+% through the matrix, and a change to either entry alone moves it.
+%
+% That rectangle is what this suite holds definefont to. PLRM 8.2 lists
+% what definefont may insert -- FID, and the entries a CIDFont or a
+% composite needs -- and restating a program's glyph coordinate system is
+% not among them.
+%
+% The subject is a font whose glyph space is NOT the thousand-unit one a
+% Type 1 program conventionally uses, because a font that does use it
+% cannot show the fault: restating a thousand-unit box in thousand-unit
+% terms changes nothing, and a suite built only on such a font passes
+% whatever the loader does with the two entries. The control is the same
+% font at a thousand units, which is the reading that must not move
+% either.
+%
+% The rectangle is what is compared, rather than the four numbers, so the
+% suite says nothing about which representation a defined font carries. A
+% loader that leaves both entries as the program wrote them and one that
+% restates box and matrix together in some other space describe the same
+% rectangle, and both are held to it.
+
+% A face answers for what is loaded here: a build without a face library
+% assembles no face from a font program, so it cannot ask the question
+% and says so rather than passing it.
+systemdict /NOFACES known
+  { (SKIPPED: this suite loads font programs through a face, and this build carries no face library) = flush quit } if
+
+% ---------------------------------------------------------------- the tools
+
+% bbox matrix  rect  [ left bottom right top ]
+% The rectangle a box occupies through a matrix. All four corners are
+% transformed and the extremes taken, so a matrix that rotates or skews
+% is measured as well as one that only scales.
+%
+% Both operands are made literal as they are bound. PLRM 5.2.1 warns that
+% "in many Type 1 fonts, the FontBBox array is executable" and that a
+% program reading it should use an explicit get -- and the get is only
+% half of it, because a value bound to a name is executed when the name
+% is. Without this the font's own box would run as a procedure.
+/rect {                                 % bbox matrix  .  [ l b r t ]
+    /rc.m exch cvlit def
+    /rc.b exch cvlit def
+    /rc.pts [ rc.b 0 get rc.b 1 get
+              rc.b 2 get rc.b 1 get
+              rc.b 2 get rc.b 3 get
+              rc.b 0 get rc.b 3 get ] def
+    rc.pts 0 get rc.pts 1 get rc.m transform
+    /rc.top exch def /rc.right exch def
+    /rc.bottom rc.top def /rc.left rc.right def
+    2 2 6 {
+        /rc.i exch def
+        rc.pts rc.i get rc.pts rc.i 1 add get rc.m transform
+        /rc.y exch def /rc.x exch def
+        rc.x rc.left lt { /rc.left rc.x def } if
+        rc.x rc.right gt { /rc.right rc.x def } if
+        rc.y rc.bottom lt { /rc.bottom rc.y def } if
+        rc.y rc.top gt { /rc.top rc.y def } if
+    } for
+    [ rc.left rc.bottom rc.right rc.top ]
+} bind def
+
+% rectA rectB  samerect  bool
+% The two rectangles are the same one. To a tolerance, because the two
+% sides are reals reached by different arithmetic; a millionth of the
+% edge, where the fault this suite exists for moves an edge by parts in
+% a hundred.
+/samerect {                             % [a] [b]  .  bool
+    /sr.b exch def
+    /sr.a exch def
+    /sr.ok true def
+    0 1 3 {
+        /sr.i exch def
+        /sr.u sr.a sr.i get def
+        /sr.v sr.b sr.i get def
+        /sr.tol sr.u abs sr.v abs add 1000000 div 0.000000001 add def
+        sr.u sr.v sub abs sr.tol gt { /sr.ok false def } if
+    } for
+    sr.ok
+} bind def
+
+% font  occupies  [ l b r t ]
+% The rectangle a font dictionary says it occupies, read the way
+% PLRM 5.2.1 asks the two entries to be read.
+/occupies {                             % font  .  [ l b r t ]
+    /oc.f exch def
+    oc.f /FontBBox get oc.f /FontMatrix get rect
+} bind def
+
+% ------------------------------------------------------- a Type 1 program
+%
+% A Type 1 font dictionary a program builds, whose glyph coordinate
+% system is `em` units to the em. definefont reassembles such a
+% dictionary into a font program and opens that as a face, which is the
+% loader under test.
+%
+% The charstrings have the shape of a charstring rather than the shape of
+% a drawing: what is measured is the dictionary definefont hands back,
+% and a glyph nobody paints is enough for that. Private carries a Subrs
+% array because a Type 1 private dictionary does.
+/t1font {                               % em  .  font
+    /t1.em exch def
+    /t1.d 12 dict def
+    t1.d begin
+        /FontType 1 def
+        /FontMatrix [ 1 t1.em div 0 0 1 t1.em div 0 0 ] def
+        /FontBBox [ -1000 -500 3000 2000 ] def
+        /Encoding 256 array def
+        0 1 255 { Encoding exch /.notdef put } for
+        Encoding 65 /A put
+        /CharStrings 3 dict def
+        CharStrings /.notdef <10bf317079bb21e4> put
+        CharStrings /A <10bf317079bb21e4> put
+        /Private 4 dict def
+        Private /lenIV 4 put
+        Private /Subrs 1 array put
+        Private /Subrs get 0 <10bf3170f9> put
+    end
+    t1.d
+} bind def
+
+% -------------------------------------------------- the subject and control
+
+/t1.subject.dict 2048 t1font def
+/t1.subject.rect t1.subject.dict occupies def
+/t1.subject /T1BBoxSubject t1.subject.dict definefont def
+
+/t1.control.dict 1000 t1font def
+/t1.control.rect t1.control.dict occupies def
+/t1.control /T1BBoxControl t1.control.dict definefont def
+
+% The loader ran and read the program's own em, which is what makes the
+% subject a subject. A run where no face was built would leave every
+% entry untouched and answer the questions below without asking them.
+t1.subject /.emunits known
+    (the subject's program was assembled into a face) assert
+t1.control /.emunits known
+    (the control's program was assembled into a face) assert
+t1.subject /.emunits known
+  { t1.subject /.emunits get 2048 eq }{ false } ifelse
+    (the subject's glyph space is 2048 units to the em) assert
+t1.control /.emunits known
+  { t1.control /.emunits get 1000 eq }{ false } ifelse
+    (the control's glyph space is 1000 units to the em) assert
+
+t1.subject occupies t1.subject.rect samerect
+    (a Type 1 at 2048 units to the em occupies the rectangle it declared) assert
+t1.control occupies t1.control.rect samerect
+    (a Type 1 at 1000 units to the em occupies the rectangle it declared) assert
+
+% findfont answers with the instance that was defined, so what a later
+% program reads back is what was measured above.
+/T1BBoxSubject findfont occupies t1.subject.rect samerect
+    (the rectangle survives being fetched back from the font directory) assert
+
+% ------------------------------------------------------- a Type 42 program
+%
+% The other loader that assembles a face out of a program its dictionary
+% carries. Its font data has to be a real TrueType program, so it is
+% borrowed from a face this host resolved by name; a host carrying no
+% such face cannot ask this half, and says which half it did not ask
+% rather than reporting on a question nobody put.
+/tt null def
+[ /DejaVuSans /LiberationSans /NotoSans /FreeSerif /Arial /Helvetica /Times-Roman ]
+{ findfont dup /FontType get 42 eq { /tt exch def exit }{ pop } ifelse } forall
+
+tt null eq {
+    (NOT ASKED: this host resolves no Type 42 face, so the TrueType) =
+    (           loader is unexercised here. The Type 1 loader above) =
+    (           was asked, and the suite reports only on that.) = flush
+}{
+    % A Type 42 whose glyph space is 2048 units to the em, which is what
+    % a TrueType program's own units usually are, and one at the identity
+    % PLRM 5.8.2 says a Type 42 dictionary should carry. Neither is the
+    % control here -- the Type 1 pair above carries that -- because the
+    % identity is no safer for a Type 42: what a TrueType face reports is
+    % its own design box rather than a restatement of the declared one,
+    % so a box written over the program's moves the rectangle at every
+    % scale, the identity included.
+    /t42font {                          % em  .  font
+        /t42.em exch def
+        << /FontType 42
+           /FontMatrix [ 1 t42.em div 0 0 1 t42.em div 0 0 ]
+           /FontBBox [ -1000 -500 3000 2000 ]
+           /Encoding tt /Encoding get
+           /sfnts tt /sfnts get >>
+    } bind def
+
+    /t42.subject.dict 2048 t42font def
+    /t42.subject.rect t42.subject.dict occupies def
+    /t42.subject /T42BBoxSubject t42.subject.dict definefont def
+
+    /t42.identity.dict 1 t42font def
+    /t42.identity.rect t42.identity.dict occupies def
+    /t42.identity /T42BBoxIdentity t42.identity.dict definefont def
+
+    % The loader ran, said the same way the Type 1 half says it: a
+    % dictionary that painted has a face behind it, and a run where none
+    % was assembled would leave every entry untouched and answer the two
+    % questions below without asking them.
+    { gsave t42.subject 10 scalefont setfont 0 0 moveto (A) show grestore }
+      (the subject's program was assembled into a face it paints from) works
+    { gsave t42.identity 10 scalefont setfont 0 0 moveto (A) show grestore }
+      (the identity font's program was assembled into a face it paints from) works
+
+    t42.subject occupies t42.subject.rect samerect
+      (a Type 42 at 2048 units to the em occupies the rectangle it declared) assert
+    t42.identity occupies t42.identity.rect samerect
+      (a Type 42 at one unit to the em occupies the rectangle it declared) assert
+} ifelse
+
+verdict

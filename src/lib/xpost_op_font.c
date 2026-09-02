@@ -287,6 +287,53 @@ static int _font_data_set(Xpost_Context *ctx,
     return 0;
 }
 
+/* Give a font dictionary the bounding box of the face built for it,
+   where the dictionary declares no box of its own.
+
+   FontBBox states the box in the glyph coordinate system (PLRM
+   Table 5.3) and FontMatrix is the map from that system to user space
+   (PLRM Table 5.2), so the two entries are one statement and neither
+   can be read without the other. A box written over a declared one in
+   any other space therefore moves the rectangle the font occupies, and
+   moves it silently, since the matrix beside it still says what it
+   said. The glyph coordinate system is shared with every other entry
+   whose values are given in it -- StrokeWidth, the Metrics
+   dictionaries, what CDevProc is handed and answers, and the
+   underline entries of FontInfo (PLRM 5.8.2) -- so it is not the
+   loader's to restate: a program declares that space once, by the two
+   entries together, and what it declared stands.
+
+   What is filled in is the entry a dictionary left out. There the box
+   is stated in the character space the font's type conventionally
+   uses, which is what `em` names.
+
+   The entry is read by presence rather than by value. A Type 1 font's
+   FontBBox is frequently an executable array (PLRM 5.2.1), and asking
+   whether the key is there neither fetches what is under it nor runs
+   it. */
+static int _font_bbox_declare(Xpost_Context *ctx,
+                              Xpost_Object fontdict,
+                              void *face,
+                              real em)
+{
+    Xpost_Object fontbbox;
+    Xpost_Object fontbboxarray[4];
+
+    if (xpost_dict_known_key(ctx, xpost_context_select_memory(ctx, fontdict),
+                             fontdict, name_FontBBox))
+        return 0;
+
+    /* executable: what a program reads back is the array's own
+       attribute, and this one is built rather than scanned */
+    fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
+    xpost_font_face_get_bbox(face, fontbboxarray, em);
+    if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
+                          xpost_object_get_ent(fontbbox),
+                          0, 4 * sizeof(Xpost_Object), fontbboxarray))
+        return VMerror;
+    return xpost_dict_put(ctx, fontdict, name_FontBBox, fontbbox);
+}
+
 /* One pixel-row band of the clip region: the columns [lo, hi) of row
    band the region covers. This is the region as .regionmeet resolves
    it, read back from the array the clip's cache holder keeps. */
@@ -1478,8 +1525,6 @@ int _findfont(Xpost_Context *ctx,
     Xpost_Object fontdict;
     struct fontdata data;
     char *fname;
-    Xpost_Object fontbbox;
-    Xpost_Object fontbboxarray[4];
     Xpost_Object sfnts_obj = null;
     const char *ffile = NULL;
     int istt = 0;
@@ -2008,18 +2053,7 @@ have_charstrings: ;
         }
     }
 
-    /* executable: what a program reads back is the array's own
-       attribute, and this one is built rather than scanned */
-    fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
-    xpost_font_face_get_bbox(data.face, fontbboxarray, istt ? 1.0 : 1000.0);
-    if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
-                          xpost_object_get_ent(fontbbox),
-                          0, 4 * sizeof(Xpost_Object), fontbboxarray))
-    {
-        ret = VMerror;
-        goto fail;
-    }
-    ret = xpost_dict_put(ctx, fontdict, name_FontBBox, fontbbox);
+    ret = _font_bbox_declare(ctx, fontdict, data.face, istt ? 1.0 : 1000.0);
     if (ret)
         goto fail;
 
@@ -2296,8 +2330,6 @@ int _loadfont42(Xpost_Context *ctx,
                 Xpost_Object fontdict)
 {
     Xpost_Object sfnts;
-    Xpost_Object fontbbox;
-    Xpost_Object fontbboxarray[4];
     struct fontdata data;
     unsigned char *buf;
     size_t total;
@@ -2335,19 +2367,8 @@ int _loadfont42(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable: what a program reads back is the array's own
-       attribute, and this one is built rather than scanned */
-    fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
-    /* a Type 42 dictionary maps one em to one character-space unit */
-    xpost_font_face_get_bbox(data.face, fontbboxarray, 1.0);
-    if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
-                          xpost_object_get_ent(fontbbox),
-                          0, 4 * sizeof(Xpost_Object), fontbboxarray))
-    {
-        ret = VMerror;
-        goto fail;
-    }
-    ret = xpost_dict_put(ctx, fontdict, name_FontBBox, fontbbox);
+    /* a Type 42 dictionary maps one em to one glyph-space unit */
+    ret = _font_bbox_declare(ctx, fontdict, data.face, 1.0);
     if (ret)
         goto fail;
 
@@ -4283,8 +4304,7 @@ static
 int _loadcidfont0(Xpost_Context *ctx,
                   Xpost_Object fontdict)
 {
-    Xpost_Object gdata, fdarray, fontbbox;
-    Xpost_Object fontbboxarray[4];
+    Xpost_Object gdata, fdarray;
     struct fontdata data;
     Xpost_String_Buffer buf;
     unsigned char *whole;
@@ -4424,18 +4444,7 @@ int _loadcidfont0(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable: what a program reads back is the array's own
-       attribute, and this one is built rather than scanned */
-    fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
-    xpost_font_face_get_bbox(data.face, fontbboxarray, 1000.0);
-    if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
-                          xpost_object_get_ent(fontbbox),
-                          0, 4 * sizeof(Xpost_Object), fontbboxarray))
-    {
-        ret = VMerror;
-        goto facefail;
-    }
-    ret = xpost_dict_put(ctx, fontdict, name_FontBBox, fontbbox);
+    ret = _font_bbox_declare(ctx, fontdict, data.face, 1000.0);
     if (ret)
         goto facefail;
 
@@ -4501,8 +4510,7 @@ int _loadfont1(Xpost_Context *ctx,
                Xpost_Object fontdict,
                Xpost_Object csflat)
 {
-    Xpost_Object priv, fontbbox, subrs;
-    Xpost_Object fontbboxarray[4];
+    Xpost_Object priv, subrs;
     struct fontdata data;
     Xpost_String_Buffer hdr, sec;
     unsigned char *whole;
@@ -4684,18 +4692,7 @@ int _loadfont1(Xpost_Context *ctx,
         return 0;
     }
 
-    /* executable: what a program reads back is the array's own
-       attribute, and this one is built rather than scanned */
-    fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
-    xpost_font_face_get_bbox(data.face, fontbboxarray, 1000.0);
-    if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
-                          xpost_object_get_ent(fontbbox),
-                          0, 4 * sizeof(Xpost_Object), fontbboxarray))
-    {
-        ret = VMerror;
-        goto facefail;
-    }
-    ret = xpost_dict_put(ctx, fontdict, name_FontBBox, fontbbox);
+    ret = _font_bbox_declare(ctx, fontdict, data.face, 1000.0);
     if (ret)
         goto facefail;
 
@@ -5204,8 +5201,6 @@ int _loadcidfont2(Xpost_Context *ctx,
                   Xpost_Object glyphs)
 {
     Xpost_Object sfnts;
-    Xpost_Object fontbbox;
-    Xpost_Object fontbboxarray[4];
     struct fontdata data;
     unsigned char *buf = NULL, *out = NULL;
     size_t total, glyftotal, outtotal, pos;
@@ -5422,18 +5417,7 @@ int _loadcidfont2(Xpost_Context *ctx,
         return invalidfont;
     }
 
-    /* executable: what a program reads back is the array's own
-       attribute, and this one is built rather than scanned */
-    fontbbox = xpost_object_cvx(xpost_array_cons(ctx, 4));
-    xpost_font_face_get_bbox(data.face, fontbboxarray, 1.0);
-    if (!xpost_memory_put(xpost_context_select_memory(ctx, fontbbox),
-                          xpost_object_get_ent(fontbbox),
-                          0, 4 * sizeof(Xpost_Object), fontbboxarray))
-    {
-        ret = VMerror;
-        goto facefail;
-    }
-    ret = xpost_dict_put(ctx, fontdict, name_FontBBox, fontbbox);
+    ret = _font_bbox_declare(ctx, fontdict, data.face, 1.0);
     if (ret)
         goto facefail;
 
