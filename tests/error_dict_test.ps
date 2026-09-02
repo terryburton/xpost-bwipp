@@ -113,4 +113,25 @@ errordict /execstackunderflow known {
 
 } if
 
+% PLRM 3.11.2 defines ostack as "a snapshot of the entire operand stack
+% immediately before the error". A snapshot that was never taken must not
+% be answered with one belonging to an earlier error: recordstacks turns
+% the recording off, and what was left behind was the previous error's
+% stack, reported by the standard handler under this error's name.
+{ 111 222 333 nosuchoperatorA } stopped pop
+$error /ostack get type /arraytype eq
+    (a recorded error holds its own operand stack) assert
+$error /recordstacks false put
+{ 999 nosuchoperatorB } stopped pop
+$error /ostack get null eq
+    (an error recorded no stack holds none, rather than the last one's) assert
+$error /estack get null eq
+    (and none of the execution stack) assert
+$error /dstack get null eq
+    (and none of the dictionary stack) assert
+$error /recordstacks true put
+{ 444 nosuchoperatorC } stopped pop
+$error /ostack get type /arraytype eq
+    (and recording it again restores the snapshot) assert
+
 verdict

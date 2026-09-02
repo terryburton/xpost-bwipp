@@ -99,7 +99,19 @@ end
             //$error /estack null put  % Too deep to snapshot
         } ifelse
         //$error /ostack get aload pop
-    } if
+    }{
+        % No snapshot was taken -- either the stacks are not being
+        % recorded, or a VMerror leaves no room to record them. The three
+        % entries are emptied rather than left as they were: PLRM 3.11.2
+        % defines ostack as "a snapshot of the entire operand stack
+        % immediately before the error", so an entry that survives from an
+        % earlier error is not that, and the standard handler prints it
+        % under this error's name. A program that turned recording off was
+        % reading a stack belonging to something else entirely.
+        //$error /ostack null put
+        //$error /estack null put
+        //$error /dstack null put
+    } ifelse
     //$error /initializing get {
         handleerror
     } if
