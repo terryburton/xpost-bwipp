@@ -127,7 +127,12 @@ Level 2 operators
      operations (a name the host does not carry is substituted for by
      findresource as it is by findfont, which is the reading 3.9.2's
      equivalence forces on 8.2's undefinedresource; a face carrying no
-     name of its own is not enumerated)
+     name of its own is not enumerated. The substitute's /FontName is
+     the name of the face that answered and not the name that reached
+     nothing, which is what Table 5.7 asks of the entry and is what
+     leaves a program able to tell a font it asked for from one it was
+     handed; the face is chosen for the kind of type the name asks for
+     -- serif, sans serif or monospace -- where the name says which)
  [X] resource discovery by filename (the directory is %null where the
      search path is empty)
  [X] idiom recognition (only the top-level bound procedure is compared,

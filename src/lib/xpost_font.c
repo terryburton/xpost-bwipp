@@ -871,23 +871,254 @@ _fc_request_generic(FcPattern *request)
     return NULL;
 }
 
+/* --- the kind of face a name asks for ---------------------------------
+
+   A name the configuration has nothing for reaches the machine's
+   default face, and that face is of whatever kind the machine defaults
+   to -- one kind for every name it cannot place. A document setting
+   text in a serif it has not got is then set in a sans, which is not a
+   different cut of the type it asked for but a different kind of type
+   altogether: the wrong letterforms at the wrong widths for the measure
+   the document was written to.
+
+   A PostScript font name usually says which kind it meant. The names
+   are built out of words -- run together in capitals, or split by
+   hyphens -- and among those words are the ones type has always used to
+   say what a face is: the class outright (Serif, Sans, Mono), the words
+   other languages and other centuries use for the same classes
+   (Grotesk, Gothic, Antiqua), and the names of families whose class
+   nobody disputes. Where a word of the name says the kind, the request
+   is put again as that kind, and the machine answers with its default
+   serif or monospace instead of its default anything.
+
+   READ AS WORDS, never as substrings. Sansom is not a sans and Monotype
+   is not a monospace; both would be if the name were searched for the
+   letters rather than split into its words. The split is the one the
+   names are written by: a hyphen or a space ends a word, and so does a
+   capital following a lowercase (StoneSerif) or a capital followed by a
+   lowercase at the end of a run of capitals (ITCGaramond). A word
+   counts only where it is the whole of a word, compared without regard
+   to case.
+
+   WHAT IS NOT A SIGNAL, and both of these look like one:
+
+   Roman. In these names it is the upright cut and not the class --
+   Times-Roman, Palatino-Roman, NewCenturySchlbk-Roman all use it that
+   way, which is why the style table above reads it as the regular
+   style. Where it does belong to a family name another word of that
+   name carries the class (TimesNewRoman has Times), so nothing is lost
+   by refusing it.
+
+   Book. It is a weight, as Light and Medium are: AvantGarde-Book is a
+   sans and ITCGaramond-Book is a serif, and the word is the same in
+   both. Bookman is a word in its own right and is in the table below;
+   Book is not.
+
+   A NAME THAT SAYS NOTHING keeps the face the configuration gave it.
+   The machine's own default is what a request carrying no family is
+   entitled to reach, and a name that names no kind gives this
+   interpreter no ground to overrule the machine on it. */
+
+static const struct { const char *word; const char *generic; } _fc_class_word[] = {
+    /* the class named outright */
+    { "serif",       "serif" },
+    { "sans",        "sans-serif" },
+    { "sansserif",   "sans-serif" },
+    { "mono",        "monospace" },
+    { "monospace",   "monospace" },
+    { "monospaced",  "monospace" },
+
+    /* the same classes under the words other typographic traditions
+       name them by: a Grotesk is a sans, an Antiqua is a serif, and a
+       Gothic in Latin type is a sans (News, Franklin, Trade, Century) */
+    { "grotesk",     "sans-serif" },
+    { "grotesque",   "sans-serif" },
+    { "gothic",      "sans-serif" },
+    { "antiqua",     "serif" },
+    { "slab",        "serif" },
+
+    /* a design that is fixed-pitch by what it is: a typewriter face and
+       a teletype face have one width per character, and Courier is the
+       monospace of the standard PostScript set, which every name built
+       on it inherits */
+    { "courier",     "monospace" },
+    { "typewriter",  "monospace" },
+    { "teletype",    "monospace" },
+
+    /* families whose class is not in dispute, here because documents
+       name them far more often than they name a class word, and mostly
+       under names the configuration cannot place: HelveticaNeue and
+       ArialMT and TimesNewRomanPSMT are all one word away from a family
+       the machine holds, and none of them reaches it */
+    { "helvetica",   "sans-serif" },
+    { "arial",       "sans-serif" },
+    { "univers",     "sans-serif" },
+    { "futura",      "sans-serif" },
+    { "times",       "serif" },
+    { "garamond",    "serif" },
+    { "bookman",     "serif" },
+    { "palatino",    "serif" },
+    { "minion",      "serif" },
+    { "century",     "serif" },
+    { "schoolbook",  "serif" },
+    { "schlbk",      "serif" }
+};
+
+/* How firmly a word settles the kind, where the words of one name
+   disagree. A name saying both mono and something else is asking for
+   the fixed pitch: that constrains the metrics a line is set to and not
+   only the shapes, so it is the more particular of the two claims. A
+   name saying both sans and serif is asking for the sans -- sans serif
+   is literally the serif denied, so the two words together are the one
+   class and not two. CenturyGothic is the case that makes this matter:
+   a serif word and a sans word in one name, and it is a sans. */
+static int
+_fc_class_rank(const char *generic)
+{
+    if (strcmp(generic, "monospace") == 0)
+        return 3;
+    if (strcmp(generic, "sans-serif") == 0)
+        return 2;
+    return 1;
+}
+
+/* The next word of a font name, lowercased, from *at. Answers 0 at the
+   end of the name. A word longer than the buffer is answered as an
+   empty one: nothing in the table above is anywhere near that long, so
+   a word that does not fit cannot be one of them, and truncating it
+   could only invent a match. */
+static int
+_ps_name_word(const char *name, size_t *at, char *buf, size_t bufsz)
+{
+    size_t i = *at;
+    size_t n = 0;
+    int over = 0;
+
+    while (name[i] && !isalnum((unsigned char)name[i]))
+        i++;
+    if (!name[i])
+    {
+        *at = i;
+        return 0;
+    }
+    if (isdigit((unsigned char)name[i]))
+        while (isdigit((unsigned char)name[i]))
+        {
+            if (n + 1 < bufsz)
+                buf[n++] = name[i];
+            else
+                over = 1;
+            i++;
+        }
+    else
+        while (isalpha((unsigned char)name[i]))
+        {
+            /* a capital ends the word before it where the letter before
+               is lowercase (StoneSerif), and where it is itself the last
+               capital of a run and a lowercase follows (ITCGaramond) */
+            if (n > 0
+                && isupper((unsigned char)name[i])
+                && (islower((unsigned char)name[i - 1])
+                    || (isupper((unsigned char)name[i - 1])
+                        && islower((unsigned char)name[i + 1]))))
+                break;
+            if (n + 1 < bufsz)
+                buf[n++] = (char)tolower((unsigned char)name[i]);
+            else
+                over = 1;
+            i++;
+        }
+    buf[over ? 0 : n] = '\0';
+    *at = i;
+    return 1;
+}
+
+/* The generic family the words of a name ask for, or NULL where none of
+   them names a kind. */
+static const char *
+_fc_name_family_class(const char *name)
+{
+    const char *best = NULL;
+    int rank = 0;
+    size_t at = 0;
+    char part[32];
+
+    while (_ps_name_word(name, &at, part, sizeof part))
+    {
+        size_t w;
+
+        for (w = 0; w < sizeof _fc_class_word / sizeof *_fc_class_word; w++)
+            if (strcmp(part, _fc_class_word[w].word) == 0)
+            {
+                int r = _fc_class_rank(_fc_class_word[w].generic);
+
+                if (r > rank)
+                {
+                    rank = r;
+                    best = _fc_class_word[w].generic;
+                }
+            }
+    }
+    return best;
+}
+
+/* The face this machine answers a request of that kind with, when no
+   family of its own reaches one. The style the request carries goes
+   with it, so a bold or an italic request is answered by the default
+   face of that shape rather than by the plain one. */
+static FcPattern *
+_fc_generic_face(const char *generic, FcPattern *request)
+{
+    static const char *shape[] = { FC_WEIGHT, FC_SLANT, FC_WIDTH };
+    FcPattern *plain;
+    FcPattern *face;
+    FcResult result;
+    int i;
+
+    plain = FcPatternCreate();
+    if (!plain)
+        return NULL;
+    if (!FcPatternAddString(plain, FC_FAMILY, (const FcChar8 *)generic))
+    {
+        FcPatternDestroy(plain);
+        return NULL;
+    }
+    for (i = 0; request && i < (int)(sizeof shape / sizeof *shape); i++)
+    {
+        int v;
+
+        if (FcPatternGetInteger(request, shape[i], 0, &v) == FcResultMatch)
+            (void)FcPatternAddInteger(plain, shape[i], v);
+    }
+    if (!FcConfigSubstitute(_xpost_font_fc_config, plain, FcMatchPattern))
+    {
+        FcPatternDestroy(plain);
+        return NULL;
+    }
+    FcDefaultSubstitute(plain);
+    face = FcFontMatch(_xpost_font_fc_config, plain, &result);
+    FcPatternDestroy(plain);
+    if (result == FcResultNoMatch || result == FcResultOutOfMemory)
+    {
+        if (face)
+            FcPatternDestroy(face);
+        return NULL;
+    }
+    return face;
+}
+
 /* Whether the match is the face this machine answers a request of that
-   kind with when no family of its own reaches one. The style the
-   request carries goes with it, so a bold request is compared against
-   the default bold face rather than against the plain one. */
+   kind with when no family of its own reaches one. */
 static int
 _fc_match_is_the_default(FcPattern *request, FcPattern *match)
 {
     const char *generic = _fc_request_generic(request);
-    FcPattern *plain;
     FcPattern *fallback;
-    FcResult result;
     char *mfile;
     char *dfile;
     int midx = 0;
     int didx = 0;
     int same;
-    int i;
 
     if (!generic)
         return 0;
@@ -895,36 +1126,7 @@ _fc_match_is_the_default(FcPattern *request, FcPattern *match)
         return 0;
     (void)FcPatternGetInteger(match, FC_INDEX, 0, &midx);
 
-    plain = FcPatternCreate();
-    if (!plain)
-        return 0;
-    if (!FcPatternAddString(plain, FC_FAMILY, (const FcChar8 *)generic))
-    {
-        FcPatternDestroy(plain);
-        return 0;
-    }
-    /* the shape of the request, without the name: two faces of one
-       family are different files, so a request that asked for a bold
-       or an italic has to be answered by the default of that shape */
-    {
-        static const char *shape[] = { FC_WEIGHT, FC_SLANT, FC_WIDTH };
-
-        for (i = 0; i < (int)(sizeof shape / sizeof *shape); i++)
-        {
-            int v;
-
-            if (FcPatternGetInteger(request, shape[i], 0, &v) == FcResultMatch)
-                (void)FcPatternAddInteger(plain, shape[i], v);
-        }
-    }
-    if (!FcConfigSubstitute(_xpost_font_fc_config, plain, FcMatchPattern))
-    {
-        FcPatternDestroy(plain);
-        return 0;
-    }
-    FcDefaultSubstitute(plain);
-    fallback = FcFontMatch(_xpost_font_fc_config, plain, &result);
-    FcPatternDestroy(plain);
+    fallback = _fc_generic_face(generic, request);
     if (!fallback)
         return 0;
 
@@ -939,6 +1141,7 @@ _fc_match_is_the_default(FcPattern *request, FcPattern *match)
     FcPatternDestroy(fallback);
     return same;
 }
+
 # endif
 
 /* The file a name resolves to, and which face within it -- a font file
@@ -1036,6 +1239,34 @@ _xpost_font_face_filename_and_index_get(const char *name, int *idx)
        answered with its default face of that kind. */
     _xpost_font_last_substitute = !_fc_match_is_exact(match, name)
                                && _fc_match_is_the_default(request, match);
+
+    /* A substitute is still owed the kind of type that was asked for.
+       The default face reached above is the machine's answer to a
+       request carrying no family at all, so it is of one kind whatever
+       was asked for; where the words of the name say which kind was
+       meant, the question is put again as that kind and the machine
+       answers with its default serif, sans or monospace instead. The
+       style the request carries is carried into that second question,
+       so a name whose italic was recovered above stays italic.
+
+       Only a substitute reaches here. A name the configuration
+       answered keeps the face it answered with, and a name saying
+       nothing about its kind keeps the face the machine chose for it. */
+    if (_xpost_font_last_substitute)
+    {
+        const char *generic = _fc_name_family_class(name);
+
+        if (generic)
+        {
+            FcPattern *classed = _fc_generic_face(generic, request);
+
+            if (classed)
+            {
+                FcPatternDestroy(match);
+                match = classed;
+            }
+        }
+    }
 
     result = FcPatternGetString(match, FC_FILE, 0, (FcChar8 **)&file);
     if (result != FcResultMatch)

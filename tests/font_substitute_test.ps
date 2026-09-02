@@ -112,4 +112,145 @@ fs.round null ne {
 fs.asked 40 string cvs print (: ) print fs.name 40 string cvs print (\n) print
 flush
 
+% ================== the kind of face a substitute is =====================
+%
+% PLRM 8.2 lets findfont substitute, and says nothing about what. What a
+% document loses when the substitute is chosen badly is not a different
+% cut of the type it asked for but a different kind of type: a page set
+% in a serif and answered with a sans carries the same words in the wrong
+% letterforms at the wrong widths for the measure it was written to.
+%
+% A name that reaches nothing reaches the machine's default face, and
+% that face is of one kind however many kinds of name arrive. So the
+% words of the name are read for the kind they name -- Serif, Sans, Mono,
+% and the other words type uses for those three -- and the request is put
+% again as that kind. What comes back is still a substitute and still
+% says so; it is a substitute of the kind that was asked for.
+%
+% WHAT IS ASSERTED HERE is what a program can see, which is the name each
+% of these lands on and no more: whether two names land on one face, and
+% whether a name lands on the face a nameless request would have got.
+% Which faces this machine holds is the machine's business, as at the top
+% of this suite, so nothing below names a face.
+
+/fs.face { findfont /FontName get } bind def       % name  .  facename
+/fs.carried { /Font resourcestatus { pop pop true }{ false } ifelse } bind def
+
+% ---------------------------------------------- the names that must not move
+%
+% The standard PostScript names are the common case, and a machine is
+% told which of its families stand in for them. A name it answers that
+% way is a name it has: nothing above may divert it, and the font must
+% still answer by the name it was asked for.
+%
+% Asserted of each name the host says it carries, and skipped by name for
+% each it does not -- which of them a machine holds differs from one
+% machine to the next, and a suite naming the ones it expected would be
+% reporting the machine it was written on.
+[ /Times-Roman /Helvetica /Courier /Symbol /AvantGarde-Book /Bookman-Light
+  /Palatino-Roman /ZapfChancery-MediumItalic /ZapfDingbats /Courier-Bold ]
+{
+    dup fs.carried {
+        dup dup fs.face eq
+        exch 40 string cvs (answers by the name the host carries it under)
+        assert2
+    }{
+        (SKIPPED: this host does not carry ) print 40 string cvs print
+        (\n) print flush
+    } ifelse
+} forall
+
+% The compressed spelling of a standard name is the case the aliasing
+% misses: the machine holds the family spelled out and nothing maps one
+% onto the other. Whatever answers it -- the machine's own aliasing, this
+% build's, or the kind read out of the words -- it must not be the face a
+% request naming nothing at all reaches.
+/fs.plain /XpostPlainZZ fs.face def
+/fs.serif /XpostSerifZZ fs.face def
+/fs.sans  /XpostSansZZ  fs.face def
+/fs.mono  /XpostMonoZZ  fs.face def
+
+fs.serif fs.plain ne {
+    /NewCenturySchlbk-Roman fs.face fs.plain ne
+        (a compressed standard name does not reach the classless default) assert
+}{
+    (SKIPPED: this host answers a serif request with its classless default,)
+      print ( so the two cannot be told apart) print (\n) print flush
+} ifelse
+
+% ------------------------------------------------- a kind read from the words
+%
+% The three probe names below are names no machine carries -- each is
+% checked for that, since a machine that did carry one would be answering
+% rather than falling back and the case would hold vacuously. They differ
+% only in the word that says the kind.
+[ /XpostSerifZZ /XpostSansZZ /XpostMonoZZ /XpostPlainZZ ] {
+    dup fs.carried not exch 40 string cvs
+    (is a name no machine carries, so it falls back) assert2
+} forall
+
+fs.serif fs.sans ne
+    (a serif-named name and a sans-named name do not reach one face) assert
+
+fs.mono fs.sans ne
+    (a mono-named name and a sans-named name do not reach one face) assert
+fs.mono fs.serif ne
+    (a mono-named name and a serif-named name do not reach one face) assert
+
+% It is the kind and not the name that decides. Two serif-named names
+% with nothing else in common reach the same face, and it is not the one
+% a name saying nothing reaches.
+/XpostGaramondZZ fs.face fs.serif eq
+    (two serif-named names reach one face) assert
+fs.serif fs.plain ne
+    (a serif-named name does not reach the classless default) assert
+
+% ------------------------------------------------------- and a style with it
+%
+% The style a PostScript name states in its suffix is recovered
+% separately, and the kind is carried into that question rather than
+% instead of it: an italic asked for by a serif name is answered by an
+% italic, and by one of that kind.
+/fs.serifital /XpostSerifZZ-Italic fs.face def
+/fs.sansital  /XpostSansZZ-Italic  fs.face def
+
+fs.serifital fs.serif ne
+    (a name asking for an italic does not reach the upright face) assert
+fs.serifital fs.sansital ne
+    (an italic asked for by a serif name and one asked for by a sans name
+     do not reach one face) assert
+
+% ------------------------------------------------------------ read as words
+%
+% A word counts where it is the whole of a word. Sansom is not a sans,
+% Serifina is not a serif and Monotype is not a monospace, and all three
+% would be if the name were searched for the letters instead of split
+% into the words it is written in. Each must reach what a name saying
+% nothing reaches.
+%
+% Told apart only where this machine answers the three kinds with three
+% faces: where its default is already the kind a trap would wrongly ask
+% for, a trap that fired would look exactly like one that did not.
+fs.serif fs.plain ne fs.mono fs.plain ne and {
+    /XpostSerifinaZZ fs.face fs.plain eq
+        (a serif-shaped word inside a longer word is not the word) assert
+    /XpostMonotypeZZ fs.face fs.plain eq
+        (a mono-shaped word inside a longer word is not the word) assert
+    /XpostSansomZZ fs.face fs.plain eq
+        (a sans-shaped word inside a longer word is not the word) assert
+}{
+    (SKIPPED: this host answers fewer than three kinds with three faces,)
+      print ( so a trap that fired could not be seen) print (\n) print flush
+} ifelse
+
+% ------------------------------------------------- a name that says no kind
+%
+% A name whose words name no kind gets what the machine chose for it. The
+% machine's own default is what a request carrying no family is entitled
+% to reach, and a name that says nothing gives this build no ground to
+% overrule it -- so two such names, with nothing in common but saying
+% nothing, reach the same face.
+/XpostQuiddityZZ fs.face fs.plain eq
+    (a name naming no kind keeps the face the machine chose) assert
+
 verdict
