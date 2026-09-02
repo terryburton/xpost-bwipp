@@ -450,7 +450,7 @@ WC WL differs 0 gt (rather than the glyph its last byte would select) check
         /FontType 0 def /FMapType 9 def /FontMatrix matrix def
         /Encoding [0] def /WMode 0 def
         /CMap << /.codespaces [ <00> <FF> ]
-                 /.cidranges [ <00> <00> tr.cid ] >> def
+                 /.cidranges [ <00> <00> tr.cid 0 ] >> def
         /FDepVector [ /CIDWideTest /CIDFont findresource
                       dup length 8 add dict copy
                       dup /CIDMap undef dup /CIDCount undef ] def
@@ -1233,6 +1233,239 @@ clear
 { /Courier findfont /cc.t0 exch /Identity-H [ 3 -1 roll ] composefont pop }
     stopped not
     (a composite font is built through the identity mapping) check
+% --- the descendant a CMap's font number names -------------------------
+% These definitions go in a dictionary of the block's own. The one the
+% suite leaves current is in global memory, and a procedure built while
+% local memory is current cannot be stored there.
+100 dict begin
+%
+% The CMap mapping algorithm yields "a font number and a character
+% selector" (PLRM 5.11.5), and usefont is what writes the number down:
+% it "specifies a font number that is an implicit operand of all the
+% character code mapping operations that follow" (PLRM 8.2). So which
+% descendant a character is painted from is the code's own business, and
+% a composite whose CMap names a second one paints part of a string from
+% each. PLRM 5.11.5 composes two in its own example, and composefont
+% builds Encoding as "an identity mapping whose length is the same as
+% FDepVector" (PLRM 8.2) so that the number indexes the descendant.
+%
+% The three descendants below carry the one font program and disagree
+% about what CID 1 is: A sends it to the square, B to the triangle, and
+% C to the square at half the size, so which one painted is readable off
+% the page. Nothing here means anything until they are shown to differ,
+% so that is asserted first -- and the byte-mapped composite over the
+% same descendants, where the code selects one directly rather than
+% through a CMap, is what says the page can see a descendant change at
+% all.
+/CIDInit /ProcSet findresource begin
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDSelA def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [1 0 0 1 0 0] def
+    /FontType 42 def
+    /CIDCount 3 def
+    /GDBytes 1 def
+    /CIDMap <000102> def
+    /GlyphDirectory 0 dict def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDSelB def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [1 0 0 1 0 0] def
+    /FontType 42 def
+    /CIDCount 3 def
+    /GDBytes 1 def
+    /CIDMap <000201> def
+    /GlyphDirectory 0 dict def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
+% and one that differs by its matrix rather than by its map, so that a
+% descendant's own matrix is shown to be carried per descendant as well
+10 dict begin
+    /CIDFontType 2 def
+    /CIDFontName /CIDSelC def
+    /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+    /FontMatrix [0.5 0 0 0.5 0 0] def
+    /FontType 42 def
+    /CIDCount 3 def
+    /GDBytes 1 def
+    /CIDMap <000102> def
+    /GlyphDirectory 0 dict def
+    /sfnts FontDirectory /CIDOracleFont get /sfnts get def
+CIDFontName currentdict end /CIDFont defineresource pop
+
+% every code to CID 1, and no usefont anywhere in it: a CMap that names
+% no font number is written against font 0
+10 dict begin begincmap /CMapName /CIDSelOneCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <00> <FF> endcodespacerange
+ 1 begincidrange <00> <FF> 1 endcidrange
+ endcmap CMapName currentdict end /CMap defineresource pop
+
+% the same CID in two descendants, the number named part-way through
+% rather than at the start: the first range is written before any
+% usefont, and the two single-code mappings are written on either side
+% of a usefont that names font 0 back again
+10 dict begin begincmap /CMapName /CIDSelTwoCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <00> <FF> endcodespacerange
+ 1 begincidrange <00> <7F> 1 endcidrange
+ 1 usefont
+ 1 begincidrange <80> <BF> 1 endcidrange
+ 1 begincidchar <C0> 1 endcidchar
+ 0 usefont
+ 1 begincidchar <C1> 1 endcidchar
+ endcmap CMapName currentdict end /CMap defineresource pop
+
+% and three descendants, so that reaching the second is not reaching
+% whichever one was named last
+10 dict begin begincmap /CMapName /CIDSelThreeCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <00> <FF> endcodespacerange
+ 0 usefont 1 begincidrange <00> <3F> 1 endcidrange
+ 1 usefont 1 begincidrange <40> <7F> 1 endcidrange
+ 2 usefont 1 begincidrange <80> <BF> 1 endcidrange
+ endcmap CMapName currentdict end /CMap defineresource pop
+
+% a font number the composite was not built over
+10 dict begin begincmap /CMapName /CIDSelWildCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <00> <FF> endcodespacerange
+ 3 usefont 1 begincidrange <00> <FF> 1 endcidrange
+ endcmap CMapName currentdict end /CMap defineresource pop
+end
+/CIDSelOnlyA /CIDSelOneCMap [ /CIDSelA ] composefont pop
+/CIDSelOnlyB /CIDSelOneCMap [ /CIDSelB ] composefont pop
+/CIDSelOnlyC /CIDSelOneCMap [ /CIDSelC ] composefont pop
+/CIDSelT2 /CIDSelTwoCMap [ /CIDSelA /CIDSelB ] composefont pop
+/CIDSelT3 /CIDSelThreeCMap [ /CIDSelA /CIDSelB /CIDSelC ] composefont pop
+/CIDSelWild /CIDSelWildCMap [ /CIDSelA /CIDSelB ] composefont pop
+/CIDSelFm2 << /FontType 0 /FMapType 2 /FontMatrix matrix
+              /Encoding [ 0 1 ]
+              /FDepVector [ /CIDSelOnlyA findfont /CIDSelOnlyB findfont ] >>
+    definefont pop
+
+/sel.a { /CIDSelOnlyA findfont 20 scalefont setfont } bind def
+/sel.b { /CIDSelOnlyB findfont 20 scalefont setfont } bind def
+/sel.c { /CIDSelOnlyC findfont 20 scalefont setfont } bind def
+/sel.t2 { /CIDSelT2 findfont 20 scalefont setfont } bind def
+/sel.t3 { /CIDSelT3 findfont 20 scalefont setfont } bind def
+/sel.wild { /CIDSelWild findfont 20 scalefont setfont } bind def
+/sel.fm2 { /CIDSelFm2 findfont 20 scalefont setfont } bind def
+
+/SA { sel.a 10 20 moveto <00> show } greysnap def
+/SB { sel.b 10 20 moveto <00> show } greysnap def
+/SC { sel.c 10 20 moveto <00> show } greysnap def
+
+/p.name (descendants that differ:) def
+SA inkof 0 gt (the first descendant marks the page) check
+SB inkof 0 gt (the second marks it too) check
+SC inkof 0 gt (and so does the third) check
+SA SB differs 0 gt (the first two are told apart by what they paint) check
+SA SC differs 0 gt (and so are the first and the third) check
+SB SC differs 0 gt (and the second and the third) check
+
+% the byte-mapped composite over the same descendants: the code names
+% the descendant directly (PLRM Table 5.9, FMapType 2), so this is the
+% page seeing a descendant change without a CMap in the way
+/F2A { sel.fm2 10 20 moveto <0000> show } greysnap def
+/F2B { sel.fm2 10 20 moveto <0100> show } greysnap def
+F2A SA differs 0 eq (a byte-mapped composite paints from the descendant its first byte names) check
+F2B SB differs 0 eq (and from the other one when that byte names it) check
+
+/p.name (descendant selection:) def
+/T2A { sel.t2 10 20 moveto <00> show } greysnap def
+/T2B { sel.t2 10 20 moveto <80> show } greysnap def
+T2A SA differs 0 eq
+    (a mapping written before any usefont paints from font 0) check
+T2B inkof 0 gt
+    (a mapping written after one marks the page) check
+T2B SB differs 0 eq
+    (and paints from the descendant that usefont named) check
+T2B SA differs 0 gt
+    (rather than from the first entry of FDepVector) check
+
+/T2C { sel.t2 10 20 moveto <C0> show } greysnap def
+/T2D { sel.t2 10 20 moveto <C1> show } greysnap def
+T2C SB differs 0 eq
+    (a single-code mapping carries the font number in force as a range does) check
+T2D SA differs 0 eq
+    (and a later usefont naming font 0 writes the ones after it against it) check
+
+/T3A { sel.t3 10 20 moveto <00> show } greysnap def
+/T3B { sel.t3 10 20 moveto <40> show } greysnap def
+/T3C { sel.t3 10 20 moveto <80> show } greysnap def
+T3A SA differs 0 eq (over three descendants the first is reached) check
+T3B SB differs 0 eq (and the second) check
+T3C inkof 0 gt (the third marks the page) check
+T3C SC differs 0 eq (and is the one its own font number names) check
+T3C T3A differs 0 gt (which is not the descendant the CMap opened with) check
+
+% A font number no descendant answers cannot paint: the composite was
+% built over two and the CMap names a third, so there is no descendant
+% to take the glyph from and none is invented.
+{ sel.wild 10 20 moveto <00> show } stopped
+    { $error /errorname get /rangecheck eq }{ false } ifelse
+    /sel.wildrefused exch def clear
+sel.wildrefused (a font number past FDepVector is refused) check
+
+% --- one string, more than one descendant ------------------------------
+%
+% What the walk prepares for a descendant it keeps for the rest of the
+% string, so the character after a change of font number is the one a
+% cache made for the character before it would paint wrongly -- and
+% wrongly in the quietest way there is, the first descendant's glyph
+% under the second's code, with no error anywhere. So the second
+% descendant's glyphs are asserted present by their ink and not by the
+% absence of a refusal.
+/p.name (two descendants in one string:) def
+/T2AB { sel.t2 10 20 moveto <0080> show } greysnap def
+/T2BA { sel.t2 10 20 moveto <8000> show } greysnap def
+/T2AA { sel.t2 10 20 moveto <0000> show } greysnap def
+/T2BB { sel.t2 10 20 moveto <8080> show } greysnap def
+/T2ABsep { sel.t2 10 20 moveto <00> show <80> show } greysnap def
+T2AB inkof SA inkof SB inkof add eq
+    (a string over two descendants paints the ink of both) check
+T2AB T2AA differs 0 gt
+    (and not the first descendant's glyph for both characters) check
+T2AB T2ABsep differs 0 eq
+    (it paints what the same two characters shown a call each paint) check
+T2BA inkof SB inkof SA inkof add eq
+    (the change of descendant reads the same way round) check
+T2BA T2BB differs 0 gt
+    (and the descendant prepared first is not what the rest is painted from) check
+
+% --- what cshow is handed --------------------------------------------
+%
+% PLRM 8.2 has currentfont answer with the descendant the mapping
+% selected while the procedure runs, so over a string that changes
+% descendant it answers with a different font part-way through.
+/p.name (cshow over two descendants:) def
+/sel.n1 null def /sel.n2 null def /sel.i 0 def
+sel.t2 initgraphics newpath 10 20 moveto
+{ pop pop pop
+  sel.i 0 eq { /sel.n1 currentfont /CIDFontName get store }
+             { /sel.n2 currentfont /CIDFontName get store } ifelse
+  /sel.i sel.i 1 add store } <0080> cshow
+sel.i 2 eq (the procedure runs once per character) check
+sel.n1 /CIDSelA eq (currentfont is the descendant the first code names) check
+sel.n2 /CIDSelB eq (and the descendant the second code names) check
+
+% and the measure follows it: the show of the single byte the procedure
+% was given paints "the one identified by the originally selected CID"
+% (PLRM 8.2), which is a glyph of whichever descendant that character
+% selected.
+/CSAB { sel.t2 newpath 10 20 moveto
+        { pop pop 1 string dup 0 4 -1 roll put show } <0080> cshow } greysnap def
+CSAB inkof SA inkof SB inkof add eq
+    (a show of the byte the procedure was given paints from both descendants) check
+CSAB T2AB differs 0 eq
+    (and paints what the plain show of the same string paints) check
+
+end
 
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse

@@ -189,17 +189,20 @@ Level 3 operators
      and FMapType 9 through composefont with CIDFont descendants of
      CIDFontType 2, incremental GlyphDirectory delivery, and
      CIDFontType 0, charstrings through StartData; escapes select
-     within one modal level. An FMapType 9 font paints every character
-     from the first entry of its FDepVector: the CMap's font number is
-     taken and not applied, so a CMap naming a second descendant reaches
-     the first one's glyphs. A CID outside the count the descendant
+     within one modal level. A CID outside the count the descendant
      declares is answered by the glyph for CID 0, but one inside that
      count whose glyph the descendant's font program does not carry is
      a rangecheck, where an undefined character is substituted for. The
-     CIDInit procedure set is complete: notdef mappings and usematrix
-     are taken and neither is applied, so the substitution that is made
-     is the glyph for CID 0 with the CMap's own notdef mapping for the
-     code not consulted)
+     CIDInit procedure set is complete, and the font number usefont
+     names selects the descendant character by character. The mappings
+     whose character selector is a character code or a character name
+     rather than a CID -- beginbfchar and beginbfrange, which is how a
+     character in a base-font descendant is named -- are taken and
+     discarded, so the codes they map are left unmapped and each
+     resolves as any unmapped code does, to CID 0 in the descendant
+     font 0 names. notdef mappings and usematrix are taken and neither
+     is applied, so the substitution that is made is the glyph for CID 0
+     with the CMap's own notdef mapping for the code not consulted)
  [X] cshow through a CID-keyed composite (PLRM 8.2), the special measure
      included: the procedure is handed the character code, or its last
      byte where the code is more than one byte long, currentfont

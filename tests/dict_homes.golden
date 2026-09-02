@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 536
+entries 539
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -211,8 +211,11 @@ entries 536
 .xpostsys /.clipvoid
 .xpostsys /.closeafterbind
 .xpostsys /.closepending
+.xpostsys /.cmapdesc
+.xpostsys /.cmapdescfont
 .xpostsys /.cmapnext
 .xpostsys /.cmapwalk
+.xpostsys /.cmapwithfont
 .xpostsys /.coabsent
 .xpostsys /.cobeginall
 .xpostsys /.colorantsat

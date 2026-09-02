@@ -118,7 +118,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /.codespaceblk /.codespaces .cmapflatten
         /.cidrangeblk /.cidranges .cmapflatten
         /.cidcharblk /.cidchars .cmapflatten
+        % the font number is construction state: it is written into each
+        % entry as the entry is stored, so the finished CMap carries the
+        % mappings and nothing about how they were written
+        currentdict /.fontnum undef
     }
+
+    % A code space says how wide a code is and nothing about which
+    % descendant it selects, so it is the one block written without a
+    % font number.
     /begincodespacerange { pop mark }  % int  .  mark
     /endcodespacerange {  % mark lo hi ...  .  -
         counttomark array astore exch pop
@@ -127,11 +135,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /begincidrange { pop mark }  % int  .  mark
     /endcidrange {  % mark lo hi cid ...  .  -
         counttomark array astore exch pop
+        3 //.xpostsys /.cmapwithfont get exec
         /.cidrangeblk .cmapaddblock
     }
     /beginnotdefrange { pop mark }  % int  .  mark
     /endnotdefrange {  % mark lo hi cid ...  .  -
         counttomark array astore exch pop
+        3 //.xpostsys /.cmapwithfont get exec
         /.notdefranges exch def
     }
 
@@ -142,24 +152,28 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /beginnotdefchar { pop mark }  % int  .  mark
     /endnotdefchar {  % mark code cid ...  .  -
         counttomark array astore exch pop
+        2 //.xpostsys /.cmapwithfont get exec
         /.notdefchars exch def
     }
     /begincidchar { pop mark }  % int  .  mark
     /endcidchar {  % mark code cid ...  .  -
         counttomark array astore exch pop
+        2 //.xpostsys /.cmapwithfont get exec
         /.cidcharblk .cmapaddblock
     }
 
-    % Single-descendant jobs select font 0; the association of later
-    % ranges with other descendants is not kept.
-    /usefont { pop }  % int  .  -
+    %  The font number every code mapping written after it is against
+    %  (PLRM 8.2, p.713): it is "an implicit operand of all the character
+    %  code mapping operations that follow", so it is recorded on the
+    %  CMap under construction and read off there as each block is
+    %  stored. A CMap that names none is written against font 0.
+    /usefont { /.fontnum exch def }  % int  .  -
 
     %  A transformation to use with one descendant (PLRM 8.2, p.539 and
-    %  p.580; PLRM 5.11.4). The font number goes the way usefont's does --
-    %  a single-descendant job has only font 0 to apply it to -- so the
-    %  matrix is taken and not applied. Taking it is what keeps a CMap
-    %  that carries one readable: left undefined, the matrix and the
-    %  operator name would be executed as though they were a program.
+    %  p.580; PLRM 5.11.4). The matrix is taken and not applied. Taking
+    %  it is what keeps a CMap that carries one readable: left undefined,
+    %  the matrix and the operator name would be executed as though they
+    %  were a program.
     /beginusematrix { pop mark }  % fontnum  .  mark
     /endusematrix { cleartomark }  % mark matrix  .  -
 
@@ -187,8 +201,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         end
     }
 
-    % Base-font character mappings (ToUnicode tables) pass through
-    % this procedure set too: accept and discard them.
+    % Mappings whose character selector is a character code or a
+    % character name rather than a CID (PLRM 5.11.5), which is what a
+    % base-font descendant is selected within, and what a ToUnicode
+    % table is written with. They are accepted and discarded: the codes
+    % they name are left unmapped, so each resolves as any unmapped code
+    % does, to CID 0 in the descendant font 0 names.
     /beginbfchar { pop mark }  % int  .  mark
     /endbfchar { cleartomark }  % mark obj...  .  -
     /beginbfrange { pop mark }  % int  .  mark
@@ -443,12 +461,40 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys begin
 
 %
+%  A block of CMap mappings with the font number written into every
+%  entry, widening each entry by one slot. The mapping algorithm yields
+%  "a font number and a character selector" (PLRM 5.11.5, p.389), and
+%  the number is settled where the entry is written rather than where it
+%  is read: usefont names it for the mappings that follow, so a block
+%  written after one usefont and a block written after another go into
+%  the same table and must each carry their own.
+%
+%  Run with the CMap under construction current, which is where usefont
+%  records the number, and read from there before the local dictionary
+%  opens. A CMap with no usefont in it is written against font 0.
+%
+/.cmapwithfont {  % arr stride  .  arr'
+    currentdict /.fontnum 2 copy known { get }{ pop pop 0 } ifelse
+    8 dict begin
+    /fn exch def /st exch def /a exch def
+    /o a length st idiv st 1 add mul array def
+    0 st a length 1 sub { /i exch def
+        /at i st idiv st 1 add mul def
+        o at a i st getinterval putinterval
+        o at st add fn put
+    } for
+    o
+    end
+} def
+
+%
 %  Decode one character code: the code space whose byte width brackets
 %  the bytes at pos names the width, the cid ranges (and single-cid
-%  assignments) supply the CID; an unmapped code is CID 0.
+%  assignments) supply the CID and the font number the entry was written
+%  against; an unmapped code is CID 0 in font 0.
 %
-/.cmapnext {  % str pos cmapdict  .  cid nbytes
-    20 dict begin
+/.cmapnext {  % str pos cmapdict  .  fontnum cid nbytes
+    22 dict begin
     /cm exch def /p exch def /s exch def
     /cs cm /.codespaces 2 copy known { get }{ pop pop [ <00> <FF> ] } ifelse def
     /w 1 def
@@ -473,8 +519,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         } if
     } for
     /cid 0 def
+    /fnum 0 def
     /rgs cm /.cidranges 2 copy known { get }{ pop pop [] } ifelse def
-    0 3 rgs length 3 sub { /k exch def
+    0 4 rgs length 4 sub { /k exch def
         rgs k get length w eq {
             /rlo 0 def /rhi 0 def
             0 1 w 1 sub { /b exch def
@@ -483,21 +530,26 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             code rlo ge code rhi le and {
                 /cid rgs k 2 add get code rlo sub add def
+                /fnum rgs k 3 add get def
                 exit
             } if
         } if
     } for
     /rgs cm /.cidchars 2 copy known { get }{ pop pop [] } ifelse def
-    0 2 rgs length 2 sub { /k exch def
+    0 3 rgs length 3 sub { /k exch def
         rgs k get length w eq {
             /rlo 0 def
             0 1 w 1 sub { /b exch def
                 /rlo rlo 256 mul rgs k get b get add def
             } for
-            code rlo eq { /cid rgs k 1 add get def exit } if
+            code rlo eq {
+                /cid rgs k 1 add get def
+                /fnum rgs k 2 add get def
+                exit
+            } if
         } if
     } for
-    cid w
+    fnum cid w
     end
 } def
 
@@ -679,43 +731,40 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } def
 
 %
-%  Walk a string through a CMap-mapped composite font (the FMapType 9
-%  of composefont), calling the procedure with each glyph's CID and its
-%  index in the descendant's face. Each code decodes to a CID, the CID
-%  maps to a glyph index through the descendant's CIDMap (GDBytes bytes
-%  per entry, across the array of segments), and the descendant is the
-%  font in force while the procedure runs, its face carried through the
-%  composite's matrix.
+%  The descendant a CMap's font number names. PLRM 8.2 has composefont
+%  build Encoding as "an identity mapping whose length is the same as
+%  FDepVector", so the font number the mapping algorithm yields indexes
+%  Encoding and Encoding indexes FDepVector -- and a font written by
+%  hand rather than composed may put any mapping there.
 %
-%  Both selectors go to the procedure because both are needed and only
-%  the walk holds both: the index is what names the glyph to the face,
-%  and the CID is what names its metrics to the descendant's /Metrics
-%  dictionary (PLRM 5.11.3), which is keyed by CID and not by glyph
-%  name. Nothing after the walk can recover the CID from the index --
-%  the CIDMap runs one way.
+%  A font number no descendant answers is a rangecheck out of the get
+%  that asks for it, as it is for the byte-mapped FMapTypes: a composite
+%  whose CMap names a descendant it was not built over cannot paint, and
+%  a substitute glyph chosen here would be a page of the wrong font with
+%  nothing said.
 %
-%  What becomes of the glyph is the procedure's and not the walk's,
-%  because this is the only way to a CID-keyed glyph: a string names it
-%  no other way, so taking its outline goes through here as painting it
-%  does. The walk itself paints nothing.
-%
-/.cmapwalk {  % font str proc  .  -
-    20 dict begin
-    /.showhook where { pop }{ /.showhook { pop } def } ifelse
-    /gproc exch def
-    /str exch def
-    /fnt exch def
-    /cm fnt /CMap get def
-    /desc fnt /FDepVector get 0 get def
+/.cmapdescfont {  % fnt fidx  .  desc
+    exch dup /FDepVector get exch /Encoding get 3 -1 roll get get
+} def
 
-    % The walk paints each glyph with the descendant current, and the
-    % font a glyph was painted from is not the caller's to lose. What
-    % goes back at the end is what was current on the way in, which is
-    % not always the font walked: a show under cshow's measure walks the
-    % composite that stands for the descendant while the descendant is
-    % what is current, and glyphshow through a CIDFont walks a composite
-    % that stands for the CIDFont in the same way.
-    /prev graphicsdict /currgstate get /currfont get def
+%
+%  Everything the walk needs of one descendant, assembled once and kept
+%  for as long as the walk runs: the descendant itself, the copy of it
+%  that carries the composite's matrix, and the three entries that
+%  decide what a CID reaches -- the map, the width of an entry in it,
+%  and the count that says which CIDs the descendant has.
+%
+%  The face is assembled on the descendant and the matrix is carried on
+%  a copy of it, because the two have different lifetimes. A face is
+%  what the composite's own working copy of the descendant is for -- it
+%  survives the call and serves the next one -- while the concatenated
+%  matrix belongs to this composite and would be wrong on the descendant
+%  a second composite shares.
+%
+/.cmapdesc {  % fnt fidx  .  [ desc wrap gdb cidmap ccount ]
+    6 dict begin
+    /fidx exch def /fnt exch def
+    /desc fnt fidx //.cmapdescfont exec def
 
     % A CIDFontType 2 descendant renders through an assembled face,
     % rebuilt when its glyph directory has grown since.
@@ -736,21 +785,86 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     wrap /FontMatrix
         desc /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
         fnt /FontMatrix get matrix concatmatrix put
-    /gdb desc /GDBytes 2 copy known { get }{ pop pop 1 } ifelse def
-    /cidmap desc /CIDMap 2 copy known { get }{ pop pop null } ifelse def
 
     % What the descendant says its CIDs run to. A CIDFont declares the
     % number of them it has, and the valid ones are 0 to one less than
     % that; the rest "are treated as undefined glyphs" (PLRM 5.11.2,
     % 5.11.3). A descendant declaring no count is not held to one.
-    /ccount desc /CIDCount 2 copy known { get }{ pop pop null } ifelse def
-    graphicsdict /currgstate get /currfont wrap put
+    [ desc wrap
+      desc /GDBytes 2 copy known { get }{ pop pop 1 } ifelse
+      desc /CIDMap 2 copy known { get }{ pop pop null } ifelse
+      desc /CIDCount 2 copy known { get }{ pop pop null } ifelse ]
+    end
+} def
+
+%
+%  Walk a string through a CMap-mapped composite font (the FMapType 9
+%  of composefont), calling the procedure with each glyph's CID and its
+%  index in the descendant's face. Each code decodes to a font number
+%  and a CID (PLRM 5.11.5, p.389), the font number names the descendant,
+%  the CID maps to a glyph index through that descendant's CIDMap
+%  (GDBytes bytes per entry, across the array of segments), and the
+%  descendant is the font in force while the procedure runs, its face
+%  carried through the composite's matrix.
+%
+%  The descendant is settled per character and not per call, because
+%  usefont may name a different one for each block of a CMap's mappings.
+%  What is prepared for one is kept for the rest of the walk, in a slot
+%  per font number: a string alternating between two descendants
+%  assembles each face once, as a string staying in one assembles it
+%  once.
+%
+%  Both selectors go to the procedure because both are needed and only
+%  the walk holds both: the index is what names the glyph to the face,
+%  and the CID is what names its metrics to the descendant's /Metrics
+%  dictionary (PLRM 5.11.3), which is keyed by CID and not by glyph
+%  name. Nothing after the walk can recover the CID from the index --
+%  the CIDMap runs one way.
+%
+%  What becomes of the glyph is the procedure's and not the walk's,
+%  because this is the only way to a CID-keyed glyph: a string names it
+%  no other way, so taking its outline goes through here as painting it
+%  does. The walk itself paints nothing.
+%
+/.cmapwalk {  % font str proc  .  -
+    24 dict begin
+    /.showhook where { pop }{ /.showhook { pop } def } ifelse
+    /gproc exch def
+    /str exch def
+    /fnt exch def
+    /cm fnt /CMap get def
+    /dv fnt /Encoding get length array def
+
+    % The walk paints each glyph with the descendant current, and the
+    % font a glyph was painted from is not the caller's to lose. What
+    % goes back at the end is what was current on the way in, which is
+    % not always the font walked: a show under cshow's measure walks the
+    % composite that stands for the descendant while the descendant is
+    % what is current, and glyphshow through a CIDFont walks a composite
+    % that stands for the CIDFont in the same way.
+    /prev graphicsdict /currgstate get /currfont get def
+    /cur null def
     /p 0 def
     {
         p str length ge { exit } if
         str p cm //.cmapnext exec
         /w exch def
         /cid exch def
+        /fnum exch def
+
+        % The descendant this character's font number names, prepared on
+        % first use and kept for the rest of the walk.
+        dv fnum get null eq { dv fnum fnt fnum //.cmapdesc exec put } if
+        dv fnum get
+        dup 0 get /desc exch def
+        dup 1 get /wrap exch def
+        dup 2 get /gdb exch def
+        dup 3 get /cidmap exch def
+        4 get /ccount exch def
+        wrap cur ne {
+            graphicsdict /currgstate get /currfont wrap put
+            /cur wrap def
+        } if
 
         % A CID the descendant does not have is answered by the glyph for
         % CID 0, which a CIDFont is required to carry (PLRM 5.11.4,
@@ -870,7 +984,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /WMode 0
         /FDepVector [ desc ]
         /CMap << /.codespaces [ <00> <FF> ]
-                 /.cidranges [ <00> <00> cid ] >>
+                 /.cidranges [ <00> <00> cid 0 ] >>
     >>
     <00>
     /glyphshow //.showtype0 exec
@@ -1070,48 +1184,60 @@ end
         /ppexec //.pexec def
         /cm fnt /CMap get def
 
-        % The font the procedure runs under is the descendant the walk
+        % The font the procedure runs under is the descendant the mapping
         % selected, because PLRM 8.2 has currentfont answer with "the
         % current descendant base font or CIDFont" while it runs. It is a
         % copy, so that what a show of it does to a font -- assembling a
         % face on it, for one -- does not reach the descendant the
-        % composite keeps. One copy serves the whole call: it says which
-        % font the measure is for and nothing about which character.
-        /bw fnt /FDepVector get 0 get dup length 4 add dict copy def
-
+        % composite keeps.
+        %
+        % One copy per descendant and not one per call: the mapping
+        % yields a font number as well as a selector (PLRM 5.11.5,
+        % p.389), so a CMap that names a second descendant for its later
+        % ranges hands the procedure a different font part-way through
+        % the string. The copy says which font the measure is for and
+        % nothing about which character, so it is made on first use of
+        % the descendant and kept for the rest of the call.
+        %
         % The descendant carries its own matrix and the composite carries
         % the size, because scalefont scales a composite's FontMatrix and
         % leaves its descendants alone: what a glyph is painted at is the
         % two concatenated. The copy is made current on its own, so it
-        % takes the product rather than half of it.
-        bw /FontMatrix
-            bw /FontMatrix get fnt /FontMatrix get matrix concatmatrix put
+        % takes the product rather than half of it. The copies are made
+        % in the compiled walk, which is where the font number a
+        % character selects is known; this is the slot per font number
+        % they are kept in.
+        /dv fnt /Encoding get length array def
 
         % The mapping the measure is: this composite over a CMap in which
-        % one byte, and no other code, names one CID. The composite is
-        % otherwise the one that was set, so the writing mode, the
-        % matrix and the descendant the face is assembled on are the ones
-        % a show of the same text goes through.
+        % one byte, and no other code, names one CID in one descendant.
+        % The composite is otherwise the one that was set, so the writing
+        % mode, the matrix and the descendants the faces are assembled on
+        % are the ones a show of the same text goes through.
         %
         % A byte cannot name a CID above 255 and most CIDs in a real font
         % are above 255, so a mapping that sent each byte to the CID of
         % the same number would be one the CID could not be reached
         % through; what makes the byte enough is that it has only one CID
-        % to stand for. Which byte and which CID is one character's
-        % business, so the string and the range the mapping is made of
-        % are rewritten per character, in the compiled program rather
-        % than here; the operator that rewrites them is embedded the way
-        % exec is.
+        % to stand for. Which byte, which CID and which descendant is one
+        % character's business, so the string and the range the mapping
+        % is made of are rewritten per character, in the compiled program
+        % rather than here; the operator that rewrites them is embedded
+        % the way exec is.
         /cs 1 string def
-        /rng [ cs cs 0 ] def
+        /rng [ cs cs 0 0 ] def
         /mfnt fnt dup length 1 add dict copy def
         mfnt /CMap << /.codespaces [ <00> <FF> ] /.cidranges rng >> put
 
         % What the slot holds while the procedure runs: the font it runs
         % under, the composite that stands for it, the code that
         % composite maps -- and, so the walk can put it back however it
-        % ends, whatever the slot held on the way in.
-        /meas [ bw mfnt cs null ] def
+        % ends, whatever the slot held on the way in. The font is written
+        % per character with the rest of the mapping, since it is the
+        % descendant this character selected; until the first is written
+        % the slot names no font, and the substitution it governs is one
+        % nothing matches.
+        /meas [ null mfnt cs null ] def
         /putin /put load def
         /p 0 def
         [
@@ -1119,15 +1245,24 @@ end
         {
             p str length ge { exit } if
             str p cm //.cmapnext exec
-            /w exch def /cid exch def
+            /w exch def /cid exch def /fnum exch def
             /code str p w add 1 sub get def
+            dv fnum get null eq {
+                fnt fnum //.cmapdescfont exec dup length 4 add dict copy
+                dup /FontMatrix
+                    1 index /FontMatrix 2 copy known { get }{ pop pop matrix } ifelse
+                    fnt /FontMatrix get matrix concatmatrix put
+                dv fnum 3 -1 roll put
+            } if
             currentdict /cs get 0 code currentdict /putin get
             currentdict /rng get 2 cid currentdict /putin get
+            currentdict /rng get 3 fnum currentdict /putin get
+            currentdict /meas get 0 dv fnum get currentdict /putin get
             code
-            currentdict /bw get
+            dv fnum get
             1 string dup 0 code put
             //.cshmeasure currentdict /exe get
-            currentdict /bw get //.cshsetfont currentdict /exe get
+            dv fnum get //.cshsetfont currentdict /exe get
             currentdict /proc get currentdict /ppexec get currentdict /exe get
             currentdict /fnt get //.cshsetfont currentdict /exe get
             /p p w add def
