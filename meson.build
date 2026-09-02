@@ -1128,9 +1128,16 @@ context_reuse_exe = executable('context_reuse_test',
 # In the memacct suite: it weighs the process, so it cannot answer under
 # an allocator that keeps freed memory in quarantine and carries shadow
 # maps of its own.
+# It weighs the process, so what it measures is the machine's as much as
+# its own: alone it takes about seven seconds, and under the parallelism a
+# whole-tree run creates it has exceeded the default limit in every batch
+# run of the gate. A limit it cannot reach under load is a red gate that
+# says nothing, so it is given one with room in it rather than left to the
+# default sixty seconds.
 test('context-reuse',
   context_reuse_exe,
   suite: cost_fast + ['memacct'],
+  timeout: 300,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
 # The array a wrapped call copies its operands into is kept in privatedict
