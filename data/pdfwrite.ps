@@ -936,7 +936,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % device space the syntax can name; painting then falls back to the
     % tint-transformed process colour.
     /.registersep {  % tint space IMAGE  .  index true | false
-    {
+    12 {
         /.sepspace exch def
         pop  % The tint: the caller records it per-gstate
         /.sepnout .sepspace 2 get
@@ -971,7 +971,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 .sepname 3 1 roll .dev //.internaldict /.pdfregsep get exec
                 true
         } ifelse } ifelse
-    } //.indict exec }
+    } //.indevwork exec }
 
     /PutPix {  % c1..cN x y IMAGE  .  -
     8 { //.pdfwritebind4 {exch def} forall
