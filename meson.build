@@ -2395,6 +2395,17 @@ test('pdf-shading',
   suite: cost_fast,
   timeout: 180)
 
+# A shading a device keeps whole is judged by the structure the painters
+# check as they walk it, so a program is told the same thing about the same
+# shading whether it is painted or written out.
+test('shading-device-parity',
+  find_program('tests/check-shading-device-parity.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # A job that marks no page produces no PDF and reports why: a page tree with
 # no pages in it is not a document a consumer will open.
 test('pdf-empty-job',

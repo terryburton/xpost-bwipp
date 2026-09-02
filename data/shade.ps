@@ -1397,6 +1397,29 @@ end
     } ifelse
 } def
 
+/.shbpsok << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> readonly def
+
+%  A sampled function the device is to keep whole states a grid, a sample
+%  width and a range, and its stream has to hold the samples all three
+%  together call for. One that does not is declined here, so the painter
+%  reads it and raises as it does for a device that keeps no functions.
+/.shdevfn0ok {  % fndict  .  bool
+    dup /DataSource get type /stringtype ne { pop false }{
+    dup /BitsPerSample known not { pop false }{
+    dup /Range known not { pop false }{
+    dup /Size known not { pop false }{
+    dup /BitsPerSample get //.shbpsok exch known not { pop false }{
+        dup /Size get
+        true exch { dup type /integertype eq exch 0 gt and and } forall {
+            dup /Size get 1 exch { mul } forall
+            1 index /Range get length 2 idiv mul
+            1 index /BitsPerSample get mul
+            7 add 8 idiv
+            exch /DataSource get length le
+        }{ pop false } ifelse
+    } ifelse } ifelse } ifelse } ifelse } ifelse
+} def
+
 /.shdevfn1 {  % fndict  .  bool
     dup type /dicttype ne { pop false }{
     dup /FunctionType known not { pop false }{
@@ -1407,7 +1430,7 @@ end
         % A sampled function is written out as a stream, so its samples have
         % to be readable more than once: a string source can be, a file or a
         % procedure cannot.
-        /DataSource get type /stringtype eq
+        //.shdevfn0ok exec
     }{ pop false } ifelse } ifelse } ifelse } ifelse } ifelse
 } def
 
@@ -1425,11 +1448,45 @@ end
 %  is asked.
 /.shmeshtypes << 4 true 5 true 6 true 7 true >> readonly def
 
+%  A shading the device is to keep whole is checked here for the structure
+%  the painters check as they walk it. What fails is not refused outright:
+%  it is declined, and the painter raises over it as it does for a device
+%  that keeps no shadings at all. So a program is told the same thing about
+%  the same shading whatever it is being written to.
+/.shdevrowok {  % shdict  .  bool
+    dup /ShadingType get 5 eq {
+        dup /VerticesPerRow known {
+            dup /VerticesPerRow get dup type /integertype eq exch 2 ge and {
+                % A row the source cannot fill once consumes no vertices, so
+                % the read position never moves and the row loop never
+                % reaches its source-exhausted exit.
+                dup /VerticesPerRow get
+                1 index /Function known
+                    { 1 }
+                    { 1 index /ColorSpace get
+                      //.xpostsys /.spacecomponents get exec } ifelse
+                2 add mul
+                exch /DataSource get length le
+            }{ pop false } ifelse
+        }{ pop false } ifelse
+    }{ pop true } ifelse
+} def
+
+%  Every record of a patch mesh but the first may name an edge of the patch
+%  before it; the first has no predecessor, so it has to carry a whole one.
+/.shdevflagok {  % shdict  .  bool
+    dup /ShadingType get dup 6 ge exch 7 le and {
+        /DataSource get dup length 0 gt { 0 get 0 eq }{ pop false } ifelse
+    }{ pop true } ifelse
+} def
+
 /.shdevmeshok {  % shdict  .  bool
     dup /ShadingType get //.shmeshtypes exch known {
-        dup /DataSource 2 copy known {
-            get type dup /arraytype eq exch /packedarraytype eq or
-        }{ pop pop false } ifelse
+        dup /DataSource known {
+            dup /DataSource get type dup /arraytype eq exch /packedarraytype eq or {
+                dup //.shdevrowok exec exch //.shdevflagok exec and
+            }{ pop false } ifelse
+        }{ pop false } ifelse
     }{ pop false } ifelse
 } def
 

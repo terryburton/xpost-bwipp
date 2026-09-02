@@ -34,6 +34,7 @@ tests/check-clip-writer.sh \
 tests/check-device-destroy.sh \
 tests/check-library-lifetime.sh \
 tests/check-serial-caches.sh \
+tests/check-shading-device-parity.sh \
 tests/check-skip-verdict.sh \
 tests/check-machinery-diverted.sh \
 tests/machinery_diverted.golden \
