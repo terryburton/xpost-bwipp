@@ -98,6 +98,27 @@ static void expect_tier(Xpost_Context *ctx, int jobserver,
     xpost_jobserver_set(ctx, 0);
 }
 
+/* PLRM C.3 has startjob run the server's steps 5, 6, 3 and 4, and step 3 is
+   to "establish the default initial state for the interpreter: empty operand
+   stack, local VM allocation mode, default user space for the raster output
+   device". A job that starts while the one it replaces was allocating
+   globally must not go on allocating globally: everything the new job
+   defined would land in the bank the job it replaced had chosen. */
+static void expect_local_allocation(Xpost_Context *ctx, const char *job_pw)
+{
+    const char *got;
+
+    xpost_startjob_password_set(ctx, job_pw);
+    /* the cases above end jobs of their own, and a job boundary puts back
+       the handler the context started with */
+    xpost_stdout_handler_set(ctx, out_sink, NULL);
+    got = run_job(ctx,
+                  "true setglobal true (jobpw) startjob pop "
+                  "currentglobal { (GLOBAL) }{ (LOCAL) } ifelse print flush");
+    if (strcmp(got, "LOCAL") != 0)
+        report_failure("startjob left the allocation mode %s, want LOCAL", got);
+}
+
 int main(void)
 {
     Xpost_Context *ctx;
@@ -362,6 +383,11 @@ int main(void)
     xpost_jobserver_set(ctx, 0);
 
     xpost_stdout_handler_set(ctx, NULL, NULL);
+
+    /* last, because it starts a job of its own and every case above
+       reads the job state the one before it left */
+    expect_local_allocation(ctx, "jobpw");
+
     xpost_destroy(ctx);
     xpost_quit();
     return verdict();

@@ -691,6 +691,16 @@ int Bstartjob(Xpost_Context *ctx,
 
     xpost_stack_clear(ctx->lo, ctx->os);
     xpost_stack_clear(ctx->lo, ctx->hold);
+    /* PLRM C.3: startjob runs the server's steps 5, 6, 3 and 4, and step 3
+       is to "establish the default initial state for the interpreter:
+       empty operand stack, local VM allocation mode, default user space
+       for the raster output device". The allocation mode goes back to
+       what the job boundary would put it back to, which is the mechanism
+       that already exists for ending a job -- without it a prolog that
+       started a new job while allocating globally went on allocating
+       globally, and everything the new job defined landed in the bank the
+       job it replaced had chosen. */
+    ctx->vmmode = ctx->job_vmmode;
     /* true leaves the run unencapsulated (its boundary folds its state into
        the baseline, so its definitions persist); false returns it to
        encapsulated (its boundary reverts). The revert or fold is the run's
