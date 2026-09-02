@@ -1501,6 +1501,22 @@ end } put
 %  The entry refused is named in $error, as every entry a page-device
 %  request is refused over is.
 %
+%  Two of the four state an extent rather than a place. A page is so many
+%  units across and down -- PLRM 6.2 puts its corners at (0, 0) and
+%  (width, height), which a number at or below zero puts the wrong way
+%  round or on top of each other -- and a device puts so many pixels in
+%  each of those units, which at zero is no pixels to put anywhere. An
+%  offset and a bounding box are places, not extents, and either may sit
+%  behind the origin, so neither is held to this.
+%
+%  Refused here, where the shape of the entry is settled, because that is
+%  the one place every device passes through: refused later, or in the
+%  device, each device answers differently for the same request -- and a
+%  device that writes its page out rather than painting it has no
+%  arithmetic to fail, so it wrote the impossible extent into the file and
+%  said nothing.
+.xpostsys /.pageextents << /PageSize true /HWResolution true >> readonly put
+
 .xpostsys /.checkpagegeometry {  % dict  .  dict
     << /PageSize 2 /HWResolution 2 /PageOffset 2 /ImagingBBox 4 >> {
                                         % dict key count
@@ -1515,6 +1531,13 @@ end } put
                 { true 1 index
                   { type dup /integertype eq exch /realtype eq or and } forall }
                 { false } ifelse
+                % an extent every one of whose numbers is one
+                dup {
+                    pop
+                    //.xpostsys /.pageextents get 3 index known {
+                        true 1 index { 0 gt and } forall
+                    }{ true } ifelse
+                } if
                 not {                   % dict key count value
                     2 index exch        % dict key count key value
                     //.setpageinfo exec

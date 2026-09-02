@@ -1503,6 +1503,27 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  What an image dictionary says its grid is. PLRM Table 4.25 types Width
+%  and Height as integers, and they are counts of samples: a value that is
+%  not an integer is not a count, and one below zero counts nothing. A
+%  grid of no samples at all is a different matter and is left alone --
+%  that paints nothing, which is an answer.
+%
+%  Asked in one place because every image type states the same two
+%  entries, and a grid refused for one of them is not a grid for any of
+%  the others. The fault is handed back rather than raised, so each caller
+%  raises it as its own operator and leaves what it opened the way it
+%  leaves it for every other refusal.
+%
+.xpostsys /.imgextentfault {  % dict  .  null | /typecheck | /rangecheck
+    dup /Width get exch /Height get
+    2 copy type /integertype eq exch type /integertype eq and not
+        { pop pop /typecheck }
+        { 0 lt exch 0 lt or { /rangecheck }{ null } ifelse }
+    ifelse
+} put
+
+%
 %  scale a raw sample value as the collectors scale samples to bytes
 %
 .xpostsys /.mcscale {  % raw bits  .  normalized
@@ -1576,6 +1597,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             itmc { itbits //.mcscale exec } forall
         } ifelse
     ] def
+    d //.imgextentfault exec dup null ne
+        { end /image cvx exch signalerror }{ pop } ifelse
     d /Width get d /Height get itbits d /ImageMatrix get
     d /image //.imgdatasource exec
     d /Decode get
@@ -1673,6 +1696,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     dd /Interpolate 2 copy known { get }{ pop pop false } ifelse
     dup type /booleantype eq { .gscratch /.imginterp 3 -1 roll put }{ pop } ifelse
     /il d /InterleaveType get def
+    dd //.imgextentfault exec dup null ne
+        { end /image cvx exch signalerror }{ pop } ifelse
+    md //.imgextentfault exec dup null ne
+        { end /image cvx exch signalerror }{ pop } ifelse
     /w dd /Width get def
     /h dd /Height get def
     /bpc dd /BitsPerComponent get def
@@ -1844,6 +1871,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /d exch def
             d /Interpolate 2 copy known { get }{ pop pop false } ifelse
             dup type /booleantype eq { .gscratch /.imginterp 3 -1 roll put }{ pop } ifelse
+            d //.imgextentfault exec dup null ne
+                { end /image cvx exch signalerror }{ pop } ifelse
             d /Width get d /Height get
             d /BitsPerComponent get d /ImageMatrix get
             d /image //.imgdatasource exec
@@ -2215,6 +2244,8 @@ setglobal
         % quietly stand for the whole of it.
         d /Decode get length 2 ne
             { end /imagemask cvx /rangecheck signalerror } if
+        d //.imgextentfault exec dup null ne
+            { end /imagemask cvx exch signalerror }{ pop } ifelse
         d /Width get d /Height get
         d /Decode get 0 get 0 ne
         d /ImageMatrix get

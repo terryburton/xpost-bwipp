@@ -525,6 +525,42 @@ true 1 1 3 { DEVICE /ImgData get 0 get exch get 255 eq and } for
        /ImageMatrix [8 0 0 -4 0 4] /DataSource black /Decode [0 1] >> image
     } paint } /rangecheck (a mask colour outside the sample range) raises
 
+
+% PLRM Table 4.25 types Width and Height as integers, and they count
+% samples: a value that is not an integer is not a count, and one below
+% zero counts nothing. Both are asked of every image type and of the
+% stencil, because the same dictionary entry cannot mean one thing under
+% one type and another under the next -- and because a count that is
+% never checked is a row loop with nothing to stop it, which is a page
+% that never finishes rather than a page that is refused.
+{ << /ImageType 1 /Width 4 /Height 1e30 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> image } /typecheck
+    (a height that is not an integer) raises
+{ << /ImageType 1 /Width 4 /Height -3 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> image } /rangecheck
+    (a height below zero) raises
+{ << /ImageType 1 /Width 1e30 /Height 4 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> image } /typecheck
+    (a width that is not an integer) raises
+{ << /ImageType 4 /Width 4 /Height 1e30 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /MaskColor [0] /DataSource { () } >> image } /typecheck
+    (a colour-key masked image states its grid the same way) raises
+{ << /ImageType 1 /Width 4 /Height 1e30 /BitsPerComponent 1
+     /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> imagemask } /typecheck
+    (a stencil states its grid the same way) raises
+
+% A grid of no samples is not the same fault: it paints nothing, which is
+% an answer, and PLRM asks nothing more of it.
+{ << /ImageType 1 /Width 0 /Height 0 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> image } outcome /ok eq
+    (a grid of no samples paints nothing rather than failing) assert
+
 (imatrix.scratch) status { pop pop pop pop
     (imatrix.scratch) deletefile } if
 verdict

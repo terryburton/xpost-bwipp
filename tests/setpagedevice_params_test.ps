@@ -87,4 +87,32 @@ currentpagedevice wcheck not
 currentpagedevice /PageSize get 0 get 1 ne
     (so the refused write did not take) assert
 
+% Two of the geometry entries state an extent rather than a place. PLRM
+% 6.2 puts the page's corners at (0, 0) and (width, height), which a
+% number at or below zero puts the wrong way round or on top of each
+% other, and a device of no resolution has no pixels to put in a unit.
+% Refused where the shape of the entry is settled, which is the one place
+% every device passes through: a device that paints the page has
+% arithmetic that fails on such a page, but a device that writes the page
+% out has none, and wrote the impossible extent into the file instead.
+{ << /PageSize [-100 -100] >> setpagedevice } /typecheck
+    (a page of negative extent) raises
+{ << /PageSize [0 0] >> setpagedevice } /typecheck
+    (a page of no extent) raises
+{ << /HWResolution [0 0] >> setpagedevice } /typecheck
+    (a device of no resolution) raises
+
+% A place may sit behind the origin, and neither of these is an extent, so
+% neither is refused for being one. An offset far behind the origin can
+% still be refused for its own reasons -- it is asked here only that the
+% answer is not the one the extent rule gives.
+<< /PageSize [612 792] >> setpagedevice
+{ << /PageOffset [-10 -10] >> setpagedevice } outcome /typecheck ne
+    (an offset behind the origin is a place, not an extent) assert
+{ << /ImagingBBox [-5 -5 100 100] >> setpagedevice } outcome /ok eq
+    (a bounding box may start behind the origin) assert
+{ << /PageSize [200 300] >> setpagedevice } outcome /ok eq
+    (an ordinary page is unaffected) assert
+
+
 verdict
