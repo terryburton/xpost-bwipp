@@ -2,11 +2,14 @@
 #  A shading a device keeps whole is checked for the structure the painters
 #  check as they walk it, so a program is told the same thing about the same
 #  shading whether it is painted or written out.
-set -e
-XPOST="$1"
-tmp="${TMPDIR:-/tmp}/shdevparity.$$"
-mkdir -p "$tmp"
-trap 'rm -rf "$tmp"' EXIT
+#   $1  path to the built xpost binary
+set -u
+XPOST_ARG=${1:?usage: check-shading-device-parity.sh <xpost binary>}
+. "$(dirname "$0")/guard-paths.sh"
+guard_require_interpreter "$XPOST_ARG"
+XPOST=$xpost
+guard_workdir
+tmp=$work
 fail=0
 
 emit() { cat > "$tmp/$1.ps"; }
@@ -53,6 +56,10 @@ for c in vpr_short vpr_unfillable patch_first_flag samples_short size_negative \
          good_lattice good_sampled; do
     r=$(errof png "$tmp/$c.ps")
     w=$(errof pdfwrite "$tmp/$c.ps")
+    if [ "$c" = good_lattice ] && [ -n "$r$w" ]; then
+        echo "$c: a well-formed shading raised '${r:-none}'/'${w:-none}'; the probe is not measuring what it thinks"
+        fail=1
+    fi
     if [ "$r" != "$w" ]; then
         echo "$c: painted answers '${r:-none}', written answers '${w:-none}'"
         fail=1

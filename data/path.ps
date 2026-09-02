@@ -403,7 +403,11 @@ end
 .xpostsys /.magang {  % dx dy  .  rad ang
     2 copy
     dup mul exch dup mul add sqrt
-    3 1 roll exch atan
+    3 1 roll exch
+    % A vector of no length points nowhere, and atan will not name an angle
+    % for it. Zero is given instead, and the radius beside it is what tells
+    % the callers there is no direction here to use.
+    2 copy 0 eq exch 0 eq and { pop pop 0 }{ atan } ifelse
 } put
 
 %
