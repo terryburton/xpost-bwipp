@@ -1480,11 +1480,29 @@ end
     }{ pop true } ifelse
 } def
 
+%  A mesh is written out as samples packed against the extent its
+%  coordinates span, with that extent stated beside them so the consumer
+%  can undo the packing. A writer states numbers in a fixed range, and a
+%  coordinate beyond it would be packed against one extent and stated as
+%  another: the consumer would then draw the mesh at the wrong size, with
+%  nothing in the file to say so. Such a mesh is declined and painted by
+%  decomposition instead, where no extent is written and none can disagree.
+/.shdevextentok {  % shdict  .  bool
+    /DataSource get
+    true exch {
+        dup type dup /integertype eq exch /realtype eq or {
+            abs 1000000000 gt { pop false } if
+        }{ pop pop false } ifelse
+    } forall
+} def
+
 /.shdevmeshok {  % shdict  .  bool
     dup /ShadingType get //.shmeshtypes exch known {
         dup /DataSource known {
             dup /DataSource get type dup /arraytype eq exch /packedarraytype eq or {
-                dup //.shdevrowok exec exch //.shdevflagok exec and
+                dup //.shdevrowok exec
+                1 index //.shdevflagok exec and
+                exch //.shdevextentok exec and
             }{ pop false } ifelse
         }{ pop false } ifelse
     }{ pop false } ifelse

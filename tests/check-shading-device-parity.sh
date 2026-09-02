@@ -37,6 +37,10 @@ emit size_negative <<'EOF'
    << /FunctionType 0 /Domain [0 1] /Range [0 1] /Size [-5]
       /BitsPerSample 2000000000 /DataSource (abcd) >> >> shfill showpage
 EOF
+emit extent_unstatable <<'EOF'
+<< /ShadingType 4 /ColorSpace /DeviceRGB /DataSource
+   [ 0  0 0  1 0 0   0  1e12 0  0 1 0   0  0 1e12  0 0 1 ] >> shfill showpage
+EOF
 emit good_lattice <<'EOF'
 << /ShadingType 5 /ColorSpace /DeviceRGB /VerticesPerRow 2 /DataSource
    [ 0 0  1 0 0   200 0  0 1 0   0 200  0 0 1   200 200  1 1 0 ] >> shfill showpage
@@ -53,7 +57,7 @@ errof() {
 }
 
 for c in vpr_short vpr_unfillable patch_first_flag samples_short size_negative \
-         good_lattice good_sampled; do
+         extent_unstatable good_lattice good_sampled; do
     r=$(errof png "$tmp/$c.ps")
     w=$(errof pdfwrite "$tmp/$c.ps")
     if [ "$c" = good_lattice ] && [ -n "$r$w" ]; then
@@ -75,5 +79,14 @@ for c in good_lattice good_sampled; do
     fi
 done
 
+# A mesh reaching past what the writer can state must not be kept whole: its
+# samples would be packed against one extent and the file would name another.
+"$XPOST" -q -d pdfwrite -o "$tmp/extent.pdf" "$tmp/extent_unstatable.ps" \
+    < /dev/null > /dev/null 2>&1
+if grep -a -q '/ShadingType' "$tmp/extent.pdf" 2>/dev/null; then
+    echo "extent_unstatable: kept whole, so its Decode names a range its samples were not packed against"
+    fail=1
+fi
+
 [ "$fail" -eq 0 ] || { echo "shading-device-parity: a shading is judged differently by the two routes."; exit 1; }
-echo "SUCCESS (7 shadings judged the same painted and written)"
+echo "SUCCESS (8 shadings judged the same painted and written)"
