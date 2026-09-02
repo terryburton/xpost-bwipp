@@ -46,6 +46,17 @@ mk funcbased '0 0 200 200 rectclip
                 /Size [2 2] /BitsPerSample 8
                 /DataSource <FF0000 00FF00 0000FF FFFF00> >> >> shfill'
 
+# a stitching function reaches the file as one, and the sub-functions it
+# names reach it as objects of their own. A local named for an operator
+# would shadow that operator for everything the emitter calls, which is how
+# this arrived: a stitching function stopped the page at the next
+# subtraction anything did.
+mk stitched '0 0 300 300 rectclip
+<< /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 300 0]
+   /Function << /FunctionType 3 /Domain [0 1] /Bounds [0.5] /Encode [0 1 0 1]
+                /Functions [ << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >>
+                             << /FunctionType 2 /Domain [0 1] /C0 [1] /C1 [0] /N 1 >> ] >> >> shfill'
+
 # a mesh type stays decomposed -- the negative control for scope
 mk mesh '0 0 200 200 rectclip
 << /ShadingType 4 /ColorSpace /DeviceRGB /BitsPerCoordinate 8 /BitsPerComponent 8
@@ -83,6 +94,12 @@ grep -q '/ShadingType 4' "$work/mesh.pdf" \
 # ...and it must still have painted something
 test "$(wc -c < "$work/mesh.pdf")" -gt 700 \
     || { echo "FAIL: the mesh page painted nothing"; fail=1; }
+
+grep -q '/FunctionType 3' "$work/stitched.pdf" \
+    || { echo "FAIL: a stitching function did not reach the file"; fail=1; }
+# its two sub-functions are objects of their own, named from an array
+grep -qE '/Functions \[[0-9]+ 0 R [0-9]+ 0 R' "$work/stitched.pdf" \
+    || { echo "FAIL: the stitched sub-functions are not named as objects"; fail=1; }
 
 grep -q '/ShadingType' "$work/plain.pdf" \
     && { echo "FAIL: a page with no shading named a shading"; fail=1; }

@@ -542,7 +542,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             8 dict begin
             /fd exch def
             % a stitching function's subfunctions are objects before it is
-            /sub fd /ft get 3 eq { fd /fns get .emitfnobj }{ null } ifelse def
+            % Named for what it holds and not for what it is: a name that
+            % is also an operator's shadows that operator for everything
+            % this dictionary is current for, and /sub took arithmetic with
+            % it -- a stitching function stopped the page at the next
+            % subtraction anyone did.
+            /subfns fd /ft get 3 eq { fd /fns get .emitfnobj }{ null } ifelse def
             /fo .nextobj def fo .recordoff
             fo 20 string cvs .vw ( 0 obj\n<< /FunctionType ) .vw
             fd /ft get 20 string cvs .vw
@@ -554,7 +559,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                 ( /N ) .vw fd /n get .pdfnumstr .vw
             } if
             fd /ft get 3 eq {
-                ( /Functions ) .vw sub .fnref
+                ( /Functions ) .vw subfns .fnref
                 ( /Bounds [) .vw fd /bounds get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
                 ( /Encode [) .vw fd /encode get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
             } if
