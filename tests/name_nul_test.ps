@@ -1,0 +1,268 @@
+%!testlib
+% A name is its characters and its count, run through `xpost -d null` by
+% run-ps-test.sh: prints SUCCESS iff every assertion holds.
+%
+% PLRM 3.3 gives a name a length and a set of characters, and rules
+% nothing out of that set: "a name object is not the same as a character
+% string ... names may include any characters". A nul is a character of a
+% name like any other, and two names of different lengths are different
+% names however far they agree.
+%
+% What this suite holds the interpreter to is that a name carrying a nul
+% is not the shorter name it begins with. The interpreter reaches its
+% host through C text, which ends at the first nul, so anything read that
+% way -- a table of filter names, the host's font configuration, an error
+% name, an access string, a numeral -- stops there, and the longer name
+% takes the shorter one's answer. Each case below asks for something by a
+% name that carries a nul and requires the answer a name nothing is
+% installed for gets.
+%
+% Every case comes in three: the plain name, which must go on working;
+% the name carrying a nul; and a name that is simply wrong, whose answer
+% says what refusal looks like here. The third is not decoration. Several
+% of these operators answer a refusal with a value rather than an error --
+% false, a notdef, a substituted face -- and a case that only checked for
+% "not the plain answer" would be satisfied by an operator that had
+% stopped working altogether.
+
+% cvn converts over the string's own count (PLRM 3.8), so a hex string
+% holding a nul builds a name a byte longer than the one it begins with.
+% Every case below rests on that, so it is asserted first: were cvn to
+% stop at the nul itself, the names built here would BE the plain names
+% and every case would pass while asking nothing.
+/nulname { <41534349494865784465636f646500> cvn } bind def
+/ASCIIHexDecode length 14 eq (the plain filter name is 14 characters) assert
+nulname length 15 eq (a nul-carrying name is a character longer) assert
+nulname /ASCIIHexDecode eq not (the two names are not equal) assert
+
+% --- filters: a name no filter carries is undefined ------------------
+% The name is compared against a table of filter names. Each form of the
+% operator states its own answer: the plain forms have no filter to name,
+% and the record-size form leaves the operands in a shape no form takes.
+
+{ (abc) /ASCIIHexDecode filter pop }
+    (filter, string source, plain name) works
+{ (abc) nulname filter pop }
+    /undefined (filter, string source, nul-carrying name) raises
+{ (abc) /NoSuchFilter filter pop }
+    /undefined (filter, string source, unknown name) raises
+
+{ currentfile /ASCIIHexDecode filter pop }
+    (filter, file source, plain name) works
+{ currentfile nulname filter pop }
+    /undefined (filter, file source, nul-carrying name) raises
+{ currentfile /NoSuchFilter filter pop }
+    /undefined (filter, file source, unknown name) raises
+
+{ {(abc)} /ASCIIHexDecode filter pop }
+    (filter, procedure source, plain name) works
+{ {(abc)} nulname filter pop }
+    /undefined (filter, procedure source, nul-carrying name) raises
+{ {(abc)} /NoSuchFilter filter pop }
+    /undefined (filter, procedure source, unknown name) raises
+
+% the parameter-dictionary form reads the name before the dictionary
+{ (abc) << >> /ASCIIHexDecode filter pop }
+    (filter, parameter dictionary, plain name) works
+{ (abc) << >> nulname filter pop }
+    /undefined (filter, parameter dictionary, nul-carrying name) raises
+{ (abc) << >> /NoSuchFilter filter pop }
+    /undefined (filter, parameter dictionary, unknown name) raises
+
+% a filter named in that form by its own parameters rather than by the
+% table: CCITTFaxDecode reads its columns from the dictionary
+/nulfax { <43434954544661784465636f646500> cvn } bind def
+{ (abc) << /Columns 8 >> /CCITTFaxDecode filter pop }
+    (filter, fax parameters, plain name) works
+{ (abc) << /Columns 8 >> nulfax filter pop }
+    /undefined (filter, fax parameters, nul-carrying name) raises
+{ (abc) << /Columns 8 >> /NoSuchFilter filter pop }
+    /undefined (filter, fax parameters, unknown name) raises
+
+% the delimiter form, whose name is compared on its own
+/nulsub { <53756246696c654465636f646500> cvn } bind def
+{ (abc) 0 (>) /SubFileDecode filter pop }
+    (filter, delimiter form, plain name) works
+{ (abc) 0 (>) nulsub filter pop }
+    /undefined (filter, delimiter form, nul-carrying name) raises
+{ (abc) 0 (>) /NoSuchFilter filter pop }
+    /undefined (filter, delimiter form, unknown name) raises
+
+% the record-size form: one filter takes a record size, and a call naming
+% any other leaves operands no form of the operator accepts
+/nulrle { <52756e4c656e677468456e636f646500> cvn } bind def
+{ {(abc)} 0 /RunLengthEncode filter pop }
+    (filter, record size, plain name) works
+{ {(abc)} 0 nulrle filter pop }
+    /typecheck (filter, record size, nul-carrying name) raises
+{ {(abc)} 0 /NoSuchFilter filter pop }
+    /typecheck (filter, record size, unknown name) raises
+
+% --- the access a file is opened with --------------------------------
+% PLRM 3.8.1 Table 3.5 lists the access strings; a string outside the
+% table names no access, and one carrying a nul is outside it.
+
+{ (%stdin) (r) file pop }
+    (file, plain access string) works
+{ (%stdin) <7200> file pop }
+    /invalidfileaccess (file, nul-carrying access string) raises
+{ (%stdin) (rx) file pop }
+    /invalidfileaccess (file, access string outside the table) raises
+
+% --- a string used as a dictionary key -------------------------------
+% PLRM 3.4 converts a string key to a name, and cvn is what converts a
+% string to a name: the two must reach the same name, so the count is
+% what decides, not the first nul.
+
+/nulkey <61626300> def
+5 dict begin
+    currentdict nulkey 1 put
+    currentdict /abc known not
+        (a nul-carrying string key does not key the shorter name) assert
+    currentdict nulkey cvn known
+        (a nul-carrying string key keys the name cvn builds) assert
+    currentdict (zzz) 2 put
+    currentdict /zzz known
+        (a plain string key keys the name it spells) assert
+end
+
+% --- a string read as a numeral --------------------------------------
+% The numeral is the whole string (PLRM 3.2 gives the syntax and no
+% terminator), so a string whose characters run on past a numeral is not
+% one, whether what follows is a nul or anything else.
+
+{ (12) cvi 12 eq (cvi reads a plain numeral) assert }
+    (cvi, plain numeral) works
+{ <313200323334> cvi pop }
+    /typecheck (cvi, numeral followed by a nul) raises
+{ (12x) cvi pop }
+    /typecheck (cvi, numeral followed by a letter) raises
+
+{ (1.5) cvr 1.5 eq (cvr reads a plain numeral) assert }
+    (cvr, plain numeral) works
+{ <312e3500393939> cvr pop }
+    /typecheck (cvr, numeral followed by a nul) raises
+{ (1.5x) cvr pop }
+    /typecheck (cvr, numeral followed by a letter) raises
+
+% --- the error a nested run ends on -----------------------------------
+% A procedure standing as a filter's source runs inside the operator, and
+% the error it signals is the error the operator reports. The name is
+% matched against the interpreter's own error names; one that matches
+% none of them is the catch-all, which is what this interpreter says when
+% it cannot be more specific.
+
+/nultype { <74797065636865636b00> cvn } bind def
+{ { 1 /typecheck signalerror } /ASCIIHexDecode filter 4 string readstring pop pop }
+    /typecheck (a nested run signalling a plain error name) raises
+{ { 1 nultype signalerror } /ASCIIHexDecode filter 4 string readstring pop pop }
+    /unknownerror (a nested run signalling a nul-carrying error name) raises
+{ { 1 /NoSuchErrorZZ signalerror } /ASCIIHexDecode filter 4 string readstring pop pop }
+    /unknownerror (a nested run signalling an unknown error name) raises
+
+% --- the environment ---------------------------------------------------
+% Not PLRM operators, but the same question of the same kind of operand:
+% the environment names its variables and holds their values as text, and
+% a string counts its characters (PLRM 3.3). A name carrying a nul is not
+% the variable it begins with, and a value carrying one is not the value
+% it begins with -- so neither is set, and the variable the shorter name
+% does name is left as it was.
+
+{ (XPOST_NUL_PROBE) (present) putenv }
+    (putenv, plain name and value) works
+{ (XPOST_NUL_PROBE) getenv (present) eq
+    (getenv reads back what putenv set) assert }
+    (getenv, plain name) works
+{ <58504f53545f4e554c5f50524f424500> getenv pop }
+    /undefined (getenv, nul-carrying name) raises
+{ (XPOST_NUL_ABSENT_ZZ) getenv pop }
+    /undefined (getenv, name the environment has not got) raises
+{ <58504f53545f4e554c5f50524f424500> (changed) putenv }
+    /rangecheck (putenv, nul-carrying name) raises
+{ (XPOST_NUL_PROBE) <796573006e6f> putenv }
+    /rangecheck (putenv, nul-carrying value) raises
+{ (XPOST_NUL_PROBE) getenv (present) eq
+    (a refused putenv left the variable it did not name alone) assert }
+    (getenv, after the refusals) works
+
+% --- fonts -------------------------------------------------------------
+% A face is found by handing the name to the host's font configuration.
+% A build with no face library has no configuration to ask, and these
+% cases would be asking nothing; they are left out rather than passed.
+
+systemdict /NOFACES known not {
+
+    /nultimes { <54696d65732d526f6d616e00> cvn } bind def
+
+    % what a font resource reports it can obtain. The refusal here is a
+    % value -- false -- so the unknown name says what false means.
+    /Times-Roman /Font resourcestatus
+        { pop pop true }{ false } ifelse
+        (a plain font name is available as a resource) assert
+    nultimes /Font resourcestatus
+        { pop pop true }{ false } ifelse not
+        (a nul-carrying font name is not available as a resource) assert
+    /NoSuchFontZZ /Font resourcestatus
+        { pop pop true }{ false } ifelse not
+        (an unknown font name is not available as a resource) assert
+
+    % findfont answers an unknown name with a substituted face rather
+    % than an error, so the widths say which face answered: a name that
+    % is not Times-Roman must not be answered with Times-Roman's face.
+    /w { findfont 20 scalefont setfont (AB) stringwidth pop } bind def
+    /plainw /Times-Roman w def
+    /subw /NoSuchFontZZ w def
+    plainw subw ne
+        (the substituted face is not the face Times-Roman names) assert
+    % DEVIATION, recorded in COMPLIANCE under font names: the host's
+    % configuration is asked with the characters as C text, so a name
+    % carrying a nul is resolved as the shorter name it begins with and
+    % answers with that name's face rather than with a substitute. The
+    % case is held to what the interpreter does so that a change to it
+    % is visible; what a program can still tell is asserted above, where
+    % resourcestatus reports the whole name as unavailable.
+    nultimes w plainw eq
+        (a nul-carrying font name is answered with the face of the name
+         it begins with) assert
+    /Times-Roman w plainw eq
+        (a plain font name is still answered with its own face) assert
+
+    % glyphshow selects by glyph name, and a name the face does not carry
+    % selects notdef -- which advances by a different width than /B does.
+    /adv { % /glyphname . advance
+        /Times-Roman findfont 20 scalefont setfont
+        newpath 0 0 moveto glyphshow currentpoint pop
+    } bind def
+    /Badv /B adv def
+    /notdefadv /NoSuchGlyphZZ adv def
+    Badv notdefadv ne
+        (notdef advances differently from the glyph named B) assert
+    <4200> cvn adv notdefadv eq
+        (a nul-carrying glyph name selects notdef) assert
+    /B adv Badv eq
+        (a plain glyph name still selects its own glyph) assert
+
+    % show selects by the name the font's Encoding gives the character
+    % code, and there a name the face does not carry falls back to what
+    % the character map makes of the code itself -- a different answer
+    % again from notdef, and the answer a nul-carrying name must take.
+    /encw { % /glyphname . width of the code re-encoded to it
+        /Times-Roman findfont dup length dict copy
+        dup /Encoding 4 -1 roll
+            StandardEncoding dup length array copy
+            dup 65 4 -1 roll put
+        put
+        20 scalefont setfont (A) stringwidth pop
+    } bind def
+    /encB /B encw def
+    /encunknown /NoSuchGlyphZZ encw def
+    encB encunknown ne
+        (a code encoded to B shows a different glyph from an unknown name) assert
+    <4200> cvn encw encunknown eq
+        (a code encoded to a nul-carrying name shows what an unknown name shows) assert
+    /B encw encB eq
+        (a code encoded to a plain name still shows that glyph) assert
+
+} if
+
+verdict

@@ -66,6 +66,21 @@ int main(void)
     check(strcmp(xpost_error_info_get(ctx), "extra detail") == 0,
           "errorinfo detail is reported");
 
+    /* The name is handed over as C text, which ends at the first nul,
+       and the caller matches it against the error it is watching for. A
+       name carrying a nul would arrive as the shorter name it begins
+       with and answer to an error the run never raised; PLRM 3.3 rules
+       no character out of a name and counts its length, so such a name
+       is a name of its own and is reported as the catch-all instead. */
+    st = xpost_run(ctx, XPOST_INPUT_STRING,
+        "$error /errorname <736f6d65746573746661696c75726500> cvn put "
+        "$error /newerror true put stop", 0);
+    check(st == XPOST_RUN_ERRORED, "a nul-carrying error name reports ERRORED");
+    check(strcmp(xpost_error_name_get(ctx), "sometestfailure") != 0,
+          "a nul-carrying error name is not reported as the name it begins with");
+    check(strcmp(xpost_error_name_get(ctx), "unknownerror") == 0,
+          "a nul-carrying error name is reported as the catch-all");
+
     /* an error caught by the program is not an errored run */
     st = xpost_run(ctx, XPOST_INPUT_STRING, "{ 1 0 div } stopped pop", 0);
     check(st == XPOST_RUN_COMPLETE, "caught error still completes");

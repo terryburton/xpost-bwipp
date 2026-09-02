@@ -258,7 +258,7 @@ int _xpost_garbage_reach_dict(Xpost_Context *ctx,
                 str = xpost_stack_bottomup_fetch(
                     xpost_context_select_memory(ctx,tp[j].key),
                     address, tp[j].key.mark_.padw);
-                printf("%*s", str.comp_.sz, xpost_string_get_pointer(ctx,str));
+                printf("%.*s", str.comp_.sz, xpost_string_get_pointer(ctx,str));
 
                 }
                 break;

@@ -189,7 +189,7 @@ int _create_cont(Xpost_Context *ctx,
     {
         subdevice = xpost_string_cons(ctx, sizeof("rgb") - 1, "rgb");
     }
-    XPOST_LOG_INFO("</SUBDEVICE %*s>", subdevice.comp_.sz, xpost_string_get_pointer(ctx, subdevice));
+    XPOST_LOG_INFO("</SUBDEVICE %.*s>", subdevice.comp_.sz, xpost_string_get_pointer(ctx, subdevice));
     {
         /* The name is compared against its own length as well as the
            roster's: a shorter one read as though it were as long as

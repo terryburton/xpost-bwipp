@@ -528,6 +528,7 @@ xpost_string_cons_memory
 xpost_string_get
 xpost_string_get_memory
 xpost_string_get_pointer
+xpost_string_is_cstring
 xpost_string_put
 xpost_string_put_memory
 xpost_system_params_password_set

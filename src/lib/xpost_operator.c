@@ -582,7 +582,7 @@ void xpost_operator_dump(Xpost_Context *ctx,
            str.comp_.sz, str.comp_.sz, s,
            (void *)fp );
     */
-    XPOST_LOG_DUMP("%*s ", str.comp_.sz, s);
+    XPOST_LOG_DUMP("%.*s ", str.comp_.sz, s);
 }
 
 /* create operator object by opcode number */
@@ -819,8 +819,14 @@ Xpost_Object xpost_operator_cons_wrapped(Xpost_Context *ctx,
     if (xpost_object_get_type(str) != stringtype)
         return null;
     len = str.comp_.sz;
-    if (len > sizeof buf - 1)
-        len = sizeof buf - 1;
+    /* the row records the name as C text, and the operator is thereafter
+       known by what the row holds: a name too long for the row, or one
+       carrying a nul, would install the operator under a shorter name
+       than the one asked for and answer to that instead. A name counts
+       its characters (PLRM 3.3), so neither is the name it was given and
+       neither is installed */
+    if (len > sizeof buf - 1 || !xpost_string_is_cstring(ctx, str))
+        return null;
     memcpy(buf, xpost_string_get_pointer(ctx, str), len);
     buf[len] = '\0';
 

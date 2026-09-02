@@ -475,7 +475,7 @@ int evalload(Xpost_Context *ctx, Xpost_Object n)
     if (_xpost_interpreter_is_tracing)
     {
         Xpost_Object s = xpost_name_get_string(ctx, n);
-        XPOST_LOG_DUMP("evalload <name \"%*s\">", s.comp_.sz, xpost_string_get_pointer(ctx, s));
+        XPOST_LOG_DUMP("evalload <name \"%.*s\">", s.comp_.sz, xpost_string_get_pointer(ctx, s));
     }
 
     { /* consult the cache of resolutions against the dict stack */
@@ -2383,7 +2383,7 @@ ctxswitch:
    by the errorname the error machinery recorded */
 static unsigned int _nested_error(Xpost_Context *ctx)
 {
-    Xpost_Object sd, ed, en;
+    Xpost_Object sd, ed, en, ens;
     char *nm;
     unsigned int i;
     /* What a name this side cannot match comes back as. Some errors are
@@ -2403,7 +2403,16 @@ static unsigned int _nested_error(Xpost_Context *ctx)
     en = xpost_dict_get(ctx, ed, xpost_name_cons(ctx, "errorname"));
     if (xpost_object_get_type(en) != nametype)
         return ret;
-    nm = xpost_string_allocate_cstring(ctx, xpost_name_get_string(ctx, en));
+    /* the table below holds its names as C text, which ends at the first
+       nul: a name carrying one would be compared only that far and match
+       the error whose name it begins with, so a procedure signalling it
+       would end the operator with an error it never raised. A name counts
+       its characters (PLRM 3.3), so such a name is none of the errors
+       here and comes back as what this side cannot match */
+    ens = xpost_name_get_string(ctx, en);
+    if (!xpost_string_is_cstring(ctx, ens))
+        return ret;
+    nm = xpost_string_allocate_cstring(ctx, ens);
     if (!nm)
         return ret;
     for (i = 0; i <= (unsigned int)unknownerror; i++)

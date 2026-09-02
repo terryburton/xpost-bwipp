@@ -496,11 +496,30 @@ void xpost_op_record_run_error(Xpost_Context *ctx)
             if (xpost_object_get_type(nm) == stringtype)
             {
                 unsigned int n = nm.comp_.sz;
-                if (n > sizeof ctx->run_error_name - 1)
-                    n = sizeof ctx->run_error_name - 1;
-                memcpy(ctx->run_error_name,
-                       xpost_string_get_pointer(ctx, nm), n);
-                ctx->run_error_name[n] = '\0';
+
+                /* the embedding caller reads the name as C text and
+                   matches it against the error it is watching for, so a
+                   name that cannot be given whole -- one longer than the
+                   field, or one carrying a nul, which C text ends at --
+                   would be handed over as the shorter name it begins
+                   with and answer to an error the run never raised. A
+                   name counts its characters (PLRM 3.3); one this cannot
+                   carry is reported as the catch-all instead, which is
+                   what this interpreter says when it cannot be more
+                   specific (xpost_error.h) */
+                if (n > sizeof ctx->run_error_name - 1
+                    || !xpost_string_is_cstring(ctx, nm))
+                {
+                    strncpy(ctx->run_error_name, errorname[unknownerror],
+                            sizeof ctx->run_error_name - 1);
+                    ctx->run_error_name[sizeof ctx->run_error_name - 1] = '\0';
+                }
+                else
+                {
+                    memcpy(ctx->run_error_name,
+                           xpost_string_get_pointer(ctx, nm), n);
+                    ctx->run_error_name[n] = '\0';
+                }
             }
             if (xpost_object_get_type(info) == stringtype)
             {

@@ -91,6 +91,21 @@ char *xpost_string_allocate_cstring(Xpost_Context *ctx,
                                     Xpost_Object s);
 
 /**
+ * @brief whether the string's characters are the whole of it read as C text
+ *
+ * A string counts its characters (PLRM 3.3) rather than ending them at a
+ * sentinel, so a nul is a character of a string like any other. C text
+ * ends at the first nul instead, and every comparison, length and
+ * conversion the host library offers stops there: a string carrying a nul
+ * handed to one of them answers to the shorter string it begins with,
+ * which is a different string. Answers no for such a string, so that a
+ * caller about to read it as C text can refuse it in whatever terms its
+ * own operator refuses what it cannot name.
+ */
+int xpost_string_is_cstring(Xpost_Context *ctx,
+                            Xpost_Object s);
+
+/**
  * @}
  */
 

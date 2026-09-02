@@ -1434,6 +1434,28 @@ int _fonthostface(Xpost_Context *ctx,
     return 0;
 }
 
+/* A font name as C text, or the empty name where the name is not text.
+
+   A face is found by handing the name to the host's font configuration,
+   which reads it as C text. C text ends at the first nul, so a name
+   carrying one would be resolved as far as that nul and answer with the
+   face of the shorter name it begins with -- a font the program did not
+   name. A name counts its characters (PLRM 3.3) and a nul is one of
+   them, so such a name is not the name it begins with and the
+   configuration holds no face under it, exactly as it holds none under a
+   name nothing is installed for. The empty name is resolved instead: no
+   face carries that either, so what answers is the substitute a name
+   with no face of its own gets.
+
+   Returns the allocated text, or NULL where there was no room for it. */
+static char *
+_font_cname(Xpost_Context *ctx, Xpost_Object fontstr)
+{
+    if (!xpost_string_is_cstring(ctx, fontstr))
+        return calloc(1, 1);
+    return xpost_string_allocate_cstring(ctx, fontstr);
+}
+
 /* name|string  .fontnameavailable  bool
 
    Whether the host carries a face of this name, as against a default
@@ -1457,7 +1479,7 @@ int _fontnameavailable(Xpost_Context *ctx,
        only where its access permits being read (PLRM 3.3.2) */
     if (!xpost_object_is_readable(ctx, fontstr))
         return invalidaccess;
-    fname = xpost_string_allocate_cstring(ctx, fontstr);
+    fname = _font_cname(ctx, fontstr);
     if (!fname)
         return VMerror;
     avail = xpost_font_name_is_available(fname);
@@ -1494,6 +1516,16 @@ int _findfont(Xpost_Context *ctx,
        only where its access permits being read (PLRM 3.3.2) */
     if (!xpost_object_is_readable(ctx, fontstr))
         return invalidaccess;
+    /* The host's configuration is asked with the characters as C text,
+       which ends at a nul the name may carry. A name carrying one is
+       therefore resolved as the shorter name it begins with, and answers
+       with that name's face. The configuration cannot be asked anything
+       else usefully: handed the empty name it may decline to answer at
+       all rather than substitute, and handed the characters with the nul
+       disguised it matches the same face back by resemblance. What a
+       program can still tell is that the name is not available --
+       .fontnameavailable and /Font resourcestatus both answer for the
+       whole of it (COMPLIANCE: font names). */
     fname = xpost_string_allocate_cstring(ctx, fontstr);
 
     fontdict = xpost_dict_cons (ctx, 10);
@@ -2181,17 +2213,25 @@ int _faceencoding(Xpost_Context *ctx,
             sstr = xpost_name_get_string(ctx, names[c]);
             if (sstr.comp_.sz >= sizeof sbuf)
                 continue;
-            /* the characters are copied before anything allocates:
-               they live in virtual memory, which an intern may move */
-            memcpy(sbuf, xpost_string_get_pointer(ctx, sstr), sstr.comp_.sz);
-            sbuf[sstr.comp_.sz] = '\0';
-            if (strcmp(sbuf, ".notdef") == 0)
-                continue;
-            gi = xpost_font_face_own_name_index_get(face, sbuf);
-            if (gi)
+            /* the face's own glyph names are read as C text, which ends
+               at the first nul: a name carrying one would be compared
+               only that far and take the glyph of the shorter name it
+               begins with. Such a name is asked of the face no more than
+               a name the face does not carry is */
+            if (xpost_string_is_cstring(ctx, sstr))
             {
-                gids[c] = gi;
-                continue;
+                /* the characters are copied before anything allocates:
+                   they live in virtual memory, which an intern may move */
+                memcpy(sbuf, xpost_string_get_pointer(ctx, sstr), sstr.comp_.sz);
+                sbuf[sstr.comp_.sz] = '\0';
+                if (strcmp(sbuf, ".notdef") == 0)
+                    continue;
+                gi = xpost_font_face_own_name_index_get(face, sbuf);
+                if (gi)
+                {
+                    gids[c] = gi;
+                    continue;
+                }
             }
             /* the face has no glyph of that name, so the standard
                encoding is not this face's: what the code means here is
@@ -2828,16 +2868,26 @@ unsigned int _glyph_index_for_char(Xpost_Context *ctx,
                     return (unsigned int)gid.int_.val;
             }
             str = xpost_name_get_string(ctx, en);
-            cname = xpost_string_allocate_cstring(ctx, str);
-            if (cname)
+            /* past the CharStrings dictionary, which is keyed by the
+               name itself, the face's own glyph names are read as C
+               text and a name carrying a nul would be compared only as
+               far as that nul, taking the glyph of the shorter name it
+               begins with. Such a name is asked of the face no more
+               than a name the face does not carry is, and the code
+               falls back to the character map for both alike */
+            if (xpost_string_is_cstring(ctx, str))
             {
-                if (strcmp(cname, ".notdef") == 0)
+                cname = xpost_string_allocate_cstring(ctx, str);
+                if (cname)
                 {
+                    if (strcmp(cname, ".notdef") == 0)
+                    {
+                        free(cname);
+                        return 0;
+                    }
+                    gi = xpost_font_face_glyph_name_index_get(face, cname);
                     free(cname);
-                    return 0;
                 }
-                gi = xpost_font_face_glyph_name_index_get(face, cname);
-                free(cname);
             }
             if (gi)
                 return gi;
@@ -2870,6 +2920,10 @@ unsigned int _glyph_index_for_name(Xpost_Context *ctx,
             return (unsigned int)gid.int_.val;
     }
     str = xpost_name_get_string(ctx, gname);
+    /* as above: the face's glyph names are C text, so a name carrying a
+       nul is not one of them and selects notdef */
+    if (!xpost_string_is_cstring(ctx, str))
+        return 0;
     cname = xpost_string_allocate_cstring(ctx, str);
     if (cname)
     {
@@ -4622,6 +4676,13 @@ int _loadfont1(Xpost_Context *ctx,
             continue;
         nstr = xpost_name_get_string(ctx, nm);
         if (nstr.comp_.sz >= sizeof nbuf)
+            continue;
+        /* the program names each glyph as text, which ends at the first
+           nul: a name carrying one would be written out as the shorter
+           name it begins with, and two names sharing that beginning
+           would define one glyph twice over. A name the font program
+           cannot carry is left out of it */
+        if (!xpost_string_is_cstring(ctx, nstr))
             continue;
         memcpy(nbuf, xpost_string_get_pointer(ctx, nstr), nstr.comp_.sz);
         nbuf[nstr.comp_.sz] = 0;

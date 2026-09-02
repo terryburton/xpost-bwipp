@@ -1003,6 +1003,19 @@ test('name-intern',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# A name carrying a nul is not the shorter name it begins with. The
+# interpreter reaches its host through C text -- a table of filter names,
+# the font configuration, an error name, an access string, a numeral --
+# and C text ends at the first nul, so such a name took the answer of the
+# name it begins with. PLRM 3.3 rules no character out of a name and
+# counts its length, so the two are different names and the longer one
+# names nothing that is installed.
+test('name-nul',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/name_nul_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # A dictionary lookup that stores nothing -- known/get/where/load/undef --
 # resolves a string key to the name it already names without interning it.
 # Interning on a read would leave a permanent name behind for a key that

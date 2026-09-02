@@ -102,14 +102,11 @@ xpost_op_file_name(Xpost_Context *ctx, Xpost_Object s, char **out)
 
     if (!xpost_object_is_readable(ctx, s))
         return invalidaccess;
+    if (!xpost_string_is_cstring(ctx, s))
+        return undefinedfilename;
     p = xpost_string_allocate_cstring(ctx, s);
     if (!p)
         return VMerror;
-    if (strlen(p) != (size_t)s.comp_.sz)
-    {
-        free(p);
-        return undefinedfilename;
-    }
     *out = p;
     return 0;
 }
@@ -129,6 +126,12 @@ int xpost_op_string_mode_file (Xpost_Context *ctx,
        be opened and is read for that, exactly as the name is */
     if (!xpost_object_is_readable(ctx, mode))
         return invalidaccess;
+    /* the access string is one of a table of six (PLRM 3.8.1, Table 3.5),
+       and the table is read as C text: a string carrying a nul would be
+       read as the shorter one it begins with and grant the access that
+       one grants. A string outside the table names no access */
+    if (!xpost_string_is_cstring(ctx, mode))
+        return invalidfileaccess;
     ret = xpost_op_file_name(ctx, fn, &cfn);
     if (ret)
         return ret;
@@ -259,6 +262,34 @@ static const Xpost_Filter_Spec *_filter_spec (const char *name)
     return NULL;
 }
 
+/* The filter's name as C text, or the caller's own answer for a name
+   that is not any filter's.
+
+   Every filter is chosen by comparing the name against the table above,
+   which holds its names as C text; C text ends at the first nul, so a
+   name carrying one would be compared only as far as that and would
+   choose the filter whose name it begins with -- a filter the program
+   did not name. A name counts its characters (PLRM 3.3), and one whose
+   characters include a nul is a name no entry of the table carries, so
+   it names no filter. What that costs the program differs between the
+   forms of the operator, so each says here what it answers.
+
+   Returns 0 and the allocated name, or an error code and nothing. */
+static int
+_filter_cname(Xpost_Context *ctx, Xpost_Object name, int unnamed, char **out)
+{
+    Xpost_Object namestr = xpost_name_get_string(ctx, name);
+    char *cname;
+
+    if (!xpost_string_is_cstring(ctx, namestr))
+        return unnamed;
+    cname = xpost_string_allocate_cstring(ctx, namestr);
+    if (!cname)
+        return VMerror;
+    *out = cname;
+    return 0;
+}
+
 /* file /FilterName  filter  file'
    layer a filter over a file, in the direction the filter works in */
 static
@@ -267,14 +298,15 @@ int xpost_op_file_filter (Xpost_Context *ctx,
                           Xpost_Object name)
 {
     const Xpost_Filter_Spec *spec;
-    Xpost_Object namestr;
     char *cname;
     Xpost_Object f;
+    int ret;
 
-    namestr = xpost_name_get_string(ctx, name);
-    cname = xpost_string_allocate_cstring(ctx, namestr);
-    if (!cname)
-        return VMerror;
+    /* a name no filter carries is undefined here, whether the table
+       lacks it or it is not a name the table could hold */
+    ret = _filter_cname(ctx, name, undefined, &cname);
+    if (ret)
+        return ret;
     spec = _filter_spec(cname);
     /* the name first, and nothing about the source before it: a name this
        interpreter does not know is not known whatever it was handed */
@@ -356,13 +388,15 @@ int xpost_op_file_filter_int (Xpost_Context *ctx,
                               Xpost_Object rec,
                               Xpost_Object name)
 {
-    Xpost_Object namestr, f;
+    Xpost_Object f;
     char *cname;
+    int ret;
 
-    namestr = xpost_name_get_string(ctx, name);
-    cname = xpost_string_allocate_cstring(ctx, namestr);
-    if (!cname)
-        return VMerror;
+    /* only one filter takes a record size, so any other name leaves the
+       operands in a shape no form of the operator takes */
+    ret = _filter_cname(ctx, name, typecheck, &cname);
+    if (ret)
+        return ret;
     if (strcmp(cname, "RunLengthEncode") != 0)
     {
         free(cname);
@@ -453,7 +487,13 @@ int _filter_dict_build (Xpost_Context *ctx,
     char *cname;
 
     namestr = xpost_name_get_string(ctx, name);
-    cname = xpost_string_allocate_cstring(ctx, namestr);
+    /* left unbuilt where the name is not text the branches below can be
+       compared against, so such a name reaches none of them and falls to
+       the filter operator at the end, which answers for a name no filter
+       carries */
+    cname = xpost_string_is_cstring(ctx, namestr)
+          ? xpost_string_allocate_cstring(ctx, namestr)
+          : NULL;
     if (cname && (strcmp(cname, "CCITTFaxDecode") == 0
                || strcmp(cname, "CCITTFaxEncode") == 0))
     {
@@ -757,9 +797,9 @@ int xpost_op_file_filter_subfile (Xpost_Context *ctx,
                                   Xpost_Object eod,
                                   Xpost_Object name)
 {
-    Xpost_Object namestr;
     char *cname;
     int match;
+    int ret;
     Xpost_Object f;
     char eodbuf[64];
 
@@ -770,10 +810,9 @@ int xpost_op_file_filter_subfile (Xpost_Context *ctx,
        (PLRM 3.3.2) */
     if (!xpost_object_is_readable(ctx, eod))
         return invalidaccess;
-    namestr = xpost_name_get_string(ctx, name);
-    cname = xpost_string_allocate_cstring(ctx, namestr);
-    if (!cname)
-        return VMerror;
+    ret = _filter_cname(ctx, name, undefined, &cname);
+    if (ret)
+        return ret;
     match = strcmp(cname, "SubFileDecode") == 0;
     free(cname);
     if (!match)

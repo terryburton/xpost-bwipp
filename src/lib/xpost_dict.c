@@ -591,6 +591,15 @@ Xpost_Object clean_key (Xpost_Context *ctx,
         default: break;
         case stringtype:
         {
+            /* the name is interned over the string's own count, as cvn
+               interns one: a string counts its characters (PLRM 3.3) and
+               a nul is one of them, so a string read only as far as its
+               first nul would key the dictionary under the shorter name
+               it begins with -- a name the program did not write, and
+               one the same string given to cvn does not produce. The
+               characters are copied out first because interning may
+               allocate, and the string lives in memory an allocation may
+               move. */
             unsigned int n = k.comp_.sz;
             char *s = xpost_string_allocate_cstring(ctx, k);
             k = lookup_only

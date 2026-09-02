@@ -282,6 +282,13 @@ int Sgetenv(Xpost_Context *ctx,
     /* the variable's name is read out of the string (PLRM 3.3.2) */
     if (!xpost_object_is_readable(ctx, S))
         return invalidaccess;
+    /* the environment names its variables in C text, which ends at the
+       first nul: a string carrying one would be looked up as the shorter
+       name it begins with and answer with that variable's value. A string
+       counts its characters (PLRM 3.3), so such a string names no
+       variable the environment holds */
+    if (!xpost_string_is_cstring(ctx, S))
+        return undefined;
     str = xpost_string_allocate_cstring(ctx, S);
     r = xpost_getenv(str);
     if (r)
@@ -331,6 +338,13 @@ int SSputenv(Xpost_Context *ctx,
     /* both the name and the value it is given are read (PLRM 3.3.2) */
     if (!xpost_object_is_readable(ctx, N) || !xpost_object_is_readable(ctx, S))
         return invalidaccess;
+    /* the environment holds a name and a value as C text, which ends at
+       the first nul: a name carrying one would set the variable whose
+       name it begins with, and a value carrying one would be set as the
+       shorter value it begins with. A string counts its characters (PLRM
+       3.3), so neither is text the environment can be given */
+    if (!xpost_string_is_cstring(ctx, N) || !xpost_string_is_cstring(ctx, S))
+        return rangecheck;
     n = xpost_string_allocate_cstring(ctx, N);
     if (!n)
         return VMerror;
@@ -1845,6 +1859,11 @@ int op_hostsetting(Xpost_Context *ctx, Xpost_Object N)
     ns = xpost_name_get_string(ctx, N);
     cp = xpost_string_get_pointer(ctx, ns);
     if (!cp || ns.comp_.sz >= sizeof buf) return rangecheck;
+    /* the settings are named in C text, which ends at the first nul: a
+       name carrying one would be read as the shorter name it begins with
+       and answer with that setting's value. A name counts its characters
+       (PLRM 3.3), so such a name is not a setting at all */
+    if (!xpost_string_is_cstring(ctx, ns)) return undefined;
     memcpy(buf, cp, ns.comp_.sz);
     buf[ns.comp_.sz] = 0;
     v = xpost_context_host_setting(ctx, buf);

@@ -315,6 +315,17 @@ Known behavioural deviations
  hints without leaving that interpretation, and calls back into no
  PostScript, so a font's array of procedures is built here and never run.
 
+ A font name carrying a nul is resolved as the shorter name it begins
+ with. findfont hands the characters to the host's font configuration as
+ C text, which ends at the first nul, so /Times-Roman with a nul after it
+ answers with Times-Roman's face where PLRM 3.3 makes the two different
+ names. The configuration cannot be asked the question any other way: the
+ empty name is not a name it has not got and it may decline to answer at
+ all, and the characters with the nul disguised match the same face back
+ by resemblance. What a program is told correctly is availability --
+ .fontnameavailable and /Font resourcestatus read the whole name and
+ report such a name as unavailable.
+
  An operator that reads the characters of a string operand raises
  invalidaccess when the string's access withholds that read, and seven of
  them do so although their PLRM 8.2 entries do not list the error among

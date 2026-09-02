@@ -76,6 +76,12 @@ int xpost_op_type_code(Xpost_Context *ctx, Xpost_Object name)
     len = str.comp_.sz;
     if (len >= sizeof buf)
         return -1;
+    /* the type names are compared as C text, which ends at the first
+       nul: a name carrying one would name the type whose name it begins
+       with. A name counts its characters (PLRM 3.3), so such a name is
+       none of the types */
+    if (!xpost_string_is_cstring(ctx, str))
+        return -1;
     memcpy(buf, xpost_string_get_pointer(ctx, str), len);
     buf[len] = '\0';
 
@@ -488,6 +494,14 @@ int Scvi(Xpost_Context *ctx,
        needs read access */
     if (!xpost_object_is_readable(ctx, s))
         return invalidaccess;
+    /* the numeral is read as C text, which ends at the first nul: a
+       string carrying one would be read only that far and denote the
+       numeral standing before it, with the rest of its characters
+       unread. A string counts its characters (PLRM 3.3), so one holding
+       a nul is not a numeral, and is answered as any other string that
+       is not */
+    if (!xpost_string_is_cstring(ctx, s))
+        return typecheck;
 
     t = xpost_string_allocate_cstring(ctx, s);
     ret = _string_to_number(t, &dbl, &ival, &isint);
@@ -561,6 +575,9 @@ int Scvr(Xpost_Context *ctx,
     /* as cvi above: the numeral is read out of the string */
     if (!xpost_object_is_readable(ctx, str))
         return invalidaccess;
+    /* as cvi above: a string holding a nul is not a numeral */
+    if (!xpost_string_is_cstring(ctx, str))
+        return typecheck;
 
     s = xpost_string_allocate_cstring(ctx, str);
     ret = _string_to_number(s, &num, &ival, &isint);

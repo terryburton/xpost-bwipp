@@ -300,6 +300,22 @@ mark { /.nosuchsettinghere ID /.hostsetting get exec } stopped
     { (bad unsetraises\n) } ifelse print
 cleartomark
 
+% A name carrying a nul is not the setting it begins with. The settings
+% are named in C text, which ends at the first nul, so such a name would
+% be read only that far and answered with that setting's value; PLRM 3.3
+% counts a name's characters and rules none of them out, so the two are
+% different names and only one of them is a setting. The plain name is
+% asked first, so that a refusal below is a refusal of the name rather
+% than of the operator.
+mark { /SUBDEVICE ID /.hostsetting get exec pop } stopped
+    { (bad nulplain\n) }{ (ok nulplain\n) } ifelse print
+cleartomark
+mark { <53554244455649434500> cvn ID /.hostsetting get exec pop } stopped
+    { $error /errorname get /undefined eq
+        { (ok nulraises\n) }{ (bad nulraises\n) } ifelse }
+    { (bad nulraises\n) } ifelse print
+cleartomark
+
 % the dictionary is still writable once the language has been sealed:
 % the namespace holding it is read-only by then, and it is the seal
 % being shallow that lets a setting be written afresh for each run the
@@ -369,10 +385,12 @@ if ! grep -qx 'ok recovered' "$work/out"; then
     exit 1
 fi
 
-for probe in unsetraises writable unreachable; do
+for probe in unsetraises nulplain nulraises writable unreachable; do
     if ! grep -qx "ok $probe" "$work/out"; then
         case "$probe" in
         unsetraises) what="a name that is not a setting is refused where it is asked for" ;;
+        nulplain)    what="a setting's own name is answered" ;;
+        nulraises)   what="a name carrying a nul is not the setting it begins with" ;;
         writable)    what=".hostdict is still writable once the language is sealed" ;;
         unreachable) what="no setting is reachable from the language" ;;
         esac

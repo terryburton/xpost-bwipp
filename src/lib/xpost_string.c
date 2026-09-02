@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h> /* size_t */
-#include <string.h> /* memcpy */
+#include <string.h> /* memcpy, memchr */
 
 #include "xpost.h"
 #include "xpost_log.h"
@@ -249,6 +249,27 @@ int xpost_string_get(Xpost_Context *ctx,
                      integer *retval)
 {
     return xpost_string_get_memory(xpost_context_select_memory(ctx, s) /*s.tag&FBANK? ctx->gl: ctx->lo*/, s, i, retval);
+}
+
+/* Whether the string reads whole as C text -- see xpost_string.h.
+
+   An empty string is the empty C string, and carries nothing that could
+   cut it short. A string object whose entity no longer describes a
+   string yields no pointer and so no characters to answer for; it is
+   answered no, which sends the caller down the same refusal a string of
+   unreadable characters takes rather than into a comparison against a
+   buffer that was never filled. */
+int xpost_string_is_cstring(Xpost_Context *ctx,
+                            Xpost_Object s)
+{
+    const char *bytes;
+
+    if (s.comp_.sz == 0)
+        return 1;
+    bytes = xpost_string_get_pointer(ctx, s);
+    if (!bytes)
+        return 0;
+    return memchr(bytes, '\0', s.comp_.sz) == NULL;
 }
 
 /* allocate and return a C-style nul-terminated string */
