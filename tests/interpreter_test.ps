@@ -141,6 +141,8 @@ false false and false eq check
 -100 0 atan 270.0 nearly check
 (4: 4 4 atan 45.0 nearly check) ==
 4 4 atan 45.0 nearly check
+(5: 0 0 atan is undefinedresult) ==
+{ 0 0 atan } stopped { $error /errorname get /undefinedresult eq check }{ fail } ifelse
 
 %
 % awidthshow

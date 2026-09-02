@@ -277,6 +277,12 @@ int Ratan(Xpost_Context *ctx,
           Xpost_Object den)
 {
     double ang;
+
+    /* PLRM: either operand may be zero, but not both -- the ratio the
+       angle is taken of has no value when neither names a direction */
+    if (num.real_.val == 0.0 && den.real_.val == 0.0)
+        return undefinedresult;
+
     ang = atan2(((double)num.real_.val * RAD_PER_DEG),
                 ((double)den.real_.val * RAD_PER_DEG))
           / RAD_PER_DEG;
