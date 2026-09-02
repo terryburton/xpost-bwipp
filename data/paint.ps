@@ -878,6 +878,30 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  Read one row of an image's samples into the buffers the painters read
+%  from. A row arrives either as one stream carrying every component of a
+%  sample together, or as one stream per component (PLRM 4.10,
+%  MultipleDataSources), and which it is decides how many reads a row
+%  takes and where each lands. That is the only difference, so it is
+%  settled once here: three places read a row, and each had written the
+%  same two arms out again.
+%
+.xpostsys /.imgrowread {  % -  .  -
+    multi {
+        0 1 ncomp 1 sub { /c exch def
+            /datasrc srcs c get def
+            /pend pends c get def
+            /rawrow rawrows c get def
+            /buf bufs c get def
+            //.fill exec //.rownorm exec
+            pends c pend put
+        } for
+    }{
+        //.fill exec //.rownorm exec
+    } ifelse
+} put
+
+%
 %  Normalize an image data source: a file becomes a chunk-reading
 %  procedure, a string a procedure delivering it, a procedure passes
 %  through unchanged.
@@ -1091,15 +1115,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                matrix concatmatrix def
             /allrows height array def
             0 1 height 1 sub { /y exch def
+                //.imgrowread exec
                 multi {
-                    0 1 ncomp 1 sub { /c exch def
-                        /datasrc srcs c get def
-                        /pend pends c get def
-                        /rawrow rawrows c get def
-                        /buf bufs c get def
-                        //.fill exec //.rownorm exec
-                        pends c pend put
-                    } for
                     /irow width ncomp mul string def
                     0 1 width 1 sub { /x exch def
                         0 1 ncomp 1 sub { /c exch def
@@ -1109,7 +1126,6 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     } for
                     allrows y irow put
                 }{
-                    //.fill exec //.rownorm exec
                     allrows y buf dup length string copy put
                 } ifelse
             } for
@@ -1334,18 +1350,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     array def
             } if
             0 1 height 1 sub { /y exch def
-                multi {
-                    0 1 ncomp 1 sub { /c exch def
-                        /datasrc srcs c get def
-                        /pend pends c get def
-                        /rawrow rawrows c get def
-                        /buf bufs c get def
-                        //.fill exec //.rownorm exec
-                        pends c pend put
-                    } for
-                }{
-                    //.fill exec //.rownorm exec
-                } ifelse
+                //.imgrowread exec
                 blitrec {
                     multi {
                         0 1 ncomp 1 sub { /c exch def
@@ -1399,18 +1404,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /prevsamp ncomp array def
         /prevset false def
         0 1 height 1 sub { /y exch def
-            multi {
-                0 1 ncomp 1 sub { /c exch def
-                    /datasrc srcs c get def
-                    /pend pends c get def
-                    /rawrow rawrows c get def
-                    /buf bufs c get def
-                    //.fill exec //.rownorm exec
-                    pends c pend put
-                } for
-            }{
-                //.fill exec //.rownorm exec
-            } ifelse
+            //.imgrowread exec
             0 1 width 1 sub { /x exch def
                 /base x ncomp mul def
                 /paintit true def
