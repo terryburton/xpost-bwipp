@@ -180,6 +180,28 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  Whether the device may take the whole stroke. The line a stroke is drawn
+%  along is not a polygon, and cutting it to the clip the way a fill's
+%  outline is cut does not give the clipped stroke: the stroke of a cut line
+%  is not the cut stroke, and a line enclosing the clip window cuts down to
+%  the window itself, which drawn puts the clip's own boundary on the page.
+%
+%  So the stroke goes over whole, under a clip the device is given to draw
+%  it beneath. A device that cannot be given one takes the outline route
+%  below instead, which resolves the stroke to a shape before clipping it
+%  and is exact for any region.
+%
+.xpostsys /.devtakesstroke {  % -  .  bool
+    DEVICE /StrokePath known {
+        .cliptrivial
+        { true }
+        { DEVICE /ClipPath known
+          graphicsdict /currgstate get /clipsource get null ne and }
+        ifelse
+    }{ false } ifelse
+} put
+
+%
 %  Give the device the clip shape when the fill is about to hand it a
 %  whole path under a non-trivial clip; a trivial clip needs no call.
 %  The record holds the shape and the rule together, and the device is
@@ -668,15 +690,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         pop strokepath //.xpostsys /.patternfill get exec
     }{
     /nomarks eq { newpath }{
-    DEVICE /StrokePath known {
-        % Dashing and non-rectangular clipping consume line segments;
-        % with neither active the path passes through unflattened, so
-        % curves reach the device.
-        currentdash pop length 0 eq .cliptrivial and not {
+    //.devtakesstroke exec {
+        % Dashing consumes line segments, so a dashed path is flattened and
+        % cut into its dashes before it goes over. An undashed one passes
+        % through unflattened, so curves reach the device.
+        currentdash pop length 0 eq not {
             flattenpath
             //.dashpath exec
-            //.doclip exec
         } if
+
+        % The clip goes to the device, not into the path: see
+        % .devtakesstroke above.
+        //.devsendclip exec
+
         [ //.currentcolordict DEVICE /nativecolorspace get get exec
         //.applytransfer exec
         DEVICE dup /StrokePath get exec

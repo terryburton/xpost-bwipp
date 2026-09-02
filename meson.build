@@ -2375,6 +2375,18 @@ test('pdf-overprint',
   suite: cost_fast,
   timeout: 120)
 
+# A stroke under a clip reaches a vector device as the stroke it is: the
+# device is given the clip and draws the whole line beneath it, rather than
+# having the line cut to the clip as a fill's outline is -- which where the
+# line encloses the clip window leaves the window itself to be drawn.
+test('vector-stroke-clip',
+  find_program('tests/check-vector-stroke-clip.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 120)
+
 # The same append-completeness contract on the svgwrite device, whose
 # FillPoly emits the fill colour through the same unchecked hot loop.
 test('svg-append-fail',

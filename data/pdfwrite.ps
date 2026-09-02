@@ -1126,6 +1126,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             % An empty path strokes nothing: drop the unused colour
             .ncomps { pop } repeat
         } ifelse
+
+        % a clip adopted for this stroke ends with it
+        .state /.pdfclipopen get {
+            .qrestore
+            .state /.pdfclipopen false put
+        } if
     } //.indict exec }
 
     % The resources the content refers to, as the body of a /Resources

@@ -195,6 +195,7 @@ device test startup-page
 device test stencil-mask-size
 device test svg-*
 device test vecbase
+device test vector-stroke-clip
 device test dsc-roundtrip
 device test vecout-gc
 device testif window-device

@@ -864,6 +864,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .emitdevpath pop
             ("/>\n) .put
         } if
+
+        % a clip adopted for this stroke ends with it
+        .state /.svgclipopen get {
+            (</g>\n) .put
+            .state /.svgclipopen false put
+        } if
     } //.indevwork exec }
 
     /Emit {  % IMAGE  .  -
