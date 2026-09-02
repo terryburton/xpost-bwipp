@@ -2375,6 +2375,16 @@ test('pdf-overprint',
   suite: cost_fast,
   timeout: 120)
 
+# Analytic shadings reach the PDF as shading dictionaries rather than as the
+# flat cells a decomposition would leave: the consumer draws the gradient.
+test('pdf-shading',
+  find_program('tests/check-pdf-shading.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # A job that marks no page produces no PDF and reports why: a page tree with
 # no pages in it is not a document a consumer will open.
 test('pdf-empty-job',

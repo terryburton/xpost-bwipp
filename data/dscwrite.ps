@@ -107,6 +107,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  neither. The pattern is decomposed into the fills it resolves to
 %  instead, which is the route every device without the construct has.
 %
+%  The shading writer is withdrawn for the same reason. A shading reaches
+%  a PDF as a dictionary the page names and the consumer draws; a DSC
+%  program has no such object, so a device that took the shading whole
+%  would name something its own output never defines. It is decomposed
+%  into the fills it resolves to instead, the route every device without
+%  the construct takes.
+%
+.xpost_DSCWRITE /ShadingPaint undef
+.xpost_DSCWRITE /.shdescribe undef
+.xpost_DSCWRITE /.fndescribe undef
+.xpost_DSCWRITE /.emitfnobj undef
+.xpost_DSCWRITE /.fnref undef
+
 .xpost_DSCWRITE /PatternOverlap undef
 .xpost_DSCWRITE /PatternCell undef
 .xpost_DSCWRITE /FillPattern undef

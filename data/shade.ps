@@ -1287,6 +1287,60 @@ end
 %  one number and each arm had to leave the stack as the next one found
 %  it, which two of them did not.
 %
+%
+%  Whether the device would rather have the shading than the fills it
+%  decomposes to. A consumer that holds shadings natively draws the gradient
+%  with its own arithmetic, which is smooth where a decomposition is banded
+%  and small where it is enormous -- a page of flat cells carries one path
+%  per cell and the gradient is gone from it either way.
+%
+%  Only the three analytic types are offered. The mesh types carry their
+%  geometry in a stream a writer would have to restate, and restating it is
+%  not this.
+%
+%  The function is offered with them, and a function the writer cannot state
+%  keeps the whole shading here: a shading written without its function is
+%  not the shading, and half of one is worse than the decomposition.
+%
+/.shdevtypes << 1 true 2 true 3 true >> readonly def
+
+%  Only the device spaces are offered. A shading in a space that would need
+%  a resource of its own alongside it is decomposed as before: written
+%  without that resource it would not be the shading, and writing half of
+%  one is worse than the decomposition.
+/.shdevcs << /DeviceGray true /DeviceRGB true /DeviceCMYK true >> readonly def
+
+/.shdevfn1 {  % fndict  .  bool
+    dup type /dicttype ne { pop false }{
+    dup /FunctionType known not { pop false }{
+    dup /FunctionType get
+    dup 2 eq { pop pop true }{
+    dup 3 eq { pop /Functions get //.xpostsys /.shdevfnok get exec }{
+    0 eq {
+        % A sampled function is written out as a stream, so its samples have
+        % to be readable more than once: a string source can be, a file or a
+        % procedure cannot.
+        /DataSource get type /stringtype eq
+    }{ pop false } ifelse } ifelse } ifelse } ifelse } ifelse
+} def
+
+/.shdevfnok {  % fn  .  bool
+    dup type dup /arraytype eq exch /packedarraytype eq or {
+        true exch { //.xpostsys /.shdevfn1 get exec and } forall
+    }{ //.shdevfn1 exec } ifelse
+} def
+
+/.shtodevice {  % shdict  .  bool
+    DEVICE /ShadingPaint known {
+        dup /ShadingType get //.shdevtypes exch known
+        1 index /ColorSpace get dup type /nametype eq
+            { //.shdevcs exch known }{ pop false } ifelse and {
+            dup /Function 2 copy known { get //.shdevfnok exec }{ pop pop false } ifelse
+            { DEVICE dup /ShadingPaint get exec true }{ pop false } ifelse
+        }{ pop false } ifelse
+    }{ pop false } ifelse
+} def
+
 /.shadepainters <<
     1 //.fnsh      2 //.axialsh   3 //.radialsh
     4 //.meshsh    5 //.meshsh
@@ -1336,7 +1390,8 @@ systemdict /shfill [ /dicttype ] {  % dict  .  -
         dup 0 get 1 index 3 get lineto
         pop closepath clip newpath
     }{ pop pop } ifelse
-    exch exec
+    dup //.shtodevice exec
+    { pop pop }{ exch exec } ifelse
     grestore
     } null 0 //.xpostsys /.callout get exec
 } .defopin

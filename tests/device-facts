@@ -666,6 +666,11 @@ method .moveband bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .onpage bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method PaintImage dscwrite pdfwrite svgwrite
 method PaintStencil dscwrite pdfwrite svgwrite
+method ShadingPaint pdfwrite
+method .shdescribe pdfwrite
+method .fndescribe pdfwrite
+method .emitfnobj pdfwrite
+method .fnref pdfwrite
 method PatternCell pdfwrite svgwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
@@ -773,6 +778,7 @@ fixed .pdffillcolor dscwrite pdfwrite
 state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
 state .pdfpatterns dscwrite pdfwrite
+state .pdfshadings dscwrite pdfwrite
 fixed .pdfstrokecolor dscwrite pdfwrite
 state .playclass record
 state .playdev record
