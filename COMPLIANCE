@@ -365,24 +365,6 @@ Known behavioural deviations
  is lost is a substitution, which is an optimisation hook; the procedure
  bind returns is the one it bound.
 
- [X] restore  a spent save object held in global VM is not invalidated by a
-     save taken after the level it names was restored to, where a snapshot
-     is defined to be usable once: restore is defined to invalidate its
-     operand and every save object made after it. A restore is refused here
-     when the level its save object names is no longer one the interpreter
-     stands under, and refused when the operand, dictionary or execution
-     stack holds a save object naming the level being restored to -- so no
-     spent object survives on a stack. A save object held in global VM is
-     outside both, restore being defined not to reach global VM and the
-     refusal above reading what the stacks hold rather than what those
-     objects contain: where a later save has retaken the level such an
-     object names, it is accepted and what it winds back is that later
-     save's snapshot.
- [X] put  a save object is accepted as an element of a composite object in
-     global VM, where a save object belongs to local VM whatever the
-     allocation mode is and storing a local composite in a global one is an
-     invalidaccess. A local string, array or dictionary is refused there;
-     only a save object is not.
  [X] quit  under a job server the systemdict operator is not masked in
      userdict and is not refused to an encapsulated job, where the operator
      is defined to be executable only by an unencapsulated one and to raise

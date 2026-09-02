@@ -37,7 +37,7 @@ xpost_dict_def_fast_ok(Xpost_Context *ctx, Xpost_Memory_File *dmem,
                        Xpost_Object V)
 {
     return !(dmem == ctx->gl &&
-             xpost_object_is_composite(V) &&
+             xpost_object_is_banked(V) &&
              dmem != xpost_context_select_memory(ctx, V));
 }
 

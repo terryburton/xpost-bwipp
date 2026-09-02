@@ -929,14 +929,14 @@ int _dict_put(Xpost_Context *ctx,
     if (!ctx->ignoreinvalidaccess)
     {
         if ( mem == ctx->gl
-                && xpost_object_is_composite(k)
+                && xpost_object_is_banked(k)
                 && mem != xpost_context_select_memory(ctx, k))
         {
             XPOST_LOG_ERR("local key into global dict");
             return invalidaccess;
         }
         if ( mem == ctx->gl
-                && xpost_object_is_composite(v)
+                && xpost_object_is_banked(v)
                 && mem != xpost_context_select_memory(ctx, v))
         {
             xpost_object_dump(v);

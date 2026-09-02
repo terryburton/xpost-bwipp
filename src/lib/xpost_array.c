@@ -173,10 +173,13 @@ int xpost_array_put(Xpost_Context *ctx,
         if (!xpost_object_is_writeable(ctx, a))
             return invalidaccess;
 
+    /* a value that belongs to local VM may not be made an element of an
+       object in global VM, a restore being free to take the value away
+       and leave the element naming nothing (PLRM 3.7.2) */
     if (!ctx->ignoreinvalidaccess)
     {
         if ( mem == ctx->gl &&
-             xpost_object_is_composite(o) &&
+             xpost_object_is_banked(o) &&
              mem != xpost_context_select_memory(ctx, o))
             return invalidaccess;
     }

@@ -599,6 +599,31 @@ static inline int xpost_object_is_composite(Xpost_Object obj)
 }
 
 /**
+ * @brief Determine whether the object's value belongs to a VM bank.
+ *
+ * @param[in] obj The object.
+ * @return 1 if the value belongs to one bank or the other, 0 otherwise.
+ *
+ * The three composite types answer here, their values being entities in
+ * one memory file or the other, and so does the save object: it "is
+ * composite and logically belongs to the local VM, regardless of the
+ * current VM allocation mode" (PLRM 8.2, save), and so reads as local
+ * whatever mode it was made under.
+ *
+ * This is the question PLRM 3.7.2 asks of a value being stored into a
+ * composite object, where storing one that lives in local VM into one
+ * that lives in global VM is an invalidaccess: a restore may take the
+ * local value away and leave the global object naming nothing. A save
+ * object is exactly such a value, so it is asked about alongside the
+ * other three.
+ */
+static inline int xpost_object_is_banked(Xpost_Object obj)
+{
+    return xpost_object_is_composite(obj)
+        || xpost_object_get_type(obj) == savetype;
+}
+
+/**
  * @brief Yield the ent number (memory table index)
  *        for a composite object.
  * @return ent number or -1 if not composite.
