@@ -251,6 +251,32 @@ flat "a two-input table decoded outside the Range it is clipped to" \
                     /BitsPerSample 8 /DataSource <0040 80FF>
                     /Decode [1 1] /Range [0 0.5] >>")
 
+# PLRM Table 3.14 gives a type 2 function's C0 and C1 as arrays of n
+# numbers, so a function of one output declares a one-element array. A
+# dictionary that writes the number itself is saying what that array holds,
+# and is read as holding it -- the values are not in dispute, only the
+# brackets around them.
+flat "a type 2 function whose C0 and C1 are bare numbers" "$(grey 0.5)" \
+     $(axial "<< /FunctionType 2 /Domain [0 1] /C0 0.5 /C1 0.5 /N 1 >>")
+
+# the same function written the way the table spells it, which has always
+# worked: without this the case above could pass on a reader that ignored
+# C0 and C1 altogether and painted a default
+flat "a type 2 function whose C0 and C1 are one-element arrays" "$(grey 0.5)" \
+     $(axial "<< /FunctionType 2 /Domain [0 1] /C0 [0.5] /C1 [0.5] /N 1 >>")
+
+# and a bare number carries a gradient, not just a constant
+rising "a type 2 function running between bare numbers" \
+     $(axial "<< /FunctionType 2 /Domain [0 1] /C0 0 /C1 1 /N 1 >>")
+
+# THE CONTROL on the leniency's extent: only a number is read this way, so
+# a C0 of some other type still fails where it is used rather than being
+# wrapped into something that reads as valid
+case "$(axial "<< /FunctionType 2 /Domain [0 1] /C0 (x) /C1 1 /N 1 >>")" in
+    E\ *) : ;;
+    *) echo "FAIL: a type 2 function with a string C0 was painted"; fail=1 ;;
+esac
+
 [ "$fail" = 0 ] || exit 1
 echo "SUCCESS (Encode, Decode and Range each held to a page no reader that ignored it can paint)"
 exit 0

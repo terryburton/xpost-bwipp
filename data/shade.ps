@@ -138,6 +138,29 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  The axial and radial shadings evaluate their colour through here, one
 %  call per band.
 %
+%
+%  A type 2 function's C0 and C1 as arrays. PLRM Table 3.14 gives each as
+%  an array of n numbers, and a function of one output therefore states a
+%  one-element array. A dictionary that writes the number itself is saying
+%  what that array holds, so it is read as holding it: the alternative is
+%  to refuse a function whose values are not in dispute, over the brackets
+%  around them.
+%
+%  Only a number is taken this way, and what is neither number nor array is
+%  refused here. Refusing it here is the point: before, a value of the wrong
+%  type failed further on, and only because the OTHER entry was reached
+%  first -- a string C0 was refused because C1 was a number, and reading a
+%  bare C1 would have let the string through to paint character codes as
+%  colour. What the entry may be is now said once, where it is read.
+%
+/.fn1array {  % any  .  array
+    dup type dup /integertype eq exch /realtype eq or
+        { 1 array astore }
+        { dup type dup /arraytype eq exch /packedarraytype eq or not
+            { /shfill cvx /typecheck signalerror } if }
+    ifelse
+} def
+
 /.fneval {  % t fn  .  c0..cn-1 n
     dup type /arraytype eq {
         % The alternative form PLRM Tables 4.13 and 4.14 allow: an array
@@ -162,8 +185,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     f /FunctionType get
     dup 2 eq {
         pop
-        /c0 f /C0 2 copy known { get }{ pop pop [ 0.0 ] } ifelse def
-        /c1 f /C1 2 copy known { get }{ pop pop [ 1.0 ] } ifelse def
+        /c0 f /C0 2 copy known { get }{ pop pop [ 0.0 ] } ifelse
+            //.fn1array exec def
+        /c1 f /C1 2 copy known { get }{ pop pop [ 1.0 ] } ifelse
+            //.fn1array exec def
         /tn t f /N get exp def
         0 1 c0 length 1 sub { /i exch def
             c0 i get

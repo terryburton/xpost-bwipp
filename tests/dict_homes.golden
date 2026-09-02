@@ -274,6 +274,7 @@ entries 512
 .xpostsys /.finalize
 .xpostsys /.fmapdesc
 .xpostsys /.fmapnext
+.xpostsys /.fn1array
 .xpostsys /.fncheckin
 .xpostsys /.fncheckshading
 .xpostsys /.fnclip

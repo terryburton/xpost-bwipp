@@ -53,6 +53,7 @@ rows are fine for a different reason: .endpage names
 .doclip                     clip
 .endpage                    EndPage
 .fmapnext                   show
+.fn1array                   shfill
 .fncheckin                  shfill
 .fneval                     shfill
 .fneval2                    shfill
