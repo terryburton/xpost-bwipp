@@ -33,8 +33,8 @@
  *
  * The one opener a compiled device writes a page through. The name is
  * the one the page machinery settled on the device before running Emit,
- * so the page number a %d in the output name asks for is already in it
- * and every device numbers its pages alike. A device holds the stream
+ * so the page number a marker in the output name asks for is already in
+ * it and every device numbers its pages alike. A device holds the stream
  * no longer than the page: it opens here, is written, and is closed
  * through xpost_device_page_close() before Emit returns.
  *

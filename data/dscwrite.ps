@@ -38,11 +38,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  .xpost_DSCWRITE writes a DSC-conforming PostScript program of the marks the
 %  pages received, in the manner of a distiller: a multi-page job collects every
 %  page into one document by default -- each showpage appends a %%Page section
-%  (.emitpage) and Destroy writes the %%Trailer -- and a %d in the output name
-%  selects a file per page instead. Flat
-%  path construction and painting under a prolog of short operator
-%  names. It is the .xpost_PDFWRITE device wearing another wrapper -- the
-%  marking methods and the content accumulator are inherited whole,
+%  (.emitpage) and Destroy writes the %%Trailer -- and a page-number marker in
+%  the output name selects a file per page instead. Flat path construction and
+%  painting under a prolog of short operator names. It is the .xpost_PDFWRITE
+%  device wearing another wrapper -- the marking methods and the content
+%  accumulator are inherited whole,
 %  and the prolog defines the accumulated operators as procedures, so
 %  the same content serves both syntaxes. Separation colour spaces
 %  are not carried across; their paints arrive in the process colours
@@ -275,9 +275,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
 %
 %  A showpage emits the page, and one writer writes it either way: without a
-%  %d in the output name the pages accumulate into the one DSC program opened
-%  at Create and Destroy closes it, and with a %d every page is a program of
-%  its own, on a file opened for it and closed before the next page begins.
+%  page-number marker in the output name the pages accumulate into the one DSC
+%  program opened at Create and Destroy closes it, and with one, every page is
+%  a program of its own, on a file opened for it and closed before the next
+%  page begins.
 %  Create, the Emit dispatcher, the beginning of a document, Destroy and the
 %  shared record are inherited from the PDF device; only the writer that puts
 %  a page into an open program, and the one that closes a program off, are

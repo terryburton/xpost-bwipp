@@ -538,41 +538,194 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  What has become of the page, kept where the program cannot take it
 %  back. Four facts, each written by the machinery as a page is painted
 %  and transmitted and read again at the next page: /.pageno the count of
-%  pages transmitted, which fills a %d in the output file name; /.plrmpage
-%  the count a page device's own handlers are told; /.marked whether
-%  anything has been painted since the page began; and /.sent whether any
-%  page has been transmitted at all. The accessors below carry them.
+%  pages transmitted, which fills the marker in the output file name;
+%  /.plrmpage the count a page device's own handlers are told; /.marked
+%  whether anything has been painted since the page began; and /.sent
+%  whether any page has been transmitted at all. The accessors below
+%  carry them.
 %
 %  A program brackets its pages in save and restore -- the separation-plate
 %  idiom is exactly that -- and restore reverts local virtual memory
 %  wholesale (PLRM 3.7.2), so a record parked there is rewound between one
-%  page and the next: the %d numbering collapses onto one file, and a page
+%  page and the next: the page numbering collapses onto one file, and a page
 %  the program painted is forgotten. This dictionary is global, which
 %  restore leaves alone.
 %
 .jobstore /.pagestate 1 dict put
 
 %
-%  The output file name for the page about to be written: the %d marker
-%  in the name given, replaced by the number of pages transmitted so
-%  far. A name without the marker comes back unchanged, and every page
-%  then writes the same file with the last one standing.
+%  The page-number marker in an output file name: where it begins, and how
+%  many digits it asks the number be written in.
+%
+%  Two spellings are read. %d writes the number as it stands, and %0Nd
+%  writes it in N digits with leading zeros, N being one digit from 1 to
+%  9. A number too large for the field is written whole rather than cut,
+%  so a run longer than the field was written for goes on numbering its
+%  pages instead of collapsing them onto one name.
+%
+%  Nine digits is the whole of the width because the number filling the
+%  field is a count of pages transmitted: nine digits is a run of a
+%  thousand million pages, which is past what any run reaches, and the
+%  field is then never more than nine characters of a name the platform
+%  has its own length limit for. A wider one is refused rather than
+%  quietly cut back, since a name cut back to fit is a name the run does
+%  not write to.
+%
+%  This reads the name; it never formats with it. The characters are
+%  compared one at a time here, the number becomes text through cvs, and
+%  the pieces are put back together by concatenation (.pagefilename
+%  below), so a name that arrived on a command line or out of a program's
+%  /OutputFile is never handed to anything that would read a conversion
+%  out of it. That is the reason the marker is parsed here rather than
+%  passed along to something that formats.
+%
+%  One marker, and no more: a page has one number, and a name offering it
+%  two places to go says nothing about which. A second is refused.
+%
+%  A per-cent this does not recognise is left where it stands, because a
+%  per-cent opens the names the file operator gives the standard streams
+%  -- %stdout and the three beside it (PLRM 3.8.2) -- and a path a URL
+%  was encoded into carries a per-cent and two digits. What is refused
+%  instead is a per-cent that opens a field width and ends in d: %2d,
+%  %5d, %-5d, %.2d, %*d, %0d, %00d, %010d. Every one of those is somebody
+%  asking for a page number in a spelling this does not read, and taken
+%  as text each puts every page of the run in one file and says nothing.
+%
+.xpostsys /.pagemarker { 12 dict {  % name  .  index width true | false
+    % The name is taken as a copy made where this is running. A caller may
+    % be part-way through a piece of work in global memory -- the vector
+    % devices decide the shape of their output under it -- and the name it
+    % is asking about came from a program's request, which is local; a
+    % local object put into the global dictionary opened here is refused
+    % (PLRM 3.7.2). The copy carries characters and not a reference, so
+    % it belongs wherever it was made.
+    /nm exch dup length string copy def
+    /n nm length def
+    /idx null def
+    /wid 0 def
+    /i 0 def
+
+    %  Whether a character can stand between the per-cent and the d of a
+    %  field width. It is that run ending in d, and not the per-cent
+    %  alone, that tells a misspelt marker from a name that merely
+    %  carries a per-cent.
+    /fieldchar {  % code  .  bool
+        dup 48 ge 1 index 57 le and     % a digit
+        exch dup 45 eq                  % -
+        1 index 43 eq or                % +
+        1 index 32 eq or                % a space
+        1 index 35 eq or                % #
+        1 index 46 eq or                % .
+        1 index 42 eq or                % *
+        exch 39 eq or                   % '
+        or
+    } bind def
+
+    %  Say what is wrong with the name and what a page number may be
+    %  spelled, and stop. The name is written back so a run with several
+    %  output bindings can see which of them this was.
+    /refuse {  % reason  .  -   (does not return)
+        4 dict begin
+            /out (%stderr) (w) file def
+            out (xpost: ) writestring
+            out nm writestring
+            out ( ) writestring
+            out exch writestring
+            out (. A page number is %d, or %0Nd for N digits with) writestring
+            out ( leading zeros, N being 1 to 9, and one name carries) writestring
+            out ( one of them\n) writestring
+            out flushfile
+        end
+        /.pagefilename cvx /rangecheck signalerror
+    } bind def
+
+    {
+        i n 1 sub ge { exit } if
+        nm i get 37 eq {
+            nm i 1 add get 100 eq {
+                idx null ne { (carries a second page number) refuse } if
+                /idx i def
+                /wid 0 def
+                /i i 2 add def
+            }{
+                nm i 1 add get fieldchar {
+                    % the run of field characters, and what ends it
+                    /e i 1 add def
+                    { e n ge { exit } if
+                      nm e get fieldchar not { exit } if
+                      /e e 1 add def } loop
+                    e n lt { nm e get 100 eq }{ false } ifelse {
+                        % a page number, in this spelling or in none
+                        e i 3 add eq
+                        { nm i 1 add get 48 eq }{ false } ifelse
+                        { nm i 2 add get dup 49 ge exch 57 le and }
+                        { false } ifelse
+                        {
+                            idx null ne
+                                { (carries a second page number) refuse } if
+                            /idx i def
+                            /wid nm i 2 add get 48 sub def
+                            /i e 1 add def
+                        }{ (spells a page number this does not read) refuse }
+                        ifelse
+                    }{
+                        /i i 1 add def
+                    } ifelse
+                }{
+                    /i i 1 add def
+                } ifelse
+            } ifelse
+        }{
+            /i i 1 add def
+        } ifelse
+    } loop
+
+    idx null eq { false }{ idx wid true } ifelse
+} //.indict exec } put
+
+%
+%  The output file name for the page about to be written: the marker in
+%  the name given, replaced by the number of pages transmitted so far and
+%  padded to the width the marker asked for. A name without a marker comes
+%  back unchanged, and every page then writes the same file with the last
+%  one standing.
 %
 %  The count is the record's, above, and is advanced here as the name is
 %  settled: one counter for every device there is, and one a program's
 %  restore does not rewind.
 %
+%  The name is rebuilt from three pieces -- what stood before the marker,
+%  the number as text, and what stood after it -- so the only characters
+%  this puts into a name are the decimal digits of a page number. There is
+%  no route by which a name a program supplied could be read as anything
+%  but the text it is.
+%
 .xpostsys /.pagefilename {  % name  .  name'
-    dup (%d) search {
-        exch pop
-        //.pagestate /.pageno 2 copy known { get }{ pop pop 1 } ifelse
-        dup 1 add //.pagestate exch /.pageno exch put
-        10 string cvs
-        //.strcat exec exch //.strcat exec
-        exch pop
-    }{
-        pop
-    } ifelse
+    dup //.pagemarker exec {
+        8 dict {
+            /wid exch def
+            /idx exch def
+            % copied where this is running, for the reason .pagemarker
+            % states above
+            /nm exch dup length string copy def
+            /no //.pagestate /.pageno 2 copy known
+                { get }{ pop pop 1 } ifelse def
+            no 1 add //.pagestate exch /.pageno exch put
+
+            % the number, filled out to the width with leading zeros; one
+            % wider than the field keeps every digit it has
+            /txt no 10 string cvs def
+            { txt length wid ge { exit } if
+              /txt (0) txt //.strcat exec def } loop
+
+            % %d is two characters of the name and %0Nd is four
+            /len wid 0 eq { 2 }{ 4 } ifelse def
+            nm 0 idx getinterval
+            txt //.strcat exec
+            nm idx len add  nm length idx len add sub  getinterval
+            //.strcat exec
+        } //.indict exec
+    } if
 } put
 
 %
@@ -581,11 +734,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 %  The name is settled here, once, for every device there is. The template
 %  is /OutputFileName -- the device's own, put there when it was made from
-%  the run's binding or the request's /OutputFile -- and a %d in it is
-%  replaced with the page number, from the one counter .pagefilename keeps,
-%  so every device numbers its pages alike. A device with no name at all
-%  writes to the standard output, which is where a page goes when nobody
-%  said where. What comes out is stored in the device's state as
+%  the run's binding or the request's /OutputFile -- and a page-number
+%  marker in it is replaced with the page number, from the one counter
+%  .pagefilename keeps, so every device numbers its pages alike. A device
+%  with no name at all writes to the standard output, which is where a
+%  page goes when nobody said where. What comes out is stored in the device's state as
 %  /.outputfile, and that -- not the template -- is what an Emit opens.
 %
 %  Settling the name belongs to the page and not to the device: a device
@@ -1118,7 +1271,7 @@ end } put
 %  has transmitted, EndPage is told why the page is ending, and the boolean it
 %  returns says whether the page is transmitted at all.
 %
-%  The count lives beside the %d page number in the global record, so the
+%  The count lives beside the page number in the global record, so the
 %  save and restore a job wraps around a page does not rewind it, and it
 %  starts again at zero for each device activated.
 %

@@ -319,6 +319,40 @@ _xpost_main_params_apply(Xpost_Context *ctx, char **params, int count)
     return 1;
 }
 
+/* Whether an output name carries the marker the page machinery replaces
+   with a page number: %d, or %0Nd to write the number in N digits with
+   leading zeros, N being one digit from 1 to 9. The grammar is
+   .pagemarker's (data/device.ps), read the same way here, so that what
+   this run is permitted to write and what the interpreter writes are
+   settled by one rule rather than by two that can drift apart.
+
+   The name is walked a character at a time and never handed to anything
+   that formats: this asks a question about the text and produces none.
+   A misspelt marker is not sorted out here but where the name is
+   settled, so a run is told about it once rather than twice, and by the
+   half that sees the /OutputFile a program sets as well as the -o a
+   command line gives.
+
+   Reading past the end is not possible: p[1] is read only where *p is a
+   per-cent, and the two comparisons against it both fail on the
+   terminator before p[2] is reached. */
+static int
+_xpost_output_names_a_page(const char *name)
+{
+    const char *p;
+
+    for (p = name; *p; p++)
+    {
+        if (*p != '%')
+            continue;
+        if (p[1] == 'd')
+            return 1;
+        if (p[1] == '0' && p[2] >= '1' && p[2] <= '9' && p[3] == 'd')
+            return 1;
+    }
+    return 0;
+}
+
 static void
 _xpost_main_usage(FILE *out, const char *filename)
 {
@@ -327,7 +361,13 @@ _xpost_main_usage(FILE *out, const char *filename)
     fprintf(out, "Usage: %s [options] [file.ps]\n\n", filename);
     fprintf(out, "PostScript level 3 interpreter\n\n");
     fprintf(out, "Options:\n");
-    fprintf(out, "  -o, --output=[FILE]                output file; the run ends with the program\n");
+    fprintf(out, "  -o, --output=[FILE]                output file; the run ends with the program.\n");
+    fprintf(out, "                                     %%d in the name is the page number, so\n");
+    fprintf(out, "                                     -o page%%d.png writes page1.png, page2.png,\n");
+    fprintf(out, "                                     ...; %%0Nd writes it in N digits with leading\n");
+    fprintf(out, "                                     zeros (N from 1 to 9), so -o page%%03d.png\n");
+    fprintf(out, "                                     writes page001.png. Without a marker every\n");
+    fprintf(out, "                                     page goes to the one name\n");
     fprintf(out, "  -d, --device=[STRING]              device name\n");
     fprintf(out, "  -Dname=token, --define name=token  add definition to userdict\n");
     fprintf(out, "  -p key=value, --device-param key=value\n");
@@ -1109,13 +1149,14 @@ int main(int argc, char *argv[])
         if (output_file)
         {
             /* One file where the name settles on one, its directory
-               where it does not. A name carrying %d is a name per page,
-               and which pages there will be is not known until the
-               program has run, so nothing narrower can be granted for
-               it. Everything else -- which is most invocations, and
-               includes the -o /dev/null that would otherwise hand over
-               the whole of /dev -- names the single file it means. */
-            if (strstr(output_file, "%d"))
+               where it does not. A name carrying a page-number marker is
+               a name per page, and which pages there will be is not known
+               until the program has run, so nothing narrower can be
+               granted for it. Everything else -- which is most
+               invocations, and includes the -o /dev/null that would
+               otherwise hand over the whole of /dev -- names the single
+               file it means. */
+            if (_xpost_output_names_a_page(output_file))
                 _xpost_permit_file_dir(output_file, 1);
             else
                 xpost_path_permit_write_file(output_file);

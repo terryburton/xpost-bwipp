@@ -5624,6 +5624,21 @@ test('oversize-page',
   suite: cost_fast,
   timeout: 300)
 
+# The page-number marker in an output file name: %d writes the number as
+# it stands and %0Nd writes it in N digits with leading zeros. The name is
+# one a PostScript program controls -- it arrives from -o and from a page
+# device request's /OutputFile -- so what the parse accepts is a language
+# surface and what it does with the rest is a security property: nothing a
+# name carries is ever handed to something that formats. Both routes, both
+# spellings, every spelling refused, the width bound, and the file-access
+# sandbox against a padded name.
+test('page-marker',
+  find_program('tests/run-page-marker-test.sh'),
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 300)
+
 # Multi-page output: a save...showpage...restore job (the separation-plate
 # idiom, which rewinds local virtual memory between pages) must land each page
 # in its own file when the output name carries a %d, and keep only the last

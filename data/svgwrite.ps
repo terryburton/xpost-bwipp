@@ -870,8 +870,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     16 {
         % An SVG document holds one page, so successive pages are written
         % to separate files: the name settled for this page carries the
-        % page number where the output name has a %d, and without one
-        % every page rewrites the same file.
+        % page number where the output name has a marker for it, and
+        % without one every page rewrites the same file.
         /F .state /.outputfile get (w) file def
         /.w {  % str  .  -
             F exch writestring

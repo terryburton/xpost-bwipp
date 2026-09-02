@@ -550,6 +550,7 @@ tests/run-interrupt-test.sh \
 tests/run-multipage-test.sh \
 tests/run-nographics-test.sh \
 tests/run-oversize-page-test.sh \
+tests/run-page-marker-test.sh \
 tests/run-page-cover-test.sh \
 tests/run-global-vm-invariant-test.sh \
 tests/run-pdf-consumer-test.sh \

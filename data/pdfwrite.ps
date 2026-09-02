@@ -72,8 +72,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  operators and the device wraps them in the PDF file structure. A multi-page
 %  job collects every page into one document by default -- each showpage appends
 %  a page (Emit) and Destroy closes the page tree, cross-reference table and
-%  trailer; a %d in the output name selects a file per page instead. See Create,
-%  Emit and .endfile for the two forms.
+%  trailer; a page-number marker in the output name selects a file per page
+%  instead. See Create, Emit and .endfile for the two forms.
 %  This is a clean-room implementation from the published PDF format (operators
 %  g/G/rg/RG/k/K/m/l/re/f/S/cm and the object/xref/trailer layout); no
 %  rasterizing.
@@ -171,13 +171,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     } //.indict exec } bind
 
     % Decide the output form from the name and, for the single-file form, open
-    % the file. Without a %d the pages accumulate into one file (finalised at
-    % Destroy); with a %d each page is written whole to its own numbered file
-    % and this record stays idle. Runs at Create; when the output name is not
-    % on the device yet (a device made bare, its name set afterward), it runs
-    % again at the first Emit, by which point the name is set. The single-file
-    % file opens as early as the name is known -- at Create in the page-device
-    % flow, before any per-page save.
+    % the file. Without a page-number marker the pages accumulate into one
+    % file (finalised at Destroy); with one, each page is written whole to its
+    % own numbered file and this record stays idle. Runs at Create; when the
+    % output name is not on the device yet (a device made bare, its name set
+    % afterward), it runs again at the first Emit, by which point the name is
+    % set. The single-file file opens as early as the name is known -- at
+    % Create in the page-device flow, before any per-page save.
     %
     % A page device change builds the replacement device before it retires the
     % incumbent, so a device arriving mid-job meets a document that is already
@@ -213,7 +213,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         }{
             .dev /OutputFileName known {
                 currentglobal true setglobal
-                OutputFileName (%d) search { pop pop pop false }{ pop true } ifelse
+                OutputFileName //.pagemarker exec
+                    { pop pop false }{ true } ifelse
                 {
                     % Single-file: open the accumulating file now, before any
                     % per-page save, so restore cannot close it. A name that
@@ -250,8 +251,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                         /ready true put
                     } ifelse
                 }{
-                    % a %d selects the per-file writer, which opens each page's
-                    % own file at Emit; this record stays idle.
+                    % a page-number marker selects the per-file writer, which
+                    % opens each page's own file at Emit; this record stays
+                    % idle.
                     //.vecout dup /single false put
                     dup /name OutputFileName dup length string copy put
                     /ready true put
@@ -1187,12 +1189,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % A showpage emits the page, and one writer writes it either way.
     %
-    % Without a %d in the output name the pages accumulate into the one file
-    % opened at Create, and Destroy finishes the document off. With a %d every
-    % page is its own document: the file is this page's own, opened here, and
-    % the same writer fills it and finishes it before the next page begins.
-    % What differs between the two is where a document starts and ends, not
-    % how a page is written into one, so that is all that is written twice.
+    % Without a page-number marker in the output name the pages accumulate
+    % into the one file opened at Create, and Destroy finishes the document
+    % off. With one, every page is its own document: the file is this page's
+    % own, opened here, and the same writer fills it and finishes it before
+    % the next page begins. What differs between the two is where a document
+    % starts and ends, not how a page is written into one, so that is all
+    % that is written twice.
     /Emit {  % IMAGE  .  -
         % .setupoutput and the writer each run with the device current, so each
         % needs its own copy (get consumes one, the body the other).
@@ -1208,8 +1211,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % Begin a document on the file this page was named for. The name is
     % settled per page rather than per device (.transmitpage, data/device.ps)
-    % and left on the device as /.outputfile, so a %d has already become this
-    % page's number by the time this runs.
+    % and left on the device as /.outputfile, so a marker has already become
+    % this page's number by the time this runs.
     %
     % The record is wound back to what a document starts from. The maps it
     % carries -- the object offsets, the page list, the separation objects --

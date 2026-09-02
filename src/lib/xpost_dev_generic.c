@@ -229,10 +229,10 @@ FILE *xpost_device_page_open(Xpost_Context *ctx, Xpost_Object devdic)
     /* The name settled for the page being written, which the page
        machinery puts in the device's state before it runs Emit
        (.transmitpage, data/device.ps). It is the name and not the
-       template: the template may carry a %d, and the page number that
-       replaces it is the page's to know, not the device's. A device
-       that read the template instead wrote every page of a job to one
-       name. */
+       template: the template may carry a page-number marker, and the
+       number that replaces it is the page's to know, not the device's.
+       A device that read the template instead wrote every page of a job
+       to one name. */
     namestr = xpost_dict_get(ctx,
                              xpost_dict_get(ctx, devdic, namedotstate),
                              xpost_name_cons(ctx, ".outputfile"));

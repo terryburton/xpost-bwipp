@@ -98,6 +98,22 @@ it is written to. A page is letter unless the program says otherwise or
 `-g 2550x3300+0+0` rather than `-g 2550x3300`. `xpost --help` lists
 every option and every device the build was configured with.
 
+A run of several pages needs a name per page, and the output name says
+where the page number goes:
+
+  xpost -d png -o page%d.png   job.ps    page1.png, page2.png, page3.png
+  xpost -d png -o page%03d.png job.ps    page001.png, page002.png, ...
+
+`%d` writes the number as it stands and `%0Nd` writes it in N digits
+with leading zeros, N being one digit from 1 to 9; a number too large
+for the field is written whole rather than cut, so a run longer than the
+field was written for goes on numbering its pages. One name carries one
+of them. A name spelling a page number some other way -- `%2d`, `%-5d`,
+`%.2d`, `%010d` -- is refused where the page is written rather than
+taken as text, because a name taken as text puts every page of the run
+in one file and says nothing about it. The same name is what a program's
+`/OutputFile` sets, and it is read the same way there.
+
 Two things about a run are worth knowing before the first one, and both
 turn on the same question: whether there is somebody at the other end of
 it. There is, when the standard input is a terminal and no output file
@@ -171,10 +187,11 @@ time.
   gdi, gl    a window on Windows
 
 The two paginated container formats, pdfwrite and dscwrite, hold every
-page of a run in one file; a name containing %d selects a file per page
-instead. Nothing else can hold more than one page in a file, so for the
-rasters and for svgwrite a %d gives a file per page and a fixed name
-keeps the last page, every page having rewritten the one file.
+page of a run in one file; a name carrying a page number selects a file
+per page instead. Nothing else can hold more than one page in a file, so
+for the rasters and for svgwrite a page number gives a file per page and
+a name without one keeps the last page, every page having rewritten the
+one file.
 
 A page-device parameter the specification defines and this interpreter
 does not provide -- /Duplex, /NumCopies, /Collate, the media selection
