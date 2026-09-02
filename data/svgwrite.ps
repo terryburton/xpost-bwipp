@@ -26,6 +26,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.svgwritebind4 [ /svchunks /svmat /svtt /svys /svxs /svbb ] readonly put
 .xpostsys /.svgwritebind5 [ /y /x /b /g /r ] readonly put
 .xpostsys /.svgwritebind6 [ /y2 /x2 /y1 /x1 /b /g /r ] readonly put
+.xpostsys /.svgwritebind7 [ /qkrng /qkmh /qkmw /qkbits /qkint /qkdec /qkrows /qkmat /qknc /qkh /qkw ] readonly put
 
 %
 %  Make an instance of the SVG writer: the class copied, with the extent
@@ -270,6 +271,100 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % Take a whole sampled image as an embedded bitmap: the samples
     % decode to rgb, pack as a bottom-up 24-bit BMP, and ride a base64
     % data URI under the image-to-device matrix.
+    % Take an image that carries a mask. SVG has no way to be told a range
+    % of sample values to drop, and no way to be given a stencil on a grid
+    % of its own, but a reader of the document is required to read an alpha
+    % channel (SVG 1.1 4.6) -- so the mask is resolved into the picture's
+    % own alpha and travels with it. Without this a masked image is painted
+    % one rectangle per sample: a masked photograph came out as thousands
+    % of flat paths in four colours where the picture has hundreds.
+    %
+    % A stencil keeps its own grid, which need not be the image's, so which
+    % mask sample decides a pixel follows from where that pixel falls
+    % (PLRM 4.10.6). Ranges are stated normalised and the samples here are
+    % bytes, so they are compared as bytes.
+    /PaintImageMasked {  % w h ncomp mat rows decode interp mbits mw mh mranges IMAGE  .  -
+    28 { //.svgwritebind7 {exch def} forall
+        /qkluts [ 0 1 qknc 1 sub { /c exch def
+            /qklt 256 string def
+            0 1 255 { /v exch def
+                qklt v
+                v 255 div
+                qkdec c 2 mul 1 add get qkdec c 2 mul get sub mul
+                qkdec c 2 mul get add
+                //.xpostsys /.c255 get exec
+                put
+            } for qklt
+        } for ] def
+        /qkrb qkbits null ne { qkmw 7 add 8 idiv }{ 0 } ifelse def
+        [ 0 1 qkh 1 sub { /y exch def
+            /sr qkrows y get def
+            /spr qkw 4 mul string def
+            0 1 qkw 1 sub { /x exch def
+                /sbase x 4 mul def
+                qknc 1 eq {
+                    /sv qkluts 0 get sr x get get def
+                    spr sbase sv put spr sbase 1 add sv put spr sbase 2 add sv put
+                }{ qknc 4 eq {
+                    /sk qkluts 3 get sr x 4 mul 3 add get get def
+                    spr sbase
+                        255 qkluts 0 get sr x 4 mul get get sk add
+                        dup 255 gt { pop 255 } if sub put
+                    spr sbase 1 add
+                        255 qkluts 1 get sr x 4 mul 1 add get get sk add
+                        dup 255 gt { pop 255 } if sub put
+                    spr sbase 2 add
+                        255 qkluts 2 get sr x 4 mul 2 add get get sk add
+                        dup 255 gt { pop 255 } if sub put
+                }{
+                    spr sbase       qkluts 0 get sr x 3 mul get get put
+                    spr sbase 1 add qkluts 1 get sr x 3 mul 1 add get get put
+                    spr sbase 2 add qkluts 2 get sr x 3 mul 2 add get get put
+                } ifelse } ifelse
+
+                % the alpha: opaque unless a mask drops this sample
+                /salpha 255 def
+                qkbits null ne {
+                    /qky y qkmh mul qkh idiv def
+                    /qkx x qkmw mul qkw idiv def
+                    qky qkmh lt qkx qkmw lt and {
+                        qkbits qky qkrb mul qkx 8 idiv add get
+                        1 7 qkx 8 mod sub bitshift and 0 ne { /salpha 0 def } if
+                    } if
+                } if
+                qkrng null ne {
+                    /qkin true def
+                    0 1 qknc 1 sub { /c exch def
+                        /srawv qknc 1 eq { sr x get }{ sr x qknc mul c add get } ifelse
+                          255 div def
+                        srawv qkrng c 2 mul get lt
+                        srawv qkrng c 2 mul 1 add get gt or { /qkin false def } if
+                    } for
+                    qkin { /salpha 0 def } if
+                } if
+                spr sbase 3 add salpha put
+            } for
+            spr
+        } for ]
+        qkw qkh //.internaldict /.pngencode get exec
+        /.qkcg .clipgroup def
+        {
+            /qkpng exch def
+            (<image transform="matrix\() .put
+            qkmat 0 get .svgnum (,) .put qkmat 1 get .svgnum (,) .put
+            qkmat 2 get .svgnum (,) .put qkmat 3 get .svgnum (,) .put
+            qkmat 4 get .svgnum (,) .put qkmat 5 get .svgnum
+            (\)" x="0" y="0" width=") .put qkw .svgnum
+            (" height=") .put qkh .svgnum
+            ("  preserveAspectRatio="none") .put
+            qkint not { ( image-rendering="pixelated") .put } if
+            ( xlink:href="data:image/png;base64,) .put
+            qkpng { //.internaldict /.base64 get exec .put } forall
+            ("/>\n) .put
+        }{ pop } ifelse
+        .qkcg { (</g>\n) .put } if
+    } //.indevwork exec } bind
+
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
     24 { //.svgwritebind1 {exch def} forall
 

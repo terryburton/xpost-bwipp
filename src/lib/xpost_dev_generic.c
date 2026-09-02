@@ -3683,8 +3683,9 @@ static void _png_flush_cb(png_structp png)
 
 /* rows w h .pngencode  ->  [ str ... ] true
                         ->  false
-   Each row is w*3 bytes of red, green and blue, the first row the top
-   one. What comes back is a whole PNG file in pieces, since a string is
+   Each row is w*3 bytes of red, green and blue, or w*4 with an alpha
+   after each triple, the first row the top one; which it is follows from
+   how long the rows are. What comes back is a whole PNG file in pieces, since a string is
    only as long as the object width allows and a page-sized raster is
    longer; every piece but the last is a multiple of three, so a caller
    encoding them to base64 one at a time gets what encoding the whole
@@ -3698,6 +3699,7 @@ int _pngencode(Xpost_Context *ctx, Xpost_Object arr,
     png_structp png = NULL;
     png_infop info = NULL;
     png_bytep *rowp = NULL;
+    int chans = 3;
     int w = wo.int_.val, h = ho.int_.val;
     int y, ret = 0;
 
@@ -3713,12 +3715,25 @@ int _pngencode(Xpost_Context *ctx, Xpost_Object arr,
     rowp = malloc((size_t)h * sizeof *rowp);
     if (!rowp)
         return VMerror;
+    /* Three bytes a pixel, or four where the caller has an alpha to
+       carry: a masked image says which of its samples are to be dropped,
+       and a reader of the document is required to read the alpha but has
+       no way to be told a range of values to drop. Which it is follows
+       from how long the rows are, so a caller that has no mask passes
+       what it always did. */
+    {
+        Xpost_Object s0 = xpost_array_get(ctx, arr, 0);
+        if (xpost_object_get_type(s0) == stringtype &&
+            s0.comp_.sz >= (unsigned int)(w * 4))
+            chans = 4;
+    }
+
     for (y = 0; y < h; y++)
     {
         Xpost_Object s = xpost_array_get(ctx, arr, y);
 
         if (xpost_object_get_type(s) != stringtype
-            || s.comp_.sz < (unsigned int)(w * 3))
+            || s.comp_.sz < (unsigned int)(w * chans))
         {
             free(rowp);
             return typecheck;
@@ -3749,7 +3764,8 @@ int _pngencode(Xpost_Context *ctx, Xpost_Object arr,
 
     png_set_write_fn(png, &out, _png_write_cb, _png_flush_cb);
     png_set_IHDR(png, info, (png_uint_32)w, (png_uint_32)h, 8,
-                 PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+                 chans == 4 ? PNG_COLOR_TYPE_RGB_ALPHA : PNG_COLOR_TYPE_RGB,
+                 PNG_INTERLACE_NONE,
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
     png_write_info(png, info);
     png_write_image(png, rowp);
