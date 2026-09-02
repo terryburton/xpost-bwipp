@@ -138,14 +138,27 @@ end } put
 %  own replay, which need the same number and would otherwise each work
 %  it out from a different set of the device's entries.
 %
+%  How tall the page is and how much of it a replay already holds. Both
+%  numbers are read off the device the same way by everything that weighs
+%  a band against the whole, and the band arithmetic is asked of a
+%  dictionary standing for a device as well as of a device, so only some
+%  of what is asked carries a state at all.
+%
+%  Read in one place for the reason the terms below are read where the
+%  band loop reads them: two calculations agree until one of them is
+%  changed.
+%
+.xpostsys /.bandterms {  % dict  .  ph held
+    dup /height known { dup /height get }{ 0 } ifelse
+    exch /.state 2 copy known { get }{ pop pop 0 dict } ifelse
+    /.playrun 2 copy known { get 1 get }{ pop pop dup } ifelse
+} put
+
+%
 .xpostsys /.bandheight {  % dict  .  rows
 5 dict begin
     /dev exch def
-    /ph dev /height known { dev /height get }{ 0 } ifelse def
-    % the band arithmetic is asked of a dictionary standing for a device
-    % as well as of a device, and only a device carries a state
-    /held dev /.state 2 copy known { get }{ pop pop 0 dict } ifelse
-        /.playrun 2 copy known { get 1 get }{ pop pop ph } ifelse def
+    dev //.bandterms exec /held exch def /ph exch def
     dev /.playclass known ph 0 gt and {
         /cls //.privatedict dev /.playclass get get def
         /rowbytes dev //.rowbytes exec def
@@ -182,11 +195,7 @@ end } put
 .xpostsys /.bandsaving {  % dict  .  bytes
 4 dict begin
     /dev exch def
-    /ph dev /height known { dev /height get }{ 0 } ifelse def
-    % the band arithmetic is asked of a dictionary standing for a device
-    % as well as of a device, and only a device carries a state
-    /held dev /.state 2 copy known { get }{ pop pop 0 dict } ifelse
-        /.playrun 2 copy known { get 1 get }{ pop pop ph } ifelse def
+    dev //.bandterms exec /held exch def /ph exch def
     /rows dev //.bandheight exec def
     rows held lt
         { held rows sub dev //.rowbytes exec mul }
