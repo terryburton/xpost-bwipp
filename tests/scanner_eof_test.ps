@@ -99,4 +99,27 @@ mark (% comment\r) { token } stopped
 /verdict exch def cleartomark
 verdict (a comment ending the input yields no token) assert
 
+% A null is a value a token can HAVE, not a way of saying the source has
+% ended. PLRM 3.12.2: the scanner meets //name, "immediately looks up the
+% name and substitutes the corresponding value", and "the substitution
+% occurs immediately -- even inside an executable array delimited by { and
+% }"; no exception is made for a value that happens to be null. Answering
+% end-of-input for such a token stopped the job where it stood and
+% reported success, which is the worst way to be wrong about a scan.
+/nn null def
+/n.a 0 def
+//nn type /nulltype eq { /n.a 1 def } if
+n.a 1 eq (a name holding null substitutes its value rather than ending the scan) assert
+
+/n.b 0 def
+/n.p { //nn type /nulltype eq { /n.b 1 def } if } def
+n.p
+n.b 1 eq (and does so inside a procedure body, where the substitution is still immediate) assert
+
+% the tokens after it are still read
+/n.c 0 def
+//nn pop /n.c 1 def
+n.c 1 eq (the scan continues past a substituted null) assert
+
+
 failcount 0 eq { (SUCCESS) = } { (FAILURES: ) print failcount = } ifelse

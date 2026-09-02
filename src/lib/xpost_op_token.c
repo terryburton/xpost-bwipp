@@ -673,10 +673,10 @@ int grok(Xpost_Context *ctx,
                     ret = toke(ctx, src, next, back, &t);
                     if (ret)
                         break;
-                    /* the source ended inside the procedure: the
-                       scanner answers a null there and nowhere else,
-                       a literal null in the text being a name */
-                    if (xpost_object_get_type(t) == nulltype)
+                    /* the source ended inside the procedure, which the
+                       scanner says with a type no token it produces can
+                       have -- a null being a value a token may hold */
+                    if (xpost_object_get_type(t) == invalidtype)
                     {
                         XPOST_LOG_INFO("end of input inside a procedure");
                         ret = syntaxerror;
@@ -1459,7 +1459,12 @@ int toke(Xpost_Context *ctx,
     sta = snip(ctx, buf, src, next);
     if (!sta)
     {
-        *retval = null;
+        /* No token: not a null one. A null is a value a token can have --
+           //name substitutes whatever the name holds, and PLRM 3.12.2
+           puts no exception on that value -- so answering a null here
+           would say "the source ended" about a token the source really
+           produced. The type below is the one no scanned object can be. */
+        *retval = invalid;
         return 0;
     }
     if ((unsigned char)buf[0] >= 128 && (unsigned char)buf[0] <= 159)
@@ -1511,7 +1516,7 @@ int Ftoken(Xpost_Context *ctx,
     ret = toke(ctx, &F, Fnext, Fback, &t);
     if (ret)
         return ret;
-    if (xpost_object_get_type(t) != nulltype)
+    if (xpost_object_get_type(t) != invalidtype)
     {
         xpost_stack_push(ctx->lo, ctx->os, t);
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
@@ -1567,7 +1572,7 @@ int xpost_token_string_scan(Xpost_Context *ctx,
     ret = toke(ctx, &S, Snext, Sback, &t);
     if (ret)
         return ret;
-    if (xpost_object_get_type(t) != nulltype)
+    if (xpost_object_get_type(t) != invalidtype)
     {
         xpost_stack_push(ctx->lo, ctx->os, S);
         xpost_stack_push(ctx->lo, ctx->os, t);
