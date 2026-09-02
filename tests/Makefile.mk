@@ -463,6 +463,7 @@ tests/page_medium_test.ps \
 tests/page_semantics_test.c \
 tests/path_bounds_test.ps \
 tests/path_confine_test.c \
+tests/path_flatten_bound_test.ps \
 tests/path_recycle_test.ps \
 tests/name_lookup_cost_test.ps \
 tests/stack_ceiling_cost_test.ps \

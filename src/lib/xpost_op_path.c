@@ -2668,10 +2668,10 @@ int _chopcurve(Xpost_Context *ctx, _flatten_dst *dst,
     real x01, y01, x12, y12, x23, y23,
          x012, y012, x123, y123,
          x0123, y0123;
-    real x03, y03;
+    real ux, uy, vx, vy, u2, v2, lim2;
 
     /* A non-finite control point never converges: the subdivision test
-       below compares a distance that stays infinite (or NaN) against the
+       below compares a measure that stays infinite (or NaN) against the
        tolerance, so it is never met and the recursion runs until the C
        stack is gone. Such a coordinate reached the path through an
        ordinary curveto of an out-of-range value (e.g. an overflowing
@@ -2681,23 +2681,46 @@ int _chopcurve(Xpost_Context *ctx, _flatten_dst *dst,
      || !isfinite(x2) || !isfinite(y2) || !isfinite(x3) || !isfinite(y3))
         return limitcheck;
 
-#define MEDIAN(x, y, xA, yA, xB, yB) \
-    x = (real)(((xA)+(xB))/2.0); \
-    y = (real)(((yA)+(yB))/2.0);
+    /* How far the line from P0 to P3 can stray from the curve it stands
+       in for. Subtracting the line from the curve leaves
 
-    MEDIAN(x01, y01, x0, y0, x1, y1)
-    MEDIAN(x12, y12, x1, y1, x2, y2)
-    MEDIAN(x23, y23, x2, y2, x3, y3)
-    MEDIAN(x012, y012, x01, y01, x12, y12)
-    MEDIAN(x123, y123, x12, y12, x23, y23)
-    MEDIAN(x0123, y0123, x012, y012, x123, y123)
+           B(t) - L(t) = (1-t)^2 t u + (1-t) t^2 v,
+           u = 3 P1 - 2 P0 - P3,   v = 3 P2 - P0 - 2 P3,
 
-    MEDIAN(x03, y03, x0, y0, x3, y3)
+       and since (1-t)t never exceeds 1/4 while the remaining bracket is a
+       weighted average of u and v, no point of the curve lies further than
+       max(|u|,|v|)/4 from the point of the line at the same parameter.
+       PLRM 8.2 (setflat) makes flatness precisely that quantity -- "the
+       maximum allowable distance of any point of the approximation from
+       the corresponding point on the true curve, measured in output device
+       pixels" -- so a piece admitted here meets the tolerance along its
+       whole length, and not merely where it was sampled.
 
-#define DIST(xA, yA, xB, yB) \
-    sqrt((xB-xA)*(xB-xA) + (yB-yA)*(yB-yA))
+       Both control points enter, and each of them against the chord.
+       Measuring instead at one point of the curve cannot bound the rest of
+       it, and is blind besides to an entire family of curves: the gap
+       between the curve's midpoint and the chord's is |u+v|/8, which
+       vanishes identically whenever v = -u, that is for every curve whose
+       control points sit symmetrically about the middle of its chord --
+       curves that leave the chord as far as any.
 
-    if (depth >= CHOPCURVE_MAX_DEPTH || DIST(x03, y03, x0123, y0123) < tol)
+       Compared as squares, to keep a square root out of the innermost step
+       of every flatten, and each of the two held against the limit in its
+       own right rather than through a larger-of: an intermediate that
+       overflowed to an infinity or to a NaN then fails its own comparison
+       whichever of the two it is, and the piece is subdivided. That is the
+       safe way to be wrong -- the halves carry smaller coordinates, and
+       the depth cap bounds the descent regardless. */
+    ux = (real)(3.0 * x1 - 2.0 * x0 - x3);
+    uy = (real)(3.0 * y1 - 2.0 * y0 - y3);
+    vx = (real)(3.0 * x2 - x0 - 2.0 * x3);
+    vy = (real)(3.0 * y2 - y0 - 2.0 * y3);
+    u2 = ux * ux + uy * uy;
+    v2 = vx * vx + vy * vy;
+    lim2 = (real)(4.0 * tol);
+    lim2 = lim2 * lim2;
+
+    if (depth >= CHOPCURVE_MAX_DEPTH || (u2 < lim2 && v2 < lim2))
     {
         real co[2];
         if (++dst->segments > FLATTEN_MAX_SEGMENTS)
@@ -2709,6 +2732,18 @@ int _chopcurve(Xpost_Context *ctx, _flatten_dst *dst,
     else
     {
         int ret;
+
+#define MEDIAN(x, y, xA, yA, xB, yB) \
+    x = (real)(((xA)+(xB))/2.0); \
+    y = (real)(((yA)+(yB))/2.0);
+
+        MEDIAN(x01, y01, x0, y0, x1, y1)
+        MEDIAN(x12, y12, x1, y1, x2, y2)
+        MEDIAN(x23, y23, x2, y2, x3, y3)
+        MEDIAN(x012, y012, x01, y01, x12, y12)
+        MEDIAN(x123, y123, x12, y12, x23, y23)
+        MEDIAN(x0123, y0123, x012, y012, x123, y123)
+
         ret = _chopcurve(ctx, dst, x0, y0, x01, y01, x012, y012, x0123, y0123,
                          tol, depth + 1);
         if (ret)

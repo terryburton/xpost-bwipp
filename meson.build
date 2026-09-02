@@ -2456,6 +2456,18 @@ test('path-bounds',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# Flattening replaces a curve with straight lines, and PLRM 8.2 bounds
+# how far ANY point of those lines may sit from the curve. The bound is
+# read off both control points against the chord, because the gap at the
+# curve's own middle is nil for every curve whose control points sit
+# symmetrically about the middle of its chord, however far from the chord
+# such a curve runs.
+test('path-flatten-bound',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/path_flatten_bound_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # The walk that settles those offsets is made once per state of a path
 # rather than once per operator that reads one, so the interpreter
 # records the entity it walked. Entity numbers are reused: a path
