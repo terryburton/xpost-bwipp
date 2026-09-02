@@ -169,6 +169,10 @@ Level 2 operators
      the interpreter rather than through the language)
  [X] setcachedevice2 (reduces to setcachedevice)
  [X] user paths (ucache is accepted and nothing is cached)
+ [X] setbbox (the declared box is discarded rather than held against the
+     path: a coordinate outside it is appended rather than refused,
+     pathbbox answers from the path, and a box whose upper right falls
+     below its lower left is taken rather than refused)
  [X] insideness testing (infill, ineofill, instroke, inufill,
      inueofill, inustroke; a user path without a leading setbbox is
      accepted rather than rejected)
