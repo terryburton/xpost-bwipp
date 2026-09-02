@@ -681,6 +681,9 @@ int NRScvrs(Xpost_Context *ctx,
 
 /* helper function: fill string with real decimal representation */
 static
+/* The significant decimal digits a real is written with. */
+#define XPOST_REAL_SIGDIGITS 6
+
 int conv_real (real num,
                char *s,
                int n)
@@ -709,19 +712,33 @@ int conv_real (real num,
         return 3;
     }
 
-    /* the shortest decimal that reads back to the same value. Find
-       the fewest significant
-       digits whose round trip is exact, take the decimal exponent from
-       that same scientific rendering (not from log10, which rounds the
-       wrong way at the powers of ten), then present it thus: fixed
-       notation while the magnitude sits between
+    /* A real carries six significant decimal digits, which is what the
+       language undertakes to keep (PLRM Appendix B gives the precision of
+       a real as approximate, and this is the figure the interpreters that
+       set the convention write). The value is rounded to that width
+       first, so what is presented is the number the language holds and
+       not the wider one the storage happens to have room for -- the same
+       text whether a real is a float or a double here.
+
+       Then the fewest digits that read back to that rounded value, which
+       is what drops the trailing zeros an exact power leaves behind. The
+       decimal exponent is taken from that same scientific rendering, not
+       from log10, which rounds the wrong way at the powers of ten.
+       Presented thus: fixed notation while the magnitude sits between
        1e-4 and 1e6, scientific outside that band. A fixed value that
        comes out whole gains a ".0" so it scans back as a real. */
-    for (prec = 1; prec < 17; prec++)
+    snprintf(buf, sizeof buf, "%.*e", XPOST_REAL_SIGDIGITS - 1, d);
+    d = strtod(buf, NULL);
+    for (prec = 1; prec < XPOST_REAL_SIGDIGITS; prec++)
     {
         snprintf(buf, sizeof buf, "%.*e", prec - 1, d);
-        if ((real)strtod(buf, NULL) == num)
+        if (strtod(buf, NULL) == d)
             break;
+    }
+    if (prec >= XPOST_REAL_SIGDIGITS)
+    {
+        prec = XPOST_REAL_SIGDIGITS;
+        snprintf(buf, sizeof buf, "%.*e", prec - 1, d);
     }
     {
         char *ep = strchr(buf, 'e');
