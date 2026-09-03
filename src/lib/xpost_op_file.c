@@ -753,13 +753,20 @@ int _filter_dict_build (Xpost_Context *ctx,
         free(cname);
         if (!xpost_object_is_readable(ctx, F))
             return invalidaccess;
-        /* both parameters are required of the dictionary form (PLRM
-           3.13.3) */
+        /* PLRM 3.13 Table 3.23 requires both of the dictionary form.
+           The end-of-data string is held to that: without it there is no
+           condition to recognise, and what the filter would then be is
+           not a question the specification answers. A count that is
+           absent is taken as zero -- the value that ends the stream at
+           the first occurrence of the string, which is what a dictionary
+           carrying only the string is asking for. COMPLIANCE records
+           both, since one is a leniency and the other is not. */
         eod = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "EODString"));
         cnt = xpost_dict_get(ctx, dict, xpost_name_cons(ctx, "EODCount"));
-        if ((xpost_object_get_type(eod) == invalidtype)
-            || (xpost_object_get_type(cnt) == invalidtype))
+        if (xpost_object_get_type(eod) == invalidtype)
             return undefined;
+        if (xpost_object_get_type(cnt) == invalidtype)
+            cnt = xpost_int_cons(0);
         if ((xpost_object_get_type(eod) != stringtype)
             || (xpost_object_get_type(cnt) != integertype))
             return typecheck;

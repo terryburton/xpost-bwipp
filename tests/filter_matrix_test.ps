@@ -116,9 +116,12 @@ ntok 4 eq {
 
 % ------------------------------------------- the parameters a filter needs
 % A filter given its parameters in a dictionary has to be told when the
-% dictionary does not carry them. Defaulted, SubFileDecode reaches its
-% end of data at once and hands back an empty stream, which reads as a
-% truncated file rather than as the mistake it is.
+% dictionary does not carry the one that decides anything. Without an
+% end-of-data string, SubFileDecode defaulted would reach its end of data
+% at once and hand back an empty stream, which reads as a truncated file
+% rather than as the mistake it is. A count is not like that: zero is what
+% a dictionary naming only the string is asking for, and COMPLIANCE
+% records that leniency against PLRM 3.13 Table 3.23.
 
 { (abcXdef) 1 (X) /SubFileDecode filter 16 string readstring pop pop }
     (the operand form) (SubFileDecode) works2
@@ -129,8 +132,9 @@ ntok 4 eq {
     /undefined (a dictionary carrying neither parameter) raises
 { (abcXdef) << /EODCount 1 >> /SubFileDecode filter }
     /undefined (a dictionary with no EODString) raises
-{ (abcXdef) << /EODString (X) >> /SubFileDecode filter }
-    /undefined (a dictionary with no EODCount) raises
+{ (abcXdef) << /EODString (X) >> /SubFileDecode filter
+  16 string readstring pop pop } (a dictionary with only the string)
+    (SubFileDecode) works2
 { (abcXdef) << /EODCount (one) /EODString (X) >> /SubFileDecode filter }
     /typecheck (an EODCount that is not an integer) raises
 { (abcXdef) << /EODCount 1 /EODString 7 >> /SubFileDecode filter }

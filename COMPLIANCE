@@ -415,6 +415,14 @@ Known behavioural deviations
      count and EOD string together -- the second of the three the operator is
      defined with (PLRM 3.13) -- raises typecheck. The count and string alone,
      and the dictionary alone, each build the filter.
+ [X] SubFileDecode  a parameter dictionary naming an end-of-data string and
+     no count is taken as a count of zero, and so ends the stream at the first
+     occurrence of the string, where Table 3.23 defines both entries as
+     required (PLRM 3.13). Read strictly the count is missing and the filter
+     should not be built: PLRM states for another dictionary-parameterised
+     operator that an absent required entry is an undefined error (8.2,
+     sethalftone), and names undefined among the errors filter raises. The
+     string is not defaulted in the same way, and its absence is refused.
  [X] currenthalftone  the file a type 6 halftone's threshold array is
      answered with holds the array once and reaches end-of-file after it,
      where the array is defined to be a circular buffer end-of-file is

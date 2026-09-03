@@ -180,6 +180,33 @@
     dup /ok eq { pop true } { pop false } ifelse
 (ReusableStreamDecode) (takes those parameters from an array beside an array of filters) assert2
 
+% PLRM 3.13 Table 3.23 marks EODCount and EODString both Required of the
+% parameter dictionary. A dictionary carrying only the string is taken as
+% asking for a count of zero, which ends the stream at the first
+% occurrence of it; COMPLIANCE records the leniency.
+{ (abcdef@gh) << /Filter /SubFileDecode
+                 /DecodeParms << /EODString (@) >> >>
+  /ReusableStreamDecode filter 20 string readstring pop (abcdef) eq } outcome
+    dup /ok eq { pop true } { pop false } ifelse
+(ReusableStreamDecode) (takes a count of zero where the parameters name only the string) assert2
+
+% and the count so defaulted is zero rather than a licence to read on: a
+% second occurrence of the string is past the end, not part of the stream
+{ (abcdef@gh@ij) << /EODString (@) >> /SubFileDecode filter
+  20 string readstring pop (abcdef) eq } outcome
+    dup /ok eq { pop true } { pop false } ifelse
+(SubFileDecode) (ends at the first occurrence where the count was defaulted) assert2
+
+% the string is not defaulted with it: without one there is no condition
+% to recognise at all. An absent required entry is an undefined error --
+% the rule PLRM 8.2 states for a dictionary-parameterised operator under
+% sethalftone, and the answer get gives for a key a dictionary does not
+% hold -- and undefined is among the errors filter is defined to raise.
+{ (abcdef@gh) << /EODCount 0 >> /SubFileDecode filter
+  20 string readstring pop pop } outcome
+    dup /ok eq { pop false } { pop true } ifelse
+(SubFileDecode) (refuses a parameter dictionary that names no end-of-data string) assert2
+
 % a filter that takes no parameters is still built where the chain names
 % none for it
 { (414243>) << /Filter /ASCIIHexDecode >> /ReusableStreamDecode filter
