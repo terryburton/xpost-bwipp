@@ -134,6 +134,15 @@ XPOST_MUST_CHECK int xpost_dev_pdf_form_file(Xpost_Context *ctx,
                                              const char *body, size_t len,
                                              int *index);
 
+/* Paint a triangle whose colour varies across it: the device components
+   at its three corners, read as a plane at each pixel it covers. `pt`
+   is six device coordinates, `col` three groups of `ncomp` components.
+   Sets *painted to 1 where it painted and 0 where it declined, which
+   leaves the caller to paint the triangle the way it would have. */
+int xpost_dev_gouraud_paint(Xpost_Context *ctx, Xpost_Object devdic,
+                            const double *pt, const double *col, int ncomp,
+                            int *painted);
+
 int xpost_dev_pdf_fmt_num(char *o, double v);
 
 /**

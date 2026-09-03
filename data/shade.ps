@@ -843,6 +843,119 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } def
 
 %
+%  The device components a colour comes to, through the conversion the
+%  plan bound for this mesh and the transfer after it -- the same two
+%  steps a flat fill takes, asked here for one colour rather than for
+%  every piece a subdivision cuts.
+%
+/.gcoldev {  % [c0..cn-1]  .  [d0..dn-1]
+    //.gsetcolor exec
+    [ gconv //.applytransfer exec ]
+} def
+
+%
+%  The same, for the colour a mesh vertex carries after its coordinates.
+%
+/.gvertdev {  % v  .  [d0..dn-1]
+    2 dict begin
+    /v exch def
+    [ 2 1 v length 1 sub { v exch get } for ]
+    end
+    //.gcoldev exec
+} def
+
+%
+%  Whether a vertex colour reaches the device unchanged.
+%
+%  The triangle painter hands the device a plane through the three
+%  corner colours. That is the colour the pieces of a subdivision would
+%  have been given only where the road from a vertex colour to device
+%  components is a straight one. A function with a bend in it, a space
+%  carried through a curve, a tint transform, or a transfer that is not
+%  the identity all bend it, and a plane would then chord what the
+%  subdivision follows.
+%
+%  So the road is required to be no road at all: no function, no tint
+%  space, the shading painting in the space the device paints in, and a
+%  transfer that gives back what it is given. The last is the only one
+%  that has to be measured, and it is measured across the range rather
+%  than at a point, because two points agreeing says nothing about a
+%  third between them.
+%
+%  ASKED ONCE FOR THE MESH, not once per triangle: it is a property of
+%  the pipeline and not of any colour that travels it, so no triangle
+%  can answer differently. Asking per triangle cost more than the fast
+%  path saved wherever the triangles were small -- MEASURED on a page of
+%  small shadings, 6.9 seconds became 21.
+%
+/.gcolidentity {  % -  .  bool
+    6 dict begin
+    /n DEVICE /nativecolorspace get
+       dup /DeviceGray eq { pop 1 }{
+       dup /DeviceRGB eq { pop 3 }{
+       dup /DeviceCMYK eq { pop 4 }{ pop 0 } ifelse } ifelse } ifelse def
+    % A device space may be written as the name or as an array holding
+    % just the name (PLRM 4.8.2), and a mesh commonly writes the array.
+    /cs sh /ColorSpace get def
+    cs type /arraytype eq { cs length 1 eq { /cs cs 0 get def } if } if
+    /csok cs type /nametype eq
+          { cs DEVICE /nativecolorspace get eq }{ false } ifelse def
+    n 0 gt
+    shfn null eq and
+    gtint null eq and
+    csok and
+    {
+        /ok true def
+        0 1 16 {
+            /v exch 16 div def
+            /got [ n { v } repeat ] //.gcoldev exec def
+            got length n eq {
+                0 1 n 1 sub {
+                    got exch get v sub abs 1 510 div gt { /ok false def } if
+                } for
+            }{ /ok false def } ifelse
+        } for
+        ok
+    }{ false } ifelse
+    end
+} def
+
+%
+%  Paint the triangle in hand with its colour running across it, and say
+%  whether it was painted.
+%
+%  A triangle's colour is affine across it, so the device can be given a
+%  plane through the three corner colours and read it at every pixel.
+%  What that replaces is cutting the triangle up until each piece is
+%  flat enough to fill in one colour, which spends a fill on every half
+%  pixel and a colour conversion on every fill.
+%
+%  The three corners are converted here, once each. THE CENTROID IS
+%  CONVERTED TOO, and compared against the average of the three: they
+%  agree exactly where the conversion is linear, and a plane through the
+%  corners is then the same colour the pieces would have been given.
+%  Where they disagree -- a function with a bend in it, a space carried
+%  through a curve -- this declines, and the subdivision paints the
+%  triangle following that curve as it always has.
+%
+%  The comparison is held to a 255th, which is finer than the flatness
+%  the subdivision itself accepts before filling a piece in one colour.
+%
+/.gtrishade {  % -  .  bool
+    6 dict begin
+    /da va //.gvertdev exec def
+    /db vb //.gvertdev exec def
+    /dc vc //.gvertdev exec def
+    /n da length def
+    n 0 gt db length n eq and dc length n eq and {
+        va vb vc
+        [ da aload pop db aload pop dc aload pop ]
+        gdev gtrishadeop
+    }{ false } ifelse
+    end
+} def
+
+%
 %  paint a Gouraud triangle: subdivide at the edge midpoints until the
 %  triangle sits within a couple of device pixels, then fill flat with
 %  the corner average.
@@ -1081,6 +1194,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         va 1 get gy1 gt vb 1 get gy1 gt and vc 1 get gy1 gt and or
     } ifelse
     { end }{
+    gcpath { //.gtrishade exec }{ false } ifelse
+    { end }{
     /dd 0 def
     2 1 va length 1 sub { /i exch def
         va i get vb i get sub abs dup dd gt { /dd exch def }{ pop } ifelse
@@ -1106,6 +1221,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     } ifelse
     end
     } ifelse
+    } ifelse
 } def
 
 %
@@ -1123,11 +1239,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     dup null eq { //.gflatgeneral }{ //.gflatfast } ifelse /gflat exch def
     /gconv exch def
     /gtripoly //.internaldict /.tripoly get def
+    /gtrishadeop //.internaldict /.trishade get def
+
     /gtint //.gtintspace exec def
 
     % a lattice (type 5) mesh carries no per-vertex flag, so BitsPerFlag
     % may be absent from one of the two types this paints.
     false 2 //.mrdinit exec
+
+    % Whether a triangle may go to the device as a colour plane: the plan
+    % has to have bound a conversion -- which is where the device takes
+    % polygons and paints them itself -- and the colour has to reach the
+    % device unchanged. Settled here, once, because the reader above is
+    % what binds the function the answer depends on.
+    %
+    % The conversion is fetched rather than named: it is executable, and
+    % naming it would run it.
+    /gcpath currentdict /gconv get null ne
+            { //.gcolidentity exec }{ false } ifelse def
     sh /ShadingType get 5 eq {
         /vpr sh /VerticesPerRow get def
 
@@ -1233,6 +1362,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     dup null eq { //.gflatgeneral }{ //.gflatfast } ifelse /gflat exch def
     /gconv exch def
     /gtripoly //.internaldict /.tripoly get def
+    /gtrishadeop //.internaldict /.trishade get def
+
+    % Settled at the first patch and kept for the mesh: it is a property
+    % of the pipeline, and every patch of one mesh paints through the
+    % same one. `store` writes it back where the reader left it open.
+    %
+    % The conversion is fetched rather than named: it is executable, and
+    % naming it would run it.
+    gcpath null eq {
+        /gcpath currentdict /gconv get null ne
+                { //.gcolidentity exec }{ false } ifelse store
+    } if
 
     % Subdivision from the device size of the boundary points
     /mnx 9e99 def /mny 9e99 def /mxx -9e99 def /mxy -9e99 def
@@ -1293,6 +1434,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % Both patch types carry a flag on every patch, so BitsPerFlag is
     % required of them.
     true 3 //.mrdinit exec
+
+    % Whether a triangle may go to the device as a colour plane. Left
+    % open here: the answer needs the conversion, and a patch binds that
+    % for itself. The first patch settles it, for the mesh.
+    /gcpath null def
     /tensor sh /ShadingType get 7 eq def
 
     % pts: p1..p16 as [x y] in data order; cols: c1..c4; g: the grid

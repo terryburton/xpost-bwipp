@@ -2272,6 +2272,122 @@ int _tripoly(Xpost_Context *ctx,
     return 0;
 }
 
+/* va vb vc devcols DEVICE  .trishade  bool
+
+   Paint one mesh triangle with its colour varying across it, and answer
+   whether it was painted.
+
+   The three vertices are the arrays a mesh reads, and only their
+   coordinates are read here: the colours reaching the device are
+   `devcols`, three groups of components already converted for it, so
+   that the conversion happens three times for a triangle rather than
+   once for every piece the old subdivision would have cut it into.
+
+   False where it did not paint -- a clip that can cut the triangle, a
+   device that cannot be painted from C, a colour space whose components
+   this does not count -- and the caller subdivides it as before. The
+   graphics state and the current path are untouched either way, so the
+   caller's fallback finds what it would have found.
+
+   The clip question is the one .tripoly asks, and for the same reason:
+   what is painted here goes to the device whole, with no region beside
+   it, so it may only be painted where the region cannot cut it. */
+static
+int _trishade(Xpost_Context *ctx,
+              Xpost_Object va, Xpost_Object vb, Xpost_Object vc,
+              Xpost_Object devcols, Xpost_Object devdic)
+{
+    Xpost_Object gstate, clipregion;
+    Xpost_Object vert[3];
+    real m[6];
+    real uv[6];
+    double pt[6];
+    double col[12];
+    real cminx, cminy, cmaxx, cmaxy;
+    double bminx, bminy, bmaxx, bmaxy;
+    int ncomp, rect, i, ret, painted;
+
+    if (devcols.comp_.sz < 3 || devcols.comp_.sz % 3 != 0)
+        return rangecheck;
+    ncomp = (int)devcols.comp_.sz / 3;
+    if (ncomp > 4)
+    {
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+
+    gstate = _gstate(ctx);
+    if (xpost_object_get_type(gstate) == invalidtype)
+        return undefined;
+    ret = _path_ctm(ctx, gstate, m);
+    if (ret)
+        return ret;
+
+    vert[0] = va; vert[1] = vb; vert[2] = vc;
+    for (i = 0; i < 3; i++)
+    {
+        Xpost_Object c;
+
+        if (vert[i].comp_.sz < 2)
+            return rangecheck;
+        c = xpost_array_get(ctx, vert[i], 0);
+        if (xpost_object_get_type(c) != realtype &&
+            xpost_object_get_type(c) != integertype)
+            return typecheck;
+        uv[2 * i] = NUM(c);
+        c = xpost_array_get(ctx, vert[i], 1);
+        if (xpost_object_get_type(c) != realtype &&
+            xpost_object_get_type(c) != integertype)
+            return typecheck;
+        uv[2 * i + 1] = NUM(c);
+    }
+    for (i = 0; i < 3 * ncomp; i++)
+    {
+        Xpost_Object c = xpost_array_get(ctx, devcols, i);
+
+        if (xpost_object_get_type(c) != realtype &&
+            xpost_object_get_type(c) != integertype)
+            return typecheck;
+        col[i] = (double)NUM(c);
+    }
+
+    for (i = 0; i < 3; i++)
+    {
+        pt[2 * i]     = (double)(m[0] * uv[2 * i] + m[2] * uv[2 * i + 1] + m[4]);
+        pt[2 * i + 1] = (double)(m[1] * uv[2 * i] + m[3] * uv[2 * i + 1] + m[5]);
+    }
+
+    clipregion = xpost_dict_get(ctx, gstate, nameclipregion);
+    rect = _path_is_rect(ctx, clipregion, &cminx, &cminy, &cmaxx, &cmaxy);
+    if (rect < 0)
+        return rangecheck;
+    if (rect)
+    {
+        bminx = bmaxx = pt[0];
+        bminy = bmaxy = pt[1];
+        for (i = 2; i < 6; i += 2)
+        {
+            if (pt[i] < bminx) bminx = pt[i];
+            if (pt[i] > bmaxx) bmaxx = pt[i];
+            if (pt[i + 1] < bminy) bminy = pt[i + 1];
+            if (pt[i + 1] > bmaxy) bmaxy = pt[i + 1];
+        }
+        rect = bminx >= (double)cminx && bmaxx <= (double)cmaxx &&
+               bminy >= (double)cminy && bmaxy <= (double)cmaxy;
+    }
+    if (!rect)
+    {
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+
+    ret = xpost_dev_gouraud_paint(ctx, devdic, pt, col, ncomp, &painted);
+    if (ret)
+        return ret;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(painted));
+    return 0;
+}
+
 /* -  .pathempty  bool
    report whether the current path has no elements */
 static
@@ -3286,6 +3402,11 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
 
     op = xpost_operator_cons(ctx, ".tripoly", (Xpost_Op_Func)_tripoly, 3,
                              arraytype, arraytype, arraytype);
+    INSTALL;
+
+    op = xpost_operator_cons(ctx, ".trishade", (Xpost_Op_Func)_trishade, 5,
+                             arraytype, arraytype, arraytype, arraytype,
+                             dicttype);
     INSTALL;
 
     op = xpost_operator_cons(ctx, ".newpathstr", (Xpost_Op_Func)_newpathstr, 0);

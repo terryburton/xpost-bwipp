@@ -186,8 +186,8 @@ D7=0000000000111122222222444433336666444488885555AAAA6666CCCC7777EEEE88881110999
 # The coordinates are the ends of the field's range, which every width
 # represents exactly, so a page that changes with the width is the
 # reader and not the arithmetic.
-meshdata() {        # <coordinate bits> <component bits> [flag bits] -> hex
-    awk -v CB="$1" -v MB="$2" -v FB="${3:-8}" '
+meshdata() {        # <coordinate bits> <component bits> [flag bits] [flat] -> hex
+    awk -v CB="$1" -v MB="$2" -v FB="${3:-8}" -v FLAT="${4:-}" '
         function putbits(v, n,   i) {
             for (i = n - 1; i >= 0; i--)
                 bits = bits sprintf("%d", int(v / 2 ^ i) % 2)
@@ -198,6 +198,14 @@ meshdata() {        # <coordinate bits> <component bits> [flag bits] -> hex
             split("0 " cmax " 0", x, " ")
             split("0 0 " cmax, y, " ")
             split("0 " mmax " " mmax, c, " ")
+            # One colour at every corner, for a probe asking what the
+            # triangle COVERS. A corner at the top of the component
+            # range is the colour of the page itself, so a pixel painted
+            # exactly that colour is painted and still does not count as
+            # ink, and the count stops answering about coverage. That
+            # only began to bite once the colour across a triangle
+            # became exact enough to reach the top of the range.
+            if (FLAT != "") split("0 0 0", c, " ")
             bits = ""
             for (i = 1; i <= 3; i++) {
                 putbits(0, FB); putbits(x[i], CB); putbits(y[i], CB)
@@ -508,7 +516,7 @@ esac
 # and calls fill, as every shading painter here does -- so what this
 # guards is that sharing. A painter that grew a coverage rule of its own
 # would part from the fill, and the register would ask for its line back.
-mtri=$(paint "/ShadingType 4 $CS /DataSource <$(meshdata 16 8)> $BITS
+mtri=$(paint "/ShadingType 4 $CS /DataSource <$(meshdata 16 8 8 flat)> $BITS
               /BitsPerFlag 8")
 ftri=$(paintpath "newpath 0 0 moveto 8 0 lineto 0 8 lineto closepath fill")
 case $mtri in
