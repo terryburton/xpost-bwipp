@@ -1515,11 +1515,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  raises it as its own operator and leaves what it opened the way it
 %  leaves it for every other refusal.
 %
+%  A grid is also held to a size. A count that is not a count is refused
+%  above; a count larger than this describes an image no medium carries and
+%  no program means, and the row walk below would take it a row at a time
+%  for as long as it was asked to. Four million and some is a hundred times
+%  the samples across a page at the finest resolution anything prints at,
+%  so the limit turns an unbounded walk into a refusal without standing in
+%  front of any image.
+.xpostsys /.imgextentmax 4194304 put
+
 .xpostsys /.imgextentfault {  % dict  .  null | /typecheck | /rangecheck
     dup /Width get exch /Height get
     2 copy type /integertype eq exch type /integertype eq and not
         { pop pop /typecheck }
-        { 0 lt exch 0 lt or { /rangecheck }{ null } ifelse }
+        { 2 copy 0 lt exch 0 lt or
+            { pop pop /rangecheck }
+            { //.imgextentmax ge exch //.imgextentmax ge or
+                { /rangecheck }{ null } ifelse }
+          ifelse }
     ifelse
 } put
 

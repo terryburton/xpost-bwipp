@@ -583,6 +583,28 @@ true 1 1 3 { DEVICE /ImgData get 0 get exch get 255 eq and } for
                   /Decode [0 1] /ImageMatrix [4 0 0 -4 0 4] >> >> image } outcome /ok eq
     (an allowed depth under the same interleave still paints) assert
 
+
+% A grid is held to a size as well as to a type. A count larger than this
+% describes an image no medium carries, and the row walk would take it a
+% row at a time for as long as it was asked to. The limit is stated at four
+% million and some -- a hundred times the samples across a page at the
+% finest resolution anything prints at -- so it refuses the absurd without
+% standing in front of any image. It bounds each dimension rather than
+% their product: an image may be very wide or very tall, and it is the walk
+% along one that has to end.
+{ << /ImageType 1 /Width 1 /Height 4194304 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> image } /rangecheck
+    (a height past the stated limit) raises
+{ << /ImageType 1 /Width 4194304 /Height 1 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [1 0 0 1 0 0]
+     /DataSource { () } >> image } /rangecheck
+    (a width past it) raises
+{ << /ImageType 1 /Width 4 /Height 8 /BitsPerComponent 8
+     /ColorSpace /DeviceGray /Decode [0 1] /ImageMatrix [4 0 0 -8 0 8]
+     /DataSource (\000\100\200\377\000\100\200\377) >> image } outcome /ok eq
+    (and an ordinary grid is untouched by it) assert
+
 (imatrix.scratch) status { pop pop pop pop
     (imatrix.scratch) deletefile } if
 verdict
