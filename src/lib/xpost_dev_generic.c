@@ -4724,6 +4724,70 @@ int xpost_dev_pdf_fmt_num(char *o, double v)
    subpaths union, and hole subpaths are counter-wound by their producers.
    This is the per-coordinate hot loop of the pdfwrite FillPoly,
    in C; the fill colour is the device's business, emitted beforehand. */
+/* Whether the subpath starting at i is four points making an
+   axis-aligned rectangle, and where the next one starts.
+
+   PDF says a rectangle in one operator where a subpath says it in five,
+   and what draws thousands of them is anything built out of bars.
+   MEASURED on one page of a barcode label: fourteen thousand six
+   hundred subpaths of exactly this shape, every one written the long
+   way.
+
+   Compared at the precision the numbers are written to and not as the
+   doubles they arrive as: a corner comes through a matrix and can miss
+   its neighbour by a fraction the writer would never print, and what is
+   asked here is whether the rectangle written would be the subpath
+   written. */
+static int _poly_rect_at(Xpost_Context *ctx, Xpost_Object poly,
+                         int i, int n, double *x, double *y,
+                         double *w, double *h, int *next)
+{
+#define PDFNUMVAL(o) (xpost_object_get_type(o) == realtype ? (o).real_.val \
+                                                           : (double)(o).int_.val)
+#define SAMENUM(a, b) (((a) - (b)) < 5e-5 && ((b) - (a)) < 5e-5)
+    double c[4][2];
+    int k;
+
+    for (k = 0; k < 4; k++)
+    {
+        Xpost_Object e;
+
+        if (i + k >= n)
+            return 0;
+        e = xpost_array_get(ctx, poly, i + k);
+        if (xpost_object_get_type(e) != arraytype || e.comp_.sz != 2)
+            return 0;
+        c[k][0] = PDFNUMVAL(xpost_array_get(ctx, e, 0));
+        c[k][1] = PDFNUMVAL(xpost_array_get(ctx, e, 1));
+    }
+    /* the subpath has to end here: a fifth point makes it something else */
+    if (i + 4 < n)
+    {
+        Xpost_Object e = xpost_array_get(ctx, poly, i + 4);
+
+        if (xpost_object_get_type(e) == arraytype && e.comp_.sz == 2)
+            return 0;
+        *next = i + 5;          /* past the separator */
+    }
+    else
+        *next = i + 4;
+    if (SAMENUM(c[0][1], c[1][1]) && SAMENUM(c[1][0], c[2][0]) &&
+        SAMENUM(c[2][1], c[3][1]) && SAMENUM(c[3][0], c[0][0]))
+        ;
+    else if (SAMENUM(c[0][0], c[1][0]) && SAMENUM(c[1][1], c[2][1]) &&
+             SAMENUM(c[2][0], c[3][0]) && SAMENUM(c[3][1], c[0][1]))
+        ;
+    else
+        return 0;
+    *x = c[0][0] < c[2][0] ? c[0][0] : c[2][0];
+    *y = c[0][1] < c[2][1] ? c[0][1] : c[2][1];
+    *w = c[0][0] < c[2][0] ? c[2][0] - c[0][0] : c[0][0] - c[2][0];
+    *h = c[0][1] < c[2][1] ? c[2][1] - c[0][1] : c[0][1] - c[2][1];
+    return (*w > 0.0 && *h > 0.0);
+#undef SAMENUM
+#undef PDFNUMVAL
+}
+
 static int _pdffillpoly(Xpost_Context *ctx,
                         Xpost_Object poly, Xpost_Object devdic)
 {
@@ -4741,6 +4805,22 @@ static int _pdffillpoly(Xpost_Context *ctx,
     for (i = 0; ret == 0 && i < n; i++)
     {
         Xpost_Object e = xpost_array_get(ctx, poly, i);
+        double rx, ry, rw, rh;
+        int rnext;
+
+        if (needmove &&
+            _poly_rect_at(ctx, poly, i, n, &rx, &ry, &rw, &rh, &rnext))
+        {
+            len = 0;
+            len += _pdf_fmt_num(tmp + len, rx); tmp[len++] = ' ';
+            len += _pdf_fmt_num(tmp + len, ry); tmp[len++] = ' ';
+            len += _pdf_fmt_num(tmp + len, rw); tmp[len++] = ' ';
+            len += _pdf_fmt_num(tmp + len, rh); tmp[len++] = ' ';
+            tmp[len++] = 'r'; tmp[len++] = 'e'; tmp[len++] = '\n';
+            ret = xpost_strbuf_append(&a.content, tmp, len);
+            i = rnext - 1;      /* the loop's own increment finishes it */
+            continue;
+        }
         if (xpost_object_get_type(e) == arraytype && e.comp_.sz == 2)
         {
             double x = PDFNUMVAL(xpost_array_get(ctx, e, 0));

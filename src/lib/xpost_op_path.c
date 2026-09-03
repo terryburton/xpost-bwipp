@@ -1866,6 +1866,76 @@ int _cliprect(Xpost_Context *ctx)
     return 0;
 }
 
+/* Whether the subpath beginning at a move is an axis-aligned rectangle,
+   and if so the corner and extent it spans.
+
+   Both formats say a rectangle in one operator -- PDF's re, and SVG's
+   own rect element -- where a subpath says it in five: a move, three
+   lines and a close. What draws thousands of them is anything built out
+   of bars, and a barcode label is the case that prompted this:
+   MEASURED at twenty thousand rectangular subpaths on one page, better
+   than sixty thousand line segments between them.
+
+   The four corners have to come round in one of the two orders a
+   rectangle can be walked, and the close is required: three lines that
+   happen to be axis-aligned but are left open enclose nothing until
+   the fill closes them, and a fill is not the only thing a path is
+   walked for. */
+static int _subpath_is_rect(const char *p, unsigned int o, unsigned int used,
+                            real *x, real *y, real *w, real *h)
+{
+    real c[5][2];
+    unsigned int q = o;
+    int i;
+
+    for (i = 0; i < 5; i++)
+    {
+        int cmd;
+        unsigned int esz;
+
+        if (q >= used)
+            return 0;
+        cmd = p[q];
+        if (i == 0 ? cmd != PATH_CMD_MOVE
+                   : i < 4 ? cmd != PATH_CMD_LINE
+                           : cmd != PATH_CMD_CLOSE)
+            return 0;
+        esz = _path_elem_size(cmd);
+        if (esz > used - q)
+            return 0;
+        _path_get_coords(p, q, c[i], 2);
+        q += esz;
+    }
+    /* Compared at the precision the numbers are written to, not as the
+       floats they arrive as. A corner meant to sit above another comes
+       through a matrix and misses it by a fraction the writer would not
+       print: MEASURED, comparing the floats exactly recognised 783 of
+       nineteen thousand rectangles on a page built out of bars. What is
+       being asked is whether the rectangle written would be the subpath
+       written, and that is a question about the output. */
+#define SAMENUM(a, b) (((a) - (b)) < 5e-5 && ((b) - (a)) < 5e-5)
+    /* the close repeats the start, which is what makes it a closed
+       four-cornered figure and not three lines that end elsewhere */
+    if (!SAMENUM(c[4][0], c[0][0]) || !SAMENUM(c[4][1], c[0][1]))
+        return 0;
+    /* one of the two ways round: the sides alternate between holding x
+       and holding y */
+    if (SAMENUM(c[0][0], c[1][0]) && SAMENUM(c[1][1], c[2][1]) &&
+        SAMENUM(c[2][0], c[3][0]) && SAMENUM(c[3][1], c[0][1]))
+        ;
+    else if (SAMENUM(c[0][1], c[1][1]) && SAMENUM(c[1][0], c[2][0]) &&
+             SAMENUM(c[2][1], c[3][1]) && SAMENUM(c[3][0], c[0][0]))
+        ;
+    else
+        return 0;
+#undef SAMENUM
+    *x = c[0][0] < c[2][0] ? c[0][0] : c[2][0];
+    *y = c[0][1] < c[2][1] ? c[0][1] : c[2][1];
+    *w = c[0][0] < c[2][0] ? c[2][0] - c[0][0] : c[0][0] - c[2][0];
+    *h = c[0][1] < c[2][1] ? c[2][1] - c[0][1] : c[0][1] - c[2][1];
+    return 1;
+}
+
 /* Emit the current path into a vector device's content accumulator with
    curves preserved -- the FillPath hot loop, walking the path string
    directly so arbitrarily many subpaths cost no operand stack. The
@@ -1921,12 +1991,30 @@ int _fillpath_emit(Xpost_Context *ctx,
         int cmd = p[o];
         int nco = cmd == PATH_CMD_CURVE ? 6 : 2;
         real co[6];
+        real rx, ry, rw, rh;
 
         if (cmd < PATH_CMD_MOVE || cmd > PATH_CMD_CLOSE)
             return unregistered;
         esz = _path_elem_size(cmd);
         if (esz > used - o)
             return rangecheck;
+        if (cmd == PATH_CMD_MOVE && !svg &&
+            _subpath_is_rect(p, o, used, &rx, &ry, &rw, &rh))
+        {
+            n = 0;
+            n += xpost_dev_pdf_fmt_num(tmp + n, rx); tmp[n++] = ' ';
+            n += xpost_dev_pdf_fmt_num(tmp + n, ry); tmp[n++] = ' ';
+            n += xpost_dev_pdf_fmt_num(tmp + n, rw); tmp[n++] = ' ';
+            n += xpost_dev_pdf_fmt_num(tmp + n, rh); tmp[n++] = ' ';
+            tmp[n++] = 'r'; tmp[n++] = 'e'; tmp[n++] = '\n';
+            ret = xpost_dev_pdf_append(ctx, devdic, tmp, n);
+            if (ret)
+                return ret;
+            /* the move, its three lines and the close are all said */
+            esz = _path_elem_size(PATH_CMD_MOVE) * 4
+                  + _path_elem_size(PATH_CMD_CLOSE);
+            continue;
+        }
         _path_get_coords(p, o, co, nco);
         n = 0;
         if (cmd == PATH_CMD_CLOSE)
