@@ -151,6 +151,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .state /.pdfmasks 64 dict put  % masks already filed, so a repeated glyph files once
         .state /.pdfpatterns 0 array put  % tiling cells filed as /Pattern resources
         .state /.pdfforms 0 array put  % form descriptions filed as /XObject resources
+        .state /.pdfformgen 0 put  % which document the filed descriptions belong to
         .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
         .state /.opused 8 dict put   % Overprint states used on this page -> ExtGState entries
 
@@ -757,6 +758,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         } if
         fxhit
     } //.indevwork exec } bind
+
+    % Which document the filed descriptions belong to. It moves when a
+    % file is closed and the next page opens another, and stands still
+    % while one file takes page after page.
+    /.formgen {  % -  .  int
+    {
+        .state /.pdfformgen get
+    } //.indict exec } bind
 
     % Draw a filed form where this placement puts it. The offset is the
     % device's own, and the stream is already in the device's coordinates
@@ -1856,15 +1865,27 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ( >>\nstream\n) .vw ptc { .vw } forall (\nendstream\nendobj\n) .vw
         } for
 
-        % This page's form objects. Every number is taken before any of
-        % them is written, for the reason the cells above give: each
-        % carries the page's own resources and those name the objects
-        % standing beside it.
+        % The form objects this file has not written yet. A description
+        % filed once is one object however many pages name it, so a page
+        % writes only what is new and every page's resources go on naming
+        % all of them. The number each was written as is kept on the
+        % entry, which is what lets a later page name an object written
+        % under an earlier one.
         /formobjs nfm array def
-        0 1 nfm 1 sub { formobjs exch .nextobj put } for
         0 1 nfm 1 sub {
             /fmi exch def
             /fme .state /.pdfforms get fmi get def
+            fme /obj known
+                { formobjs fmi fme /obj get put }
+                { /fmo .nextobj def
+                  formobjs fmi fmo put
+                  fme /obj fmo put } ifelse
+        } for
+        0 1 nfm 1 sub {
+            /fmi exch def
+            /fme .state /.pdfforms get fmi get def
+            fme /written known { }{
+            fme /written true put
             /fmo formobjs fmi get def
             fmo .recordoff
             flated {
@@ -1882,6 +1903,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ( >> /Length ) .vw fmlen 20 string cvs .vw
             fmf { ( /Filter /FlateDecode) .vw } if
             ( >>\nstream\n) .vw fmc { .vw } forall (\nendstream\nendobj\n) .vw
+            } ifelse
         } for
 
         % The page object, referencing the content, every registered
@@ -1903,7 +1925,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .state /.pdfimages 0 array put
         .state /.pdfmasks get //.emptydict exec
         .state /.pdfpatterns 0 array put
-        .state /.pdfforms 0 array put
+        % A form object belongs to the document, not to the page: PDF
+        % lets every page of one file name the same /XObject, which is
+        % what the construct is for. So the record stands while one file
+        % is being written and is emptied only where the next page opens
+        % a file of its own, and the stamp beside it moves with it so
+        % that a description filed for the file just closed is read as
+        % filed for a document nothing reaches.
+        % A format copied from this one whose pages must be readable
+        % apart empties the record at its own page end instead, which is
+        % where that boundary is for it.
+        //.vecout /single get not {
+            .state /.pdfforms 0 array put
+            .state /.pdfformgen .state /.pdfformgen get 1 add put
+        } if
         .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
         .state /.opused get //.emptydict exec
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put

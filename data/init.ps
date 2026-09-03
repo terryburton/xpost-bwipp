@@ -2074,8 +2074,25 @@ currentglobal true setglobal
 .xpostsys /.formdevice {  % -  .  bool
     DEVICE /FormXObject known
     DEVICE /PlaceForm known and
+    DEVICE /.formgen known and
     DEVICE /.patterntell known and
     DEVICE /.patterntake known and
+} put
+
+%
+%  Which of the device's documents a filed description belongs to.
+%
+%  A description filed with a device is named by the output rather than
+%  held as marks, so it lasts exactly as long as the document that names
+%  it. A format writing one file for a run of pages keeps it across them
+%  and every page names the one description, which is what the construct
+%  is for; a format writing a file per page, or one whose pages are meant
+%  to be read apart, starts again each time. The device says which it is
+%  by moving this number on, and a description filed under a number that
+%  has moved is filed with a document nothing can now reach.
+%
+.xpostsys /.formgen {  % -  .  int
+    DEVICE dup /.formgen get exec
 } put
 
 .xpostsys /.execformcapture {  % formdict  .  -
@@ -2320,7 +2337,18 @@ setglobal
             fbx cx0 ge fby cy0 ge and
             fbx fw add cx1 le and fby fh add cy1 le and
         }{ false } ifelse def
-        fits fc key known not and {
+        % A description filed with a document the device has since closed
+        % is not held any more, so the entry standing for it is read as
+        % absent and the description is filed again with the document now
+        % being written. An entry holding marks is not affected: what a
+        % recorder holds outlives any page.
+        fits
+          fc key known
+          { fc key get /formref known
+              { fc key get /formgen get //.xpostsys /.formgen get exec ne }
+              { false } ifelse }
+          { true } ifelse
+        and {
           //.xpostsys /.formdevice get exec {
 
             % The device files the description itself. What it is given is
@@ -2353,6 +2381,7 @@ setglobal
                         DEVICE dup /FormXObject get exec
                     /fref exch def
                     fc key << /formref fref /seq fseq 1 add
+                              /formgen //.xpostsys /.formgen get exec
                               /tx cm 4 get /ty cm 5 get >> put
                 } if
             } if
@@ -2524,7 +2553,9 @@ setglobal
             } if
           } ifelse
         } if
-        fits fc key known and { fc key get /formref known }{ false } ifelse {
+        fits fc key known and { fc key get /formref known }{ false } ifelse
+            { fc key get /formgen get //.xpostsys /.formgen get exec eq }
+            { false } ifelse {
             /fe fc key get def
             fe /formref get
             cm 4 get fe /tx get sub

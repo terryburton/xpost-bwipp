@@ -133,8 +133,75 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpost_DSCWRITE /PatternOverlap undef
 .xpost_DSCWRITE /PatternCell undef
 .xpost_DSCWRITE /FillPattern undef
-.xpost_DSCWRITE /.patterntell undef
-.xpost_DSCWRITE /.patterntake undef
+
+%
+%  No overprint selection. The prolog defines no operator for one --
+%  LanguageLevel 1 has no overprint -- so a stream stating one would name
+%  something its own reader has never heard of, and the page would stop
+%  where it was named. Nothing states it while the record says the stream
+%  already carries the default, which is why this stood unnoticed: only a
+%  capture, which starts that record again, asks for it to be restated.
+%
+.xpost_DSCWRITE /.pdfoverprint {  % -  .  -
+} put
+
+%
+%  A description placed more than once is written once and called again.
+%  The rule above asks for this rather than against it: what is decomposed
+%  here is what LanguageLevel 1 cannot say, and a procedure and a call are
+%  things it says perfectly well. Writing the marks again at every
+%  placement throws away something the reader already has, which is the
+%  objection made to decomposing an image.
+%
+%  The capture this uses is not the pattern construct and is not withdrawn
+%  with it: it takes a run of marks out of the stream they were written
+%  into, whoever wrote them. The two withdrawn above are the pattern's own
+%  cell filer and the paint that names it, and neither is asked for here.
+%
+.xpost_DSCWRITE /FormXObject {  % bbox chunks IMAGE  .  n
+24 {
+    //.pdfwritebind6 {exch def} forall
+    /fxlen 0 def fxchunks { length fxlen add /fxlen exch def } forall
+    /fxhit -1 def
+    0 1 .state /.pdfforms get length 1 sub {
+        /fxi exch def
+        fxhit 0 lt {
+            /fxc .state /.pdfforms get fxi get def
+            fxc /len get fxlen eq {
+                fxc /bb get fxbb .pdfsame
+                { fxc /chunks get fxchunks .pdfsame }{ false } ifelse
+                { /fxhit fxi def } if
+            } if
+        } if
+    } for
+    fxhit 0 lt {
+        /fxhit .state /.pdfforms get length def
+        .state /.pdfforms [ .state /.pdfforms get aload pop
+            << /bb fxbb /chunks fxchunks /len fxlen >> ] put
+
+        % Written where it is first used, so a page carries every
+        % definition its own marks call and stays a page a reader may
+        % take on its own.
+        (/xf) .put fxhit 20 string cvs .put ( {\n) .put
+        % held to the box it declares, in the operators the prolog
+        % defines: a clip standing while the description paints and
+        % taken away with it
+        (q ) .put fxbb 0 get .pdfnumstr .put ( ) .put
+        fxbb 1 get .pdfnumstr .put ( ) .put
+        fxbb 2 get fxbb 0 get sub .pdfnumstr .put ( ) .put
+        fxbb 3 get fxbb 1 get sub .pdfnumstr .put ( re W n\n) .put
+        fxchunks { .put } forall
+        (Q\n} def\n) .put
+    } if
+    fxhit
+} //.indevwork exec } put
+
+.xpost_DSCWRITE /PlaceForm {  % n dx dy IMAGE  .  -
+8 {
+    /pfdy exch def /pfdx exch def /pfn exch def
+    (gsave ) .put pfdx .pdfnumstr .put ( ) .put pfdy .pdfnumstr .put
+    ( translate xf) .put pfn 20 string cvs .put ( grestore\n) .put
+} //.indevwork exec } put
 
 %
 %  A paint states its colour only where the stream does not carry it
@@ -402,6 +469,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
     % Advance the page count; start the next page fresh
     //.vecout dup /np get 1 add /np exch put
+
+    % And give up the descriptions written for the page just ended. A
+    % page of this format is meant to be readable on its own -- taken
+    % out, reordered, printed by itself -- so a procedure defined while
+    % one page was written is not the next page's to call, whatever one
+    % file they share. The page end is this device's own, which is why
+    % this is here and not in the class it is copied from.
+    .state /.pdfforms 0 array put
+
     .streamreset
  } //.indevwork exec } put
 
@@ -420,6 +496,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     (%%EOF\n) .vw
     //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
 } //.indict exec } put
+
+%
+%  Which document the written procedures belong to. Each page is one, for
+%  the reason the page end gives, and the pages are already counted -- so
+%  the count is the answer and no second counter is kept. Written here
+%  because the record holding it is not in scope where the writers are.
+%
+%  Asked before the first page is emitted as well as after, and the count
+%  is not in the record until the first page puts it there.
+%
+.xpost_DSCWRITE /.formgen {  % -  .  int
+4 {
+    //.vecout /np 2 copy known { get }{ pop pop 0 } ifelse
+} //.indevwork exec } put
 
 end end end
 

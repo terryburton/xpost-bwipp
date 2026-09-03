@@ -771,12 +771,34 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .state /.svgforms [ .state /.svgforms get aload pop
                 << /bb sfbb /chunks sfchunks /len sflen /id sfhit
                    /gen .svgids /docgen get >> ] put
-            (<defs><g id="xf) .put sfhit 20 string cvs .put (">\n) .put
+            % The box, as the clip the description is drawn through. A
+            % description is held to the box it declares wherever it is
+            % put, and the box goes with it rather than being applied at
+            % each placement, which is where the cells beside it put
+            % theirs for the same reason.
+            (<clipPath id="xfb) .put sfhit 20 string cvs .put
+            ("><rect x=") .put sfbb 0 get .svgfull
+            (" y=") .put sfbb 1 get .svgfull
+            (" width=") .put sfbb 2 get sfbb 0 get sub .svgfull
+            (" height=") .put sfbb 3 get sfbb 1 get sub .svgfull
+            ("/></clipPath>\n) .put
+            (<defs><g id="xf) .put sfhit 20 string cvs .put
+            (" clip-path="url\(#xfb) .put sfhit 20 string cvs .put (\)">\n) .put
             sfchunks { .put } forall
             (</g></defs>\n) .put
         } if
         sfhit
     } //.indevwork exec } bind
+
+    % Which document the written groups belong to. Every page here is a
+    % document of its own -- this format has no way to carry two -- so a
+    % group written for the page just finished is named by nothing on the
+    % page starting, and the stamp the pages are already counted by says
+    % so without a second counter being kept.
+    /.formgen {  % -  .  int
+    {
+        .svgids /docgen get
+    } //.indict exec } bind
 
     % Use a written form where this placement puts it. The offset is the
     % device's own and the content is written in the device's

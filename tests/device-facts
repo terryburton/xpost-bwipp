@@ -640,8 +640,8 @@ method .clipgroup svgwrite
 method .emitclip dscwrite pdfwrite
 method .emitdevpath dscwrite pdfwrite svgwrite
 method .pathelems dscwrite pdfwrite svgwrite
-method .patterntake pdfwrite svgwrite
-method .patterntell pdfwrite svgwrite
+method .patterntake dscwrite pdfwrite svgwrite
+method .patterntell dscwrite pdfwrite svgwrite
 method BlendPix bgr jpeg pbm pgm png pngalpha ppm raster tiff record
 method .claimdoc dscwrite pdfwrite
 method ClipPath dscwrite pdfwrite svgwrite
@@ -678,6 +678,7 @@ method FillPath bbox dscwrite pdfwrite svgwrite
     have no use for the path itself.
 method FillPattern pdfwrite svgwrite
 method FormXObject dscwrite pdfwrite svgwrite
+method .formgen dscwrite pdfwrite svgwrite
 method FillPoly every
 method FillRect every
 method Flush bgr raster record
@@ -811,6 +812,7 @@ state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
 state .pdfpatterns dscwrite pdfwrite
 state .pdfforms dscwrite pdfwrite
+state .pdfformgen dscwrite pdfwrite
 state .pdfshadings dscwrite pdfwrite
 state .svggrads svgwrite
 state .svgforms svgwrite
