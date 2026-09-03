@@ -178,7 +178,6 @@ int xpost_free_init(Xpost_Memory_File *mem)
  */
 void xpost_free_repoison(Xpost_Memory_File *mem)
 {
-    unsigned int headz;
     unsigned int b;
     unsigned int rows;
 
@@ -191,7 +190,6 @@ void xpost_free_repoison(Xpost_Memory_File *mem)
        the chains from. */
     if (!mem || !mem->base || !xpost_memory_free_lists_ready(mem))
         return;
-    headz = xpost_memory_free_lists_adr(mem);
     /* no chain can hold more entities than the table has rows, which is
        the bound the walk below is held to */
     rows = mem->table.nextent;
