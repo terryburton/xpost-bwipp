@@ -224,6 +224,15 @@ kept_clean = [
   '-Werror=redundant-decls',
   # gcc and clang
   '-Werror=undef',
+  # gcc and clang, and the pair that answer for a parameter or a local
+  # that nothing reads. Either is how a function grows an argument its
+  # body never consults: a channel added to a signature and left
+  # unwritten compiles, reaches every caller, and reports to none of
+  # them. -Wunused-parameter is in -Wextra rather than -Wall, so it is
+  # raised only where the warning level asks for it, which makes it the
+  # easiest of these to build past without ever seeing it.
+  '-Werror=unused-parameter',
+  '-Werror=unused-variable',
   # gcc only, clang taking it and reporting nothing; and the one entry
   # here that is not a promotion. Level 2 is not empty -- gcc reports a
   # comparison of an absolute value against zero under it, at every -O,

@@ -50,20 +50,27 @@ jobs:
           [ -n "$file" ] || { echo "no face answers to $face"; exit 1; }
           echo "$face -> $file"
         done
-    # -Werror=unused-result is promoted here rather than in meson.build,
-    # so that it is an error on the platform the tree has actually been
-    # read against and stays a warning everywhere else. The attribute it
+    # Warnings are errors on this leg, in both object widths and both
+    # backings. Promotion happens here rather than in meson.build so that
+    # it binds on the platform the tree has actually been read against
+    # and stays a warning everywhere else: the attribute much of it
     # answers is XPOST_MUST_CHECK, which the interpreter puts on the
-    # functions whose refusal a caller has to read; but the same
+    # functions whose refusal a caller has to read, but the same
     # attribute is on a set of libc declarations that each C library
-    # chooses for itself, so the calls this fires on are not the same set
-    # on the msys2 and osx runners as they are here. Those legs already
-    # report it -- it is in -Wall, which strict_warnings takes -- so a
-    # platform whose libc marks something this one does not says so in
-    # its log, and the promotion follows a leg that has been seen clean
-    # rather than being made on its behalf.
+    # chooses for itself, so the calls a diagnostic fires on are not the
+    # same set on the msys2 and osx runners as they are here. Those legs
+    # report theirs in their logs -- it is in -Wall, which
+    # strict_warnings takes -- so a platform whose libc marks something
+    # this one does not says so, and a promotion follows a leg that has
+    # been seen clean rather than being made on its behalf.
+    #
+    # Both widths take it, and that is the point of saying so here. word
+    # is an unsigned short in the default build and an unsigned int under
+    # large-object, so a diagnostic only one width can raise is otherwise
+    # answered by whichever width happened to be asked, and the other leg
+    # compiles what this one would have refused.
     - name: meson
-      run: meson setup -Dlarge-object=${{ matrix.object == 'large' }} -Dmmap=${{ matrix.backing == 'mapped' }} -Dc_args=-Werror=unused-result builddir
+      run: meson setup -Dlarge-object=${{ matrix.object == 'large' }} -Dmmap=${{ matrix.backing == 'mapped' }} --werror builddir
     # The option asks for a backing; the configuration decides one, and on
     # a host without mremap it decides the allocator whatever was asked.
     # A lane that quietly configured the other backing would report a
