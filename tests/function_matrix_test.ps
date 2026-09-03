@@ -101,4 +101,24 @@ funcs {
      /Function << /FunctionType 3 /Domain [0 1] /Functions [ ]
                   /Bounds [ ] /Encode [ ] >> >> shfill }
     (a stitching function with no subfunctions) refuses
+
+% A sampled function is refused where its data does not reach the end of
+% the table it declared. PLRM 3.10.1: the source "must be long enough to
+% contain the entire sample array, as indicated by Size, Range, and
+% BitsPerSample; otherwise, a rangecheck". Size 3 at eight bits with one
+% output wants three bytes, so two is a table with a sample missing.
+%
+% Held here because the refusal looks like a defect from outside: a
+% program carrying such a function is drawn by an interpreter that reads
+% the short table as though the last sample repeated, and the difference
+% reads as this one failing where another renders. It is the program that
+% is short, and the specification says what to do about it.
+{ << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 60 0]
+     /Function << /FunctionType 0 /Domain [0 1] /Range [0 1] /Size [3]
+                  /BitsPerSample 8 /DataSource <0000> >> >> shfill }
+    (a sampled function whose data stops before its table does) refuses
+{ << /ShadingType 2 /ColorSpace /DeviceGray /Coords [0 0 60 0]
+     /Function << /FunctionType 0 /Domain [0 1] /Range [0 1] /Size [3]
+                  /BitsPerSample 8 /DataSource <000080> >> >> shfill }
+    (and the same table with its last sample present) works
 verdict
