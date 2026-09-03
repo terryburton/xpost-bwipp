@@ -163,6 +163,36 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } .defop
 
 %
+%  Whether the clip in force is the page itself.
+%
+%  A page-based format's consumer draws nothing outside the page: the
+%  page box is a clip, and one the file states once at its head rather
+%  than around every mark. So a clip that is the whole page has nothing
+%  to hand over, and a drawing that runs off the page can still go over
+%  whole.
+%
+%  This matters because the trivial-accept question below is asked of
+%  the PATH and not of the clip: a path that leaves the page fails it,
+%  and a page's own clip carries no shape to hand over instead, so such
+%  a drawing was dissolved into spans and its curves went with them.
+%  MEASURED, the same stroked curve either way: written as one curve
+%  where it stayed on the page, and as three hundred and eighty-one line
+%  segments where it did not.
+%
+.xpostsys /.clipispage {  % -  .  bool
+8 dict {
+    //.internaldict /.cliprect get exec {
+        /cp.y1 exch def /cp.x1 exch def /cp.y0 exch def /cp.x0 exch def
+        DEVICE /dimensions get aload pop
+        /cp.h exch def /cp.w exch def
+        cp.x0 0 le
+        cp.y0 0 le and
+        cp.x1 cp.w ge and
+        cp.y1 cp.h ge and
+    }{ false } ifelse
+} //.indict exec } put
+
+%
 %  Whether the device may take the whole path. A trivial clip needs
 %  nothing further; a clip that is still a path can be handed to a device
 %  that clips for itself (ClipPath), which is far better than dissolving
@@ -174,7 +204,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .cliptrivial
         { true }
         { DEVICE /ClipPath known
-          graphicsdict /currgstate get /clipsource get null ne and }
+          graphicsdict /currgstate get /clipsource get null ne and
+          //.clipispage exec or }
         ifelse
     }{ false } ifelse
 } put
@@ -196,7 +227,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .cliptrivial
         { true }
         { DEVICE /ClipPath known
-          graphicsdict /currgstate get /clipsource get null ne and }
+          graphicsdict /currgstate get /clipsource get null ne and
+          //.clipispage exec or }
         ifelse
     }{ false } ifelse
 } put
@@ -212,7 +244,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  shapes under one clip carries that clip once per shape.
 %
 .xpostsys /.devsendclip {  % -  .  -
-    .cliptrivial not {
+    .cliptrivial not
+    graphicsdict /currgstate get /clipsource get null ne and {
         graphicsdict /currgstate get dup /clipsource get aload pop
         3 -1 roll /clipcache get /serial get
         DEVICE dup /ClipPath get exec
