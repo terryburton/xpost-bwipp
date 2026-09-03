@@ -409,6 +409,10 @@ Known behavioural deviations
      ever been.
  [X] SubFileDecode  a zero count with an empty EOD string passes zero bytes
      (PLRM), where some interpreters read to end-of-file.
+ [X] SubFileDecode  the form that supplies a parameter dictionary and the
+     count and EOD string together -- the second of the three the operator is
+     defined with (PLRM 3.13) -- raises typecheck. The count and string alone,
+     and the dictionary alone, each build the filter.
  [X] currenthalftone  the file a type 6 halftone's threshold array is
      answered with holds the array once and reaches end-of-file after it,
      where the array is defined to be a circular buffer end-of-file is
