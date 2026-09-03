@@ -2832,10 +2832,10 @@ setglobal
 %
 %  The parameters that steer PDF production. This build produces PDF through the
 %  pdfwrite device, which setpagedevice configures; setdistillerparams records
-%  whatever a program sets and currentdistillerparams hands the set back, so a
-%  program that configures production through them runs. Only the parameters
-%  this build acts on are seeded, so a default read reports what is honoured
-%  rather than a knob that does nothing: CompressPages leaves the pdfwrite
+%  whatever a program sets, so a program that configures production through
+%  them runs. Only the parameters this build acts on are seeded, so the
+%  recorded set holds what is honoured rather than a knob that does nothing:
+%  CompressPages leaves the pdfwrite
 %  content stream uncompressed, PreserveOverprintSettings keeps the overprint
 %  state in the output, and LockDistillerParams, once true, holds the recorded
 %  set against further change. Any other parameter a program sets is still
@@ -2849,8 +2849,11 @@ setglobal
 
 %
 %  Record the distiller parameters a job asks for (an Adobe extension).
-%  The entries are kept and read back; the PDF writer consults the ones
-%  it implements and the rest are carried for the job's own sake.
+%  The entries are kept; the PDF writer consults the ones it implements and
+%  the rest are carried for the job's own sake. There is no operator to hand
+%  the set back: a program that finds one goes on to ask it for parameters
+%  this build has no value for, and failing that lookup is worse than not
+%  offering the operator, which sends the program down its own other branch.
 %
 %
 %  Not the language's either: distiller parameters are an extension, and
@@ -2863,13 +2866,6 @@ setglobal
     }{
         { //.distillerparams 3 1 roll put } forall
     } ifelse
-} .defop
-
-%
-%  The distiller parameters recorded, as a dictionary the job may read.
-%
-/currentdistillerparams [ ] {  % -  .  dict
-    //.distillerparams dup length dict copy
 } .defop
 
 %

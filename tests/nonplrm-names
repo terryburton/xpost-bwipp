@@ -49,7 +49,6 @@ setrasteropcode
 
 # --- distiller parameters and pdfmark: parameter dictionaries and an
 # --- annotation the vector writers read. Program data in, no callback.
-currentdistillerparams
 setdistillerparams
 pdfmark
 

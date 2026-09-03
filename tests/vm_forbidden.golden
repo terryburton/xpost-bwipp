@@ -79,7 +79,7 @@ frozen 0 0
 #
 #   count  digest
 
-shielded 231 5384
+shielded 230 16768
 
 # What the INTERPRETER can reach that the walk above cannot. Every number
 # here describes the graph five named roots reach, and this one says how

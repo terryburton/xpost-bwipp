@@ -244,9 +244,11 @@ Extensions
 
  [X] pdfmark (DOCINFO reaches the pdfwrite device; other mark types
      are consumed without effect)
- [X] currentdistillerparams, setdistillerparams (CompressPages and
-     PreserveOverprintSettings act on the pdfwrite output; other parameters
-     are recorded and handed back)
+ [X] setdistillerparams (CompressPages and PreserveOverprintSettings act on
+     the pdfwrite output; other parameters are recorded and carried. There is
+     no operator to hand the set back, so a program that tests for one takes
+     its other branch rather than asking for a parameter this build has no
+     value for)
  [X] setcustomcolor, findcmykcustomcolor, findrgbcustomcolor,
      customcolorimage, separationimage
  [X] page-size operators of the printer products
