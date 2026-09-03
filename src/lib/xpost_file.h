@@ -418,7 +418,7 @@ void xpost_file_hand_over(Xpost_Memory_File *mem, Xpost_Object f);
  * positioned just after the "~>" end-of-data marker once the filter
  * has been read to end of file.
  */
-Xpost_Object xpost_file_cons_filter_a85(Xpost_Memory_File *mem, Xpost_Object src);
+Xpost_Object xpost_file_cons_filter_a85(Xpost_Memory_File *mem, Xpost_Object src, int *err);
 
 /**
  * @brief The remaining decode filter constructors: hexadecimal,
@@ -426,13 +426,13 @@ Xpost_Object xpost_file_cons_filter_a85(Xpost_Memory_File *mem, Xpost_Object src
  * All follow the ASCII85Decode contract: read filters over an
  * unowned source.
  */
-Xpost_Object xpost_file_cons_filter_hex(Xpost_Memory_File *mem, Xpost_Object src);
-Xpost_Object xpost_file_cons_filter_rle(Xpost_Memory_File *mem, Xpost_Object src);
-Xpost_Object xpost_file_cons_filter_subfile(Xpost_Memory_File *mem, Xpost_Object src, int count, const char *eod, int eodlen);
-Xpost_Object xpost_file_cons_filter_flate(Xpost_Memory_File *mem, Xpost_Object src);
-Xpost_Object xpost_file_cons_filter_dct(Xpost_Memory_File *mem, Xpost_Object src);
-Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src);
-Xpost_Object xpost_file_cons_filter_lzw(Xpost_Memory_File *mem, Xpost_Object src, int early);
+Xpost_Object xpost_file_cons_filter_hex(Xpost_Memory_File *mem, Xpost_Object src, int *err);
+Xpost_Object xpost_file_cons_filter_rle(Xpost_Memory_File *mem, Xpost_Object src, int *err);
+Xpost_Object xpost_file_cons_filter_subfile(Xpost_Memory_File *mem, Xpost_Object src, int count, const char *eod, int eodlen, int *err);
+Xpost_Object xpost_file_cons_filter_flate(Xpost_Memory_File *mem, Xpost_Object src, int *err);
+Xpost_Object xpost_file_cons_filter_dct(Xpost_Memory_File *mem, Xpost_Object src, int *err);
+Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src, int *err);
+Xpost_Object xpost_file_cons_filter_lzw(Xpost_Memory_File *mem, Xpost_Object src, int early, int *err);
 
 /**
  * @brief undo the differencing an LZW or Flate stream was compressed with.
@@ -443,14 +443,14 @@ Xpost_Object xpost_file_cons_filter_lzw(Xpost_Memory_File *mem, Xpost_Object src
 Xpost_Object xpost_file_cons_filter_predictor(Xpost_Memory_File *mem,
                                               Xpost_Object src,
                                               int predictor, int colors,
-                                              int bpc, int columns);
-Xpost_Object xpost_file_cons_filter_ccitt(Xpost_Memory_File *mem, Xpost_Object src, int k, int columns, int rows, int blackis1, int byteal, int eol, int eob);
-Xpost_Object xpost_file_cons_filter_enc_null(Xpost_Memory_File *mem, Xpost_Object tgt);
-Xpost_Object xpost_file_cons_filter_enc_hex(Xpost_Memory_File *mem, Xpost_Object tgt);
-Xpost_Object xpost_file_cons_filter_enc_a85(Xpost_Memory_File *mem, Xpost_Object tgt);
-Xpost_Object xpost_file_cons_filter_enc_rle(Xpost_Memory_File *mem, Xpost_Object tgt, int recsize);
-Xpost_Object xpost_file_cons_filter_enc_flate(Xpost_Memory_File *mem, Xpost_Object tgt);
-Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object tgt, int early);
+                                              int bpc, int columns, int *err);
+Xpost_Object xpost_file_cons_filter_ccitt(Xpost_Memory_File *mem, Xpost_Object src, int k, int columns, int rows, int blackis1, int byteal, int eol, int eob, int *err);
+Xpost_Object xpost_file_cons_filter_enc_null(Xpost_Memory_File *mem, Xpost_Object tgt, int *err);
+Xpost_Object xpost_file_cons_filter_enc_hex(Xpost_Memory_File *mem, Xpost_Object tgt, int *err);
+Xpost_Object xpost_file_cons_filter_enc_a85(Xpost_Memory_File *mem, Xpost_Object tgt, int *err);
+Xpost_Object xpost_file_cons_filter_enc_rle(Xpost_Memory_File *mem, Xpost_Object tgt, int recsize, int *err);
+Xpost_Object xpost_file_cons_filter_enc_flate(Xpost_Memory_File *mem, Xpost_Object tgt, int *err);
+Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object tgt, int early, int *err);
 
 /**
  * @brief difference the data an LZW or Flate filter is about to compress.
@@ -462,11 +462,11 @@ Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object
 Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
                                                   Xpost_Object tgt,
                                                   int predictor, int colors,
-                                                  int bpc, int columns);
+                                                  int bpc, int columns, int *err);
 
-Xpost_Object xpost_file_cons_filter_enc_ccitt(Xpost_Memory_File *mem, Xpost_Object tgt, int k, int columns, int rows, int blackis1, int byteal, int eol, int eob);
-Xpost_Object xpost_file_cons_filter_enc_dct(Xpost_Memory_File *mem, Xpost_Object tgt, int columns, int rows, int colors, double qfactor, int colortransform, const int *hsamp, const int *vsamp);
-Xpost_Object xpost_file_cons_filter_eexec(Xpost_Memory_File *mem, Xpost_Object src);
+Xpost_Object xpost_file_cons_filter_enc_ccitt(Xpost_Memory_File *mem, Xpost_Object tgt, int k, int columns, int rows, int blackis1, int byteal, int eol, int eob, int *err);
+Xpost_Object xpost_file_cons_filter_enc_dct(Xpost_Memory_File *mem, Xpost_Object tgt, int columns, int rows, int colors, double qfactor, int colortransform, const int *hsamp, const int *vsamp, int *err);
+Xpost_Object xpost_file_cons_filter_eexec(Xpost_Memory_File *mem, Xpost_Object src, int *err);
 
 /**
  * @brief say whether closing a filter closes the stream beneath it.

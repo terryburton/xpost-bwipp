@@ -213,4 +213,24 @@
   closefile } outcome /ok ne
     (a fifth is refused rather than held) assert
 
+% A filter that cannot be built says why. The reasons are different and
+% PLRM names them differently: an implementation limit is a limitcheck
+% (PLRM 3.11), a parameter outside what the entry admits is a rangecheck,
+% and memory run out is a VMerror. They all used to arrive as ioerror,
+% because a constructor answered with an object and an object has no room
+% for a reason.
+{ rf.seed
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  closefile } outcome /limitcheck eq
+    (a reusable stream past its size is a limitcheck) assert
+{ (x) << /Predictor 2 /Colors 0 >> /FlateDecode filter } outcome /rangecheck eq
+    (a predictor parameter outside its range is a rangecheck) assert
+{ (x) 0 (0123456789012345678901234567890123456789012345678901234567890123456789)
+  /SubFileDecode filter } outcome /limitcheck eq
+    (an end-of-data marker longer than the filter carries is a limitcheck) assert
+
 verdict

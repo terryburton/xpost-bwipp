@@ -180,7 +180,11 @@ int main(void)
     /* a filter over a stream of its own, which is the source it reads */
     source = xpost_file_cons_readstring(mem, (const unsigned char *)"4142>", 5);
     name[4] = "a filter";
-    f[4] = xpost_file_cons_filter_hex(mem, source);
+    {
+        int ferr = 0;
+
+        f[4] = xpost_file_cons_filter_hex(mem, source, &ferr);
+    }
 
     for (i = 0; i < NKINDS; i++)
         if (xpost_object_get_type(f[i]) != filetype)

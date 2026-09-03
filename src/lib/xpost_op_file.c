@@ -161,31 +161,31 @@ int xpost_op_string_mode_file (Xpost_Context *ctx,
    dictionary gets the defaults the language states, which is why the
    defaults are constructed here rather than assumed downstream. */
 
-static Xpost_Object _cons_lzw_default (Xpost_Memory_File *mem, Xpost_Object src)
+static Xpost_Object _cons_lzw_default (Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
-    return xpost_file_cons_filter_lzw(mem, src, XPOST_FILTER_LZW_EARLY);
+    return xpost_file_cons_filter_lzw(mem, src, XPOST_FILTER_LZW_EARLY, err);
 }
 
-static Xpost_Object _cons_fax_default (Xpost_Memory_File *mem, Xpost_Object src)
+static Xpost_Object _cons_fax_default (Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     return xpost_file_cons_filter_ccitt(mem, src, 0, XPOST_FILTER_FAX_COLUMNS,
-                                        0, 0, 0, 0, 1);
+                                        0, 0, 0, 0, 1, err);
 }
 
-static Xpost_Object _cons_enc_rle_default (Xpost_Memory_File *mem, Xpost_Object tgt)
+static Xpost_Object _cons_enc_rle_default (Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
-    return xpost_file_cons_filter_enc_rle(mem, tgt, 0);
+    return xpost_file_cons_filter_enc_rle(mem, tgt, 0, err);
 }
 
-static Xpost_Object _cons_enc_lzw_default (Xpost_Memory_File *mem, Xpost_Object tgt)
+static Xpost_Object _cons_enc_lzw_default (Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
-    return xpost_file_cons_filter_enc_lzw(mem, tgt, XPOST_FILTER_LZW_EARLY);
+    return xpost_file_cons_filter_enc_lzw(mem, tgt, XPOST_FILTER_LZW_EARLY, err);
 }
 
-static Xpost_Object _cons_enc_fax_default (Xpost_Memory_File *mem, Xpost_Object tgt)
+static Xpost_Object _cons_enc_fax_default (Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
     return xpost_file_cons_filter_enc_ccitt(mem, tgt, 0, XPOST_FILTER_FAX_COLUMNS,
-                                            0, 0, 0, 0, 1);
+                                            0, 0, 0, 0, 1, err);
 }
 
 /* Every filter this interpreter answers to by name: which way it works,
@@ -204,7 +204,8 @@ static Xpost_Object _cons_enc_fax_default (Xpost_Memory_File *mem, Xpost_Object 
    The list is also the only list -- the constructor is a column of it,
    so a filter cannot be added to the dispatch without a direction, or
    given a direction and left unbuildable. */
-typedef Xpost_Object (*Xpost_Filter_Cons)(Xpost_Memory_File *mem, Xpost_Object f);
+typedef Xpost_Object (*Xpost_Filter_Cons)(Xpost_Memory_File *mem, Xpost_Object f,
+                                          int *err);
 
 typedef struct
 {
@@ -335,9 +336,16 @@ int xpost_op_file_filter (Xpost_Context *ctx,
         if (!xpost_object_is_readable(ctx, F))
             return invalidaccess;
     }
-    f = spec->cons(ctx->lo, F);
-    if (xpost_object_get_type(f) == invalidtype)
-        return ioerror;
+    {
+        /* the reason a filter could not be built is the filter's to give:
+           an implementation limit, a parameter out of range and memory
+           run out are different answers and PLRM names them differently */
+        int cerr = ioerror;
+
+        f = spec->cons(ctx->lo, F, &cerr);
+        if (xpost_object_get_type(f) == invalidtype)
+            return cerr;
+    }
     f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
     f.tag |= ((spec->encodes ? XPOST_OBJECT_TAG_ACCESS_FILE_WRITE
                              : XPOST_OBJECT_TAG_ACCESS_FILE_READ)
@@ -368,12 +376,13 @@ int xpost_op_file_eexecdecode (Xpost_Context *ctx,
                                Xpost_Object F)
 {
     Xpost_Object f;
+    int cerr = ioerror;
 
     if (!xpost_object_is_readable(ctx, F))
         return invalidaccess;
-    f = xpost_file_cons_filter_eexec(ctx->lo, F);
+    f = xpost_file_cons_filter_eexec(ctx->lo, F, &cerr);
     if (xpost_object_get_type(f) == invalidtype)
-        return ioerror;
+        return cerr;
     f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
     f.tag |= (XPOST_OBJECT_TAG_ACCESS_FILE_READ << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
     xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));
@@ -388,6 +397,7 @@ int xpost_op_file_filter_int (Xpost_Context *ctx,
                               Xpost_Object rec,
                               Xpost_Object name)
 {
+    int cerr = ioerror;
     Xpost_Object f;
     char *cname;
     int ret;
@@ -407,7 +417,7 @@ int xpost_op_file_filter_int (Xpost_Context *ctx,
         return invalidaccess;
     if (rec.int_.val < 0)
         return rangecheck;
-    f = xpost_file_cons_filter_enc_rle(ctx->lo, F, rec.int_.val);
+    f = xpost_file_cons_filter_enc_rle(ctx->lo, F, rec.int_.val, &cerr);
     if (xpost_object_get_type(f) == invalidtype)
         return ioerror;
     f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
@@ -428,6 +438,7 @@ static
 int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f,
                      int enc)
 {
+    int cerr = ioerror;
     Xpost_Object p;
     int predictor, colors, bpc, columns;
     Xpost_Object layered;
@@ -468,9 +479,9 @@ int _layer_predictor(Xpost_Context *ctx, Xpost_Object dict, Xpost_Object *f,
 
     layered = (enc ? xpost_file_cons_filter_enc_predictor
                    : xpost_file_cons_filter_predictor)(ctx->lo, *f, predictor,
-                                               colors, bpc, columns);
+                                               colors, bpc, columns, &cerr);
     if (xpost_object_get_type(layered) == invalidtype)
-        return ioerror;
+        return cerr;
     layered.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
     layered.tag |= (unsigned int)(enc ? XPOST_OBJECT_TAG_ACCESS_FILE_WRITE
                                       : XPOST_OBJECT_TAG_ACCESS_FILE_READ)
@@ -515,6 +526,7 @@ int _filter_dict_build (Xpost_Context *ctx,
                         Xpost_Object dict,
                         Xpost_Object name)
 {
+    int cerr = ioerror;
     Xpost_Object namestr;
     char *cname;
 
@@ -547,9 +559,9 @@ int _filter_dict_build (Xpost_Context *ctx,
                 _dict_int(ctx, dict, "BlackIs1", 0),
                 _dict_int(ctx, dict, "EncodedByteAlign", 0),
                 _dict_int(ctx, dict, "EndOfLine", 0),
-                _dict_int(ctx, dict, "EndOfBlock", 1));
+                _dict_int(ctx, dict, "EndOfBlock", 1), &cerr);
         if (xpost_object_get_type(f) == invalidtype)
-            return ioerror;
+            return cerr;
         f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
         f.tag |= (unsigned int)access << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET;
         xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));
@@ -602,7 +614,7 @@ int _filter_dict_build (Xpost_Context *ctx,
                     vs[i] = e.int_.val;
             }
         f = xpost_file_cons_filter_enc_dct(ctx->lo, F, cols, rows, colors,
-                                           qf, ct, hs, vs);
+                                           qf, ct, hs, vs, &cerr);
         if (xpost_object_get_type(f) == invalidtype)
             return ioerror;
         f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
@@ -636,7 +648,7 @@ int _filter_dict_build (Xpost_Context *ctx,
             early = ec.int_.val;
         }
         f = (enc ? xpost_file_cons_filter_enc_lzw
-                 : xpost_file_cons_filter_lzw)(ctx->lo, F, early);
+                 : xpost_file_cons_filter_lzw)(ctx->lo, F, early, &cerr);
         if (xpost_object_get_type(f) == invalidtype)
             return ioerror;
         f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
@@ -758,7 +770,7 @@ int _filter_dict_build (Xpost_Context *ctx,
         ceod = xpost_string_get_pointer(ctx, eod);
         eodlen = eod.comp_.sz;
         f = xpost_file_cons_filter_subfile(ctx->lo, F,
-                cnt.int_.val, ceod, eodlen);
+                cnt.int_.val, ceod, eodlen, &cerr);
         if (xpost_object_get_type(f) == invalidtype)
             return ioerror;
         f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
@@ -855,6 +867,7 @@ int xpost_op_file_filter_subfile (Xpost_Context *ctx,
                                   Xpost_Object eod,
                                   Xpost_Object name)
 {
+    int cerr = ioerror;
     char *cname;
     int match;
     int ret;
@@ -875,13 +888,15 @@ int xpost_op_file_filter_subfile (Xpost_Context *ctx,
     free(cname);
     if (!match)
         return undefined;
+    /* a marker longer than this filter carries is an implementation limit
+       and PLRM 3.11 names it one; the length itself is a length */
     if (eod.comp_.sz > sizeof(eodbuf))
-        return rangecheck;
+        return limitcheck;
     memcpy(eodbuf, xpost_string_get_pointer(ctx, eod), eod.comp_.sz);
 
-    f = xpost_file_cons_filter_subfile(ctx->lo, F, count.int_.val, eodbuf, (int)eod.comp_.sz);
+    f = xpost_file_cons_filter_subfile(ctx->lo, F, count.int_.val, eodbuf, (int)eod.comp_.sz, &cerr);
     if (xpost_object_get_type(f) == invalidtype)
-        return ioerror;
+        return cerr;
     f.tag &= ~XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_MASK;
     f.tag |= (XPOST_OBJECT_TAG_ACCESS_FILE_READ << XPOST_OBJECT_TAG_DATA_FLAG_ACCESS_OFFSET);
     xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(f));

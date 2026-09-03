@@ -3423,7 +3423,7 @@ static struct Xpost_File_Methods pred_methods =
 Xpost_Object xpost_file_cons_filter_predictor(Xpost_Memory_File *mem,
                                               Xpost_Object src,
                                               int predictor, int colors,
-                                              int bpc, int columns)
+                                              int bpc, int columns, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_PredFile *ff;
@@ -3431,14 +3431,14 @@ Xpost_Object xpost_file_cons_filter_predictor(Xpost_Memory_File *mem,
     int rowbits;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     if (colors < 1 || columns < 1 || columns > (1 << 20))
-        return invalid;
+        { if (err) *err = rangecheck; return invalid; }
     if (bpc != 1 && bpc != 2 && bpc != 4 && bpc != 8 && bpc != 16)
-        return invalid;
+        { if (err) *err = rangecheck; return invalid; }
     ff = calloc(1, sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     rowbits = colors * bpc * columns;
     ff->predictor = predictor;
     ff->colors = colors;
@@ -3455,7 +3455,7 @@ Xpost_Object xpost_file_cons_filter_predictor(Xpost_Memory_File *mem,
         free(ff->cur);
         free(ff->prev);
         free(ff);
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     }
     layered = _dec_cons(mem, &ff->base, &pred_methods, source);
     /* the stage stands in front of the decompressor, which the program
@@ -3667,16 +3667,16 @@ struct Xpost_File_Methods lzw_methods =
     filter_purge, filter_unreadch, filter_tell, filter_seek
 };
 
-Xpost_Object xpost_file_cons_filter_lzw(Xpost_Memory_File *mem, Xpost_Object src, int early)
+Xpost_Object xpost_file_cons_filter_lzw(Xpost_Memory_File *mem, Xpost_Object src, int early, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_LzwFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = calloc(1, sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->codewidth = 9;
     ff->nextcode = 258;
     ff->early = early;
@@ -4255,18 +4255,18 @@ Xpost_Object xpost_file_cons_filter_ccitt(Xpost_Memory_File *mem,
                                           Xpost_Object src,
                                           int k, int columns, int rows,
                                           int blackis1, int byteal,
-                                          int eol, int eob)
+                                          int eol, int eob, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_FaxFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     if (columns < 1 || columns > (1 << 20))
-        return invalid;
+        { if (err) *err = rangecheck; return invalid; }
     ff = calloc(1, sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->k = k;
     ff->columns = columns;
     ff->rows = rows;
@@ -4281,7 +4281,7 @@ Xpost_Object xpost_file_cons_filter_ccitt(Xpost_Memory_File *mem,
     if (!ff->ref || !ff->cur || !ff->row)
     {
         free(ff->ref); free(ff->cur); free(ff->row); free(ff);
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     }
     /* the imaginary all-white line above the first row */
     ff->refcnt = 0;
@@ -5538,7 +5538,7 @@ static const Xpost_Enc_Coding predenc_coding =
    end-of-data has been written, whatever the coding above them. */
 static Xpost_Object
 _enc_cons(Xpost_Memory_File *mem, Xpost_Object tgt, size_t size,
-          const Xpost_Enc_Coding *coding, Xpost_EncBase **out)
+          const Xpost_Enc_Coding *coding, Xpost_EncBase **out, int *err)
 {
     Xpost_File *target = xpost_file_get_file_pointer(mem, tgt);
     Xpost_EncBase *ff;
@@ -5546,10 +5546,10 @@ _enc_cons(Xpost_Memory_File *mem, Xpost_Object tgt, size_t size,
 
     *out = NULL;
     if (!target)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = calloc(1, size);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->target = target;
     ff->coding = coding;
     f = _filter_object_cons(mem, &ff->methods, &enc_methods,
@@ -5559,6 +5559,8 @@ _enc_cons(Xpost_Memory_File *mem, Xpost_Object tgt, size_t size,
        into it would be writing into freed memory */
     if (xpost_object_get_type(f) == filetype)
         *out = ff;
+    else if (err)
+        *err = VMerror;
     return f;
 }
 
@@ -5580,32 +5582,32 @@ _enc_cons_abandon(Xpost_Memory_File *mem, Xpost_Object f, Xpost_EncBase *base)
     return invalid;
 }
 
-Xpost_Object xpost_file_cons_filter_enc_null(Xpost_Memory_File *mem, Xpost_Object tgt)
+Xpost_Object xpost_file_cons_filter_enc_null(Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
     Xpost_EncBase *ff;
 
-    return _enc_cons(mem, tgt, sizeof *ff, &nullenc_coding, &ff);
+    return _enc_cons(mem, tgt, sizeof *ff, &nullenc_coding, &ff, err);
 }
 
-Xpost_Object xpost_file_cons_filter_enc_hex(Xpost_Memory_File *mem, Xpost_Object tgt)
+Xpost_Object xpost_file_cons_filter_enc_hex(Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
     Xpost_EncBase *ff;
 
-    return _enc_cons(mem, tgt, sizeof(Xpost_HexEncFile), &hexenc_coding, &ff);
+    return _enc_cons(mem, tgt, sizeof(Xpost_HexEncFile), &hexenc_coding, &ff, err);
 }
 
-Xpost_Object xpost_file_cons_filter_enc_a85(Xpost_Memory_File *mem, Xpost_Object tgt)
+Xpost_Object xpost_file_cons_filter_enc_a85(Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
     Xpost_EncBase *ff;
 
-    return _enc_cons(mem, tgt, sizeof(Xpost_A85EncFile), &a85enc_coding, &ff);
+    return _enc_cons(mem, tgt, sizeof(Xpost_A85EncFile), &a85enc_coding, &ff, err);
 }
 
-Xpost_Object xpost_file_cons_filter_enc_rle(Xpost_Memory_File *mem, Xpost_Object tgt, int recsize)
+Xpost_Object xpost_file_cons_filter_enc_rle(Xpost_Memory_File *mem, Xpost_Object tgt, int recsize, int *err)
 {
     Xpost_EncBase *base;
     Xpost_Object f = _enc_cons(mem, tgt, sizeof(Xpost_RleEncFile),
-                               &rleenc_coding, &base);
+                               &rleenc_coding, &base, err);
     Xpost_RleEncFile *ff = (Xpost_RleEncFile *)base;
 
     if (ff)
@@ -5614,28 +5616,31 @@ Xpost_Object xpost_file_cons_filter_enc_rle(Xpost_Memory_File *mem, Xpost_Object
 }
 
 #ifdef HAVE_ZLIB
-Xpost_Object xpost_file_cons_filter_enc_flate(Xpost_Memory_File *mem, Xpost_Object tgt)
+Xpost_Object xpost_file_cons_filter_enc_flate(Xpost_Memory_File *mem, Xpost_Object tgt, int *err)
 {
     Xpost_EncBase *base;
     Xpost_Object f = _enc_cons(mem, tgt, sizeof(Xpost_FlateEncFile),
-                               &flateenc_coding, &base);
+                               &flateenc_coding, &base, err);
     Xpost_FlateEncFile *ff = (Xpost_FlateEncFile *)base;
 
     if (!ff)
         return f;
     if (deflateInit(&ff->strm, Z_DEFAULT_COMPRESSION) != Z_OK)
+    {
+        if (err) *err = VMerror;
         return _enc_cons_abandon(mem, f, &ff->base);
+    }
     ff->strm.next_out = ff->out;
     ff->strm.avail_out = sizeof(ff->out);
     return f;
 }
 #endif
 
-Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object tgt, int early)
+Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object tgt, int early, int *err)
 {
     Xpost_EncBase *base;
     Xpost_Object f = _enc_cons(mem, tgt, sizeof(Xpost_LzwEncFile),
-                               &lzwenc_coding, &base);
+                               &lzwenc_coding, &base, err);
     Xpost_LzwEncFile *ff = (Xpost_LzwEncFile *)base;
 
     if (!ff)
@@ -5649,7 +5654,7 @@ Xpost_Object xpost_file_cons_filter_enc_lzw(Xpost_Memory_File *mem, Xpost_Object
 Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
                                                   Xpost_Object tgt,
                                                   int predictor, int colors,
-                                                  int bpc, int columns)
+                                                  int bpc, int columns, int *err)
 {
     Xpost_EncBase *base;
     Xpost_Object f;
@@ -5657,10 +5662,10 @@ Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
     int rowbits;
 
     if (colors < 1 || columns < 1 || columns > (1 << 20))
-        return invalid;
+        { if (err) *err = rangecheck; return invalid; }
     if (bpc != 1 && bpc != 2 && bpc != 4 && bpc != 8 && bpc != 16)
-        return invalid;
-    f = _enc_cons(mem, tgt, sizeof(Xpost_PredEncFile), &predenc_coding, &base);
+        { if (err) *err = rangecheck; return invalid; }
+    f = _enc_cons(mem, tgt, sizeof(Xpost_PredEncFile), &predenc_coding, &base, err);
     ff = (Xpost_PredEncFile *)base;
     if (!ff)
         return f;
@@ -5676,6 +5681,7 @@ Xpost_Object xpost_file_cons_filter_enc_predictor(Xpost_Memory_File *mem,
     if (!ff->cur || !ff->prev || !ff->out)
     {
         predenc_release(&ff->base);
+        if (err) *err = VMerror;
         return _enc_cons_abandon(mem, f, &ff->base);
     }
     /* the stage stands over the compressor, which the program never sees
@@ -5690,15 +5696,15 @@ Xpost_Object xpost_file_cons_filter_enc_ccitt(Xpost_Memory_File *mem,
                                               Xpost_Object tgt,
                                               int k, int columns, int rows,
                                               int blackis1, int byteal,
-                                              int eol, int eob)
+                                              int eol, int eob, int *err)
 {
     Xpost_EncBase *base;
     Xpost_Object f = { 0 };
     Xpost_FaxEncFile *ff;
 
     if (columns < 1 || columns > (1 << 20))
-        return invalid;
-    f = _enc_cons(mem, tgt, sizeof(Xpost_FaxEncFile), &faxenc_coding, &base);
+        { if (err) *err = rangecheck; return invalid; }
+    f = _enc_cons(mem, tgt, sizeof(Xpost_FaxEncFile), &faxenc_coding, &base, err);
     ff = (Xpost_FaxEncFile *)base;
     if (!ff)
         return f;
@@ -5731,7 +5737,7 @@ Xpost_Object xpost_file_cons_filter_enc_dct(Xpost_Memory_File *mem,
                                             double qfactor,
                                             int colortransform,
                                             const int *hsamp,
-                                            const int *vsamp)
+                                            const int *vsamp, int *err)
 {
     Xpost_EncBase *base;
     Xpost_Object f = { 0 };
@@ -5740,9 +5746,9 @@ Xpost_Object xpost_file_cons_filter_enc_dct(Xpost_Memory_File *mem,
 
     if (columns < 1 || rows < 1 || colors < 1 || colors > 4
         || qfactor <= 0.0)
-        return invalid;
+        { if (err) *err = rangecheck; return invalid; }
     f = _enc_cons(mem, tgt, sizeof(Xpost_DctEncFile),
-                  &dctenc_coding, &base);
+                  &dctenc_coding, &base, err);
     ff = (Xpost_DctEncFile *)base;
     if (!ff)
         return f;
@@ -5919,16 +5925,16 @@ struct Xpost_File_Methods eexec_methods =
     filter_purge, filter_unreadch, filter_tell, filter_seek
 };
 
-Xpost_Object xpost_file_cons_filter_eexec(Xpost_Memory_File *mem, Xpost_Object src)
+Xpost_Object xpost_file_cons_filter_eexec(Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_EexecFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = calloc(1, sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->r = 55665;
     ff->mode = -1;
     ff->skip = 4;
@@ -6128,29 +6134,29 @@ _dec_cons(Xpost_Memory_File *mem, Xpost_FilterBase *ff,
                                XPOST_FILE_WRAPS_SOURCE, source);
 }
 
-Xpost_Object xpost_file_cons_filter_hex(Xpost_Memory_File *mem, Xpost_Object src)
+Xpost_Object xpost_file_cons_filter_hex(Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_HexFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = malloc(sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     return _dec_cons(mem, &ff->base, &hex_methods, source);
 }
 
-Xpost_Object xpost_file_cons_filter_rle(Xpost_Memory_File *mem, Xpost_Object src)
+Xpost_Object xpost_file_cons_filter_rle(Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_RleFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = malloc(sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->litrun = 0;
     ff->reprun = 0;
     ff->repbyte = 0;
@@ -6158,16 +6164,24 @@ Xpost_Object xpost_file_cons_filter_rle(Xpost_Memory_File *mem, Xpost_Object src
 }
 
 Xpost_Object xpost_file_cons_filter_subfile(Xpost_Memory_File *mem, Xpost_Object src,
-                                            int count, const char *eod, int eodlen)
+                                            int count, const char *eod, int eodlen, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_SubFile *ff;
 
-    if (!source || eodlen < 0 || eodlen > 64)
-        return invalid;
+    /* Three refusals wore one condition: no source to read from, a marker
+       length that is not a length, and a marker longer than this filter
+       carries. PLRM 3.11 makes the last an implementation limit and the
+       middle one out of range, and they are not the same answer. */
+    if (!source)
+        { if (err) *err = ioerror; return invalid; }
+    if (eodlen < 0)
+        { if (err) *err = rangecheck; return invalid; }
+    if (eodlen > 64)
+        { if (err) *err = limitcheck; return invalid; }
     ff = malloc(sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->count = count;
     /* an empty end-of-data string arrives as no pointer at all,
        and copying from one is undefined at any length */
@@ -6179,21 +6193,21 @@ Xpost_Object xpost_file_cons_filter_subfile(Xpost_Memory_File *mem, Xpost_Object
 }
 
 #ifdef HAVE_ZLIB
-Xpost_Object xpost_file_cons_filter_flate(Xpost_Memory_File *mem, Xpost_Object src)
+Xpost_Object xpost_file_cons_filter_flate(Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_FlateFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = malloc(sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     memset(&ff->strm, 0, sizeof ff->strm);
     if (inflateInit(&ff->strm) != Z_OK)
     {
         free(ff);
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     }
     ff->outn = ff->outi = 0;
     ff->haslook = 0;
@@ -6228,7 +6242,7 @@ Xpost_Object xpost_file_cons_filter_flate(Xpost_Memory_File *mem, Xpost_Object s
  */
 #define XPOST_RSD_MAX ((size_t)256 * 1024 * 1024)
 
-Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src)
+Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_RsdFile *ff;
@@ -6236,9 +6250,9 @@ Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src
     int c;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     if (xpost_strbuf_init(&data, 4096))
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     while ((c = xpost_file_getc(source)) != EOF)
     {
         char b = (char)c;
@@ -6246,19 +6260,19 @@ Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src
         if (data.len >= XPOST_RSD_MAX)
         {
             xpost_strbuf_free(&data);
-            return invalid;
+            { if (err) *err = limitcheck; return invalid; }
         }
         if (xpost_strbuf_append(&data, &b, 1))
         {
             xpost_strbuf_free(&data);
-            return invalid;
+            { if (err) *err = VMerror; return invalid; }
         }
     }
     ff = malloc(sizeof *ff);
     if (!ff)
     {
         xpost_strbuf_free(&data);
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     }
     ff->data = (unsigned char *)data.s;
     ff->len = data.len;
@@ -6267,16 +6281,16 @@ Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src
 }
 
 #ifdef HAVE_LIBJPEG
-Xpost_Object xpost_file_cons_filter_dct(Xpost_Memory_File *mem, Xpost_Object src)
+Xpost_Object xpost_file_cons_filter_dct(Xpost_Memory_File *mem, Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_DctFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = calloc(1, sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->cinfo.err = jpeg_std_error(&ff->jerr);
     ff->jerr.error_exit = dct_error_exit;
     ff->jerr.output_message = dct_output_message;
@@ -6284,7 +6298,7 @@ Xpost_Object xpost_file_cons_filter_dct(Xpost_Memory_File *mem, Xpost_Object src
     if (setjmp(ff->jmp))
     {
         free(ff);
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     }
     jpeg_create_decompress(&ff->cinfo);
     ff->jsrc.init_source = dct_init_source;
@@ -6301,16 +6315,16 @@ Xpost_Object xpost_file_cons_filter_dct(Xpost_Memory_File *mem, Xpost_Object src
 
 /* construct an ASCII85Decode filter file over a source file object */
 Xpost_Object xpost_file_cons_filter_a85(Xpost_Memory_File *mem,
-                                        Xpost_Object src)
+                                        Xpost_Object src, int *err)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
     Xpost_FilterFile *ff;
 
     if (!source)
-        return invalid;
+        { if (err) *err = ioerror; return invalid; }
     ff = malloc(sizeof *ff);
     if (!ff)
-        return invalid;
+        { if (err) *err = VMerror; return invalid; }
     ff->outn = ff->outi = 0;
     return _dec_cons(mem, &ff->base, &a85_methods, source);
 }
