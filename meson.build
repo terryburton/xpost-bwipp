@@ -233,6 +233,14 @@ kept_clean = [
   # easiest of these to build past without ever seeing it.
   '-Werror=unused-parameter',
   '-Werror=unused-variable',
+  # gcc and clang, and the one of that family that reaches a definition
+  # rather than a use: a helper compiled into a unit that never calls it.
+  # It is how a routine outlives the condition that used to reach it, and
+  # it is the one here whose answer is shaped by the platform -- a helper
+  # the file layer defines for one kernel's atomic route is dead weight
+  # on every other, unless the definition carries the same condition its
+  # callers carry.
+  '-Werror=unused-function',
   # gcc only, clang taking it and reporting nothing; and the one entry
   # here that is not a promotion. Level 2 is not empty -- gcc reports a
   # comparison of an absolute value against zero under it, at every -O,
