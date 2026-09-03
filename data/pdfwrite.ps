@@ -146,14 +146,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     {
         /.docinfo 8 dict def    % Document metadata from DOCINFO pdfmarks
         .dev //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
-        .state /.pdfimages 0 array put
         .state /.pdfclipopen .dev /.pdfclipopen get put
         .state /.pdfmasks 64 dict put  % masks already filed, so a repeated glyph files once
-        .state /.pdfpatterns 0 array put  % tiling cells filed as /Pattern resources
-        .state /.pdfforms 0 array put  % form descriptions filed as /XObject resources
-        .state /.pdfformgen 0 put  % which document the filed descriptions belong to
         .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
-        .state /.opused 8 dict put   % Overprint states used on this page -> ExtGState entries
 
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
@@ -392,8 +387,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /.patterntell {  % nest IMAGE  .  token true | false
     {
         .dev //.internaldict /.pdfsubbegin get exec {
-            [ exch .state /.pdfimages get .state /.pdfmasks get dup length dict copy
-              .state /.opused get dup length dict copy
+            [ exch .dev //.internaldict /.pdfimgcount get exec
+              .state /.pdfmasks get dup length dict copy
+              .dev //.internaldict /.pdfopcount get exec
               .state /.pdfclipopen get ]
             true
         }{ false } ifelse
@@ -408,9 +404,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         3 1 roll                                % Chunks keep token
         exch not {
             % what the cell was entered with, put back where it lives
-            dup 1 get .state exch /.pdfimages exch put
+            dup 1 get .dev //.internaldict /.pdfimgcut get exec
             dup 2 get .state exch /.pdfmasks exch put
-            dup 3 get .state exch /.opused exch put
+            dup 3 get .dev //.internaldict /.pdfopcut get exec
         } if
         4 get .state exch /.pdfclipopen exch put
     } //.indict exec } bind
@@ -440,30 +436,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % operator, which is a change within the stream and not part of
         % that default space, so the same flip is composed here.
         /pcmat pcmat [ 1 0 0 -1 0 height ] matrix concatmatrix def
-        /pclen 0 def pcchunks { length pclen add /pclen exch def } forall
-        /pchit -1 def
-        0 1 .state /.pdfpatterns get length 1 sub {
-            /pci exch def
-            pchit 0 lt {
-                /pcc .state /.pdfpatterns get pci get def
-                pcc /len get pclen eq
-                pcc /tt get pctt eq and
-                pcc /xs get pcxs eq and
-                pcc /ys get pcys eq and {
-                    pcc /bb get pcbb .pdfsame
-                    { pcc /mat get pcmat .pdfsame }{ false } ifelse
-                    { pcc /chunks get pcchunks .pdfsame }{ false } ifelse
-                    { /pchit pci def } if
-                } if
-            } if
-        } for
-        pchit 0 lt {
-            /pchit .state /.pdfpatterns get length def
-            % the cells this page names outlive the call that files one
-            .state /.pdfpatterns [ .state /.pdfpatterns get aload pop
-                << /bb pcbb /xs pcxs /ys pcys /tt pctt /mat pcmat
-                   /chunks pcchunks /len pclen >> ] put
-        } if
+        % Filed beside the content that paints through it, which is also
+        % where a cell already filed is recognised: the same cell painted
+        % again is the same bytes, and the record compares them.
+        /pchit 1 << /bb pcbb /xs pcxs /ys pcys /tt pctt /mat pcmat
+                    /chunks pcchunks >>
+            .dev //.internaldict /.pdfresadd get exec def
         pchit
     } //.indevwork exec } bind
 
@@ -738,24 +716,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /FormXObject {  % bbox chunks IMAGE  .  n
     24 {
         //.pdfwritebind6 {exch def} forall
-        /fxlen 0 def fxchunks { length fxlen add /fxlen exch def } forall
-        /fxhit -1 def
-        0 1 .state /.pdfforms get length 1 sub {
-            /fxi exch def
-            fxhit 0 lt {
-                /fxc .state /.pdfforms get fxi get def
-                fxc /len get fxlen eq {
-                    fxc /bb get fxbb .pdfsame
-                    { fxc /chunks get fxchunks .pdfsame }{ false } ifelse
-                    { /fxhit fxi def } if
-                } if
-            } if
-        } for
-        fxhit 0 lt {
-            /fxhit .state /.pdfforms get length def
-            .state /.pdfforms [ .state /.pdfforms get aload pop
-                << /bb fxbb /chunks fxchunks /len fxlen >> ] put
-        } if
+        % Filed beside the content that places it, which is also where a
+        % description already filed is recognised: the same description
+        % is the same bytes, and the record compares them.
+        /fxhit 0 << /bb fxbb /chunks fxchunks >>
+            .dev //.internaldict /.pdfresadd get exec def
         fxhit
     } //.indevwork exec } bind
 
@@ -764,7 +729,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % while one file takes page after page.
     /.formgen {  % -  .  int
     {
-        .state /.pdfformgen get
+        .dev //.internaldict /.pdfformgen get exec
     } //.indict exec } bind
 
     % Draw a filed form where this placement puts it. The offset is the
@@ -902,9 +867,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             % offered: an entry declared for a selection the stream never
             % makes would put an ExtGState on every page of a document
             % that never touches overprint.
-            dup .state /.opused get exch known not {
-                dup .state /.opused get exch 4 index 4 index 2 array astore put
-            } if
+            dup 3 index 3 index .dev
+                //.internaldict /.pdfopadd get exec
         } if
         pop pop pop } ifelse
     } bind
@@ -1294,13 +1258,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % the decode ranges carried in the object for the consumer to apply.
     /PaintImage {  % w h ncomp mat rows decode interp IMAGE  .  -
     20 { //.pdfwritebind1 {exch def} forall
-        /piidx .state /.pdfimages get length def
-        % The list of images this page names outlives the call that
-        % adds one, so it is put on the device rather than defined in
-        % the dictionary this call is working in.
-        .state /.pdfimages [ .state /.pdfimages get aload pop
-            << /w piw /h pih /nc pinc /rows pirows /dec pidec
-               /int piint >> ] put
+        % The samples are filed beside the content that draws them, and
+        % what is filed is a copy: the dictionary handed over is this
+        % call's own and the record keeps only what it says.
+        /piidx << /w piw /h pih /nc pinc /rows pirows /dec pidec
+                  /int piint >>
+            .dev //.internaldict /.pdfimgadd get exec def
         .qsave
 
         % the clip travels with the paint; the painting operators
@@ -1349,15 +1312,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     dup length string copy
                 put
             } for
-            /mkidx .state /.pdfimages get length def
-            .state /.pdfimages [ .state /.pdfimages get aload pop
-                << /w mkmw /h mkmh /rows mkrows /mask true /pol false /int false >> ] put
+            /mkidx << /w mkmw /h mkmh /rows mkrows /mask true /pol false /int false >>
+                .dev //.internaldict /.pdfimgadd get exec def
         } if
 
-        /miidx .state /.pdfimages get length def
-        .state /.pdfimages [ .state /.pdfimages get aload pop
-            << /w miw /h mih /nc minc /rows mirows /dec midec /int miint
-               /mbits mkidx /mrng mkrng >> ] put
+        /miidx << /w miw /h mih /nc minc /rows mirows /dec midec /int miint
+                  /mbits mkidx /mrng mkrng >>
+            .dev //.internaldict /.pdfimgadd get exec def
         .qsave
         .emitclip
         [ miw 0 0 mih neg 0 mih ] mim matrix concatmatrix
@@ -1395,7 +1356,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .state /.pdfmasks get pskey get {
                 /pscand exch def
                 pshit 0 lt {
-                    /psc .state /.pdfimages get pscand get def
+                    /psc pscand .dev //.internaldict /.pdfimgget get exec def
                     psc /w get psw eq psc /h get psh eq and
                     psc /pol get pspol eq and
                     psc /rows get 0 get psdata eq and
@@ -1404,11 +1365,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } forall
         } if
         pshit 0 lt {
-            /psidx .state /.pdfimages get length def
             % as does the list of images a stencil is written into
-            .state /.pdfimages [ .state /.pdfimages get aload pop
-                << /w psw /h psh /mask true /pol pspol
-                   /rows [ psdata ] /int psint >> ] put
+            /psidx << /w psw /h psh /mask true /pol pspol
+                      /rows [ psdata ] /int psint >>
+                .dev //.internaldict /.pdfimgadd get exec def
             .state /.pdfmasks get pskey
                 .state /.pdfmasks get pskey known { .state /.pdfmasks get pskey get }{ [ ] } ifelse
                 [ exch aload pop psidx ] put
@@ -1516,16 +1476,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } if
             ( >>) .vw
         } if
-        .state /.opused get length 0 gt {
+        /nop .dev //.internaldict /.pdfopcount get exec def
+        nop 0 gt {
             ( /ExtGState <<) .vw
-            .state /.opused get {
-                exch ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
-                aload pop                                   % Op mode
-                ( /OPM ) .vw 20 string cvs .vw              % Consume mode
-                ( /OP ) .vw dup { (true) }{ (false) } ifelse .vw
-                ( /op ) .vw { (true) }{ (false) } ifelse .vw
+            0 1 nop 1 sub {
+                .dev //.internaldict /.pdfopget get exec    % key Op mode
+                /opmode exch def /opval exch def
+                ( /GS) .vw 20 string cvs .vw ( << /Type /ExtGState) .vw
+                ( /OPM ) .vw opmode 20 string cvs .vw
+                ( /OP ) .vw opval { (true) }{ (false) } ifelse .vw
+                ( /op ) .vw opval { (true) }{ (false) } ifelse .vw
                 ( >>) .vw
-            } forall
+            } for
             ( >>) .vw
         } if
         nsh 0 gt {
@@ -1627,8 +1589,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /hs height .pdfnumstr def
         /ws width .pdfnumstr def
         /nseps .dev //.internaldict /.pdfsepcount get exec def
-        /nimg .state /.pdfimages get length def
-        /nfm .state /.pdfforms get length def
+        /nimg .dev //.internaldict /.pdfimgcount get exec def
+        /nfm 0 .dev //.internaldict /.pdfrescount get exec def
 
         % Content stream object
         /coobj .nextobj def
@@ -1657,7 +1619,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /imgobjs nimg array def
         0 1 nimg 1 sub {
             /ii exch def
-            /ime .state /.pdfimages get ii get def
+            /ime ii .dev //.internaldict /.pdfimgget get exec def
             /io .nextobj def io .recordoff
             imgobjs ii io put
             ime /rows get //.internaldict /.flatecompress get exec /imf exch def /imc exch def
@@ -1830,12 +1792,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % This page's pattern objects. Every number is taken before any
         % of them is written, because each pattern carries the page's own
         % resources and those name the objects standing beside it.
-        /npat .state /.pdfpatterns get length def
+        /npat 1 .dev //.internaldict /.pdfrescount get exec def
         /patobjs npat array def
         0 1 npat 1 sub { patobjs exch .nextobj put } for
         0 1 npat 1 sub {
             /pti exch def
-            /pte .state /.pdfpatterns get pti get def
+            /pte 1 pti .dev //.internaldict /.pdfresget get exec def
             /pto patobjs pti get def
             pto .recordoff
             % Held uncompressed where the page's own content is
@@ -1874,18 +1836,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /formobjs nfm array def
         0 1 nfm 1 sub {
             /fmi exch def
-            /fme .state /.pdfforms get fmi get def
+            /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
             fme /obj known
                 { formobjs fmi fme /obj get put }
                 { /fmo .nextobj def
                   formobjs fmi fmo put
-                  fme /obj fmo put } ifelse
+                  0 fmi fmo false .dev
+                      //.internaldict /.pdfresmark get exec } ifelse
         } for
         0 1 nfm 1 sub {
             /fmi exch def
-            /fme .state /.pdfforms get fmi get def
+            /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
             fme /written known { }{
-            fme /written true put
+            0 fmi 0 true .dev //.internaldict /.pdfresmark get exec
             /fmo formobjs fmi get def
             fmo .recordoff
             flated {
@@ -1922,9 +1885,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
         % start the next page fresh
         .streamreset
-        .state /.pdfimages 0 array put
+        0 .dev //.internaldict /.pdfimgcut get exec
         .state /.pdfmasks get //.emptydict exec
-        .state /.pdfpatterns 0 array put
+        1 0 .dev //.internaldict /.pdfrescut get exec
         % A form object belongs to the document, not to the page: PDF
         % lets every page of one file name the same /XObject, which is
         % what the construct is for. So the record stands while one file
@@ -1936,11 +1899,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % apart empties the record at its own page end instead, which is
         % where that boundary is for it.
         //.vecout /single get not {
-            .state /.pdfforms 0 array put
-            .state /.pdfformgen .state /.pdfformgen get 1 add put
+            0 0 .dev //.internaldict /.pdfrescut get exec
+            .dev //.internaldict /.pdfformbump get exec
         } if
         .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
-        .state /.opused get //.emptydict exec
+        0 .dev //.internaldict /.pdfopcut get exec
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
     } //.indevwork exec } bind
 

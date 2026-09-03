@@ -162,22 +162,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 24 {
     //.pdfwritebind6 {exch def} forall
     /fxlen 0 def fxchunks { length fxlen add /fxlen exch def } forall
-    /fxhit -1 def
-    0 1 .state /.pdfforms get length 1 sub {
-        /fxi exch def
-        fxhit 0 lt {
-            /fxc .state /.pdfforms get fxi get def
-            fxc /len get fxlen eq {
-                fxc /bb get fxbb .pdfsame
-                { fxc /chunks get fxchunks .pdfsame }{ false } ifelse
-                { /fxhit fxi def } if
-            } if
-        } if
-    } for
-    fxhit 0 lt {
-        /fxhit .state /.pdfforms get length def
-        .state /.pdfforms [ .state /.pdfforms get aload pop
-            << /bb fxbb /chunks fxchunks /len fxlen >> ] put
+    /fxwas 0 .dev //.internaldict /.pdfrescount get exec def
+
+    % Filed beside the content that calls it, and recognised there: a
+    % description already filed is the same bytes, so the record answers
+    % with the one it holds and the count does not move.
+    /fxhit 0 << /bb fxbb /chunks fxchunks >>
+        .dev //.internaldict /.pdfresadd get exec def
+    fxhit fxwas eq {
 
         % Written where it is first used, so a page carries every
         % definition its own marks call and stays a page a reader may
@@ -476,7 +468,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % one page was written is not the next page's to call, whatever one
     % file they share. The page end is this device's own, which is why
     % this is here and not in the class it is copied from.
-    .state /.pdfforms 0 array put
+    0 0 .dev //.internaldict /.pdfrescut get exec
 
     .streamreset
  } //.indevwork exec } put

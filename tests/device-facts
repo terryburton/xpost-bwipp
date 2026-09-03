@@ -796,7 +796,6 @@ state miny bbox
 fixed .ncomps dscwrite pdfwrite
 fixed .nextobj dscwrite pdfwrite
 fixed .opaque bbox
-state .opused dscwrite pdfwrite
 fixed OutputFileName every
 state .pdfclipopen dscwrite pdfwrite
     Whether a clip is open in the content stream the page is
@@ -808,11 +807,7 @@ state .pdfclipopen dscwrite pdfwrite
     thing under a name of its own, its clip being an element rather
     than a stream operator.
 fixed .pdffillcolor dscwrite pdfwrite
-state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
-state .pdfpatterns dscwrite pdfwrite
-state .pdfforms dscwrite pdfwrite
-state .pdfformgen dscwrite pdfwrite
 state .pdfshadings dscwrite pdfwrite
 state .svggrads svgwrite
 state .svgforms svgwrite

@@ -155,6 +155,7 @@ tests/check-vecbase.sh \
 tests/run-dsc-roundtrip-test.sh \
 tests/check-pdf-overprint.sh \
 tests/check-pdf-empty-job.sh \
+tests/check-pdf-save-resource.sh \
 tests/check-pdf-shading.sh \
 tests/check-svg-shading.sh \
 tests/check-vector-stroke-clip.sh \

@@ -4083,12 +4083,86 @@ typedef struct
     Pdf_Gs_Slot subslot[PDF_SUB_DEPTH][XPOST_PDF_GS_SLOTS];
 } Pdf_Gs;
 
+/* An image the page's content draws. The content says /Im<i> Do and the
+   page's resources have to define /Im<i>, so the samples are kept here,
+   outside virtual memory, beside the content that draws them. Kept in
+   the device's dictionary instead, a save taken after the page began and
+   restored before it ended would take the samples away and leave the
+   content drawing an object the document does not carry.
+
+   The samples arrive as one string a row and are held as one run of
+   bytes, which is how they are written: a row is a place the caller
+   splits them, not a boundary the object has. */
+typedef struct
+{
+    int w, h, nc;
+    int interp;
+    int mask, haspol, pol;
+    int hasmbits, mbits;
+    int ndec;
+    double dec[16];
+    int hasmrng, nmrng;
+    double mrng[16];
+    char *rows;
+    size_t rowslen;
+} Pdf_Img;
+
+/* A description the page's content places: a form, or a tiling cell.
+   The content says /Fm<i> Do or names /P<i> and the page's resources
+   have to define it, so the description is kept here, beside the content
+   that places it, and not in the device's dictionary where a restore
+   would take it.
+
+   The chunks a caller files are held as one run of bytes. They are
+   written out one after another and nothing reads them apart, so where
+   the caller divided them is not a property of the description. That
+   also makes the comparison that recognises a description already filed
+   a comparison of two runs of bytes. */
+typedef struct
+{
+    double bb[4];
+    double mat[6];
+    double xs, ys;
+    int tt;
+    int ispat;      /* a cell: xs, ys, tt and mat are part of what it is */
+    char *body;
+    size_t bodylen;
+    int obj;        /* the object it was written as, 0 until it is written */
+    int written;
+} Pdf_Res;
+
+/* An ExtGState the page's content selects. The content says /GS<key> gs
+   and the page's resources have to define /GS<key>, so the two are one
+   fact and are kept in the one place: here, outside virtual memory,
+   beside the content they belong to. Held in the device's dictionary
+   instead, a save taken after the page began and restored before it
+   ended would take the definition away and leave the selection. */
+typedef struct
+{
+    int key;     /* the number the content selects it by */
+    int op;      /* overprint */
+    int mode;    /* overprint mode */
+} Pdf_Op;
+
 typedef struct
 {
     Xpost_String_Buffer content;
     Pdf_Sep *seps;
     int nseps;
     int sepcap;
+    Pdf_Op *ops;
+    int nops;
+    int opcap;
+    Pdf_Img *imgs;
+    int nimgs;
+    int imgcap;
+    Pdf_Res *forms;
+    int nforms;
+    int formcap;
+    Pdf_Res *pats;
+    int npats;
+    int patcap;
+    int formgen;   /* which document the filed descriptions belong to */
     int *sephash;    /* name index: a separation's position + 1, 0 empty */
     int sephashcap;  /* a power of two, or 0 when the index is absent */
     Pdf_Gs *gs;      /* what the stream carries, or NULL: then nothing is known */
@@ -4162,6 +4236,28 @@ static void _pdf_acc_reclaim(void *block)
     free(a->sephash);
     a->sephash = NULL;
     a->sephashcap = 0;
+    free(a->ops);
+    a->ops = NULL;
+    a->nops = 0;
+    a->opcap = 0;
+    for (i = 0; i < a->nimgs; i++)
+        free(a->imgs[i].rows);
+    free(a->imgs);
+    a->imgs = NULL;
+    a->nimgs = 0;
+    a->imgcap = 0;
+    for (i = 0; i < a->nforms; i++)
+        free(a->forms[i].body);
+    free(a->forms);
+    a->forms = NULL;
+    a->nforms = 0;
+    a->formcap = 0;
+    for (i = 0; i < a->npats; i++)
+        free(a->pats[i].body);
+    free(a->pats);
+    a->pats = NULL;
+    a->npats = 0;
+    a->patcap = 0;
 }
 
 /* Create the content accumulator and stash it in the device's /Private. Called
@@ -4176,6 +4272,19 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
     a.seps = NULL;
     a.nseps = 0;
     a.sepcap = 0;
+    a.ops = NULL;
+    a.nops = 0;
+    a.opcap = 0;
+    a.imgs = NULL;
+    a.nimgs = 0;
+    a.imgcap = 0;
+    a.forms = NULL;
+    a.nforms = 0;
+    a.formcap = 0;
+    a.pats = NULL;
+    a.npats = 0;
+    a.patcap = 0;
+    a.formgen = 0;
     a.sephash = NULL;
     a.sephashcap = 0;
     a.gs = NULL;
@@ -4943,6 +5052,631 @@ static int _pdfregsep(Xpost_Context *ctx,
 }
 
 /* How many separations this page has registered. */
+/* store under a name, handing the refusal back: a dictionary that would
+   not take an entry leaves the caller with an incomplete answer */
+static XPOST_MUST_CHECK int _put_named(Xpost_Context *ctx, Xpost_Object d,
+                                       const char *k, Xpost_Object v)
+{
+    return xpost_dict_put(ctx, d, xpost_name_cons(ctx, k), v);
+}
+
+static Xpost_Object _img_field(Xpost_Context *ctx, Xpost_Object d, const char *k)
+{
+    return xpost_dict_get(ctx, d, xpost_name_cons(ctx, k));
+}
+
+static int _img_int(Xpost_Context *ctx, Xpost_Object d, const char *k, int dflt)
+{
+    Xpost_Object v = _img_field(ctx, d, k);
+    int t = xpost_object_get_type(v);
+
+    if (t == integertype || t == realtype)
+        return (int)xpost_object_number(v);
+    if (t == booleantype)
+        return v.int_.val ? 1 : 0;
+    return dflt;
+}
+
+/* a flat array of numbers out of the dictionary, as many as fit */
+static int _img_nums(Xpost_Context *ctx, Xpost_Object d, const char *k,
+                     double *out, int cap)
+{
+    Xpost_Object v = _img_field(ctx, d, k);
+    int i, n;
+
+    if (xpost_object_get_type(v) != arraytype)
+        return -1;
+    n = v.comp_.sz;
+    if (n > cap)
+        n = cap;
+    for (i = 0; i < n; i++)
+        out[i] = xpost_object_number(xpost_array_get(ctx, v, i));
+    return n;
+}
+
+/* .pdfimgadd  dict devdic  .  index
+
+   File an image, copying what it says rather than keeping what said it.
+   The dictionary is the caller's and may be reclaimed the moment this
+   returns; what is kept here is bytes and numbers, which is all the page
+   end needs to write the object. */
+static int _pdfimgadd(Xpost_Context *ctx, Xpost_Object d, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, rows;
+    Pdf_Img *e;
+    size_t total = 0;
+    int i, n;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (a.nimgs == a.imgcap)
+    {
+        int nc = a.imgcap ? a.imgcap * 2 : 4;
+        Pdf_Img *ni = (Pdf_Img *)realloc(a.imgs, (size_t)nc * sizeof(Pdf_Img));
+
+        if (!ni)
+            return VMerror;
+        a.imgs = ni;
+        a.imgcap = nc;
+    }
+    e = &a.imgs[a.nimgs];
+    memset(e, 0, sizeof(*e));
+    e->w = _img_int(ctx, d, "w", 0);
+    e->h = _img_int(ctx, d, "h", 0);
+    e->nc = _img_int(ctx, d, "nc", 1);
+    e->interp = _img_int(ctx, d, "int", 0);
+    e->mask = xpost_object_get_type(_img_field(ctx, d, "mask")) != invalidtype;
+    if (e->mask)
+    {
+        e->haspol = 1;
+        e->pol = _img_int(ctx, d, "pol", 0);
+    }
+    if (xpost_object_get_type(_img_field(ctx, d, "mbits")) != invalidtype)
+    {
+        e->hasmbits = 1;
+        e->mbits = _img_int(ctx, d, "mbits", 0);
+    }
+    e->ndec = _img_nums(ctx, d, "dec", e->dec, 16);
+    if (e->ndec < 0)
+        e->ndec = 0;
+    e->nmrng = _img_nums(ctx, d, "mrng", e->mrng, 16);
+    if (e->nmrng < 0)
+        e->nmrng = 0;
+    else
+        e->hasmrng = 1;
+
+    rows = _img_field(ctx, d, "rows");
+    if (xpost_object_get_type(rows) != arraytype)
+        return typecheck;
+    n = rows.comp_.sz;
+    for (i = 0; i < n; i++)
+    {
+        Xpost_Object r = xpost_array_get(ctx, rows, i);
+
+        if (xpost_object_get_type(r) != stringtype)
+            return typecheck;
+        total += r.comp_.sz;
+    }
+    e->rows = total ? (char *)malloc(total) : NULL;
+    if (total && !e->rows)
+        return VMerror;
+    e->rowslen = total;
+    total = 0;
+    for (i = 0; i < n; i++)
+    {
+        Xpost_Object r = xpost_array_get(ctx, rows, i);
+
+        memcpy(e->rows + total, xpost_string_get_pointer(ctx, r), r.comp_.sz);
+        total += r.comp_.sz;
+    }
+    i = a.nimgs++;
+    /* the grown block must reach /Private even if nothing else does: what
+       the record named before the growth has been released */
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        free(e->rows);
+        free(a.imgs);
+        return VMerror;
+    }
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
+    return 0;
+}
+
+/* how many images the page's content draws */
+static int _pdfimgcount(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.nimgs));
+    return 0;
+}
+
+/* .pdfimgget  i devdic  .  dict
+
+   One of them back in the shape it was filed in, for Emit to write the
+   object around. The samples come back as a single string: the object
+   they are written into has no rows either. */
+static int _pdfimgget(Xpost_Context *ctx, Xpost_Object idx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, d, arr, str;
+    Pdf_Img *e;
+    int i = idx.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (i < 0 || i >= a.nimgs)
+        return rangecheck;
+    e = &a.imgs[i];
+    d = xpost_dict_cons(ctx, 12);
+    if (xpost_object_get_type(d) == invalidtype)
+        return VMerror;
+#define IMGPUT(k, v) \
+    do { \
+        if (_put_named(ctx, d, k, (v))) \
+            return VMerror; \
+    } while (0)
+    IMGPUT("w", xpost_int_cons(e->w));
+    IMGPUT("h", xpost_int_cons(e->h));
+    IMGPUT("nc", xpost_int_cons(e->nc));
+    IMGPUT("int", xpost_bool_cons(e->interp));
+    if (e->mask)
+    {
+        IMGPUT("mask", xpost_bool_cons(1));
+        IMGPUT("pol", xpost_bool_cons(e->pol));
+    }
+    if (e->hasmbits)
+        IMGPUT("mbits", xpost_int_cons(e->mbits));
+    if (e->ndec)
+    {
+        arr = xpost_array_cons(ctx, (unsigned)e->ndec);
+        if (xpost_object_get_type(arr) == invalidtype)
+            return VMerror;
+        for (i = 0; i < e->ndec; i++)
+            if (xpost_array_put(ctx, arr, i, xpost_real_cons((real)e->dec[i])))
+                return VMerror;
+        IMGPUT("dec", xpost_object_cvlit(arr));
+    }
+    if (e->hasmrng)
+    {
+        arr = xpost_array_cons(ctx, (unsigned)e->nmrng);
+        if (xpost_object_get_type(arr) == invalidtype)
+            return VMerror;
+        for (i = 0; i < e->nmrng; i++)
+            if (xpost_array_put(ctx, arr, i, xpost_real_cons((real)e->mrng[i])))
+                return VMerror;
+        IMGPUT("mrng", xpost_object_cvlit(arr));
+    }
+    str = xpost_string_cons(ctx, (unsigned)e->rowslen, e->rows);
+    if (xpost_object_get_type(str) == invalidtype)
+        return VMerror;
+    arr = xpost_array_cons(ctx, 1);
+    if (xpost_object_get_type(arr) == invalidtype)
+        return VMerror;
+    if (xpost_array_put(ctx, arr, 0, xpost_object_cvlit(str)))
+        return VMerror;
+    IMGPUT("rows", xpost_object_cvlit(arr));
+#undef IMGPUT
+    xpost_stack_push(ctx->lo, ctx->os, d);
+    return 0;
+}
+
+/* .pdfimgcut  n devdic  .  -   ; keep the first n, give up the rest */
+static int _pdfimgcut(Xpost_Context *ctx, Xpost_Object n, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i, k = n.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (k < 0 || k > a.nimgs)
+        return rangecheck;
+    for (i = k; i < a.nimgs; i++)
+    {
+        free(a.imgs[i].rows);
+        a.imgs[i].rows = NULL;
+    }
+    a.nimgs = k;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+/* which of the two tables a call means */
+static Pdf_Res **_res_table(Pdf_Acc *a, int kind, int **n, int **cap)
+{
+    if (kind)
+    {
+        *n = &a->npats; *cap = &a->patcap; return &a->pats;
+    }
+    *n = &a->nforms; *cap = &a->formcap; return &a->forms;
+}
+
+static int _res_same(const Pdf_Res *e, const Pdf_Res *f)
+{
+    int i;
+
+    if (e->bodylen != f->bodylen || e->ispat != f->ispat)
+        return 0;
+    for (i = 0; i < 4; i++)
+        if (e->bb[i] != f->bb[i])
+            return 0;
+    if (e->ispat)
+    {
+        if (e->xs != f->xs || e->ys != f->ys || e->tt != f->tt)
+            return 0;
+        for (i = 0; i < 6; i++)
+            if (e->mat[i] != f->mat[i])
+                return 0;
+    }
+    return e->bodylen == 0 || memcmp(e->body, f->body, e->bodylen) == 0;
+}
+
+/* .pdfresadd  kind dict devdic  .  index
+
+   File a description, or answer with the one already filed that says the
+   same thing. A page that draws one form in twenty places files it once,
+   which is the whole point of a form; recognising that here rather than
+   at the call keeps the comparison next to the bytes it compares. */
+static int _pdfresadd(Xpost_Context *ctx, Xpost_Object kind,
+                      Xpost_Object d, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, chunks;
+    Pdf_Res **tab, *e, cand;
+    int *n, *cap, i, m;
+    size_t total = 0;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    tab = _res_table(&a, kind.int_.val, &n, &cap);
+
+    memset(&cand, 0, sizeof(cand));
+    cand.ispat = kind.int_.val ? 1 : 0;
+    if (_img_nums(ctx, d, "bb", cand.bb, 4) < 0)
+        return typecheck;
+    if (cand.ispat)
+    {
+        double one;
+
+        if (_img_nums(ctx, d, "mat", cand.mat, 6) < 0)
+            return typecheck;
+        cand.tt = _img_int(ctx, d, "tt", 0);
+        one = 0.0;
+        (void)one;
+        cand.xs = xpost_object_number(_img_field(ctx, d, "xs"));
+        cand.ys = xpost_object_number(_img_field(ctx, d, "ys"));
+    }
+    chunks = _img_field(ctx, d, "chunks");
+    if (xpost_object_get_type(chunks) != arraytype)
+        return typecheck;
+    m = chunks.comp_.sz;
+    for (i = 0; i < m; i++)
+    {
+        Xpost_Object c = xpost_array_get(ctx, chunks, i);
+
+        if (xpost_object_get_type(c) != stringtype)
+            return typecheck;
+        total += c.comp_.sz;
+    }
+    cand.body = total ? (char *)malloc(total) : NULL;
+    if (total && !cand.body)
+        return VMerror;
+    cand.bodylen = total;
+    total = 0;
+    for (i = 0; i < m; i++)
+    {
+        Xpost_Object c = xpost_array_get(ctx, chunks, i);
+
+        memcpy(cand.body + total, xpost_string_get_pointer(ctx, c), c.comp_.sz);
+        total += c.comp_.sz;
+    }
+    for (i = 0; i < *n; i++)
+        if (_res_same(&(*tab)[i], &cand))
+        {
+            free(cand.body);
+            xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
+            return 0;
+        }
+    if (*n == *cap)
+    {
+        int nc = *cap ? *cap * 2 : 4;
+        Pdf_Res *nr = (Pdf_Res *)realloc(*tab, (size_t)nc * sizeof(Pdf_Res));
+
+        if (!nr)
+        {
+            free(cand.body);
+            return VMerror;
+        }
+        *tab = nr;
+        *cap = nc;
+    }
+    e = &(*tab)[*n];
+    *e = cand;
+    i = (*n)++;
+    /* the grown block must reach /Private even if nothing else does: what
+       the record named before the growth has been released */
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        free(cand.body);
+        free(*tab);
+        return VMerror;
+    }
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
+    return 0;
+}
+
+/* how many of that kind the page's content places */
+static int _pdfrescount(Xpost_Context *ctx, Xpost_Object kind, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Res **tab;
+    int *n, *cap;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    tab = _res_table(&a, kind.int_.val, &n, &cap);
+    (void)tab;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(*n));
+    return 0;
+}
+
+/* .pdfresget  kind i devdic  .  dict  ; one of them, for Emit to write */
+static int _pdfresget(Xpost_Context *ctx, Xpost_Object kind,
+                      Xpost_Object idx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, d, arr, str;
+    Pdf_Res **tab, *e;
+    int *n, *cap, i = idx.int_.val, j;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    tab = _res_table(&a, kind.int_.val, &n, &cap);
+    if (i < 0 || i >= *n)
+        return rangecheck;
+    e = &(*tab)[i];
+    d = xpost_dict_cons(ctx, 12);
+    if (xpost_object_get_type(d) == invalidtype)
+        return VMerror;
+#define RESPUT(k, v) \
+    do { \
+        if (_put_named(ctx, d, k, (v))) \
+            return VMerror; \
+    } while (0)
+    arr = xpost_array_cons(ctx, 4);
+    if (xpost_object_get_type(arr) == invalidtype)
+        return VMerror;
+    for (j = 0; j < 4; j++)
+        if (xpost_array_put(ctx, arr, j, xpost_real_cons((real)e->bb[j])))
+            return VMerror;
+    RESPUT("bb", xpost_object_cvlit(arr));
+    if (e->ispat)
+    {
+        arr = xpost_array_cons(ctx, 6);
+        if (xpost_object_get_type(arr) == invalidtype)
+            return VMerror;
+        for (j = 0; j < 6; j++)
+            if (xpost_array_put(ctx, arr, j, xpost_real_cons((real)e->mat[j])))
+                return VMerror;
+        RESPUT("mat", xpost_object_cvlit(arr));
+        RESPUT("xs", xpost_real_cons((real)e->xs));
+        RESPUT("ys", xpost_real_cons((real)e->ys));
+        RESPUT("tt", xpost_int_cons(e->tt));
+    }
+    RESPUT("len", xpost_int_cons((int)e->bodylen));
+    if (e->obj)
+        RESPUT("obj", xpost_int_cons(e->obj));
+    if (e->written)
+        RESPUT("written", xpost_bool_cons(1));
+    str = xpost_string_cons(ctx, (unsigned)e->bodylen, e->body);
+    if (xpost_object_get_type(str) == invalidtype)
+        return VMerror;
+    arr = xpost_array_cons(ctx, 1);
+    if (xpost_object_get_type(arr) == invalidtype)
+        return VMerror;
+    if (xpost_array_put(ctx, arr, 0, xpost_object_cvlit(str)))
+        return VMerror;
+    RESPUT("chunks", xpost_object_cvlit(arr));
+#undef RESPUT
+    xpost_stack_push(ctx->lo, ctx->os, d);
+    return 0;
+}
+
+/* .pdfresmark  kind i obj written devdic  .  -
+
+   What the page end learned about one of them: the object it was written
+   as, and that it has been written. A document writes each description
+   once and every page that places it names that object, so this is the
+   part that has to outlast the page it was first placed on. */
+static int _pdfresmark(Xpost_Context *ctx, Xpost_Object kind, Xpost_Object idx,
+                       Xpost_Object obj, Xpost_Object written,
+                       Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Res **tab;
+    int *n, *cap, i = idx.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    tab = _res_table(&a, kind.int_.val, &n, &cap);
+    if (i < 0 || i >= *n)
+        return rangecheck;
+    if (obj.int_.val)
+        (*tab)[i].obj = obj.int_.val;
+    if (written.int_.val)
+        (*tab)[i].written = 1;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+/* .pdfformgen  devdic  .  int
+   .pdfformbump devdic  .  -
+
+   Which document the filed descriptions belong to. A caller that keeps
+   its own note of a description it filed stamps the note with this, so
+   that a note made under a document already closed is read as no note at
+   all. It lives with the descriptions because it is only meaningful
+   against them: kept where a restore could wind it back, a note from a
+   closed document would read as current and name a description that is
+   no longer there. */
+static int _pdfformgen(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.formgen));
+    return 0;
+}
+
+static int _pdfformbump(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    a.formgen++;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+/* .pdfrescut  kind n devdic  .  -   ; keep the first n, give up the rest */
+static int _pdfrescut(Xpost_Context *ctx, Xpost_Object kind,
+                      Xpost_Object n_, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Res **tab;
+    int *n, *cap, i, k = n_.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    tab = _res_table(&a, kind.int_.val, &n, &cap);
+    if (k < 0 || k > *n)
+        return rangecheck;
+    for (i = k; i < *n; i++)
+    {
+        free((*tab)[i].body);
+        (*tab)[i].body = NULL;
+    }
+    *n = k;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+/* .pdfopadd  key op mode devdic  .  -
+
+   Record that the content selects the ExtGState numbered key, and what
+   that state is. Recording the same number twice is the ordinary case --
+   every paint under one overprint setting selects the same one -- and
+   says nothing new, so it is a no-op rather than a second entry.
+
+   The number is the caller's: it encodes the state, so equal states
+   arrive under equal numbers and the record needs no other key. */
+static int _pdfopadd(Xpost_Context *ctx,
+                     Xpost_Object key, Xpost_Object op, Xpost_Object mode,
+                     Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i, k = key.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    for (i = 0; i < a.nops; i++)
+        if (a.ops[i].key == k)
+            return 0;
+    if (a.nops == a.opcap)
+    {
+        int nc = a.opcap ? a.opcap * 2 : 8;
+        Pdf_Op *no = (Pdf_Op *)realloc(a.ops, (size_t)nc * sizeof(Pdf_Op));
+
+        if (!no)
+            return VMerror;
+        a.ops = no;
+        a.opcap = nc;
+    }
+    a.ops[a.nops].key = k;
+    a.ops[a.nops].op = op.int_.val ? 1 : 0;
+    a.ops[a.nops].mode = mode.int_.val;
+    a.nops++;
+    /* the grown block must reach /Private even if nothing else does: what
+       the record named before the growth has been released */
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        free(a.ops);
+        return VMerror;
+    }
+    return 0;
+}
+
+/* how many ExtGStates the page's content has selected */
+static int _pdfopcount(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.nops));
+    return 0;
+}
+
+/* .pdfopget  i devdic  .  key op mode  ; one of them, for Emit to
+   write the definition the content's selection refers to */
+static int _pdfopget(Xpost_Context *ctx, Xpost_Object idx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i = idx.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (i < 0 || i >= a.nops)
+        return rangecheck;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.ops[i].key));
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(a.ops[i].op));
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.ops[i].mode));
+    return 0;
+}
+
+/* .pdfopcut  n devdic  .  -
+
+   Keep the first n and drop the rest. The page end keeps none: the next
+   page's content selects for itself, and a definition carried over would
+   be one the page's own content never asked for. A cell being captured
+   marks the count first and cuts back to it if the capture is discarded,
+   since a selection made only inside discarded content is a selection
+   the page does not carry. The storage is kept for the entries to come. */
+static int _pdfopcut(Xpost_Context *ctx, Xpost_Object n, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int k = n.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (k < 0 || k > a.nops)
+        return rangecheck;
+    a.nops = k;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
 static int _pdfsepcount(Xpost_Context *ctx, Xpost_Object devdic)
 {
     Pdf_Acc a;
@@ -5271,6 +6005,32 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             stringtype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfregsep", (Xpost_Op_Func)_pdfregsep, 4,
             stringtype, stringtype, stringtype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfformgen", (Xpost_Op_Func)_pdfformgen, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfformbump", (Xpost_Op_Func)_pdfformbump, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfresadd", (Xpost_Op_Func)_pdfresadd, 3,
+            integertype, dicttype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfrescount", (Xpost_Op_Func)_pdfrescount, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfresget", (Xpost_Op_Func)_pdfresget, 3,
+            integertype, integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfresmark", (Xpost_Op_Func)_pdfresmark, 5,
+            integertype, integertype, integertype, booleantype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfrescut", (Xpost_Op_Func)_pdfrescut, 3,
+            integertype, integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfimgadd", (Xpost_Op_Func)_pdfimgadd, 2,
+            dicttype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfimgcount", (Xpost_Op_Func)_pdfimgcount, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfimgget", (Xpost_Op_Func)_pdfimgget, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfimgcut", (Xpost_Op_Func)_pdfimgcut, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfopadd", (Xpost_Op_Func)_pdfopadd, 4,
+            integertype, booleantype, integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfopcount", (Xpost_Op_Func)_pdfopcount, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfopget", (Xpost_Op_Func)_pdfopget, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfopcut", (Xpost_Op_Func)_pdfopcut, 2,
+            integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfsepcount", (Xpost_Op_Func)_pdfsepcount, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfsepget", (Xpost_Op_Func)_pdfsepget, 2,
             integertype, dicttype); INSTALL;

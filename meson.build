@@ -2409,6 +2409,19 @@ test('svg-shading',
   suite: cost_fast,
   timeout: 180)
 
+# What the content refers to and the content itself have to last as long as
+# each other. A resource first filed inside a save/restore bracket is a page
+# naming an object the document does not carry, and a run that produces one
+# reports success: the file is well formed, and only a consumer reading the
+# content notices.
+test('pdf-save-resource',
+  find_program('tests/check-pdf-save-resource.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # Analytic shadings reach the PDF as shading dictionaries rather than as the
 # flat cells a decomposition would leave: the consumer draws the gradient.
 test('pdf-shading',
