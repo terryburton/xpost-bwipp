@@ -74,7 +74,8 @@ jobs:
         meson setup builddir \
           -Dlarge-object=${{ matrix.object == 'large' }} \
           -Db_sanitize=address,undefined \
-          -Db_lundef=false
+          -Db_lundef=false \
+          --werror
     - name: build
       run: ninja -C builddir
     # What this lane rests on is that the build carries the runtimes it
@@ -150,7 +151,7 @@ jobs:
         done
     - name: setup and build
       run: |
-        meson setup builddir -Db_sanitize=address -Db_lundef=false
+        meson setup builddir -Db_sanitize=address -Db_lundef=false --werror
         ninja -C builddir
     # What this lane rests on is that the build carries the runtimes it
     # asked for, and nothing in the run says whether it does. A suite
@@ -268,7 +269,7 @@ jobs:
     # it over ten thousand times with no report.
     - name: setup and build
       run: |
-        meson setup builddir -Dvalgrind-arena=true
+        meson setup builddir -Dvalgrind-arena=true --werror
         ninja -C builddir
     # meson's own wrapper, so every test runs under it rather than a
     # hand-picked few.
@@ -393,6 +394,12 @@ jobs:
     # own status blocks too: the promoted classes above are errors, and a
     # job that read only the analyser's findings would pass a tree that
     # did not compile.
+    #
+    # Warnings are not errors here, where they are on the lanes that only
+    # build. This job reads the whole log and groups what it found by
+    # class, and a build that stopped at the first finding would report
+    # that one and hide the rest. So the findings are collected as
+    # warnings and the job blocks on the count instead.
     - name: build and summarise
       run: |
         ninja -C builddir 2>&1 | tee analyzer.log
@@ -590,6 +597,10 @@ jobs:
     # worse than no flag, because reading the build says the class is
     # covered. clang implements it, so it is asked of clang, in the job
     # where clang is what compiles.
+    #
+    # Warnings are not errors here for the reason the analyser lane gives:
+    # the check below groups every finding by file, and a build that
+    # stopped at the first would leave the rest unreported.
     - name: setup and build
       run: |
         # The build's own status is read through the tee, so a build that
@@ -656,7 +667,7 @@ jobs:
             apt-get install -y -qq build-essential meson ninja-build pkg-config \
               libpng-dev libjpeg-dev libfreetype-dev libfontconfig-dev
             gcc -dumpmachine
-            meson setup /work/build /src
+            meson setup --werror /work/build /src
             ninja -C /work/build'
 
   # The third face of the address sanitizer, and the only one that can see
@@ -717,7 +728,7 @@ jobs:
         done
     - name: setup and build
       run: |
-        meson setup builddir -Db_sanitize=address -Db_lundef=false
+        meson setup builddir -Db_sanitize=address -Db_lundef=false --werror
         ninja -C builddir
     # The same question the lanes above ask of themselves: a suite that
     # passes says the tree works, and says it just as loudly on a build
@@ -806,7 +817,8 @@ jobs:
       run: |
         meson setup builddir \
           -Dlarge-object=${{ matrix.object == 'large' }} \
-          --buildtype=release
+          --buildtype=release \
+          --werror
     # The build's own status is read through the tee, so a build that
     # broke is a red job here rather than a log with nothing in it --
     # which the check below would otherwise read as a clean compile.
