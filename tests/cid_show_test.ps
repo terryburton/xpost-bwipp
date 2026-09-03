@@ -1465,6 +1465,53 @@ CSAB inkof SA inkof SB inkof add eq
 CSAB T2AB differs 0 eq
     (and paints what the plain show of the same string paints) check
 
+
+% --- mappings a CMap may carry that name no CID ------------------------
+%
+% beginbfchar, beginbfrange and beginrearrangedfont write mappings whose
+% character selector is a character code or a character name rather than
+% a CID (PLRM 5.11.5). That is what a base-font descendant is selected
+% within, and what a table mapping codes back to Unicode is written with.
+% This build accepts them and keeps nothing: a code named only there is
+% left unmapped, and an unmapped code resolves as any other unmapped code
+% does. These hold that a CMap carrying them builds, that the CIDs it
+% also declares still map, and that a code only the discarded mappings
+% name paints what an unmapped code paints.
+/CIDInit /ProcSet findresource begin
+10 dict begin begincmap /CMapName /CIDSelBfCMap def
+ /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+ 1 begincodespacerange <00> <FF> endcodespacerange
+ 1 begincidrange <00> <00> 1 endcidrange
+ 2 beginbfchar <10> <0041> <11> /quoteright endbfchar
+ 1 beginbfrange <20> <2f> <0061> endbfrange
+ endcmap CMapName currentdict end /CMap defineresource pop
+end
+/CIDSelBf /CIDSelBfCMap [ /CIDSelA ] composefont pop
+/sel.bf { /CIDSelBf findfont 20 scalefont setfont } bind def
+
+/p.name (mappings naming no CID:) def
+/BFC { sel.bf 10 20 moveto <00> show } greysnap def
+/BFR { sel.bf 10 20 moveto <20> show } greysnap def
+/BFN { sel.bf 10 20 moveto <f0> show } greysnap def
+BFC inkof 0 gt (a CMap carrying bf mappings still maps the CIDs it declares) check
+BFR BFN differs 0 eq
+    (a code only a bf mapping names paints what an unmapped code paints) check
+% and that comparison tells pages apart: the mapped code differs from the
+% unmapped one, so the equality above is a measurement and not two blanks
+BFC BFN differs 0 gt
+    (the same comparison separates a mapped code from an unmapped one) check
+
+% the same for a rearranged font, which names a font rather than a code
+{ /CIDInit /ProcSet findresource begin
+  10 dict begin begincmap /CMapName /CIDSelRaCMap def
+   /CIDSystemInfo << /Registry (T) /Ordering (T) /Supplement 0 >> def
+   1 begincodespacerange <00> <FF> endcodespacerange
+   1 begincidrange <00> <00> 1 endcidrange
+   /CIDSelRearranged 2 beginrearrangedfont /CIDSelA /CIDSelB endrearrangedfont
+   endcmap CMapName currentdict end /CMap defineresource pop
+  end } stopped not
+    (a CMap carrying a rearranged font builds) check
+
 end
 
 count 0 eq (the suite leaves the operand stack empty) check
