@@ -38,7 +38,7 @@ EOF
 check() {  # $1 name
     f=$work/$1.pdf
     [ -s "$f" ] || { echo "FAIL: $1 produced no file"; fail=1; return; }
-    used=$(sed -n 's:.*/\(Im[0-9]*\|Fm[0-9]*\|P[0-9]*\|GS[0-9]*\)[ ]*\(Do\|scn\|gs\).*:\1:p' "$f" | sort -u)
+    used=$(sed -n 's:.*/\(Im[0-9]*\|Fm[0-9]*\|P[0-9]*\|GS[0-9]*\|Sh[0-9]*\)[ ]*\(Do\|scn\|gs\|sh\).*:\1:p' "$f" | sort -u)
     [ -n "$used" ] || { echo "FAIL: $1 names no resource, so it tests nothing"; fail=1; return; }
     for n in $used; do
         # a resource is defined either as an indirect reference to an
@@ -95,7 +95,17 @@ cat >> "$work/atshowpage.ps" <<EOF
 restore
 EOF
 
-for c in image form pattern extgstate atshowpage; do check $c; done
+# a shading, and a stitching function over two subfunctions, so that the
+# objects a shading brings with it are filed as well as the shading
+mk shading 'save
+0 0 300 300 rectclip
+<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 300 0] /Extend [true true]
+   /Function << /FunctionType 3 /Domain [0 1] /Bounds [0.5] /Encode [0 1 0 1]
+                /Functions [ << /FunctionType 2 /Domain [0 1] /C0 [1 0 0] /C1 [0 1 0] /N 1 >>
+                             << /FunctionType 2 /Domain [0 1] /C0 [0 1 0] /C1 [0 0 1] /N 1 >> ] >> >> shfill
+restore'
+
+for c in image form pattern extgstate atshowpage shading; do check $c; done
 
 test $fail -eq 0 && echo "OK: a resource filed inside save/restore is still there at page end"
 exit $fail

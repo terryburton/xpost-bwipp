@@ -146,9 +146,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     {
         /.docinfo 8 dict def    % Document metadata from DOCINFO pdfmarks
         .dev //.internaldict /.pdfinit get exec    % Create the content accumulator (outside VM)
+
+        % Objects 1 and 2 are the catalog and the page tree, so a
+        % document's own objects run from three. The counter is set here
+        % and again when a document is closed, rather than when one is
+        % begun: a shading takes its numbers as it is painted, and where
+        % each page is a file of its own the document it belongs to is
+        % not begun until that page ends.
+        currentglobal true setglobal //.vecout /nextobj 3 put setglobal
         .state /.pdfclipopen .dev /.pdfclipopen get put
         .state /.pdfmasks 64 dict put  % masks already filed, so a repeated glyph files once
-        .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
 
         % first content op: the device matrix mapping device coords to PDF
         % user space (y-up). Part of the content so it compresses with the rest.
@@ -517,9 +524,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % array of functions answers an array of numbers -- which is what a
     % stitching function's Functions entry and the per-component form both
     % need (PDF 8.7.4.5).
-    /.emitfnobj {  % fndesc  .  n | [n...]
+    % A function object, built when the shading that uses it is painted.
+    % A stitching function's subfunctions are objects of their own and are
+    % built first, so that the number each was given is known by the time
+    % the function naming them is written.
+    /.filefnobj {  % fndesc  .  n | [n...]
         dup type dup /arraytype eq exch /packedarraytype eq or {
-            [ exch { .emitfnobj } forall ]
+            [ exch { .filefnobj } forall ]
         }{
             8 dict begin
             /fd exch def
@@ -529,35 +540,155 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             % this dictionary is current for, and /sub took arithmetic with
             % it -- a stitching function stopped the page at the next
             % subtraction anyone did.
-            /subfns fd /ft get 3 eq { fd /fns get .emitfnobj }{ null } ifelse def
-            /fo .nextobj def fo .recordoff
-            fo 20 string cvs .vw ( 0 obj\n<< /FunctionType ) .vw
-            fd /ft get 20 string cvs .vw
-            ( /Domain [) .vw fd /domain get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
-            fd /range known { ( /Range [) .vw fd /range get { .pdfnumstr .vw ( ) .vw } forall (]) .vw } if
+            /subfns fd /ft get 3 eq { fd /fns get .filefnobj }{ null } ifelse def
+            /fo .nextobj def .owstart
+            fo 20 string cvs .ow ( 0 obj\n<< /FunctionType ) .ow
+            fd /ft get 20 string cvs .ow
+            ( /Domain [) .ow fd /domain get { .pdfnumstr .ow ( ) .ow } forall (]) .ow
+            fd /range known { ( /Range [) .ow fd /range get { .pdfnumstr .ow ( ) .ow } forall (]) .ow } if
             fd /ft get 2 eq {
-                ( /C0 [) .vw fd /c0 get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
-                ( /C1 [) .vw fd /c1 get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
-                ( /N ) .vw fd /n get .pdfnumstr .vw
+                ( /C0 [) .ow fd /c0 get { .pdfnumstr .ow ( ) .ow } forall (]) .ow
+                ( /C1 [) .ow fd /c1 get { .pdfnumstr .ow ( ) .ow } forall (]) .ow
+                ( /N ) .ow fd /n get .pdfnumstr .ow
             } if
             fd /ft get 3 eq {
-                ( /Functions ) .vw subfns .fnref
-                ( /Bounds [) .vw fd /bounds get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
-                ( /Encode [) .vw fd /encode get { .pdfnumstr .vw ( ) .vw } forall (]) .vw
+                ( /Functions ) .ow subfns .fnref
+                ( /Bounds [) .ow fd /bounds get { .pdfnumstr .ow ( ) .ow } forall (]) .ow
+                ( /Encode [) .ow fd /encode get { .pdfnumstr .ow ( ) .ow } forall (]) .ow
             } if
             fd /ft get 0 eq {
-                ( /Size [) .vw fd /size get { 20 string cvs .vw ( ) .vw } forall (]) .vw
-                ( /BitsPerSample ) .vw fd /bps get 20 string cvs .vw
-                fd /encode known { ( /Encode [) .vw fd /encode get { .pdfnumstr .vw ( ) .vw } forall (]) .vw } if
-                fd /decode known { ( /Decode [) .vw fd /decode get { .pdfnumstr .vw ( ) .vw } forall (]) .vw } if
-                ( /Length ) .vw fd /data get length 20 string cvs .vw
-                ( >>\nstream\n) .vw fd /data get .vw (\nendstream\nendobj\n) .vw
+                ( /Size [) .ow fd /size get { 20 string cvs .ow ( ) .ow } forall (]) .ow
+                ( /BitsPerSample ) .ow fd /bps get 20 string cvs .ow
+                fd /encode known { ( /Encode [) .ow fd /encode get { .pdfnumstr .ow ( ) .ow } forall (]) .ow } if
+                fd /decode known { ( /Decode [) .ow fd /decode get { .pdfnumstr .ow ( ) .ow } forall (]) .ow } if
+                ( /Length ) .ow fd /data get length 20 string cvs .ow
+                ( >>\nstream\n) .ow fd /data get .ow (\nendstream\nendobj\n) .ow
             }{
-                ( >>\nendobj\n) .vw
+                ( >>\nendobj\n) .ow
             } ifelse
+            fo .owfile
             fo
             end
         } ifelse
+    } bind
+
+    % Write a shading out when it is painted, and answer with the number
+    % the content names it by.
+    %
+    % Everything else this writer files waits for the page end to become
+    % bytes, because what it is made of are numbers a record can hold. A
+    % shading's description is a tree -- its function, and a stitching
+    % function's own subfunctions beneath that -- and the values in it
+    % came out of the program's dictionary. Holding them past the paint
+    % would be holding the program's objects, which a restore is entitled
+    % to take back; so the description is turned into bytes here, while it
+    % is certainly still what was painted, and the bytes wait outside
+    % virtual memory. The object numbers are taken here too, from the
+    % counter in the shared record that a restore does not wind back.
+    % Only the file offset waits for the page end.
+    /.fileshading {  % shdesc  .  index
+    24 dict begin
+        /shd exch def
+        /shmesh shd /mesh 2 copy known { get }{ pop pop null } ifelse def
+        /shfo shd /fn 2 copy known { get .filefnobj }{ pop pop null } ifelse def
+        /sho .nextobj def .owstart
+        sho 20 string cvs .ow ( 0 obj\n<< /ShadingType ) .ow
+        shd /st get 20 string cvs .ow
+        ( /ColorSpace ) .ow //.shcsnames shd /cs get get .ow
+        shd /coords known
+            { ( /Coords [) .ow shd /coords get { .pdfnumstr .ow ( ) .ow } forall (]) .ow } if
+        shd /domain known
+            { ( /Domain [) .ow shd /domain get { .pdfnumstr .ow ( ) .ow } forall (]) .ow } if
+        shd /matrix known
+            { ( /Matrix [) .ow shd /matrix get { .pdfnumstr .ow ( ) .ow } forall (]) .ow } if
+        shd /extend known
+            { ( /Extend [) .ow shd /extend get
+                { { (true) }{ (false) } ifelse .ow ( ) .ow } forall (]) .ow } if
+        shfo null ne { ( /Function ) .ow shfo .fnref } if
+
+        % A mesh carries its geometry as a stream: the vertices packed
+        % at the widths named here, over the extent the Decode entry
+        % gives. A free-form mesh states a flag with each vertex and a
+        % lattice states none, stating how many vertices make a row
+        % instead (PDF 8.7.4.5).
+        shmesh null ne {
+            /shnc shd /cs get dup /DeviceGray eq { pop 1 }{
+                 /DeviceCMYK eq { 4 }{ 3 } ifelse } ifelse def
+            /shst shd /st get def
+
+            %  How much of a record follows the flag, in coordinate
+            %  pairs and in colours. A Gouraud record is one vertex; a
+            %  patch record is a whole patch, and a patch that shares
+            %  an edge with the one before states neither that edge's
+            %  points nor its two colours again (PDF 8.7.4.5). A
+            %  lattice states no flag at all.
+            /shshape {  % flag  .  npoints ncolours
+                shst 4 eq { pop 1 1 }{
+                shst 5 eq { pop 1 1 }{
+                shst 6 eq { 0 eq { 12 4 }{ 8 2 } ifelse }{
+                            0 eq { 16 4 }{ 12 2 } ifelse } ifelse } ifelse } ifelse
+            } def
+
+            %  Walk the records once to find the extent the coordinates
+            %  span, and once more to pack them. The cursor moves by
+            %  what each record turned out to hold, so a mesh whose
+            %  records differ in length is read as it is written.
+            /shx0 1e10 def /shx1 -1e10 def /shy0 1e10 def /shy1 -1e10 def
+            /shp 0 def
+            { shp shmesh length ge { exit } if
+                shst 5 eq { 0 }{ shmesh shp get cvi } ifelse
+                shshape /shnco exch def /shnpt exch def
+                shst 5 eq { }{ /shp shp 1 add def } ifelse
+                0 1 shnpt 1 sub { pop
+                    shmesh shp get
+                        dup shx0 lt { dup /shx0 exch def } if
+                        dup shx1 gt { /shx1 exch def }{ pop } ifelse
+                    shmesh shp 1 add get
+                        dup shy0 lt { dup /shy0 exch def } if
+                        dup shy1 gt { /shy1 exch def }{ pop } ifelse
+                    /shp shp 2 add def
+                } for
+                /shp shp shnco shnc mul add def
+            } loop
+            shx1 shx0 le { /shx1 shx0 1 add def } if
+            shy1 shy0 le { /shy1 shy0 1 add def } if
+
+            /mbstr shmesh length 2 mul 64 add string def
+            /mbn 0 def
+            /shp 0 def
+            { shp shmesh length ge { exit } if
+                shst 5 eq { 0 }{ shmesh shp get cvi } ifelse
+                dup /shflag exch def
+                shshape /shnco exch def /shnpt exch def
+                shst 5 eq { }{ shflag 1 .meshputint /shp shp 1 add def } ifelse
+                0 1 shnpt 1 sub { pop
+                    shmesh shp get shx0 shx1 .meshputval
+                    shmesh shp 1 add get shy0 shy1 .meshputval
+                    /shp shp 2 add def
+                } for
+                0 1 shnco shnc mul 1 sub { pop
+                    shmesh shp get 0 1 .meshputval
+                    /shp shp 1 add def
+                } for
+            } loop
+
+            ( /BitsPerCoordinate 16 /BitsPerComponent 16) .ow
+            shd /st get 5 eq not { ( /BitsPerFlag 8) .ow } if
+            shd /vpr known { ( /VerticesPerRow ) .ow shd /vpr get 20 string cvs .ow } if
+            ( /Decode [) .ow
+            shx0 .pdfnumstr .ow ( ) .ow shx1 .pdfnumstr .ow ( ) .ow
+            shy0 .pdfnumstr .ow ( ) .ow shy1 .pdfnumstr .ow
+            shnc { ( 0 1) .ow } repeat
+            (] /Length ) .ow mbn 20 string cvs .ow
+            ( >>\nstream\n) .ow
+            mbstr 0 mbn getinterval .ow
+            (\nendstream\nendobj\n) .ow
+        }{
+            ( >>\nendobj\n) .ow
+        } ifelse
+        sho .owfile
+        sho .dev //.internaldict /.pdfshadd get exec
+    end
     } bind
 
     % Pack a mesh's vertices into the stream a written document carries.
@@ -595,11 +726,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         65535 mul round cvi 2 .meshputint
     } bind
 
-    % A reference to what .emitfnobj answered, in the form the entry takes.
+    % A reference to what .filefnobj answered, in the form the entry
+    % takes. It is written into the object being built and not to the
+    % file: the object it belongs to is built when the shading is
+    % painted, and the file is not where the writer is at that moment.
     /.fnref {  % n | [n...]  .  -
         dup type dup /arraytype eq exch /packedarraytype eq or {
-            ([) .vw { 20 string cvs .vw ( 0 R ) .vw } forall (]) .vw
-        }{ 20 string cvs .vw ( 0 R) .vw } ifelse
+            ([) .ow { 20 string cvs .ow ( 0 R ) .ow } forall (]) .ow
+        }{ 20 string cvs .ow ( 0 R) .ow } ifelse
     } bind
 
     % A shading dictionary read into a description that outlives it.
@@ -659,13 +793,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /ShadingPaint {  % shdict IMAGE  .  -
     12 {
         .shdescribe /shdesc exch def
-        /shidx .state /.pdfshadings get length def
 
-        % The shadings this page names outlive the call that files one, so
-        % they are kept on the device rather than in the dictionary this
-        % call works in.
-        .state /.pdfshadings
-            [ .state /.pdfshadings get aload pop shdesc ] put
+        % Written out here rather than at the page end, and what the page
+        % end is left holding is bytes. The description is read out of the
+        % program's own dictionary and may not outlive the paint.
+        /shidx shdesc .fileshading def
 
         % the clip travels with the paint, as it does for an image: the
         % painting operators arrive pre-clipped, this does not
@@ -792,6 +924,30 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         20 string cvs dup length 10 exch sub    % S  padlen
         //.zeros exch 0 exch getinterval .vw
         .vw
+    } bind
+
+    % Collect an object's bytes instead of writing them.
+    %
+    % Most of what this writer files waits for the page end to become
+    % bytes, because the record holds what it is made of. A shading
+    % cannot: its description is a tree, and the values in it are the
+    % program's own. So a shading is written when it is painted, into
+    % these, and the bytes wait outside virtual memory where a restore
+    % does not reach them. Only the file offset waits for the page end,
+    % which is the one thing not known until the object is placed.
+    /.owstart {  % -  .  -
+        /.owl 0 array def
+    } bind
+
+    /.ow {  % str  .  -
+        /.owstr exch def
+        /.owl [ .owl aload pop .owstr ] def
+    } bind
+
+    % the bytes collected since .owstart, filed under the number given
+    /.owfile {  % n  .  -
+        dup .owl .dev //.internaldict /.pdfobjadd get exec
+        pop
     } bind
 
     % take the next object number, advancing the shared counter
@@ -1495,7 +1651,8 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             0 1 nsh 1 sub {
                 /shj exch def
                 ( /Sh) .vw shj 20 string cvs .vw
-                ( ) .vw shobjs shj get 20 string cvs .vw ( 0 R) .vw
+                ( ) .vw shj .dev //.internaldict /.pdfshget get exec
+                    20 string cvs .vw ( 0 R) .vw
             } for
             ( >>) .vw
         } if
@@ -1555,7 +1712,6 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         dup .gscratch exch /.vecoutfile exch put
         //.vecout dup /F 4 -1 roll put
         dup /bytepos 0 put
-        dup /nextobj 3 put
         dup /sepsdone 0 put
         dup /headered false put
         /np 0 put
@@ -1684,110 +1840,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % functions they name: PDF holds a function as an object of its own
         % (PDF 8.7.4.5), so each is written before the shading referring to
         % it and the shading carries the number back.
-        /nsh .state /.pdfshadings get length def
-        /shobjs nsh array def
-        0 1 nsh 1 sub {
-            /shi exch def
-            /shd .state /.pdfshadings get shi get def
-            /shmesh shd /mesh 2 copy known { get }{ pop pop null } ifelse def
-            /shfo shd /fn 2 copy known { get .emitfnobj }{ pop pop null } ifelse def
-            /sho .nextobj def sho .recordoff
-            shobjs shi sho put
-            sho 20 string cvs .vw ( 0 obj\n<< /ShadingType ) .vw
-            shd /st get 20 string cvs .vw
-            ( /ColorSpace ) .vw //.shcsnames shd /cs get get .vw
-            shd /coords known
-                { ( /Coords [) .vw shd /coords get { .pdfnumstr .vw ( ) .vw } forall (]) .vw } if
-            shd /domain known
-                { ( /Domain [) .vw shd /domain get { .pdfnumstr .vw ( ) .vw } forall (]) .vw } if
-            shd /matrix known
-                { ( /Matrix [) .vw shd /matrix get { .pdfnumstr .vw ( ) .vw } forall (]) .vw } if
-            shd /extend known
-                { ( /Extend [) .vw shd /extend get
-                    { { (true) }{ (false) } ifelse .vw ( ) .vw } forall (]) .vw } if
-            shfo null ne { ( /Function ) .vw shfo .fnref } if
-
-            % A mesh carries its geometry as a stream: the vertices packed
-            % at the widths named here, over the extent the Decode entry
-            % gives. A free-form mesh states a flag with each vertex and a
-            % lattice states none, stating how many vertices make a row
-            % instead (PDF 8.7.4.5).
-            shmesh null ne {
-                /shnc shd /cs get dup /DeviceGray eq { pop 1 }{
-                     /DeviceCMYK eq { 4 }{ 3 } ifelse } ifelse def
-                /shst shd /st get def
-
-                %  How much of a record follows the flag, in coordinate
-                %  pairs and in colours. A Gouraud record is one vertex; a
-                %  patch record is a whole patch, and a patch that shares
-                %  an edge with the one before states neither that edge's
-                %  points nor its two colours again (PDF 8.7.4.5). A
-                %  lattice states no flag at all.
-                /shshape {  % flag  .  npoints ncolours
-                    shst 4 eq { pop 1 1 }{
-                    shst 5 eq { pop 1 1 }{
-                    shst 6 eq { 0 eq { 12 4 }{ 8 2 } ifelse }{
-                                0 eq { 16 4 }{ 12 2 } ifelse } ifelse } ifelse } ifelse
-                } def
-
-                %  Walk the records once to find the extent the coordinates
-                %  span, and once more to pack them. The cursor moves by
-                %  what each record turned out to hold, so a mesh whose
-                %  records differ in length is read as it is written.
-                /shx0 1e10 def /shx1 -1e10 def /shy0 1e10 def /shy1 -1e10 def
-                /shp 0 def
-                { shp shmesh length ge { exit } if
-                    shst 5 eq { 0 }{ shmesh shp get cvi } ifelse
-                    shshape /shnco exch def /shnpt exch def
-                    shst 5 eq { }{ /shp shp 1 add def } ifelse
-                    0 1 shnpt 1 sub { pop
-                        shmesh shp get
-                            dup shx0 lt { dup /shx0 exch def } if
-                            dup shx1 gt { /shx1 exch def }{ pop } ifelse
-                        shmesh shp 1 add get
-                            dup shy0 lt { dup /shy0 exch def } if
-                            dup shy1 gt { /shy1 exch def }{ pop } ifelse
-                        /shp shp 2 add def
-                    } for
-                    /shp shp shnco shnc mul add def
-                } loop
-                shx1 shx0 le { /shx1 shx0 1 add def } if
-                shy1 shy0 le { /shy1 shy0 1 add def } if
-
-                /mbstr shmesh length 2 mul 64 add string def
-                /mbn 0 def
-                /shp 0 def
-                { shp shmesh length ge { exit } if
-                    shst 5 eq { 0 }{ shmesh shp get cvi } ifelse
-                    dup /shflag exch def
-                    shshape /shnco exch def /shnpt exch def
-                    shst 5 eq { }{ shflag 1 .meshputint /shp shp 1 add def } ifelse
-                    0 1 shnpt 1 sub { pop
-                        shmesh shp get shx0 shx1 .meshputval
-                        shmesh shp 1 add get shy0 shy1 .meshputval
-                        /shp shp 2 add def
-                    } for
-                    0 1 shnco shnc mul 1 sub { pop
-                        shmesh shp get 0 1 .meshputval
-                        /shp shp 1 add def
-                    } for
-                } loop
-
-                ( /BitsPerCoordinate 16 /BitsPerComponent 16) .vw
-                shd /st get 5 eq not { ( /BitsPerFlag 8) .vw } if
-                shd /vpr known { ( /VerticesPerRow ) .vw shd /vpr get 20 string cvs .vw } if
-                ( /Decode [) .vw
-                shx0 .pdfnumstr .vw ( ) .vw shx1 .pdfnumstr .vw ( ) .vw
-                shy0 .pdfnumstr .vw ( ) .vw shy1 .pdfnumstr .vw
-                shnc { ( 0 1) .vw } repeat
-                (] /Length ) .vw mbn 20 string cvs .vw
-                ( >>\nstream\n) .vw
-                mbstr 0 mbn getinterval .vw
-                (\nendstream\nendobj\n) .vw
-            }{
-                ( >>\nendobj\n) .vw
-            } ifelse
+        % The shadings this page names were written out when they were
+        % painted, and their bytes have been waiting since. What is left
+        % to do is place them: an object's offset is where the file has
+        % reached, which is knowable only here.
+        /nsh .dev //.internaldict /.pdfshcount get exec def
+        /nobj .dev //.internaldict /.pdfobjcount get exec def
+        0 1 nobj 1 sub {
+            .dev //.internaldict /.pdfobjget get exec   % num str
+            exch .recordoff
+            .vw
         } for
+        .dev //.internaldict /.pdfobjclear get exec
 
         % This page's pattern objects. Every number is taken before any
         % of them is written, because each pattern carries the page's own
@@ -1902,7 +1966,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             0 0 .dev //.internaldict /.pdfrescut get exec
             .dev //.internaldict /.pdfformbump get exec
         } if
-        .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
+        .dev //.internaldict /.pdfshclear get exec
         0 .dev //.internaldict /.pdfopcut get exec
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
     } //.indevwork exec } bind
@@ -1996,6 +2060,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % Close the file unless it is stdout, and give up the local hold
         //.vecout /F get dup (%stdout) (w) file ne { closefile }{ pop } ifelse
         .gscratch /.vecoutfile undef
+
+        % Ready for the next document, since a shading painted on its
+        % first page takes its numbers before that document is begun.
+        //.vecout /nextobj 3 put
         } ifelse
     } //.indevwork exec } bind
 >> def

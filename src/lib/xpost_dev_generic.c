@@ -4131,6 +4131,27 @@ typedef struct
     int written;
 } Pdf_Res;
 
+/* An object the page will carry, written out when the page ends.
+
+   Most of what this writer files can wait until then to be turned into
+   bytes, because what it is made of is numbers the record can hold. A
+   shading cannot: its description is a tree -- a function, and a
+   stitching function's own subfunctions under it -- and a tree of
+   values is what the record must not hold, since the values are the
+   program's and the program may change or discard them.
+
+   So a shading is written when it is painted, into bytes, and the bytes
+   wait here. Its object numbers are taken then too, from the counter in
+   the shared record, which a restore does not wind back; only the file
+   offsets wait for the page end, because only then is it known where in
+   the file the object lands. */
+typedef struct
+{
+    int num;
+    char *body;
+    size_t len;
+} Pdf_Obj;
+
 /* An ExtGState the page's content selects. The content says /GS<key> gs
    and the page's resources have to define /GS<key>, so the two are one
    fact and are kept in the one place: here, outside virtual memory,
@@ -4163,6 +4184,12 @@ typedef struct
     int npats;
     int patcap;
     int formgen;   /* which document the filed descriptions belong to */
+    Pdf_Obj *objs;
+    int nobjs;
+    int objcap;
+    int *shs;
+    int nshs;
+    int shcap;
     int *sephash;    /* name index: a separation's position + 1, 0 empty */
     int sephashcap;  /* a power of two, or 0 when the index is absent */
     Pdf_Gs *gs;      /* what the stream carries, or NULL: then nothing is known */
@@ -4258,6 +4285,16 @@ static void _pdf_acc_reclaim(void *block)
     a->pats = NULL;
     a->npats = 0;
     a->patcap = 0;
+    for (i = 0; i < a->nobjs; i++)
+        free(a->objs[i].body);
+    free(a->objs);
+    a->objs = NULL;
+    a->nobjs = 0;
+    a->objcap = 0;
+    free(a->shs);
+    a->shs = NULL;
+    a->nshs = 0;
+    a->shcap = 0;
 }
 
 /* Create the content accumulator and stash it in the device's /Private. Called
@@ -4285,6 +4322,12 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
     a.npats = 0;
     a.patcap = 0;
     a.formgen = 0;
+    a.objs = NULL;
+    a.nobjs = 0;
+    a.objcap = 0;
+    a.shs = NULL;
+    a.nshs = 0;
+    a.shcap = 0;
     a.sephash = NULL;
     a.sephashcap = 0;
     a.gs = NULL;
@@ -5287,6 +5330,238 @@ static int _pdfimgcut(Xpost_Context *ctx, Xpost_Object n, Xpost_Object devdic)
     return 0;
 }
 
+/* .pdfcost  devdic  .  bytes
+
+   What the accumulator is holding, outside virtual memory. Everything a
+   page files lives here rather than in the device's dictionary, because
+   a restore must not reach it; that also puts it beyond what
+   globalvmstatus weighs, so a page that went on holding what it filed
+   would grow a long-lived context by that much per page and nothing
+   measuring virtual memory would say so. This is what says so.
+
+   Capacity and not occupancy: storage a page gave back is storage the
+   next page reuses, and a figure that fell as soon as a table emptied
+   would report a steady state that the memory does not have. */
+static int _pdfcost(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    size_t n;
+    int i;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    n = a.content.cap;
+    for (i = 0; i < a.nseps; i++)
+        n += a.seps[i].namelen + a.seps[i].csdeflen + a.seps[i].funclen;
+    n += (size_t)a.sepcap * sizeof(Pdf_Sep);
+    n += (size_t)a.sephashcap * sizeof(int);
+    n += (size_t)a.opcap * sizeof(Pdf_Op);
+    n += (size_t)a.imgcap * sizeof(Pdf_Img);
+    for (i = 0; i < a.nimgs; i++)
+        n += a.imgs[i].rowslen;
+    n += (size_t)a.formcap * sizeof(Pdf_Res);
+    for (i = 0; i < a.nforms; i++)
+        n += a.forms[i].bodylen;
+    n += (size_t)a.patcap * sizeof(Pdf_Res);
+    for (i = 0; i < a.npats; i++)
+        n += a.pats[i].bodylen;
+    n += (size_t)a.objcap * sizeof(Pdf_Obj);
+    for (i = 0; i < a.nobjs; i++)
+        n += a.objs[i].len;
+    n += (size_t)a.shcap * sizeof(int);
+    if (a.gs)
+        n += sizeof(Pdf_Gs) + a.gs->pend.cap;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons((integer)n));
+    return 0;
+}
+
+/* .pdfobjadd  num chunks devdic  .  -   ; an object's bytes, to write later */
+static int _pdfobjadd(Xpost_Context *ctx, Xpost_Object num,
+                      Xpost_Object chunks, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Obj *e;
+    size_t total = 0;
+    int i, m;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (xpost_object_get_type(chunks) != arraytype)
+        return typecheck;
+    m = chunks.comp_.sz;
+    for (i = 0; i < m; i++)
+    {
+        Xpost_Object c = xpost_array_get(ctx, chunks, i);
+
+        if (xpost_object_get_type(c) != stringtype)
+            return typecheck;
+        total += c.comp_.sz;
+    }
+    if (a.nobjs == a.objcap)
+    {
+        int nc = a.objcap ? a.objcap * 2 : 4;
+        Pdf_Obj *no = (Pdf_Obj *)realloc(a.objs, (size_t)nc * sizeof(Pdf_Obj));
+
+        if (!no)
+            return VMerror;
+        a.objs = no;
+        a.objcap = nc;
+    }
+    e = &a.objs[a.nobjs];
+    e->num = num.int_.val;
+    e->body = total ? (char *)malloc(total) : NULL;
+    if (total && !e->body)
+        return VMerror;
+    e->len = total;
+    total = 0;
+    for (i = 0; i < m; i++)
+    {
+        Xpost_Object c = xpost_array_get(ctx, chunks, i);
+
+        memcpy(e->body + total, xpost_string_get_pointer(ctx, c), c.comp_.sz);
+        total += c.comp_.sz;
+    }
+    a.nobjs++;
+    /* the grown block must reach /Private even if nothing else does: what
+       the record named before the growth has been released */
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        free(e->body);
+        free(a.objs);
+        return VMerror;
+    }
+    return 0;
+}
+
+/* how many objects are waiting to be written */
+static int _pdfobjcount(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.nobjs));
+    return 0;
+}
+
+/* .pdfobjget  i devdic  .  num string */
+static int _pdfobjget(Xpost_Context *ctx, Xpost_Object idx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, str;
+    int i = idx.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (i < 0 || i >= a.nobjs)
+        return rangecheck;
+    str = xpost_string_cons(ctx, (unsigned)a.objs[i].len, a.objs[i].body);
+    if (xpost_object_get_type(str) == invalidtype)
+        return VMerror;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.objs[i].num));
+    xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(str));
+    return 0;
+}
+
+/* .pdfobjclear  devdic  .  -   ; they have been written */
+static int _pdfobjclear(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    for (i = 0; i < a.nobjs; i++)
+    {
+        free(a.objs[i].body);
+        a.objs[i].body = NULL;
+    }
+    a.nobjs = 0;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+/* .pdfshadd  num devdic  .  index
+   .pdfshcount devdic  .  n
+   .pdfshget  i devdic  .  num
+   .pdfshclear devdic  .  -
+
+   Which object each /Sh the content names is. Kept apart from the bytes
+   because the page's resources name these and nothing else: an object
+   written for a function is named by the shading that uses it and never
+   by a page. */
+static int _pdfshadd(Xpost_Context *ctx, Xpost_Object num, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (a.nshs == a.shcap)
+    {
+        int nc = a.shcap ? a.shcap * 2 : 4;
+        int *ns = (int *)realloc(a.shs, (size_t)nc * sizeof(int));
+
+        if (!ns)
+            return VMerror;
+        a.shs = ns;
+        a.shcap = nc;
+    }
+    a.shs[a.nshs] = num.int_.val;
+    i = a.nshs++;
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        free(a.shs);
+        return VMerror;
+    }
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
+    return 0;
+}
+
+static int _pdfshcount(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.nshs));
+    return 0;
+}
+
+static int _pdfshget(Xpost_Context *ctx, Xpost_Object idx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i = idx.int_.val;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (i < 0 || i >= a.nshs)
+        return rangecheck;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(a.shs[i]));
+    return 0;
+}
+
+static int _pdfshclear(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    a.nshs = 0;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
 /* which of the two tables a call means */
 static Pdf_Res **_res_table(Pdf_Acc *a, int kind, int **n, int **cap)
 {
@@ -6005,6 +6280,19 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             stringtype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfregsep", (Xpost_Op_Func)_pdfregsep, 4,
             stringtype, stringtype, stringtype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfcost", (Xpost_Op_Func)_pdfcost, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfobjadd", (Xpost_Op_Func)_pdfobjadd, 3,
+            integertype, arraytype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfobjcount", (Xpost_Op_Func)_pdfobjcount, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfobjget", (Xpost_Op_Func)_pdfobjget, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfobjclear", (Xpost_Op_Func)_pdfobjclear, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfshadd", (Xpost_Op_Func)_pdfshadd, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfshcount", (Xpost_Op_Func)_pdfshcount, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfshget", (Xpost_Op_Func)_pdfshget, 2,
+            integertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfshclear", (Xpost_Op_Func)_pdfshclear, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfformgen", (Xpost_Op_Func)_pdfformgen, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfformbump", (Xpost_Op_Func)_pdfformbump, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfresadd", (Xpost_Op_Func)_pdfresadd, 3,

@@ -701,7 +701,8 @@ method .meshputint pdfwrite
 method .meshputval pdfwrite
 method .svgshrgb svgwrite
 method .fndescribe pdfwrite
-method .emitfnobj pdfwrite
+method .filefnobj dscwrite pdfwrite
+method .fileshading dscwrite pdfwrite
 method .fnref pdfwrite
 method PatternCell pdfwrite svgwrite
 method PlaceForm dscwrite pdfwrite svgwrite
@@ -747,6 +748,9 @@ method .t4build dscwrite pdfwrite
 method .takecolor bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .to-int bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .unitclamp bgr jpeg pbm pgm png pngalpha ppm raster tiff
+method .ow dscwrite pdfwrite
+method .owfile dscwrite pdfwrite
+method .owstart dscwrite pdfwrite
 method .vw dscwrite pdfwrite
 method .vwnum dscwrite
 method .vwoff dscwrite pdfwrite
@@ -808,7 +812,6 @@ state .pdfclipopen dscwrite pdfwrite
     than a stream operator.
 fixed .pdffillcolor dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
-state .pdfshadings dscwrite pdfwrite
 state .svggrads svgwrite
 state .svgforms svgwrite
 fixed .pdfstrokecolor dscwrite pdfwrite

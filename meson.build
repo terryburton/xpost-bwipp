@@ -2409,6 +2409,18 @@ test('svg-shading',
   suite: cost_fast,
   timeout: 180)
 
+# The writer holds what a page files outside virtual memory, so that a
+# restore cannot reach it. That also puts it beyond what the global-VM
+# invariant weighs, and a page that went on holding what it filed would
+# grow a long-lived context by that much per page with nothing to say so.
+test('pdf-accumulator-cost',
+  find_program('tests/check-pdf-accumulator-cost.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # What the content refers to and the content itself have to last as long as
 # each other. A resource first filed inside a save/restore bracket is a page
 # naming an object the document does not carry, and a run that produces one
