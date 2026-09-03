@@ -811,7 +811,8 @@ xpost_memory_file_grow(Xpost_Memory_File *mem,
     {
         if (ftruncate(mem->fd, sz) == -1)
         {
-            XPOST_LOG_ERR("ftruncate(%d, %d) returned -1", mem->fd, sz);
+            XPOST_LOG_ERR("ftruncate(%d, %llu) returned -1", mem->fd,
+                          (unsigned long long)sz);
             XPOST_LOG_ERR("strerror: %s", strerror(errno));
         }
     }
