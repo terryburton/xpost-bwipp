@@ -1408,6 +1408,96 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .state /.pdfclipopen true put
     } //.indict exec } bind
 
+    % How an image is to be encoded, and how well.
+    %
+    % Flate hands back exactly the samples it was given; DCT hands back
+    % an approximation and is far smaller, which is the convention for a
+    % photograph and the difference between a page carrying one at its
+    % own size and at ten times it. Neither suits every image, so the
+    % choice is the caller's: auto takes DCT for continuous tone and
+    % Flate for the rest, and the two named values settle it either way.
+    %
+    % Asked of the device first, where setpagedevice puts it, and of the
+    % host settings after, where the command line's -p records it. A run
+    % that said nothing gets auto.
+    /.imageencoding {  % nc mask  .  /DCTEncode | /FlateEncode
+        {
+            % a stencil is one bit to the sample and DCT has no such
+            % thing: it is written the only way it can be
+            pop /FlateEncode
+        }{
+            % Asked in order of how particular each is. The device's
+            % own setting, which setpagedevice writes, is this run's
+            % answer for this device. The host settings come next, which
+            % is where the command line's -p records a default. Then the
+            % distiller parameters, which is where a program written for
+            % Adobe's distiller says it: its AutoFilter flag says whether
+            % the filter named beside it is to be consulted at all, and
+            % with the flag set -- which is how it arrives -- the
+            % encoding is chosen by measuring. A run that said nothing
+            % anywhere lands there too.
+            .dev /pdf_image_filter 2 copy known
+                { get }
+                { pop pop
+                  //.hostdict /pdf_image_filter 2 copy known
+                      { get }
+                      { pop pop
+                        1 index 1 eq
+                            { /AutoFilterGrayImages /GrayImageFilter }
+                            { /AutoFilterColorImages /ColorImageFilter } ifelse
+                        exch //.distillerparams exch 2 copy known
+                            { get }{ pop pop true } ifelse
+                        { pop /auto }
+                        { //.distillerparams exch 2 copy known
+                            { get
+                              dup /FlateEncode eq { pop /flate }{
+                              dup /DCTEncode eq { pop /dct }{ pop /auto }
+                              ifelse } ifelse }
+                            { pop pop /auto } ifelse }
+                        ifelse }
+                  ifelse }
+            ifelse
+            dup /flate eq { pop pop /FlateEncode }{
+            dup /dct eq { pop pop /DCTEncode }{
+                pop
+                % auto: continuous tone is one, three or four
+                % components, and which encoding suits it is settled by
+                % encoding it both ways and keeping the smaller. DCT is
+                % worth many times its cost on a photograph and costs
+                % more than it saves on a small synthetic image, where
+                % its own headers outweigh what it takes off: MEASURED,
+                % the three golden pages grew by a thousand bytes when
+                % auto took DCT on trust.
+                dup 1 eq exch dup 3 eq exch 4 eq or or
+                { /Auto }{ /FlateEncode } ifelse
+            } ifelse } ifelse
+        } ifelse
+    } bind
+
+    /.imagequality {  % nc  .  int
+        %  In the same order .imageencoding asks: the device's own
+        %  setting, then the host settings where -p records one, then
+        %  the distiller parameters, where the quality is a QFactor --
+        %  the fraction of full quality asked for -- inside the
+        %  dictionary Adobe names for the kind of image.
+        .dev /pdf_image_quality 2 copy known
+            { get exch pop }
+            { pop pop
+              //.hostdict /pdf_image_quality 2 copy known
+                  { get exch pop }
+                  { pop pop
+                    1 eq { /GrayImageDict }{ /ColorImageDict } ifelse
+                    //.distillerparams exch 2 copy known
+                        { get
+                          dup type /dicttype eq
+                              { /QFactor 2 copy known
+                                  { get 100 mul cvi }{ pop pop 75 } ifelse }
+                              { pop 75 } ifelse }
+                        { pop pop 75 } ifelse }
+                  ifelse }
+        ifelse
+    } bind
+
     % Take a whole sampled image: the rows (one interleaved 8-bit string
     % per row) file as an image XObject Emit writes, and the content
     % paints it through the unit square under the image-to-device matrix,
@@ -1790,7 +1880,42 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /ime ii .dev //.internaldict /.pdfimgget get exec def
             /io .nextobj def io .recordoff
             imgobjs ii io put
-            ime /rows get //.internaldict /.flatecompress get exec /imf exch def /imc exch def
+            /imenc ime /nc 2 copy known { get }{ pop pop 1 } ifelse
+                   ime /mask known .imageencoding def
+            /imdct false def
+            /imdo {  % -  .  chunks-or-null
+                ime /rows get
+                ime /w get ime /h get
+                ime /nc 2 copy known { get }{ pop pop 1 } ifelse
+                dup .imagequality
+                //.internaldict /.dctcompress get exec
+                { }{ pop null } ifelse
+            } def
+            /imlenof {  % chunks  .  bytes
+                0 exch { length add } forall
+            } def
+            imenc /FlateEncode eq {
+                ime /rows get //.internaldict /.flatecompress get exec
+                /imf exch def /imc exch def
+            }{
+            imenc /DCTEncode eq {
+                imdo dup null eq
+                    { pop ime /rows get //.internaldict /.flatecompress get exec
+                      /imf exch def /imc exch def }
+                    { /imc exch def /imf false def /imdct true def }
+                ifelse
+            }{
+                % auto: both, and the smaller of them
+                imdo /imdctc exch def
+                ime /rows get //.internaldict /.flatecompress get exec
+                /imflatf exch def /imflatc exch def
+                imdctc null ne
+                imdctc null ne { imdctc imlenof imflatc imlenof lt }{ false } ifelse
+                and
+                    { /imc imdctc def /imf false def /imdct true def }
+                    { /imc imflatc def /imf imflatf def }
+                ifelse
+            } ifelse } ifelse
             /imlen 0 def imc { length imlen add /imlen exch def } forall
             io 20 string cvs .vw ( 0 obj\n) .vw
             (<< /Type /XObject /Subtype /Image /Width ) .vw ime /w get 20 string cvs .vw
@@ -1845,6 +1970,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ime /int get { ( /Interpolate true) .vw } if
             ( /Length ) .vw imlen 20 string cvs .vw
             imf { ( /Filter /FlateDecode) .vw } if
+            imdct { ( /Filter /DCTDecode) .vw } if
             ( >>\nstream\n) .vw imc { .vw } forall (\nendstream\nendobj\n) .vw
         } for
 

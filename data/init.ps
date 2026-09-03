@@ -2936,6 +2936,21 @@ setglobal
     /CompressPages true
     /PreserveOverprintSettings true
     /LockDistillerParams false
+
+    %  How an image is encoded, in the names Adobe's own distiller takes
+    %  and a program written for one sets. A continuous-tone image is
+    %  encoded with DCT by default, which is that convention and is the
+    %  difference between a page carrying a photograph at its own size
+    %  and at ten times it; the filter names say it outright, and the
+    %  dictionaries carry the quality as QFactor, which is the fraction
+    %  of full quality the encoder is asked for. The grey pair applies to
+    %  a one-component image and the colour pair to the rest.
+    /AutoFilterColorImages true
+    /ColorImageFilter /DCTEncode
+    /ColorImageDict << /QFactor 0.75 >>
+    /AutoFilterGrayImages true
+    /GrayImageFilter /DCTEncode
+    /GrayImageDict << /QFactor 0.75 >>
 >> put
 
 %
@@ -2951,11 +2966,58 @@ setglobal
 %  which of them this interpreter acts on rather than merely recording is
 %  written down among the extensions in COMPLIANCE.
 %
+%
+%  A copy of a value in global memory, for a record that is global to
+%  hold. The record of distiller parameters outlives the job that sets
+%  them and lives in the global dictionary that outlives it too, and a
+%  global dictionary may hold no local object (PLRM 3.7.2). What that
+%  forbids is holding the object, not holding what it says: a number, a
+%  name or a boolean is simple and needs no copy, and a string, an array
+%  or a dictionary is copied into global memory with its contents copied
+%  the same way. So a program may set a parameter whose value it built --
+%  ColorImageDict is one, and every parameter Adobe states as a
+%  dictionary is another -- and the record holds what it said.
+%
+.xpostsys /.toglobalvalue {  % value  .  value'
+6 dict {
+    /gv.v exch def
+    %  The type is asked for where it is compared and never kept: what
+    %  type answers with is an executable name, and a name of that kind
+    %  held in a variable runs when the variable is read.
+    gv.v type /stringtype eq {
+        currentglobal true setglobal
+        gv.v length string gv.v exch copy
+        exch setglobal
+    }{
+    gv.v type dup /arraytype eq exch /packedarraytype eq or {
+        currentglobal true setglobal
+        gv.v length array
+        exch setglobal
+        0 1 gv.v length 1 sub {
+            /gv.i exch def
+            2 copy gv.v gv.i get
+            //.xpostsys /.toglobalvalue get exec put pop
+        } for
+    }{
+    gv.v type /dicttype eq {
+        currentglobal true setglobal
+        gv.v length 1 add dict
+        exch setglobal
+        gv.v {
+            //.xpostsys /.toglobalvalue get exec
+            3 copy put pop pop
+        } forall
+    }{
+        gv.v
+    } ifelse } ifelse } ifelse
+} //.xpostsys /.indict get exec } put
+
 /setdistillerparams [ /dicttype ] {  % dict  .  -
     //.distillerparams /LockDistillerParams get {
         pop
     }{
-        { //.distillerparams 3 1 roll put } forall
+        { //.toglobalvalue exec
+          //.distillerparams 3 1 roll put } forall
     } ifelse
 } .defop
 

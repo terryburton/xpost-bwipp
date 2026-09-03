@@ -703,6 +703,8 @@ method .svgshrgb svgwrite
 method .fndescribe pdfwrite
 method .filefnobj dscwrite pdfwrite
 method .fileshading dscwrite pdfwrite
+method .imageencoding dscwrite pdfwrite
+method .imagequality dscwrite pdfwrite
 method .fnref pdfwrite
 method PatternCell pdfwrite svgwrite
 method PlaceForm dscwrite pdfwrite svgwrite

@@ -2910,6 +2910,48 @@ int xpost_dev_class_option_default(Xpost_Context *ctx,
    the build left out is not offered. The command line's -p switch is
    the caller: it refuses a key not named here, and holds a value to
    the row's range or vocabulary, before anything is rendered. */
+/* The knobs the PDF writer reads off its device dictionary, stated
+   beside the reads that give them meaning and held to those reads by
+   tests/check-device-facts.sh.
+
+   An image reaches a written document under one of two encodings. Flate
+   gives back exactly the samples it was handed; DCT gives back an
+   approximation of them and is a great deal smaller, which is why the
+   convention for a photograph is DCT and why a page carrying one is
+   otherwise ten times the size it needs to be. Neither is right for
+   every image, so the choice is the caller's: auto takes DCT for a
+   continuous-tone image and Flate for anything else, and the two named
+   values settle it either way.
+
+   The quality is libjpeg's, nought to a hundred, and reaches the
+   encoder as the DCTEncode filter's QFactor, which is that number over
+   a hundred. It means nothing under Flate, where nothing is lost. */
+const Xpost_Dev_Option *xpost_dev_pdf_option_roster(int *count)
+{
+#ifdef HAVE_LIBJPEG
+    static const char *const filterwords[] =
+        { "auto", "dct", "flate", NULL };
+    static const Xpost_Dev_Option options[] =
+    {
+        /* No class named: the PDF writer is declared in PostScript and
+           its class is sealed, so a default is recorded as a host
+           setting and the writer reads it for itself as it is made
+           (.hostvalue). A device whose class is a C structure takes the
+           other route and has the value written onto the class. */
+        { "pdf_image_filter", NULL, NULL, 0, 0, filterwords },
+        { "pdf_image_quality", NULL, NULL, 0, 100, NULL }
+    };
+
+    *count = (int)(sizeof(options) / sizeof(options[0]));
+    return options;
+#else
+    /* without an encoder there is only the one encoding, and a knob
+       that can be set to one value is a knob that should not be offered */
+    *count = 0;
+    return NULL;
+#endif
+}
+
 const Xpost_Dev_Option *xpost_dev_option_roster(int *count)
 {
     static Xpost_Dev_Option roster[16];
@@ -2925,6 +2967,9 @@ const Xpost_Dev_Option *xpost_dev_option_roster(int *count)
         for (i = 0; i < pn; i++)
             roster[n++] = part[i];
         part = xpost_dev_jpeg_option_roster(&pn);
+        for (i = 0; i < pn; i++)
+            roster[n++] = part[i];
+        part = xpost_dev_pdf_option_roster(&pn);
         for (i = 0; i < pn; i++)
             roster[n++] = part[i];
     }
@@ -3806,6 +3851,221 @@ int _pngencode(Xpost_Context *ctx, Xpost_Object arr,
     return 0;
 #else
     (void)arr; (void)wo; (void)ho;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+    return 0;
+#endif
+}
+
+#ifdef HAVE_LIBJPEG
+# include <stdio.h>
+# include <jpeglib.h>
+/* Where libjpeg puts the bytes it makes: into the same growable buffer
+   the rest of this file assembles output in, so the encoded image is one
+   run of bytes by the time it is chunked. */
+typedef struct
+{
+    struct jpeg_destination_mgr pub;
+    Xpost_String_Buffer *out;
+    JOCTET buf[8192];
+    int failed;
+} Pdf_Dct_Dest;
+
+static void _dct_dest_init(j_compress_ptr cinfo)
+{
+    Pdf_Dct_Dest *d = (Pdf_Dct_Dest *)cinfo->dest;
+
+    d->pub.next_output_byte = d->buf;
+    d->pub.free_in_buffer = sizeof(d->buf);
+}
+
+static boolean _dct_dest_empty(j_compress_ptr cinfo)
+{
+    Pdf_Dct_Dest *d = (Pdf_Dct_Dest *)cinfo->dest;
+
+    if (xpost_strbuf_append(d->out, (const char *)d->buf, sizeof(d->buf)))
+        d->failed = 1;
+    d->pub.next_output_byte = d->buf;
+    d->pub.free_in_buffer = sizeof(d->buf);
+    return TRUE;
+}
+
+static void _dct_dest_term(j_compress_ptr cinfo)
+{
+    Pdf_Dct_Dest *d = (Pdf_Dct_Dest *)cinfo->dest;
+    size_t n = sizeof(d->buf) - d->pub.free_in_buffer;
+
+    if (n && xpost_strbuf_append(d->out, (const char *)d->buf, n))
+        d->failed = 1;
+}
+#endif
+
+/* .dctcompress  rows w h ncomp quality  .  chunks true
+                                         .  rows false
+
+   The concatenation of an array of interleaved eight-bit rows, encoded
+   as a JPEG stream and handed back as strings a PostScript string can
+   hold, for the writer to put in a DCTDecode image. Answers false with
+   the rows unchanged where this build has no encoder or the image is
+   not one this encoding takes, so the caller writes it the other way
+   rather than not at all.
+
+   Lossy, which is the whole of why it is worth having: the samples come
+   back close rather than equal, and a photograph costs a tenth of what
+   it costs kept exact. What is lost is the caller's to decide, through
+   the quality this takes. */
+static
+int _dctcompress(Xpost_Context *ctx, Xpost_Object arr, Xpost_Object wo,
+                 Xpost_Object ho, Xpost_Object nco, Xpost_Object qo)
+{
+#ifdef HAVE_LIBJPEG
+    struct jpeg_compress_struct cinfo;
+    struct jpeg_error_mgr jerr;
+    Pdf_Dct_Dest dest;
+    Xpost_String_Buffer out;
+    Xpost_Object result;
+    int w = wo.int_.val, h = ho.int_.val, nc = nco.int_.val;
+    int quality = qo.int_.val;
+    int i, n, ret;
+
+    n = arr.comp_.sz;
+    if (w <= 0 || h <= 0 || n <= 0 || (nc != 1 && nc != 3 && nc != 4))
+    {
+        xpost_stack_push(ctx->lo, ctx->os, arr);
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+    if (quality < 1) quality = 1;
+    if (quality > 100) quality = 100;
+
+    memset(&out, 0, sizeof out);
+    memset(&dest, 0, sizeof dest);
+    dest.out = &out;
+    cinfo.err = jpeg_std_error(&jerr);
+    jpeg_create_compress(&cinfo);
+    dest.pub.init_destination = _dct_dest_init;
+    dest.pub.empty_output_buffer = _dct_dest_empty;
+    dest.pub.term_destination = _dct_dest_term;
+    cinfo.dest = (struct jpeg_destination_mgr *)&dest;
+    cinfo.image_width = (JDIMENSION)w;
+    cinfo.image_height = (JDIMENSION)h;
+    cinfo.input_components = nc;
+    cinfo.in_color_space = nc == 1 ? JCS_GRAYSCALE
+                         : nc == 4 ? JCS_CMYK : JCS_RGB;
+    jpeg_set_defaults(&cinfo);
+    jpeg_set_quality(&cinfo, quality, TRUE);
+    /* The samples arrive as strings, and where they are divided is the
+       caller's business rather than the image's: one string a row, or
+       one string for the whole image, or anything between. So they are
+       read as one run of bytes and cut into scanlines here. */
+    {
+        size_t total = 0, want = (size_t)w * (size_t)nc * (size_t)h;
+        size_t at = 0;
+        int e = 0;
+        unsigned eoff = 0;
+        unsigned char *scan;
+
+        for (i = 0; i < n; i++)
+        {
+            Xpost_Object s = xpost_array_get(ctx, arr, i);
+
+            if (xpost_object_get_type(s) != stringtype)
+            {
+                total = 0;
+                break;
+            }
+            total += s.comp_.sz;
+        }
+        if (total < want)
+        {
+            jpeg_destroy_compress(&cinfo);
+            xpost_strbuf_free(&out);
+            xpost_stack_push(ctx->lo, ctx->os, arr);
+            xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+            return 0;
+        }
+        scan = (unsigned char *)malloc((size_t)w * (size_t)nc);
+        if (!scan)
+        {
+            jpeg_destroy_compress(&cinfo);
+            xpost_strbuf_free(&out);
+            return VMerror;
+        }
+        jpeg_start_compress(&cinfo, TRUE);
+        for (i = 0; i < h; i++)
+        {
+            size_t need = (size_t)w * (size_t)nc, got = 0;
+            JSAMPROW row = (JSAMPROW)scan;
+
+            while (got < need && e < n)
+            {
+                Xpost_Object s = xpost_array_get(ctx, arr, e);
+                unsigned avail = s.comp_.sz - eoff;
+                size_t take = need - got;
+
+                if (take > avail)
+                    take = avail;
+                memcpy(scan + got, xpost_string_get_pointer(ctx, s) + eoff, take);
+                got += take;
+                eoff += (unsigned)take;
+                if (eoff >= s.comp_.sz)
+                {
+                    e++;
+                    eoff = 0;
+                }
+            }
+            (void)at;
+            jpeg_write_scanlines(&cinfo, &row, 1);
+        }
+        free(scan);
+        i = h;
+    }
+    if (i < h)
+    {
+        jpeg_abort_compress(&cinfo);
+        jpeg_destroy_compress(&cinfo);
+        xpost_strbuf_free(&out);
+        xpost_stack_push(ctx->lo, ctx->os, arr);
+        xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
+        return 0;
+    }
+    jpeg_finish_compress(&cinfo);
+    jpeg_destroy_compress(&cinfo);
+    if (dest.failed)
+    {
+        xpost_strbuf_free(&out);
+        return VMerror;
+    }
+    {
+        size_t pos = 0;
+        int nchunks = (int)((out.len + 65534) / 65535);
+
+        if (nchunks == 0)
+            nchunks = 1;
+        result = xpost_object_cvlit(xpost_array_cons(ctx, nchunks));
+        for (i = 0; i < nchunks; i++)
+        {
+            size_t chunk = out.len - pos;
+
+            if (chunk > 65535)
+                chunk = 65535;
+            ret = xpost_array_put(ctx, result, i,
+                                  xpost_object_cvlit(
+                                      xpost_string_cons(ctx, chunk, out.s + pos)));
+            if (ret)
+            {
+                xpost_strbuf_free(&out);
+                return ret;
+            }
+            pos += chunk;
+        }
+    }
+    xpost_strbuf_free(&out);
+    xpost_stack_push(ctx->lo, ctx->os, result);
+    xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
+    return 0;
+#else
+    (void)wo; (void)ho; (void)nco; (void)qo;
+    xpost_stack_push(ctx->lo, ctx->os, arr);
     xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
     return 0;
 #endif
@@ -6524,6 +6784,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".screenink", (Xpost_Op_Func)_screenink, 4,
                              numbertype, numbertype, numbertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".flatecompress", (Xpost_Op_Func)_flatecompress, 1, arraytype); INSTALL;
+    op = xpost_operator_cons(ctx, ".dctcompress", (Xpost_Op_Func)_dctcompress, 5,
+            arraytype, integertype, integertype, integertype, integertype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdffillpoly", (Xpost_Op_Func)_pdffillpoly, 2,
             arraytype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".svgfillpoly", (Xpost_Op_Func)_svgfillpoly, 5,

@@ -253,6 +253,7 @@ typedef struct
 
 const Xpost_Dev_Option *xpost_dev_png_option_roster(int *count);
 const Xpost_Dev_Option *xpost_dev_jpeg_option_roster(int *count);
+const Xpost_Dev_Option *xpost_dev_pdf_option_roster(int *count);
 const Xpost_Dev_Option *xpost_dev_option_roster(int *count);
 
 /**
