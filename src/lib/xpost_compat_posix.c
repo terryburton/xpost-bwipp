@@ -294,6 +294,7 @@ xpost_realpath(const char *path)
 #endif
 }
 
+#if defined(__linux__) && defined(SYS_openat2)
 /* Whether to ask the kernel to resolve beneath a root at all.
  *
  * The atomic primitive exists on one platform. Everywhere else the file
@@ -308,6 +309,10 @@ xpost_realpath(const char *path)
  * running program's: the same environment already says which data
  * directory boots the interpreter and where its scratch is written, so
  * whoever sets this could steer far more than this.
+ *
+ * It is defined where it is read and nowhere else. All three callers sit
+ * inside the atomic route, so on a platform that route is not compiled for
+ * this would be a function nothing calls.
  */
 static int
 _atomic_beneath_off(void)
@@ -318,6 +323,7 @@ _atomic_beneath_off(void)
         off = getenv("XPOST_NO_ATOMIC_BENEATH") != NULL;
     return off;
 }
+#endif
 
 /* struct open_how / RESOLVE_* may predate the installed kernel headers */
 #ifndef XPOST_RESOLVE_NO_SYMLINKS

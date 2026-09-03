@@ -227,7 +227,10 @@ static void _ask(const Xpost_Record *rec, Answers *a)
 }
 
 /* the marks a page of this size makes, used where the point is to fill a
-   record rather than to look at what is in it */
+   record rather than to look at what is in it. Defined where it is
+   called: both callers are in the spill checks, which want a temporary
+   directory the portable route does not give them. */
+#ifndef _WIN32
 static int _bulk(Xpost_Record *rec, int n)
 {
     real colour[1];
@@ -246,6 +249,7 @@ static int _bulk(Xpost_Record *rec, int n)
     }
     return n;
 }
+#endif
 
 int main(void)
 {
