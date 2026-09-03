@@ -767,7 +767,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % cannot come through it. The build runs direct instead, where its
     % own marks go through the ordinary fill and the pattern's paint
     % is tiled over them.
-    /maskok clipok keyok and //.xpostsys /.patternactive get exec not and def
+    %
+    % Nor is coverage any use to a device that takes whole marks. The
+    % capture resolves the glyph to pixels at the resolution the device
+    % is nominally at, and a writer's output has no resolution: what it
+    % writes is read again at whatever the reader chooses. Baking the
+    % one into the other loses on every count at once. MEASURED on a
+    % page of bitmap-font text, capture against direct: 29306 bytes
+    % against 832, twelve thousand seven hundred one-pixel rectangles
+    % against a single stencil placed seven times, 98 ms against 31,
+    % and -- rendered at 300 dpi, four times the resolution the capture
+    % was taken at -- fifty times nearer the shape the glyph actually
+    % is. A device that can be handed the marks is handed them.
+    /maskok clipok keyok and //.xpostsys /.patternactive get exec not and
+              DEVICE /FillPath known not and def
     maskok
     { //.xpostsys /.setmarkedcolor get exec
       devx devy devmat gkey cliparr .maskcachehit }
