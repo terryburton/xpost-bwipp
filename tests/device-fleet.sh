@@ -85,6 +85,19 @@ DEVICE_FLEET_OPTIONAL='png pngalpha jpeg'
 # them came to differ from the third without anything saying so.
 DEVICE_FLEET_VECTOR='pdfwrite svgwrite dscwrite'
 
+# The devices that take a mark as pixels, which is what lets a recorder
+# stand in for one and hold what it painted. Asked of as a class for the
+# same reason the writers are: an answer recorded for "a raster device"
+# and measured on whichever of them came to mind is an answer about that
+# one.
+DEVICE_FLEET_RASTER='pgm ppm tiff raster bgr png pngalpha jpeg'
+
+# The devices that show a grey as a pattern of pixels rather than as a
+# value -- the ones carrying ScreenPaint. What such a device paints
+# depends on where the marks land, so what is captured at one position
+# cannot be replayed at another.
+DEVICE_FLEET_SCREENING='pbm'
+
 DEVICE_FLEET_LIFETIME='pgm null bbox raster bgr png jpeg pdfwrite svgwrite
                        record'
 

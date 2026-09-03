@@ -223,12 +223,12 @@ FORMDEF='/FD << /FormType 1 /BBox [0 0 8 8] /Matrix [1 0 0 1 0 0]
 while read -r cond want rest; do
     [ -n "$want" ] || continue
     case $cond in
-        raster-device)     dev=pgm;      setup="$FORMDEF" ;;
+        raster-device)     dev=$DEVICE_FLEET_RASTER; setup="$FORMDEF" ;;
         clip-holds-box)    dev=pgm;      setup="$FORMDEF
 0 0 32 32 rectclip" ;;
         clip-cuts-box)     dev=pgm;      setup="$FORMDEF
 0 0 4 4 rectclip" ;;
-        screening-device)  dev=pbm;      setup="$FORMDEF" ;;
+        screening-device)  dev=$DEVICE_FLEET_SCREENING; setup="$FORMDEF" ;;
         read-only-form)    dev=pgm;      setup="$FORMDEF
 /FD FD readonly def" ;;
         vector-device)     dev=$DEVICE_FLEET_VECTOR; setup="$FORMDEF" ;;
