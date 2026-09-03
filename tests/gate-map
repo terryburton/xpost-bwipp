@@ -196,6 +196,7 @@ device test stencil-mask-size
 device test svg-*
 device test vecbase
 device test dsc-vocabulary
+device testif svg-render
 device test vector-stroke-clip
 device test dsc-roundtrip
 device test vecout-gc

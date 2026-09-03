@@ -33,6 +33,7 @@ set -u
 src=${1:?usage: check-form-facts.sh <srcroot> <xpost>}
 xpost=${2:?usage: check-form-facts.sh <srcroot> <xpost>}
 . "$(dirname "$0")/guard-paths.sh"
+. "$(dirname "$0")/device-fleet.sh"
 guard_require_srcroot "$src"
 guard_require_interpreter "$xpost"
 guard_srcdata "$src"
@@ -230,13 +231,29 @@ while read -r cond want rest; do
         screening-device)  dev=pbm;      setup="$FORMDEF" ;;
         read-only-form)    dev=pgm;      setup="$FORMDEF
 /FD FD readonly def" ;;
-        vector-device)     dev=pdfwrite; setup="$FORMDEF" ;;
+        vector-device)     dev=$DEVICE_FLEET_VECTOR; setup="$FORMDEF" ;;
         *)  echo "FAIL: the register names a routing condition this check has no"
             echo "      probe for: $cond"
             fail=1
             continue ;;
     esac
-    n=$(runs "$dev" "$setup")
+    # A condition naming a class of device is asked of every device in
+    # it. One of them answering differently is the whole of what this
+    # register is for, and a probe that ran the first of them would have
+    # recorded the class from a sample of one.
+    n=
+    for d in $dev; do
+        _n=$(runs "$d" "$setup")
+        case "$n" in
+            '')    n=$_n; nfirst=$d ;;
+            "$_n") ;;
+            *)     echo "FAIL: $cond is one question and the devices it names do not"
+                   echo "      answer it alike: $nfirst answered '$n' and $d answered"
+                   echo "      '$_n'. Split the row, or make them agree."
+                   fail=1
+                   n=$_n ;;
+        esac
+    done
     case "$n:$want" in
         1:held|2:afresh) ;;
         1:afresh)

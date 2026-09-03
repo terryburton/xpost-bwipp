@@ -6750,6 +6750,20 @@ test('dsc-roundtrip',
   args: [ xpost_exe ],
   timeout: 60)
 
+# The same question asked of the SVG writer, which had nobody asking it:
+# the DSC output is run back as the program it is and the PDF output goes
+# to a consumer, and a drawing was read by nothing. It is rendered and
+# held to the ink the raster device put on the same page, because a
+# renderer's edges are its own and the quantity of ink is not a matter of
+# edges. Skips where the machine has no renderer.
+test('svg-render',
+  find_program('tests/run-svg-render-test.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ xpost_exe, meson.current_source_dir() ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  timeout: 120)
+
 test('vecbase',
   find_program('tests/check-vecbase.sh'),
   priority: guard_priority,

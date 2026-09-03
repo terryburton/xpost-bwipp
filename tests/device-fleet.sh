@@ -78,6 +78,13 @@ DEVICE_FLEET_ALL='pgm ppm pbm tiff null bbox raster bgr png pngalpha
 
 DEVICE_FLEET_OPTIONAL='png pngalpha jpeg'
 
+# The writers: devices whose page is a program or a drawing rather than
+# pixels. A question a register answers for "a vector device" is answered
+# by all of them or by none, so a probe naming that class runs over this
+# and not over whichever one of them came to mind -- which is how two of
+# them came to differ from the third without anything saying so.
+DEVICE_FLEET_VECTOR='pdfwrite svgwrite dscwrite'
+
 DEVICE_FLEET_LIFETIME='pgm null bbox raster bgr png jpeg pdfwrite svgwrite
                        record'
 
