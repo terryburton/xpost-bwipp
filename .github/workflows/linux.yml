@@ -51,18 +51,21 @@ jobs:
           echo "$face -> $file"
         done
     # Warnings are errors on this leg, in both object widths and both
-    # backings. Promotion happens here rather than in meson.build so that
-    # it binds on the platform the tree has actually been read against
-    # and stays a warning everywhere else: the attribute much of it
-    # answers is XPOST_MUST_CHECK, which the interpreter puts on the
-    # functions whose refusal a caller has to read, but the same
-    # attribute is on a set of libc declarations that each C library
-    # chooses for itself, so the calls a diagnostic fires on are not the
-    # same set on the msys2 and osx runners as they are here. Those legs
-    # report theirs in their logs -- it is in -Wall, which
-    # strict_warnings takes -- so a platform whose libc marks something
-    # this one does not says so, and a promotion follows a leg that has
-    # been seen clean rather than being made on its behalf.
+    # backings, as they are on the osx and msys2 legs. Each platform
+    # raises what the others cannot: a definition compiled into every
+    # build but called from only some of them is dead weight on exactly
+    # one of them, and a branch written for one platform is compiled
+    # nowhere else. A leg that reports such a thing without stopping for
+    # it reports it to nobody.
+    #
+    # What promoting everywhere costs is that a diagnostic whose set the
+    # platform decides now stops a build rather than filling a log. The
+    # clearest is the attribute behind -Wunused-result: the interpreter
+    # puts XPOST_MUST_CHECK on the functions whose refusal a caller has to
+    # read, and each C library puts it on a set of declarations it chooses
+    # for itself, so the calls it fires on are not the same set on every
+    # runner. Each leg was built clean at both widths on a host of its own
+    # platform before this was asked of it.
     #
     # Both widths take it, and that is the point of saying so here. word
     # is an unsigned short in the default build and an unsigned int under

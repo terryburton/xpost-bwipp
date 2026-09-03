@@ -87,7 +87,13 @@ jobs:
           [ -n "$file" ] || { echo "no face answers to $face"; exit 1; }
           echo "$face -> $file"
         done
+    # Warnings are errors here as they are on the linux legs, in both
+    # object widths. This leg is the only one that compiles the branches
+    # written for this platform, so a diagnostic in one of them is raised
+    # nowhere else -- the helper defined outside the condition its callers
+    # carry, and the size printed through a conversion for a narrower
+    # type, were both reported here and by no other leg.
     - name: meson
-      run: meson setup -Dlarge-object=${{ matrix.object == 'large' }} builddir
+      run: meson setup -Dlarge-object=${{ matrix.object == 'large' }} --werror builddir
     - name: meson test
       run: meson test -C builddir --print-errorlogs

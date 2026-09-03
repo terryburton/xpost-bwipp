@@ -43,8 +43,14 @@ jobs:
           [ -n "$file" ] || { echo "no face answers to $face"; exit 1; }
           echo "$face -> $file"
         done
+    # Warnings are errors here as they are on the linux legs, in both
+    # object widths. This leg reports what the others cannot: the two
+    # definitions compiled into every build and called from only some of
+    # them were each raised by exactly one platform, and one of them by
+    # this one alone. A diagnostic only one platform can raise is worth
+    # nothing if that platform is the one that does not stop for it.
     - name: configure
-      run: meson setup -Dlarge-object=${{ matrix.object == 'large' }} builddir
+      run: meson setup -Dlarge-object=${{ matrix.object == 'large' }} --werror builddir
     - name: make
       run: ninja -C builddir
     - name: meson test
