@@ -367,20 +367,101 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  device pixels across, each filled flat with the function's colour
 %  at its centre.
 %
+%
+%  How wide a cell of a function shading is, in device units.
+%
+%  The colour of such a shading is whatever its function says, so a cell
+%  is only as right as it is small: FLAT cells are the colour at their
+%  own centre and nothing else, and three units is what that costs to
+%  look continuous.
+%
+%  Where the cell can be painted as a colour PLANE instead, its corners
+%  carry the colour and everything between them is interpolated, so a
+%  cell may be far larger for the same picture -- and the function, which
+%  is what a shading of this kind spends its time in, is asked once per
+%  corner rather than once per cell. MEASURED on a page of them, the
+%  function was 49 per cent of the time.
+%
+/.fncellflat 3 def
+/.fncellplane 12 def
+
 /.fnsh {  % shdict  .  -
-    14 dict begin
+    32 dict begin
     /sh exch def
     /fn sh /Function get def
     /dom sh /Domain 2 copy known { get }{ pop pop [ 0 1 0 1 ] } ifelse def
     sh /Matrix 2 copy known { get concat }{ pop pop } ifelse
     /x0 dom 0 get def /x1 dom 1 get def
     /y0 dom 2 get def /y1 dom 3 get def
+
+    % The triangle painter takes a colour plane straight to the device.
+    % It wants what a mesh wants, and is asked in the same words: this
+    % shading names no function of its own as far as the colour machinery
+    % is concerned -- the components are worked out here and handed over
+    % ready -- so the question is only whether they reach the device
+    % unchanged.
+    /shfn null def
+    /gtint //.xpostsys /.gtintspace get exec def
+    //.xpostsys /.gflatplan get exec
+    /gflush exch def /gfpoly exch def /gdev exch def
+    dup null eq { //.xpostsys /.gflatgeneral get }{ //.xpostsys /.gflatfast get } ifelse /gflat exch def
+    /gconv exch def
+    /gtrishadeop //.internaldict /.trishade get def
+    /gcpath currentdict /gconv get null ne
+            { //.xpostsys /.gcolidentity get exec }{ false } ifelse def
+
+    % And the whole domain has to sit inside the clip. A triangle the
+    % region can cut is declined by the painter and would have to be
+    % filled flat instead -- at the coarse size chosen for planes, which
+    % would be visibly coarse. Asked once, for the domain, so that the
+    % cell size and the way it is painted are decided together.
+    /fastok gcpath {
+        //.internaldict /.cliprect get exec {
+            /cy1 exch def /cx1 exch def /cy0 exch def /cx0 exch def
+            /bx0 9e99 def /by0 9e99 def /bx1 -9e99 def /by1 -9e99 def
+            [ [ x0 y0 ] [ x1 y0 ] [ x1 y1 ] [ x0 y1 ] ] {
+                aload pop transform
+                /ty exch def /tx exch def
+                tx bx0 lt { /bx0 tx def } if  tx bx1 gt { /bx1 tx def } if
+                ty by0 lt { /by0 ty def } if  ty by1 gt { /by1 ty def } if
+            } forall
+            bx0 cx0 ge by0 cy0 ge and bx1 cx1 le and by1 cy1 le and
+        }{ false } ifelse
+    }{ false } ifelse def
+
+    /cw fastok { //.fncellplane }{ //.fncellflat } ifelse def
     /nx x1 x0 sub 0 dtransform dup mul exch dup mul add sqrt
-        3 div ceiling cvi 1 2 copy lt { exch } if pop 200 2 copy gt { exch } if pop def
+        cw div ceiling cvi 1 2 copy lt { exch } if pop 200 2 copy gt { exch } if pop def
     /ny 0 y1 y0 sub dtransform dup mul exch dup mul add sqrt
-        3 div ceiling cvi 1 2 copy lt { exch } if pop 200 2 copy gt { exch } if pop def
+        cw div ceiling cvi 1 2 copy lt { exch } if pop 200 2 copy gt { exch } if pop def
     /dx x1 x0 sub nx div def
     /dy y1 y0 sub ny div def
+
+    fastok {
+        % The function at a corner, as the components a vertex carries.
+        /evalc {  % cx cy  .  [c0..cn-1]
+            mark 3 1 roll fn //.fneval2 exec pop ]
+        } def
+        /row {  % j  .  the row of corner colours above j
+            /jj exch def
+            [ 0 1 nx { dup dx mul x0 add  y0 jj dy mul add  evalc exch pop } for ]
+        } def
+        /prow 0 row def
+        0 1 ny 1 sub { /j exch def
+            /crow j 1 add row def
+            0 1 nx 1 sub { /i exch def
+                /ax x0 i dx mul add def /ay y0 j dy mul add def
+                /bx ax dx add def /by ay dy add def
+                /pa [ ax ay prow i get aload pop ] def
+                /pb [ bx ay prow i 1 add get aload pop ] def
+                /pc [ bx by crow i 1 add get aload pop ] def
+                /pd [ ax by crow i get aload pop ] def
+                /va pa def /vb pb def /vc pc def //.xpostsys /.gtrishade get exec pop
+                /va pa def /vb pc def /vc pd def //.xpostsys /.gtrishade get exec pop
+            } for
+            /prow crow def
+        } for
+    }{
     0 1 nx 1 sub { /i exch def
         0 1 ny 1 sub { /j exch def
             /cx x0 i dx mul add def
@@ -394,6 +475,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             closepath fill
         } for
     } for
+    } ifelse
     end
 } def
 
