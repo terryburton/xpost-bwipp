@@ -193,6 +193,26 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } //.indict exec } put
 
 %
+%  Whether the clip in force can be HANDED to the device to draw
+%  beneath. A trivial clip has nothing to hand over and needs nothing;
+%  any other region needs both a device that clips for itself and a
+%  clip that is still a path to give it.
+%
+%  The page's own clip is not such a region: it carries no shape to
+%  hand over. A drawing may still go over whole beneath it, there being
+%  nothing there to clip against, and .devtakespath says so -- but a
+%  decision that turns on the clip REACHING the device, rather than on
+%  the drawing surviving whole, asks this instead.
+%
+.xpostsys /.devhandsclip {  % -  .  bool
+    .cliptrivial
+    { true }
+    { DEVICE /ClipPath known
+      graphicsdict /currgstate get /clipsource get null ne and }
+    ifelse
+} put
+
+%
 %  Whether the device may take the whole path. A trivial clip needs
 %  nothing further; a clip that is still a path can be handed to a device
 %  that clips for itself (ClipPath), which is far better than dissolving
@@ -201,12 +221,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 .xpostsys /.devtakespath {  % -  .  bool
     DEVICE /FillPath known {
-        .cliptrivial
-        { true }
-        { DEVICE /ClipPath known
-          graphicsdict /currgstate get /clipsource get null ne and
-          //.clipispage exec or }
-        ifelse
+        //.devhandsclip exec //.clipispage exec or
     }{ false } ifelse
 } put
 
@@ -224,12 +239,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %
 .xpostsys /.devtakesstroke {  % -  .  bool
     DEVICE /StrokePath known {
-        .cliptrivial
-        { true }
-        { DEVICE /ClipPath known
-          graphicsdict /currgstate get /clipsource get null ne and
-          //.clipispage exec or }
-        ifelse
+        //.devhandsclip exec //.clipispage exec or
     }{ false } ifelse
 } put
 

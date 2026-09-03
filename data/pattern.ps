@@ -382,7 +382,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             DEVICE /PatternOverlap get
             { pop true }{ //.patternfits exec } ifelse
         }{ pop false } ifelse
-        //.devtakespath exec and
+        %  The pattern goes to the device as a resource only where the
+        %  clip can be handed over with it. The page's own clip lets a
+        %  DRAWING go over whole -- there is nothing to clip against --
+        %  but it is not a region the cell can be filed under, and the
+        %  walk below is what paints a cell beneath the region in force.
+        DEVICE /FillPath known //.devhandsclip exec and and
     }{ pop false } ifelse
 } def
 
