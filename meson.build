@@ -6756,6 +6756,18 @@ test('vecbase',
   suite: cost_fast,
   args: [ meson.current_source_dir() ])
 
+# The DSC writer's output is a program in a language its own prolog
+# defines. Held both ways: the page names no operator the prolog does not
+# define, so a reader of it does not stop part way; and the prolog defines
+# no operator this guard's workloads never reach, so an emitting path
+# cannot arrive without a page that runs it back.
+test('dsc-vocabulary',
+  find_program('tests/check-dsc-vocabulary.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # How a private helper is frozen and how it is called: no helper is bound
 # where it is defined, because .finalize binds them once the standard
 # operators are promoted and a body bound earlier keeps the names it calls

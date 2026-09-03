@@ -1,0 +1,36 @@
+# The operators the DSC writer's output may use that its own prolog does
+# not define.
+#
+# What that device emits is a program in a language of its own making:
+# the prolog defines a short name for each operator the page needs, and
+# the page is written in those names. Anything else it emits has to be an
+# operator the reader already has, which for this device means
+# LanguageLevel 1 -- and every entry below is one, named here so that
+# adding a second is a decision somebody takes rather than a token that
+# appears.
+#
+# This exists because the device once emitted an operator its own prolog
+# never defined. Nothing had asked for it: the selection concerned is
+# written only where the stream is not already carrying it, and only a
+# capture starts that record again, so the page that named an operator
+# its reader had never heard of was the first page ever to hold a
+# captured description. A page that stops at an operator it invented is
+# not a difference a byte comparison can see, and the round-trip that
+# would have seen it had no workload that reached the emitting path.
+#
+# The guard reads this both ways. Every bare token the output uses must
+# be defined by the prolog, defined by the output itself, or named here.
+# And every operator the prolog defines must be reached by the workloads
+# below -- so machinery that adds an operator to the prolog and no
+# workload to reach it fails here rather than shipping unexercised.
+
+# --- LanguageLevel 1 operators the output uses directly
+def             a form's description is named once and called at each placement
+gsave           brackets a placement, so the translate it makes is its own
+grestore        the other half of that bracket
+translate       puts a called description where the placement wants it
+showpage        ends the page, which is what a page is for
+setpagedevice   states the paper the marks were measured against
+
+# --- names the output writes that are not operators at all
+PageSize        the key setpagedevice is given

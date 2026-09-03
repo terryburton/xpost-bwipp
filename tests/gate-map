@@ -195,6 +195,7 @@ device test startup-page
 device test stencil-mask-size
 device test svg-*
 device test vecbase
+device test dsc-vocabulary
 device test vector-stroke-clip
 device test dsc-roundtrip
 device test vecout-gc
@@ -543,6 +544,7 @@ guards test opsigs-writer
 guards test op-references
 guards test private-refs
 guards test vecbase
+guards test dsc-vocabulary
 guards test operator-identity
 guards test operator-names
 guards test image-config

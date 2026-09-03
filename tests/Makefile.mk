@@ -99,6 +99,8 @@ tests/check-file-headers.sh \
 tests/check-file-purpose.sh \
 tests/check-memory-declarations.sh \
 tests/check-device-skeleton.sh \
+tests/check-dsc-vocabulary.sh \
+tests/dsc-vocabulary \
 tests/check-width-comparisons.sh \
 tests/check-type42-charstrings.sh \
 tests/check-dict-homes.sh \
