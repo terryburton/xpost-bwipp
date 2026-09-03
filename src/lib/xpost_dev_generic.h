@@ -116,6 +116,24 @@ int xpost_dev_pdf_state(Xpost_Context *ctx, Xpost_Object devdic,
  * Writes an integer when integral, else two decimals (never
  * exponential). Returns the number of bytes written.
  */
+/* File a description the content will place, and answer with the number
+   the content names it by. The bytes are the description's own content
+   stream, written in its own space; the box is the extent they span in
+   that space. A description already filed whose bytes and box are these
+   is not filed again -- which is what lets the same glyph drawn a
+   thousand times be written once. */
+/* Whether an outline drawn again is worth a description of its own yet:
+   1 with the number to place, 0 to write the outline where it stands. */
+int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
+                             const double *bbox, const char *body,
+                             size_t len, int *index);
+
+XPOST_MUST_CHECK int xpost_dev_pdf_form_file(Xpost_Context *ctx,
+                                             Xpost_Object devdic,
+                                             const double *bbox,
+                                             const char *body, size_t len,
+                                             int *index);
+
 int xpost_dev_pdf_fmt_num(char *o, double v);
 
 /**

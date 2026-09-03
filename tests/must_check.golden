@@ -19,7 +19,7 @@
 # shrank says so with a number that went down -- a diff dropping a name
 # and its mark together otherwise reads as a tidy-up.
 
-entries 31
+entries 32
 
 xpost_array_put
 xpost_array_put_memory
@@ -50,6 +50,7 @@ xpost_stack_topdown_replace
 xpost_string_put
 _pdf_acc_put
 _put_named
+xpost_dev_pdf_form_file
 garbage_collect
 garbage_collect_function
 

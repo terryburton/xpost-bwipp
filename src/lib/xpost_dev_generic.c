@@ -4152,6 +4152,29 @@ typedef struct
     size_t len;
 } Pdf_Obj;
 
+/* A glyph outline the content has drawn, and how often.
+
+   Filing a description costs an object and a name in every page's
+   resources, and saves the outline's own bytes at each occurrence after
+   the first. So a glyph drawn over and over pays for itself many times
+   and one drawn once never does: MEASURED, filing every glyph turned a
+   page of text from 66.5 times the reference's size into 4.2, and
+   turned a waterfall of one alphabet at forty sizes -- where nothing
+   repeats -- from 59.8 into 160.1.
+
+   Hence the count, and the bytes beside it. The bytes are kept so that
+   two different outlines which happen to hash alike cannot be taken for
+   one: a wrong description placed is a wrong glyph on the page, which
+   is not a trade worth making for the memory. */
+typedef struct
+{
+    unsigned hash;
+    char *body;
+    size_t len;
+    int count;
+    int form;     /* the description once filed, or -1 */
+} Pdf_Gly;
+
 /* An ExtGState the page's content selects. The content says /GS<key> gs
    and the page's resources have to define /GS<key>, so the two are one
    fact and are kept in the one place: here, outside virtual memory,
@@ -4184,6 +4207,9 @@ typedef struct
     int npats;
     int patcap;
     int formgen;   /* which document the filed descriptions belong to */
+    Pdf_Gly *glys;
+    int nglys;
+    int glycap;
     Pdf_Obj *objs;
     int nobjs;
     int objcap;
@@ -4295,6 +4321,12 @@ static void _pdf_acc_reclaim(void *block)
     a->shs = NULL;
     a->nshs = 0;
     a->shcap = 0;
+    for (i = 0; i < a->nglys; i++)
+        free(a->glys[i].body);
+    free(a->glys);
+    a->glys = NULL;
+    a->nglys = 0;
+    a->glycap = 0;
 }
 
 /* Create the content accumulator and stash it in the device's /Private. Called
@@ -4322,6 +4354,9 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
     a.npats = 0;
     a.patcap = 0;
     a.formgen = 0;
+    a.glys = NULL;
+    a.nglys = 0;
+    a.glycap = 0;
     a.objs = NULL;
     a.nobjs = 0;
     a.objcap = 0;
@@ -5764,6 +5799,163 @@ static int _pdfresadd(Xpost_Context *ctx, Xpost_Object kind,
     }
     xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(i));
     return 0;
+}
+
+/* File a description from C, for the font machinery: the same table the
+   PostScript side files into, reached without going through an
+   operator. Bytes and box only, so a glyph drawn again is recognised by
+   what it says rather than by anything the caller has to remember. */
+/* Whether this outline is worth a description of its own yet.
+
+   Answers 1 with the description's number when the content should place
+   it, and 0 when the content should write the outline out where it
+   stands. The third sighting is where it files: an outline drawn twice
+   costs more filed than written twice, and one drawn three times costs
+   less.
+
+   The cap is what the record is prepared to hold. Past it an outline is
+   written out as it comes, which is what this did before any of it. */
+#define PDF_GLY_CAP  4096
+#define PDF_GLY_FILE_AT 3
+int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
+                             const double *bbox, const char *body,
+                             size_t len, int *index)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Gly *g = NULL;
+    unsigned h = 2166136261u;
+    size_t k;
+    int i;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return 0;
+    for (k = 0; k < len; k++)
+        h = (h ^ (unsigned char)body[k]) * 16777619u;
+    for (i = 0; i < a.nglys; i++)
+        if (a.glys[i].hash == h && a.glys[i].len == len &&
+            memcmp(a.glys[i].body, body, len) == 0)
+        {
+            g = &a.glys[i];
+            break;
+        }
+    if (!g)
+    {
+        if (a.nglys >= PDF_GLY_CAP)
+            return 0;
+        if (a.nglys == a.glycap)
+        {
+            int nc = a.glycap ? a.glycap * 2 : 64;
+                Pdf_Gly *ng = (Pdf_Gly *)realloc(a.glys, (size_t)nc * sizeof(Pdf_Gly));
+
+            if (!ng)
+                return 0;
+            a.glys = ng;
+            a.glycap = nc;
+        }
+        g = &a.glys[a.nglys];
+        g->hash = h;
+        g->len = len;
+        g->count = 1;
+        g->form = -1;
+        g->body = len ? (char *)malloc(len) : NULL;
+        if (len && !g->body)
+            return 0;
+        if (len)
+            memcpy(g->body, body, len);
+        a.nglys++;
+        if (!_pdf_acc_put(ctx, priv, &a))
+        {
+            free(g->body);
+            free(a.glys);
+            return 0;
+        }
+        return 0;
+    }
+    g->count++;
+    if (g->form >= 0)
+    {
+        *index = g->form;
+        if (!_pdf_acc_put(ctx, priv, &a))
+            return 0;
+        return 1;
+    }
+    if (g->count < PDF_GLY_FILE_AT)
+    {
+        if (!_pdf_acc_put(ctx, priv, &a))
+            return 0;
+        return 0;
+    }
+    /* worth filing now: the store is written back by the filing itself */
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return 0;
+    if (!xpost_dev_pdf_form_file(ctx, devdic, bbox, body, len, index))
+        return 0;
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return 0;
+    for (i = 0; i < a.nglys; i++)
+        if (a.glys[i].hash == h && a.glys[i].len == len &&
+            memcmp(a.glys[i].body, body, len) == 0)
+        {
+            a.glys[i].form = *index;
+            break;
+        }
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return 0;
+    return 1;
+}
+
+int xpost_dev_pdf_form_file(Xpost_Context *ctx, Xpost_Object devdic,
+                            const double *bbox, const char *body, size_t len,
+                            int *index)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Res cand, *e;
+    int i;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return 0;
+    memset(&cand, 0, sizeof(cand));
+    for (i = 0; i < 4; i++)
+        cand.bb[i] = bbox[i];
+    cand.body = len ? (char *)malloc(len) : NULL;
+    if (len && !cand.body)
+        return 0;
+    if (len)
+        memcpy(cand.body, body, len);
+    cand.bodylen = len;
+    for (i = 0; i < a.nforms; i++)
+        if (_res_same(&a.forms[i], &cand))
+        {
+            free(cand.body);
+            *index = i;
+            return 1;
+        }
+    if (a.nforms == a.formcap)
+    {
+        int nc = a.formcap ? a.formcap * 2 : 4;
+        Pdf_Res *nr = (Pdf_Res *)realloc(a.forms, (size_t)nc * sizeof(Pdf_Res));
+
+        if (!nr)
+        {
+            free(cand.body);
+            return 0;
+        }
+        a.forms = nr;
+        a.formcap = nc;
+    }
+    e = &a.forms[a.nforms];
+    *e = cand;
+    i = a.nforms++;
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        free(cand.body);
+        free(a.forms);
+        return 0;
+    }
+    *index = i;
+    return 1;
 }
 
 /* how many of that kind the page's content places */

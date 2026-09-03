@@ -92,6 +92,7 @@ typedef struct fontdata
    walk to the graphics state, the font, the device and the colour over
    again for every string it painted. The table is what the installer
    walks; the statics are what the operators read. */
+static Xpost_Object name_FormXObject;
 static Xpost_Object name_dotemunits;
 static Xpost_Object name_dotfacecache;
 static Xpost_Object name_dotgraphicsdict;
@@ -152,6 +153,7 @@ static Xpost_Object name_yadvance;
 
 static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
 {
+    { &name_FormXObject, "FormXObject" },
     { &name_dotemunits, ".emunits" },
     { &name_dotfacecache, ".facecache" },
     { &name_dotgraphicsdict, ".graphicsdict" },
@@ -3473,6 +3475,13 @@ typedef struct glyphfrag
     int has;   /* any contour emitted */
     int oom;
     int svg;   /* emit SVG path commands instead of PDF operators */
+    /* Built in the glyph's own space rather than at the pen, so that
+       the same glyph drawn again is the same bytes and can be filed
+       once and placed. The box those bytes span is collected as they
+       are written, the filing needing it and nothing else knowing it. */
+    int rel;
+    int havebox;
+    double x0, y0, x1, y1;
 } glyphfrag;
 
 /* --- a glyph as an outline, for a device that wants one --------------
@@ -3499,10 +3508,28 @@ static int _frag_xy(glyphfrag *f, double x, double y)
 {
     char t[64];
     int n;
+    double gx = f->rel ? x : f->px + x;
+    double gy = f->rel ? -y : f->py - y;
 
-    n = xpost_dev_pdf_fmt_num(t, f->px + x);
+    if (f->rel)
+    {
+        if (!f->havebox)
+        {
+            f->x0 = f->x1 = gx;
+            f->y0 = f->y1 = gy;
+            f->havebox = 1;
+        }
+        else
+        {
+            if (gx < f->x0) f->x0 = gx;
+            if (gx > f->x1) f->x1 = gx;
+            if (gy < f->y0) f->y0 = gy;
+            if (gy > f->y1) f->y1 = gy;
+        }
+    }
+    n = xpost_dev_pdf_fmt_num(t, gx);
     t[n++] = ' ';
-    n += xpost_dev_pdf_fmt_num(t + n, f->py - y);
+    n += xpost_dev_pdf_fmt_num(t + n, gy);
     t[n++] = ' ';
     return _frag_put(f, t, n);
 }
@@ -3648,6 +3675,21 @@ int _show_char_outline(Xpost_Context *ctx,
     if (f.svg)
         _frag_put(&f, t, n);
 
+    /* A writer that can hold a description gets the glyph written in its
+       own space and placed, rather than written out again wherever the
+       pen happens to be. A page of text draws a few dozen distinct
+       glyphs a few thousand times between them, and the outline is the
+       same outline every time: MEASURED on a page of ordinary text, six
+       hundred and eighty-one filled outlines and forty-two shapes.
+       Nothing is remembered here to make that work -- the filing
+       recognises a description by what it says -- so the same glyph at a
+       second size, which is a different outline, files separately as it
+       must. */
+    if (!f.svg &&
+        xpost_object_get_type(xpost_dict_get(ctx, devdic,
+                                             name_FormXObject)) != invalidtype)
+        f.rel = 1;
+
     sink.moveto = _frag_moveto;
     sink.lineto = _frag_lineto;
     sink.curveto = _frag_curveto;
@@ -3679,7 +3721,70 @@ int _show_char_outline(Xpost_Context *ctx,
                 xpost_strbuf_free(&f.d);
                 return 0;
             }
-            if (xpost_dev_pdf_append(ctx, devdic, f.d.s, f.d.len))
+            if (f.rel)
+            {
+                /* the description, and where this occurrence puts it */
+                double bb[4];
+                char pl[128];
+                int pn, idx = 0;
+
+                bb[0] = f.x0; bb[1] = f.y0; bb[2] = f.x1; bb[3] = f.y1;
+                /* Only where the outline has come back often enough to
+                   pay for a description of its own. Until then it is
+                   written where it stands -- which is what keeps a page
+                   that repeats nothing, a waterfall of one alphabet at
+                   forty sizes, the size it was. */
+                if (!xpost_dev_pdf_glyph_form(ctx, devdic, bb,
+                                              f.d.s, f.d.len, &idx))
+                {
+                    /* Written where it stands, which means written
+                       again: what was built is in the glyph's own space
+                       and the page wants it at the pen. Wrapping it in a
+                       translation instead would put thirty bytes on
+                       every occurrence of every outline that never
+                       repeats, which is the case this branch exists to
+                       leave alone. Walking the outline a second time
+                       costs no bytes at all, and decomposing a glyph
+                       does not register against a run that spends its
+                       time in the interpreter. */
+                    f.d.len = 0;
+                    f.rel = 0;
+                    f.has = 0;
+                    if (!xpost_font_face_glyph_outline(face, glyph_index,
+                                                       &sink, advance_x,
+                                                       advance_y))
+                    {
+                        xpost_strbuf_free(&f.d);
+                        return 0;
+                    }
+                    if (f.has && !f.oom)
+                    {
+                        _frag_put(&f, "f\n", 2);
+                        if (!f.oom &&
+                            xpost_dev_pdf_append(ctx, devdic, f.d.s, f.d.len))
+                        {
+                            xpost_strbuf_free(&f.d);
+                            return 0;
+                        }
+                        *inked = 1;
+                    }
+                    xpost_strbuf_free(&f.d);
+                    return 1;
+                }
+                pn = 0;
+                memcpy(pl + pn, "q 1 0 0 1 ", 10); pn += 10;
+                pn += xpost_dev_pdf_fmt_num(pl + pn, f.px); pl[pn++] = ' ';
+                pn += xpost_dev_pdf_fmt_num(pl + pn, f.py);
+                memcpy(pl + pn, " cm /Fm", 7); pn += 7;
+                pn += sprintf(pl + pn, "%d", idx);
+                memcpy(pl + pn, " Do\nQ\n", 6); pn += 6;
+                if (xpost_dev_pdf_append(ctx, devdic, pl, (size_t)pn))
+                {
+                    xpost_strbuf_free(&f.d);
+                    return 0;
+                }
+            }
+            else if (xpost_dev_pdf_append(ctx, devdic, f.d.s, f.d.len))
             {
                 /* the glyph's content did not reach the page */
                 xpost_strbuf_free(&f.d);
