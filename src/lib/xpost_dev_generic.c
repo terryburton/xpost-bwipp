@@ -4021,6 +4021,12 @@ typedef struct
    memory, and a `restore` that rolled the record back while the content
    stood would leave it claiming bytes the stream does not carry. */
 #define PDF_GS_DEPTH 32
+
+/* How deep captures may nest. A description placed inside a description
+   inside a description is ordinary; past this the innermost is painted
+   where it stands, which is the right page and the route a device
+   without any of this takes. */
+#define PDF_SUB_DEPTH 8
 #define PDF_GS_TEXT  64
 
 typedef struct
@@ -4055,17 +4061,26 @@ typedef struct
        page carries would leave the cell relying on state the cell's own
        stream never states.
 
-       One capture at a time. A cell captured inside a cell would be
-       written in the outer cell's coordinates while the pattern space
-       the inner one was instantiated in says otherwise, and refusing it
-       here is what makes that true wherever a capture is reached
-       from -- the caller then tiles the cells itself, which is the
-       route every device without this has. */
-    int insub;
-    size_t subat;               /* where in the content the cell starts */
-    int subdepth;
-    int subover;
-    Pdf_Gs_Slot subslot[XPOST_PDF_GS_SLOTS];
+       Captures nest, and they nest as a stack: what is opened last is
+       always closed first, because a description placed inside another
+       finishes before the one placing it. So the record is a stack of
+       them and not a single one.
+
+       Whether a caller MAY nest is the caller's own question, and it
+       says so when it opens one. A form may: it carries the box and the
+       placement its description is written against, so a description
+       captured inside another is composed by what is written down. A
+       pattern may not: its space is fixed against the page when the
+       pattern is instantiated, so a cell captured inside a cell would be
+       written in the outer cell's coordinates while its own space says
+       otherwise. The pattern machinery refuses such a cell itself; the
+       flag here is what keeps that true wherever a capture is reached
+       from. */
+    int insub;                  /* how many are open */
+    size_t subat[PDF_SUB_DEPTH];  /* where in the content each starts */
+    int subdepth[PDF_SUB_DEPTH];
+    int subover[PDF_SUB_DEPTH];
+    Pdf_Gs_Slot subslot[PDF_SUB_DEPTH][XPOST_PDF_GS_SLOTS];
 } Pdf_Gs;
 
 typedef struct
@@ -4427,33 +4442,40 @@ static int _pdfrestore(Xpost_Context *ctx, Xpost_Object devdic)
    accumulator to capture out of, or a capture already open: the caller
    then paints the cells itself, which is the route a device without
    these has. */
-static int _pdfsubbegin(Xpost_Context *ctx, Xpost_Object devdic)
+static int _pdfsubbegin(Xpost_Context *ctx, Xpost_Object nest,
+                        Xpost_Object devdic)
 {
     Pdf_Acc a;
     Xpost_Object priv;
+    int i;
 
     if (!_pdf_acc_get(ctx, devdic, &priv, &a) || !_pdf_gs_of(ctx, priv, &a))
     {
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
         return 0;
     }
-    if (a.gs->insub)
+    /* A caller that does not nest is refused while any capture is open,
+       which is what it asked for; one that does is refused only past the
+       depth the stack holds. Either way the answer is false and the
+       caller paints where it stands. */
+    if ((a.gs->insub && !nest.int_.val) || a.gs->insub >= PDF_SUB_DEPTH)
     {
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
         return 0;
     }
-    a.gs->insub = 1;
-    a.gs->subat = a.content.len;
-    a.gs->subdepth = a.gs->depth;
-    a.gs->subover = a.gs->over;
-    memcpy(a.gs->subslot, a.gs->level[a.gs->depth].slot,
-           sizeof(a.gs->subslot));
+    i = a.gs->insub;
+    a.gs->subat[i] = a.content.len;
+    a.gs->subdepth[i] = a.gs->depth;
+    a.gs->subover[i] = a.gs->over;
+    memcpy(a.gs->subslot[i], a.gs->level[a.gs->depth].slot,
+           sizeof(a.gs->subslot[i]));
     memset(&a.gs->level[a.gs->depth], 0, sizeof(a.gs->level[0]));
     a.gs->over = 0;
     a.gs->pend.len = 0;
+    a.gs->insub = i + 1;
     /* the record hangs off the accumulator by pointer, so what it holds
        is written where it lives and the struct needs no storing back */
-    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons((integer)a.gs->subat));
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons((integer)a.gs->subat[i]));
     xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
     return 0;
 }
@@ -4476,18 +4498,20 @@ static int _pdfsubend(Xpost_Context *ctx, Xpost_Object at, Xpost_Object devdic)
        the calls. The operand stands in only for a capture this never
        opened, where winding back to it is the caller's own statement
        of what to discard. */
-    start = a.gs->insub ? a.gs->subat : (size_t)(at.int_.val < 0 ? 0 : at.int_.val);
+    start = a.gs->insub ? a.gs->subat[a.gs->insub - 1]
+                       : (size_t)(at.int_.val < 0 ? 0 : at.int_.val);
     if (start > a.content.len)
         start = a.content.len;
     len = a.content.len - start;
 
     if (a.gs->insub)
     {
-        a.gs->depth = a.gs->subdepth;
-        a.gs->over = a.gs->subover;
-        memcpy(a.gs->level[a.gs->depth].slot, a.gs->subslot,
-               sizeof(a.gs->subslot));
-        a.gs->insub = 0;
+        /* the one closing is the one opened last */
+        int sub = --a.gs->insub;
+        a.gs->depth = a.gs->subdepth[sub];
+        a.gs->over = a.gs->subover[sub];
+        memcpy(a.gs->level[a.gs->depth].slot, a.gs->subslot[sub],
+               sizeof(a.gs->subslot[sub]));
     }
     a.gs->pend.len = 0;
 
@@ -5233,7 +5257,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfsave", (Xpost_Op_Func)_pdfsave, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfrestore", (Xpost_Op_Func)_pdfrestore, 1, dicttype); INSTALL;
-    op = xpost_operator_cons(ctx, ".pdfsubbegin", (Xpost_Op_Func)_pdfsubbegin, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdfsubbegin", (Xpost_Op_Func)_pdfsubbegin, 2,
+                             booleantype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfsubend", (Xpost_Op_Func)_pdfsubend, 2,
             integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfchunks", (Xpost_Op_Func)_pdfchunks, 1, dicttype); INSTALL;

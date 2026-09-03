@@ -438,7 +438,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % useful one; the walk below paints those.
     sc 0 gt sc 1e30 lt and {
         /cm [ sc 0 0 sc bx0 sc mul neg by0 sc mul neg ] def
-        DEVICE dup /.patterntell get exec
+        false DEVICE dup /.patterntell get exec
     }{ false } ifelse
     {
         /at exch def

@@ -2358,7 +2358,7 @@ setglobal
             % clip is put in front of it here: a form paints inside the box
             % it declares, the box travels with the description, and the
             % clip in force at a placement applies to that placement.
-            DEVICE dup /.patterntell get exec {
+            true DEVICE dup /.patterntell get exec {
                 /ftok exch def
                 { fd //.execformcapture exec } stopped
                 /fbad exch def

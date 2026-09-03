@@ -631,7 +631,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % not the cell's to refer to either. The identity counters are the
     % exception and keep running, since what they hand out has to stay
     % unique across the whole document wherever the element lands.
-    /.patterntell {  % IMAGE  .  token true | false
+    /.patterntell {  % nest IMAGE  .  token true | false
     {
         .dev //.internaldict /.pdfsubbegin get exec {
             [ exch .state /.svgmasks get

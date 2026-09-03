@@ -389,7 +389,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % the q of a fill made inside the cell is in the cell's stream: left
     % standing, it would have the page's next fill write a Q against a q
     % that is no longer there.
-    /.patterntell {  % IMAGE  .  token true | false
+    /.patterntell {  % nest IMAGE  .  token true | false
     {
         .dev //.internaldict /.pdfsubbegin get exec {
             [ exch .state /.pdfimages get .state /.pdfmasks get dup length dict copy
