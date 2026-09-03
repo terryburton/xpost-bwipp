@@ -365,6 +365,21 @@ typedef struct
 int xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, long *advance_x, long *advance_y);
 
 /**
+ * @brief Walk a glyph's outline in its own design units.
+ *
+ * @param[in] face The face.
+ * @param[in] glyph_index The glyph.
+ * @param[in] sink Where the outline is walked to.
+ * @param[in] units The em count the caller keeps glyph space in.
+ * @return 1 on success, 0 otherwise.
+ *
+ * As xpost_font_face_glyph_outline(), but the outline is taken
+ * unscaled and untransformed and rescaled to @p units per em, so the
+ * same glyph yields the same description at every size it is drawn.
+ */
+int xpost_font_face_glyph_outline_units(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, int units);
+
+/**
  * @brief render the given glyph of the given face.
  * font.
  *

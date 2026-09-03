@@ -379,6 +379,11 @@ typedef struct textstate
     Xpost_Object metrics;   /* the font's /Metrics dict, or invalid */
     real cdmat[4];          /* character space -> device space (FontMatrix o CTM) */
     int cdmat_ok;           /* the matrix above is usable */
+    /* the same matrix, without the metrics dictionary the member
+       above also waits on: a writer that places a description needs
+       the mapping whether or not the font declares metrics */
+    int cdmat_have;
+    int emunits;            /* the em count glyph space is kept in */
     Xpost_Object blendpix;  /* the device's BlendPix method, or invalid */
     int blend;              /* bits of edge coverage the device is sent, 0 for none */
     int vector;             /* the device consumes glyph outlines, not bitmaps */
@@ -2801,6 +2806,8 @@ unsigned char _cov_bits(int cov, int bits)
    character: how the font maps codes to glyphs, what the device wants
    a mark in, and where the colour comes from. Gathered once for a
    whole string rather than per character. */
+static int _char_space_units(Xpost_Context *ctx, Xpost_Object fontdict);
+
 static
 textstate _text_state_get(Xpost_Context *ctx,
                           Xpost_Object gs,
@@ -2813,8 +2820,10 @@ textstate _text_state_get(Xpost_Context *ctx,
     ts.encoding = xpost_dict_get(ctx, fontdict, name_Encoding);
     ts.charstrings = xpost_dict_get(ctx, fontdict, name_CharStrings);
     ts.metrics = xpost_dict_get(ctx, fontdict, name_Metrics);
+    ts.cdmat_have = _char_device_matrix(ctx, gs, fontdict, ts.cdmat);
     ts.cdmat_ok = xpost_object_get_type(ts.metrics) == dicttype
-               && _char_device_matrix(ctx, gs, fontdict, ts.cdmat);
+               && ts.cdmat_have;
+    ts.emunits = _char_space_units(ctx, fontdict);
     ts.blend = _text_blends(ctx, devdic, &ts.blendpix);
     vec = xpost_dict_get(ctx, devdic, name_VectorGlyphs);
     ts.vector = xpost_object_get_type(vec) == booleantype && vec.int_.val;
@@ -3007,6 +3016,39 @@ int _page_mark(Xpost_Context *ctx)
                           xpost_bool_cons(1));
 }
 
+/* How many character-space units make an em, for this font
+   dictionary. FontMatrix maps character space to text space and
+   carries the size, so the count is not read from it: it is the font
+   program's own design count. A Type 1 program is usually written in
+   thousandths of the em -- the convention findfont dictionaries
+   declare whatever their face's native units -- but an embedded
+   program keeps its own (a converted 2048-unit font arrives with a
+   1/2048 matrix), recorded in the dictionary when its face was
+   assembled. A dictionary with no FontMatrix reads as the identity,
+   whose character space is the em itself.
+
+   Every place that has to agree on what the composed matrix maps FROM
+   asks here, so that the face's scale and a description written in
+   character space cannot part company. */
+static
+int _char_space_units(Xpost_Context *ctx, Xpost_Object fontdict)
+{
+    Xpost_Object ft = xpost_dict_get(ctx, fontdict, name_FontType);
+    Xpost_Object cft = xpost_dict_get(ctx, fontdict, name_CIDFontType);
+
+    if ((xpost_object_get_type(ft) == integertype
+         && (ft.int_.val == 1 || ft.int_.val == 2))
+     || (xpost_object_get_type(cft) == integertype && cft.int_.val == 0))
+    {
+        Xpost_Object emu = xpost_dict_get(ctx, fontdict, name_dotemunits);
+        int units = xpost_object_get_type(emu) == integertype
+                  ? emu.int_.val : 1000;
+
+        return units > 0 ? units : 1000;
+    }
+    return 1;
+}
+
 /* Prepare the shared face for use under the current graphics state.
    The font dictionary's FontMatrix carries the size (and any rotation,
    shear or anisotropy concatenated by makefont); the CTM carries the
@@ -3047,28 +3089,7 @@ void _face_setup(Xpost_Context *ctx,
        dictionaries, whose FontMatrix carries the 0.001 factor; one for
        Type 42, whose FontMatrix is an identity over the em) */
     {
-        Xpost_Object ft = xpost_dict_get(ctx, fontdict,
-                                         name_FontType);
-        Xpost_Object cft = xpost_dict_get(ctx, fontdict,
-                                          name_CIDFontType);
-        real qem = q;
-        if ((xpost_object_get_type(ft) == integertype
-             && (ft.int_.val == 1 || ft.int_.val == 2))
-         || (xpost_object_get_type(cft) == integertype && cft.int_.val == 0))
-        {
-            /* a Type 1 character-space unit is usually a thousandth
-               of the em -- the convention findfont dictionaries
-               declare whatever their face's native units -- but an
-               embedded program keeps its design count (a converted
-               2048-unit font arrives with a 1/2048 matrix), recorded
-               in the dictionary when its face was assembled */
-            Xpost_Object emu = xpost_dict_get(ctx, fontdict,
-                                              name_dotemunits);
-            int units = xpost_object_get_type(emu) == integertype
-                      ? emu.int_.val : 1000;
-
-            qem = q * (units > 0 ? units : 1000);
-        }
+        real qem = q * (real)_char_space_units(ctx, fontdict);
 
         /* the face serves a well-conditioned base size (an extreme em
            would fail inside FreeType); the residual ratio to the true
@@ -3482,6 +3503,14 @@ typedef struct glyphfrag
     int rel;
     int havebox;
     double x0, y0, x1, y1;
+    /* Glyph space rather than the page's: the description is the font
+       program's own outline, in the units the program was written in,
+       and the matrix on the placement is what sizes it. A description
+       built this way is the same bytes at every size the page asks
+       for, so one description serves them all -- which is the whole
+       of what a page of one alphabet at forty sizes needs. y is not
+       turned over here: the placement matrix turns it. */
+    int gs;
 } glyphfrag;
 
 /* --- a glyph as an outline, for a device that wants one --------------
@@ -3509,7 +3538,7 @@ static int _frag_xy(glyphfrag *f, double x, double y)
     char t[64];
     int n;
     double gx = f->rel ? x : f->px + x;
-    double gy = f->rel ? -y : f->py - y;
+    double gy = f->rel ? (f->gs ? y : -y) : f->py - y;
 
     if (f->rel)
     {
@@ -3689,13 +3718,36 @@ int _show_char_outline(Xpost_Context *ctx,
         xpost_object_get_type(xpost_dict_get(ctx, devdic,
                                              name_FormXObject)) != invalidtype)
         f.rel = 1;
+    /* and in the font program's own units where the matrix that puts
+       them on the page is known, so that the size the page asked for
+       is on the placement and not in the description */
+    f.gs = f.rel && ts->cdmat_have && ts->emunits > 0;
 
     sink.moveto = _frag_moveto;
     sink.lineto = _frag_lineto;
     sink.curveto = _frag_curveto;
     sink.closepath = _frag_closepath;
     sink.user = &f;
-    if (!xpost_font_face_glyph_outline(face, glyph_index, &sink, advance_x, advance_y))
+    if (f.gs)
+    {
+        long x0, y0, x1, y1;
+
+        /* the advance is the pen's business and is taken under the
+           face's own transform, the description's units being no
+           concern of it */
+        if (!xpost_font_face_glyph_extents(face, glyph_index,
+                                           &x0, &y0, &x1, &y1,
+                                           advance_x, advance_y))
+            f.gs = 0;
+        else if (!xpost_font_face_glyph_outline_units(face, glyph_index,
+                                                      &sink, ts->emunits))
+        {
+            xpost_strbuf_free(&f.d);
+            return 0;
+        }
+    }
+    if (!f.gs && !xpost_font_face_glyph_outline(face, glyph_index, &sink,
+                                                advance_x, advance_y))
     {
         xpost_strbuf_free(&f.d);
         return 0;
@@ -3725,7 +3777,7 @@ int _show_char_outline(Xpost_Context *ctx,
             {
                 /* the description, and where this occurrence puts it */
                 double bb[4];
-                char pl[128];
+                char pl[256];
                 int pn, idx = 0;
 
                 bb[0] = f.x0; bb[1] = f.y0; bb[2] = f.x1; bb[3] = f.y1;
@@ -3749,6 +3801,7 @@ int _show_char_outline(Xpost_Context *ctx,
                        time in the interpreter. */
                     f.d.len = 0;
                     f.rel = 0;
+                    f.gs = 0;
                     f.has = 0;
                     if (!xpost_font_face_glyph_outline(face, glyph_index,
                                                        &sink, advance_x,
@@ -3772,7 +3825,25 @@ int _show_char_outline(Xpost_Context *ctx,
                     return 1;
                 }
                 pn = 0;
-                memcpy(pl + pn, "q 1 0 0 1 ", 10); pn += 10;
+                memcpy(pl + pn, "q ", 2); pn += 2;
+                if (f.gs)
+                {
+                    /* character space to the page, which is where the
+                       size went: the description is one letter and
+                       this is the only thing that differs between the
+                       ten point one and the forty point one */
+                    int c;
+
+                    for (c = 0; c < 4; c++)
+                    {
+                        pn += xpost_dev_pdf_fmt_num(pl + pn, ts->cdmat[c]);
+                        pl[pn++] = ' ';
+                    }
+                }
+                else
+                {
+                    memcpy(pl + pn, "1 0 0 1 ", 8); pn += 8;
+                }
                 pn += xpost_dev_pdf_fmt_num(pl + pn, f.px); pl[pn++] = ' ';
                 pn += xpost_dev_pdf_fmt_num(pl + pn, f.py);
                 memcpy(pl + pn, " cm /Fm", 7); pn += 7;

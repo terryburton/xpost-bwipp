@@ -4417,10 +4417,10 @@ typedef struct
    Filing a description costs an object and a name in every page's
    resources, and saves the outline's own bytes at each occurrence after
    the first. So a glyph drawn over and over pays for itself many times
-   and one drawn once never does: MEASURED, filing every glyph turned a
-   page of text from 66.5 times the reference's size into 4.2, and
-   turned a waterfall of one alphabet at forty sizes -- where nothing
-   repeats -- from 59.8 into 160.1.
+   and one drawn once never does: MEASURED, filing every glyph took a
+   sixteenfold weight off a page of text, and put a waterfall of one
+   alphabet at forty sizes -- where nothing repeats -- up by more than
+   half again.
 
    Hence the count, and the bytes beside it. The bytes are kept so that
    two different outlines which happen to hash alike cannot be taken for
@@ -6069,14 +6069,37 @@ static int _pdfresadd(Xpost_Context *ctx, Xpost_Object kind,
 
    Answers 1 with the description's number when the content should place
    it, and 0 when the content should write the outline out where it
-   stands. The third sighting is where it files: an outline drawn twice
-   costs more filed than written twice, and one drawn three times costs
-   less.
+   stands.
+
+   Which sighting files is not a constant, because the trade is not the
+   same for every outline. Writing it out n times costs n times its
+   length. Filing it costs the description once, an object to hold it,
+   and a placement at each occurrence. So filing wins once
+
+       overhead + length + n * placement  <  n * length
+
+   and the sighting to file at is the smallest n that satisfies it. A
+   long outline pays for itself the second time it is seen; a short one
+   -- a bar, a rule, a comma -- has to come back four or five times
+   before it does, and filing it sooner makes the file bigger. MEASURED
+   both ways on the same two pages: filing every outline on its second
+   sighting takes a nine-page document of ordinary text from 2.16 MB to
+   263 kB, and adds three and a half kilobytes to a page of barcodes,
+   whose marks are small and come in pairs. The rule below gets the
+   first without the second.
+
+   An outline whose length does not exceed a placement can never pay,
+   and is never filed.
 
    The cap is what the record is prepared to hold. Past it an outline is
    written out as it comes, which is what this did before any of it. */
 #define PDF_GLY_CAP  4096
-#define PDF_GLY_FILE_AT 3
+/* what an occurrence costs once filed: q, six numbers, cm, the name,
+   Do and Q */
+#define PDF_GLY_PLACE  45
+/* what the description costs to hold: the stream's own dictionary, the
+   entry in the page's resources, and the reference to it */
+#define PDF_GLY_HOLD   150
 int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
                              const double *bbox, const char *body,
                              size_t len, int *index)
@@ -6140,7 +6163,9 @@ int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
             return 0;
         return 1;
     }
-    if (g->count < PDF_GLY_FILE_AT)
+    if (g->len <= PDF_GLY_PLACE ||
+        (double)g->count * (double)(g->len - PDF_GLY_PLACE)
+            < (double)(PDF_GLY_HOLD + g->len))
     {
         if (!_pdf_acc_put(ctx, priv, &a))
             return 0;

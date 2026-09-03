@@ -2259,6 +2259,10 @@ struct _outline_walk
     const Xpost_Font_Outline_Sink *sink;
     double x, y;
     int open;
+    /* what one outline unit is worth to the sink: a sixty-fourth
+       where the library scaled the glyph to a size, and a ratio of
+       em counts where it was asked for the design units instead */
+    double s;
 };
 
 static int
@@ -2273,8 +2277,8 @@ _outline_moveto(const FT_Vector *to, void *user)
             return ret;
     }
     w->open = 1;
-    w->x = to->x / 64.0;
-    w->y = to->y / 64.0;
+    w->x = to->x * w->s;
+    w->y = to->y * w->s;
     return w->sink->moveto(w->sink->user, w->x, w->y);
 }
 
@@ -2283,8 +2287,8 @@ _outline_lineto(const FT_Vector *to, void *user)
 {
     struct _outline_walk *w = user;
 
-    w->x = to->x / 64.0;
-    w->y = to->y / 64.0;
+    w->x = to->x * w->s;
+    w->y = to->y * w->s;
     return w->sink->lineto(w->sink->user, w->x, w->y);
 }
 
@@ -2292,10 +2296,10 @@ static int
 _outline_conicto(const FT_Vector *control, const FT_Vector *to, void *user)
 {
     struct _outline_walk *w = user;
-    double cx = control->x / 64.0;
-    double cy = control->y / 64.0;
-    double ex = to->x / 64.0;
-    double ey = to->y / 64.0;
+    double cx = control->x * w->s;
+    double cy = control->y * w->s;
+    double ex = to->x * w->s;
+    double ey = to->y * w->s;
     /* a quadratic's control point pulls each cubic control 2/3 of the
        way from the respective endpoint */
     double c1x = w->x + (cx - w->x) * (2.0 / 3.0);
@@ -2313,11 +2317,11 @@ _outline_cubicto(const FT_Vector *control1, const FT_Vector *control2, const FT_
 {
     struct _outline_walk *w = user;
 
-    w->x = to->x / 64.0;
-    w->y = to->y / 64.0;
+    w->x = to->x * w->s;
+    w->y = to->y * w->s;
     return w->sink->curveto(w->sink->user,
-                            control1->x / 64.0, control1->y / 64.0,
-                            control2->x / 64.0, control2->y / 64.0,
+                            control1->x * w->s, control1->y * w->s,
+                            control2->x * w->s, control2->y * w->s,
                             w->x, w->y);
 }
 #endif
@@ -2358,8 +2362,8 @@ _glyph_linear_advance(FT_Face face, long *advance_x, long *advance_y)
    each contour closed. Loaded unhinted, because an outline is asked
    for to be transformed further and hinting is a decision about
    pixels. */
-int
-xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, long *advance_x, long *advance_y)
+static int
+_glyph_outline(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, long *advance_x, long *advance_y, int noscale, double s)
 {
 #ifdef HAVE_FREETYPE2
     FT_GlyphSlot slot;
@@ -2367,7 +2371,9 @@ xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_
     FT_Error err;
     struct _outline_walk w;
 
-    err = FT_Load_Glyph(face, glyph_index, FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
+    err = FT_Load_Glyph(face, glyph_index,
+                        FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING
+                        | (noscale ? FT_LOAD_NO_SCALE : 0));
     if (err)
     {
         XPOST_LOG_INFO("Can not load glyph (error : %d)", err);
@@ -2386,6 +2392,7 @@ xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_
     w.x = 0;
     w.y = 0;
     w.open = 0;
+    w.s = s;
     {
         FT_Outline_Funcs funcs;
 
@@ -2408,8 +2415,36 @@ xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_
     (void)sink;
     (void)advance_x;
     (void)advance_y;
+    (void)noscale;
+    (void)s;
     return 0;
 #endif
+}
+
+/* The glyph as its font program draws it, in the design units the
+   program was written in, rescaled to the em count the caller keeps
+   glyph space in. Nothing about the size the glyph is being drawn at
+   reaches it: the library is asked for the unscaled outline, so one
+   letter yields the same description at every size, and the matrix
+   that takes character space to the page is what puts it back where
+   it belongs. */
+int
+xpost_font_face_glyph_outline_units(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, int units)
+{
+    long ax = 0, ay = 0;
+    int upem = xpost_font_face_units(face);
+
+    if (upem <= 0 || units <= 0)
+        return 0;
+    return _glyph_outline(face, glyph_index, sink, &ax, &ay, 1,
+                          (double)units / (double)upem);
+}
+
+int
+xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, long *advance_x, long *advance_y)
+{
+    return _glyph_outline(face, glyph_index, sink, advance_x, advance_y,
+                          0, 1.0 / 64.0);
 }
 
 /* The ink extent of a glyph's outline in 26.6 glyph space (y-up around
