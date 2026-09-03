@@ -130,7 +130,17 @@ static unsigned int _arcto_cont_opcode;
    the header widens with the build's real type. */
 #define PATH_BBOX_OFF 16
 #define PATH_BBOX(i) (PATH_BBOX_OFF + (unsigned int)((i) * sizeof(real)))
-#define PATH_HDR (PATH_BBOX_OFF + (unsigned int)(4 * sizeof(real)))
+/* The box a program declares with setbbox, held beside the box the path
+   has actually reached. It is kept in device space, fixed as the operator
+   is called: PLRM 8.2 says the box holds "for the lifetime of the current
+   path", and a path outlives any number of changes to the CTM, so a box
+   that followed the CTM would be a different box at every element. An
+   unset box is the empty one, which no coordinate can be inside, so the
+   two questions "is a box declared" and "is this point in it" are the
+   same question. */
+#define PATH_SBB_OFF (PATH_BBOX_OFF + (unsigned int)(4 * sizeof(real)))
+#define PATH_SBB(i) (PATH_SBB_OFF + (unsigned int)((i) * sizeof(real)))
+#define PATH_HDR (PATH_SBB_OFF + (unsigned int)(4 * sizeof(real)))
 #define PATH_CMD_MOVE 0
 #define PATH_CMD_LINE 1
 #define PATH_CMD_CURVE 2
@@ -376,6 +386,10 @@ _path_cons(Xpost_Context *ctx, unsigned int cap)
     _path_set_f32(p, PATH_BBOX(1), FLT_MAX);
     _path_set_f32(p, PATH_BBOX(2), -FLT_MAX);
     _path_set_f32(p, PATH_BBOX(3), -FLT_MAX);
+    _path_set_f32(p, PATH_SBB(0), FLT_MAX);
+    _path_set_f32(p, PATH_SBB(1), FLT_MAX);
+    _path_set_f32(p, PATH_SBB(2), -FLT_MAX);
+    _path_set_f32(p, PATH_SBB(3), -FLT_MAX);
     return s;
 }
 
@@ -470,6 +484,28 @@ _path_append(Xpost_Context *ctx, Xpost_Object gstate, Xpost_Object *pathp,
             return ret;
         *pathp = ns;
         p = xpost_string_get_pointer(ctx, ns);
+    }
+
+    /* Every element of every path arrives here, which is where a declared
+       box is held against: PLRM 8.2 makes "any subsequent attempt to append
+       a path element with a coordinate lying outside the bounding box" a
+       rangecheck. Asked before anything is written, so a refused element
+       leaves the path as it was. */
+    {
+        real sx0 = _path_get_f32(p, PATH_SBB(0));
+        real sx1 = _path_get_f32(p, PATH_SBB(2));
+
+        if (sx0 <= sx1)
+        {
+            real sy0 = _path_get_f32(p, PATH_SBB(1));
+            real sy1 = _path_get_f32(p, PATH_SBB(3));
+            int k;
+
+            for (k = 0; k + 1 < ncoords; k += 2)
+                if (co[k] < sx0 || co[k] > sx1
+                 || co[k + 1] < sy0 || co[k + 1] > sy1)
+                    return rangecheck;
+        }
     }
 
     p[used] = (char)cmd;
@@ -636,6 +672,113 @@ int _currentpoint(Xpost_Context *ctx)
     xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons(co[n - 1]));
     xpost_stack_push(ctx->lo, ctx->es, XPOST_OP(ctx, itransform));
 
+    return 0;
+}
+
+/* -  .pathbox  llx lly urx ury
+   The declared box in device space, as the header holds it -- the empty
+   box where none is declared, which is what the header holds for one.
+   Paired with .setpathbox so a user path can be given its own box and the
+   one before it put back: PLRM 8.2 says the box a user path declares
+   "applies only to elements of the user path itself". */
+static
+int _pathboxget(Xpost_Context *ctx)
+{
+    Xpost_Object path;
+    char *p;
+    unsigned int used;
+    int i;
+
+    path = _cpath(ctx);
+    if (xpost_object_get_type(path) != stringtype)
+        return unregistered;
+    if (!_path_extent(ctx, path, &p, &used))
+        return rangecheck;
+    for (i = 0; i < 4; i++)
+        xpost_stack_push(ctx->lo, ctx->os,
+                         xpost_real_cons(_path_get_f32(p, PATH_SBB(i))));
+    return 0;
+}
+
+/* llx lly urx ury  .setpathbox  -
+   put a device-space box back, exactly as .pathbox gave it up. An empty
+   box means no box, so this is also how one is cleared. */
+static
+int _pathboxput(Xpost_Context *ctx, Xpost_Object llx, Xpost_Object lly,
+                Xpost_Object urx, Xpost_Object ury)
+{
+    Xpost_Object path;
+    char *p;
+    unsigned int used;
+
+    path = _cpath(ctx);
+    if (xpost_object_get_type(path) != stringtype)
+        return unregistered;
+    if (!_path_extent(ctx, path, &p, &used))
+        return rangecheck;
+    _path_set_f32(p, PATH_SBB(0), llx.real_.val);
+    _path_set_f32(p, PATH_SBB(1), lly.real_.val);
+    _path_set_f32(p, PATH_SBB(2), urx.real_.val);
+    _path_set_f32(p, PATH_SBB(3), ury.real_.val);
+    return 0;
+}
+
+/* llx lly urx ury  setbbox  -
+   declare the box the current path is to stay inside (PLRM 8.2). The
+   corners are given in user space and kept in device space, the box being
+   fixed as this runs rather than following the CTM: it holds "for the
+   lifetime of the current path", and a path outlives any number of changes
+   to the CTM. Under a rotation the four transformed corners no longer make
+   a rectangle, so what is kept is the box that contains them. */
+static
+int _setbbox(Xpost_Context *ctx, Xpost_Object llx, Xpost_Object lly,
+             Xpost_Object urx, Xpost_Object ury)
+{
+    Xpost_Object gstate, path;
+    real m[6], ux[4], uy[4], dx, dy;
+    real x0, y0, x1, y1;
+    char *p;
+    unsigned int used;
+    int i, ret;
+
+    /* PLRM 8.2: "the upper-right coordinate values must be greater than or
+       equal to the lower-left values, or a rangecheck error will occur" --
+       asked in the space the program stated them in, which is the space it
+       wrote them down in */
+    if (urx.real_.val < llx.real_.val || ury.real_.val < lly.real_.val)
+        return rangecheck;
+
+    gstate = _gstate(ctx);
+    if (xpost_object_get_type(gstate) == invalidtype)
+        return undefined;
+    ret = _path_ctm(ctx, gstate, m);
+    if (ret)
+        return ret;
+    path = xpost_dict_get(ctx, gstate, namecurrpath);
+    if (xpost_object_get_type(path) != stringtype)
+        return unregistered;
+    if (!_path_extent(ctx, path, &p, &used))
+        return rangecheck;
+
+    ux[0] = llx.real_.val; uy[0] = lly.real_.val;
+    ux[1] = urx.real_.val; uy[1] = lly.real_.val;
+    ux[2] = urx.real_.val; uy[2] = ury.real_.val;
+    ux[3] = llx.real_.val; uy[3] = ury.real_.val;
+    x0 = y0 = FLT_MAX;
+    x1 = y1 = -FLT_MAX;
+    for (i = 0; i < 4; i++)
+    {
+        dx = m[0] * ux[i] + m[2] * uy[i] + m[4];
+        dy = m[1] * ux[i] + m[3] * uy[i] + m[5];
+        if (dx < x0) x0 = dx;
+        if (dy < y0) y0 = dy;
+        if (dx > x1) x1 = dx;
+        if (dy > y1) y1 = dy;
+    }
+    _path_set_f32(p, PATH_SBB(0), x0);
+    _path_set_f32(p, PATH_SBB(1), y0);
+    _path_set_f32(p, PATH_SBB(2), x1);
+    _path_set_f32(p, PATH_SBB(3), y1);
     return 0;
 }
 
@@ -2312,6 +2455,59 @@ int _pathbbox(Xpost_Context *ctx)
     path = _cpath(ctx);
     if (xpost_object_get_type(path) != stringtype)
         return unregistered;
+
+    /* A declared box answers instead of the path. PLRM 8.2: after setbbox,
+       "subsequent invocations of pathbbox will return a result derived from
+       the bounding box rather than from the actual path" -- and it answers
+       even for a path that has reached nothing, the box being what the
+       program said the path would occupy. */
+    {
+        char *bp;
+        unsigned int bused;
+
+        if (_path_extent(ctx, path, &bp, &bused))
+        {
+            real sx0 = _path_get_f32(bp, PATH_SBB(0));
+            real sx1 = _path_get_f32(bp, PATH_SBB(2));
+
+            if (sx0 <= sx1)
+            {
+                real sy0 = _path_get_f32(bp, PATH_SBB(1));
+                real sy1 = _path_get_f32(bp, PATH_SBB(3));
+                real cx[4], cy[4], ox, oy;
+                int k;
+
+                cx[0] = sx0; cy[0] = sy0;
+                cx[1] = sx1; cy[1] = sy0;
+                cx[2] = sx1; cy[2] = sy1;
+                cx[3] = sx0; cy[3] = sy1;
+                minx = miny = FLT_MAX;
+                maxx = maxy = -FLT_MAX;
+                for (k = 0; k < 4; k++)
+                {
+                    if (invp)
+                    {
+                        ox = invp[0] * cx[k] + invp[2] * cy[k] + invp[4];
+                        oy = invp[1] * cx[k] + invp[3] * cy[k] + invp[5];
+                    }
+                    else
+                    {
+                        ox = cx[k]; oy = cy[k];
+                    }
+                    if (ox < minx) minx = ox;
+                    if (oy < miny) miny = oy;
+                    if (ox > maxx) maxx = ox;
+                    if (oy > maxy) maxy = oy;
+                }
+                xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons(minx));
+                xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons(miny));
+                xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons(maxx));
+                xpost_stack_push(ctx->lo, ctx->os, xpost_real_cons(maxy));
+                return 0;
+            }
+        }
+    }
+
     ret = _path_walk_bbox(ctx, path, 1, invp, &minx, &miny, &maxx, &maxy);
     if (ret == 2)
         return nocurrentpoint; /* an empty path has no bounding box */
@@ -2943,6 +3139,14 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
     _currentpoint_opcode = op.mark_.padw;
     INSTALL;
 
+    op = xpost_operator_cons(ctx, ".pathbox", (Xpost_Op_Func)_pathboxget, 0);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".setpathbox", (Xpost_Op_Func)_pathboxput, 4,
+                             floattype, floattype, floattype, floattype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, "setbbox", (Xpost_Op_Func)_setbbox, 4,
+                             floattype, floattype, floattype, floattype);
+    INSTALL;
     op = xpost_operator_cons(ctx, "moveto", (Xpost_Op_Func)_moveto, 2, floattype, floattype);
     _moveto_opcode = op.mark_.padw;
     INSTALL;

@@ -2534,9 +2534,6 @@ setglobal
 %  number array or encoded number string) with a string of opcodes,
 %  where an opcode of 32 or more repeats the following operator that
 %  many fewer than its value times
-%
-% The box is advisory here.
-/setbbox [ /numbertype /numbertype /numbertype /numbertype ] { pop pop pop pop } .defop  % llx lly urx ury  .  -
 
 %
 %  Ask that the user path being built be cached (PLRM 8.2). This
@@ -2675,6 +2672,15 @@ setglobal
 %
 /uappend [ /arraytype ] {  % userpath  .  -
     //.upathcheck exec
+    % PLRM 8.2, under uappend: "The bounding box specified by the setbbox
+    % operator in the user path applies only to elements of the user path
+    % itself. It does not apply to other elements of the current path." So
+    % the box in force is put aside for the length of the interpretation and
+    % put back after, whichever way the interpretation ends -- the user
+    % path's own box governs its own elements and goes with it.
+    //.internaldict /.pathbox get exec 4 array astore
+    exch
+    {
     dup xcheck {
         exec
     }{
@@ -2712,6 +2718,9 @@ setglobal
         } for
         end
     } ifelse
+    } stopped
+    exch aload pop //.internaldict /.setpathbox get exec
+    { stop } if
 } .defop
 
 currentglobal true setglobal
