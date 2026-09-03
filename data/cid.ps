@@ -1212,4 +1212,46 @@ currentglobal true setglobal
 //.cidtypemap { exch pop dup /FontType defineresource pop } forall
 setglobal
 
+%
+%  The two identity mappings, which every CID-keyed font that carries no
+%  language-specific encoding is named with: a two-byte code is the CID of
+%  the same value, horizontally in one and vertically in the other. A
+%  program that names one of these is not supplying it -- it is asking for
+%  the mapping every such font is built against -- so they are stated here
+%  rather than left to be found.
+%
+%  Built through the procedure set a program would build them with, so what
+%  is defined is what that route defines and there is no second way to make
+%  a CMap that could drift from the first.
+%
+currentglobal true setglobal
+
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> def
+/CMapName /Identity-H def
+/CMapType 1 def
+/WMode 0 def
+1 begincodespacerange <0000> <FFFF> endcodespacerange
+1 begincidrange <0000> <FFFF> 0 endcidrange
+endcmap
+CMapName currentdict readonly end /CMap defineresource pop
+end
+
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> def
+/CMapName /Identity-V def
+/CMapType 1 def
+/WMode 1 def
+1 begincodespacerange <0000> <FFFF> endcodespacerange
+1 begincidrange <0000> <FFFF> 0 endcidrange
+endcmap
+CMapName currentdict readonly end /CMap defineresource pop
+end
+
+setglobal
+
 //.internaldict /QUIET known { }{ (eof cid.ps\n)print } ifelse

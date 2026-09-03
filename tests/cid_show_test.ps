@@ -1211,6 +1211,29 @@ cc.freetwo cc.zero differs 0 gt
      malformed font, rather than reaching an allocation that fails) check
 clear
 
+% The two identity mappings are there to be found. Every CID-keyed font
+% carrying no language-specific encoding is named with one of them, so a
+% program that names one is asking for the mapping its font was built
+% against rather than supplying it. A two-byte code is the CID of the same
+% value; the pair differ only in writing direction.
+% asked through stopped, so a missing one is a named failure rather than an
+% error that ends the suite where it stands
+{ /Identity-H /CMap findresource type /dicttype eq } stopped { false } if
+    (Identity-H is a CMap that can be found) check
+{ /Identity-V /CMap findresource type /dicttype eq } stopped { false } if
+    (Identity-V is too) check
+{ /Identity-H /CMap findresource /WMode get 0 eq } stopped { false } if
+    (Identity-H writes horizontally) check
+{ /Identity-V /CMap findresource /WMode get 1 eq } stopped { false } if
+    (Identity-V writes vertically) check
+{ /Identity-H /CMap findresource /CMapName get /Identity-H eq } stopped { false } if
+    (and each answers to the name it was found by) check
+
+% and one composes a font, which is the whole point of them
+{ /Courier findfont /cc.t0 exch /Identity-H [ 3 -1 roll ] composefont pop }
+    stopped not
+    (a composite font is built through the identity mapping) check
+
 count 0 eq (the suite leaves the operand stack empty) check
 faildict /n get 0 eq { (SUCCESS) = }{ (FAILURES: ) print faildict /n get = } ifelse
 quit
