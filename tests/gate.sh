@@ -138,6 +138,24 @@ if [ "$(width_of "$narrow")" != narrow ] || [ "$(width_of "$wide")" != wide ]; t
     exit 1
 fi
 
+# The two builds treat warnings the same way or the gate is not one gate.
+# Where one promotes warnings to errors and the other does not, the lax
+# leg compiles what the strict leg would have refused, and a diagnostic
+# only one width can raise is answered by whichever width was asked --
+# so the gate reports two green legs, one of which never enforced the
+# rule it was there to enforce.
+werror_of() {
+    grep -o '"name": "werror", "value": [a-z]*' \
+        "$1/meson-info/intro-buildoptions.json" 2>/dev/null |
+        sed 's/.*: //'
+}
+if [ "$(werror_of "$narrow")" != "$(werror_of "$wide")" ]; then
+    echo "FAILURES: $narrow and $wide disagree on werror; they read as"
+    echo "      '$(werror_of "$narrow")' and '$(werror_of "$wide")'."
+    echo "      Set both the same with: meson configure DIR -Dwerror=BOOL"
+    exit 1
+fi
+
 work=$(mktemp -d 2>/dev/null) || work=
 if [ -z "$work" ] || [ ! -d "$work" ]; then
     echo "FAILURES: could not make a scratch directory (is TMPDIR writable?)"
