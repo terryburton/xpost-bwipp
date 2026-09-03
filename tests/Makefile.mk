@@ -203,6 +203,11 @@ tests/corpus/eps/pages \
 tests/corpus/eps/unasked \
 tests/corpus/evaluate.sh \
 tests/corpus/fetch.sh \
+tests/corpus/local/README.md \
+tests/corpus/local/displaced \
+tests/corpus/local/heldout \
+tests/corpus/local/nopage \
+tests/corpus/local/pages \
 tests/corpus/share.sh \
 tests/corpus/ghostscript/nondeterministic \
 tests/corpus/ghostscript/nopage \

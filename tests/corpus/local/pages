@@ -1,0 +1,9 @@
+# How many pages each program of this corpus draws. One basename and
+# one count per line.
+#
+# A run compares the pages both engines drew, so a page neither of them
+# reaches is a page nobody is holding either engine to. The count is what
+# says how many there should have been.
+#
+# Empty: this corpus holds whatever was put in it, and what that draws is
+# for whoever put it there to measure and write down.

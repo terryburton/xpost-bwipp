@@ -272,6 +272,19 @@ The corpora
                 fails on its own missing data and says nothing about any
                 interpreter.
 
+  local         A slot, and empty here. Nothing is fetched into it and
+                nothing is kept in it: put PostScript programs in it and
+                they are run the way the corpora above are run. It is
+                for the programs a tree has to hand that are nobody
+                else's to distribute -- which is most real PostScript --
+                and the test skips while it stands empty, so an unused
+                slot costs a run nothing. Its four registers are
+                templates carrying only what to write in them; a program
+                the registers do not declare is refused with a message
+                saying so, because a corpus is a directory of files whose
+                behaviour has been written down and not a directory of
+                files. local/README.md says how.
+
 Not included
 ------------
 

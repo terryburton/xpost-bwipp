@@ -1,0 +1,6 @@
+# Programs held out of the differential run. One basename per line (no
+# extension), each with the reason it is not run; remove an entry once
+# that reason no longer holds.
+#
+# A reason that measurement contradicts is worse than no entry at all --
+# it is read as a known cost and stops anyone looking again.

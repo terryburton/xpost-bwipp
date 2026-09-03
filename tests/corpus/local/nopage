@@ -1,0 +1,9 @@
+# What this corpus draws no page for. One entry per line -- a basename
+# for a program that produces no page at all, a basename and " pN" for
+# one page of a program that produces others -- each with the reason it
+# draws nothing.
+#
+# A program that draws nothing because it is a fragment, or a procedure
+# set another program reads, is not a defect; one that draws nothing
+# because this interpreter refused it is. The reason is what tells them
+# apart, which is why an entry without one is not an entry.

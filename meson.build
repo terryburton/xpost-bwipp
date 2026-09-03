@@ -5798,7 +5798,9 @@ test('stencil-mask-size',
 # from saying what it is about: two of these corpora take minutes and two
 # do not, and the cheap pair is worth running far more often than the
 # expensive one. The adobe corpus is costed as the others are rather than
-# as the skip it is until its programs are fetched.
+# as the skip it is until its programs are fetched, and the local one --
+# the slot a tree's own programs go in, which nothing fetches and which
+# is empty here -- is costed the same way for the same reason.
 #
 # They are also taken before everything else, behind the one test that
 # runs on its own. The longest of them takes longer than any other test
@@ -5811,7 +5813,8 @@ test('stencil-mask-size',
 foreach corpus : [ [ 'ghostscript', 'slow' ],
                    [ 'casselman', 'veryslow' ],
                    [ 'bwipp', 'veryslow' ],
-                   [ 'adobe', 'slow' ] ]
+                   [ 'adobe', 'slow' ],
+                   [ 'local', 'slow' ] ]
   test('corpus-' + corpus[0],
     find_program('tests/corpus/run-corpus-test.sh'),
     args: [ xpost_exe, corpus[0] ],
