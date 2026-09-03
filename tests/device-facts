@@ -677,6 +677,7 @@ method FillPath bbox dscwrite pdfwrite svgwrite
     even-odd interior against. Raster devices scan-convert polygons and
     have no use for the path itself.
 method FillPattern pdfwrite svgwrite
+method FormXObject dscwrite pdfwrite svgwrite
 method FillPoly every
 method FillRect every
 method Flush bgr raster record
@@ -702,6 +703,7 @@ method .fndescribe pdfwrite
 method .emitfnobj pdfwrite
 method .fnref pdfwrite
 method PatternCell pdfwrite svgwrite
+method PlaceForm dscwrite pdfwrite svgwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
 method .pdfoverprint dscwrite pdfwrite
@@ -808,8 +810,10 @@ fixed .pdffillcolor dscwrite pdfwrite
 state .pdfimages dscwrite pdfwrite
 state .pdfmasks dscwrite pdfwrite
 state .pdfpatterns dscwrite pdfwrite
+state .pdfforms dscwrite pdfwrite
 state .pdfshadings dscwrite pdfwrite
 state .svggrads svgwrite
+state .svgforms svgwrite
 fixed .pdfstrokecolor dscwrite pdfwrite
 state .playclass record
 state .playdev record

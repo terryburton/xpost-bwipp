@@ -2064,6 +2064,20 @@ currentglobal true setglobal
 %  still held to about the box while a procedure painting inside it is
 %  not cut at all.
 %
+%
+%  Whether the device takes a form as the construct its own format has,
+%  filing the description once and naming it at each placement. That is a
+%  different answer from holding a record of marks: what is filed is the
+%  description in the device's own terms, so a device writing paths keeps
+%  paths where a recorder would have kept the pixels they came to.
+%
+.xpostsys /.formdevice {  % -  .  bool
+    DEVICE /FormXObject known
+    DEVICE /PlaceForm known and
+    DEVICE /.patterntell known and
+    DEVICE /.patterntake known and
+} put
+
 .xpostsys /.execformcapture {  % formdict  .  -
     {
     gsave
@@ -2307,6 +2321,43 @@ setglobal
             fbx fw add cx1 le and fby fh add cy1 le and
         }{ false } ifelse def
         fits fc key known not and {
+          //.xpostsys /.formdevice get exec {
+
+            % The device files the description itself. What it is given is
+            % what the paint procedure painted, in the device's own terms,
+            % captured out of the stream it was painted into; the box goes
+            % with it because the format holds a description to one. No
+            % clip is put in front of it here: a form paints inside the box
+            % it declares, the box travels with the description, and the
+            % clip in force at a placement applies to that placement.
+            DEVICE dup /.patterntell get exec {
+                /ftok exch def
+                { fd //.execformcapture exec } stopped
+                /fbad exch def
+                ftok fbad not DEVICE dup /.patterntake get exec
+                /fchunks exch def
+
+                % A description that raised is given up, and the error
+                % goes on where it was going. What it painted before it
+                % raised went into the capture and the capture is gone,
+                % so the page carries none of it -- which is what the
+                % recorder route does with the same failure. Falling
+                % through instead would run the procedure a second time,
+                % painting onto the page what the first run painted into
+                % the capture.
+                fbad { stop } if
+                true {
+                    /fseq 0 def
+                    fc { /seq get dup fseq gt { /fseq exch def }{ pop } ifelse pop } forall
+                    [ fbx fby fbx fw add fby fh add ] fchunks
+                        DEVICE dup /FormXObject get exec
+                    /fref exch def
+                    fc key << /formref fref /seq fseq 1 add
+                              /tx cm 4 get /ty cm 5 get >> put
+                } if
+            } if
+
+          }{
             % A recorder standing in for the device, at the page's own
             % extent: the marks are the device's coordinates and the
             % clip they are cut to is the page's.
@@ -2471,7 +2522,15 @@ setglobal
                   fc //.formcacheoldest exec
                 } loop
             } if
+          } ifelse
         } if
+        fits fc key known and { fc key get /formref known }{ false } ifelse {
+            /fe fc key get def
+            fe /formref get
+            cm 4 get fe /tx get sub
+            cm 5 get fe /ty get sub
+            DEVICE dup /PlaceForm get exec
+        }{
         fits fc key known and { fc key get /drawing known }{ false } ifelse {
             /fe fc key get def
 
@@ -2494,6 +2553,7 @@ setglobal
             } ifelse
         }{
             fd //.execformdirect exec
+        } ifelse
         } ifelse
         } //.xpostsys /.indict get exec
     } ifelse

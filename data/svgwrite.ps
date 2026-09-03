@@ -31,6 +31,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.svgwritebind5 [ /y /x /b /g /r ] readonly put
 .xpostsys /.svgwritebind6 [ /y2 /x2 /y1 /x1 /b /g /r ] readonly put
 .xpostsys /.svgwritebind7 [ /qkrng /qkmh /qkmw /qkbits /qkint /qkdec /qkrows /qkmat /qknc /qkh /qkw ] readonly put
+.xpostsys /.svgwritebind8 [ /sfchunks /sfbb ] readonly put
 
 %
 %  Make an instance of the SVG writer: the class copied, with the extent
@@ -139,6 +140,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .state /.svggrads 0 put  % gradients named on this page
         .state /.svgmasks 64 dict put  % masks already written, so a repeated glyph is written once
         .state /.svgpatterns 0 array put  % tiling cells already written as pattern elements
+        .state /.svgforms 0 array put  % form descriptions already written as reusable groups
     .dev
     } //.indict exec } bind
 
@@ -737,6 +739,57 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         svhit
     } //.indevwork exec } bind
 
+    % A form reaches a consumer as the format's own construct: the
+    % description written once as a group with a name, and a reference to
+    % that name wherever the form is placed. The description is run once
+    % and what it painted is captured; every later placement is that
+    % group used again.
+    %
+    % Keyed on the bytes and the box, each compared in full, and on the
+    % document the names belong to: a name written for one document says
+    % nothing in the next.
+    /FormXObject {  % bbox chunks IMAGE  .  n
+    24 {
+        //.svgwritebind8 {exch def} forall
+        /sflen 0 def sfchunks { length sflen add /sflen exch def } forall
+        /sfhit -1 def
+        0 1 .state /.svgforms get length 1 sub {
+            /sfi exch def
+            sfhit 0 lt {
+                /sfc .state /.svgforms get sfi get def
+                sfc /gen get .svgids /docgen get eq
+                sfc /len get sflen eq and {
+                    sfc /bb get sfbb .svgsame
+                    { sfc /chunks get sfchunks .svgsame }{ false } ifelse
+                    { /sfhit sfc /id get def } if
+                } if
+            } if
+        } for
+        sfhit 0 lt {
+            /sfhit .svgids /patid get def
+            .svgids /patid sfhit 1 add put
+            .state /.svgforms [ .state /.svgforms get aload pop
+                << /bb sfbb /chunks sfchunks /len sflen /id sfhit
+                   /gen .svgids /docgen get >> ] put
+            (<defs><g id="xf) .put sfhit 20 string cvs .put (">\n) .put
+            sfchunks { .put } forall
+            (</g></defs>\n) .put
+        } if
+        sfhit
+    } //.indevwork exec } bind
+
+    % Use a written form where this placement puts it. The offset is the
+    % device's own and the content is written in the device's
+    % coordinates, so the placement is a translation in the space the
+    % group was written in.
+    /PlaceForm {  % n dx dy IMAGE  .  -
+    8 {
+        /sfdy exch def /sfdx exch def /sfn exch def
+        (<use xlink:href="#xf) .put sfn 20 string cvs .put
+        (" transform="translate\() .put sfdx .svgfull (,) .put sfdy .svgfull
+        (\)"/>\n) .put
+    } //.indevwork exec } bind
+
     % A number at the accumulator's full precision, where .svgnum's two
     % decimals are not enough: a pattern's matrix is a scale, and a
     % coordinate written through it is out by whatever the matrix was
@@ -1111,6 +1164,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % written into the one just emitted
         .dev /.svgids get /patid 0 put
         .state /.svgpatterns 0 array put
+        .state /.svgforms 0 array put
 
         % Emptying the two records above is a store in local memory,
         % which a restore reaching over this point undoes: either record

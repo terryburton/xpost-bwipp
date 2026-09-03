@@ -22,6 +22,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpostsys /.pdfwritebind0 [ /pcchunks /pcmat /pctt /pcys /pcxs /pcbb ] readonly put
 .xpostsys /.pdfwritebind1 [ /piint /pidec /pirows /pim /pinc /pih /piw ] readonly put
 .xpostsys /.pdfwritebind2 [ /psint /psdata /psm /pspol /psh /psw ] readonly put
+.xpostsys /.pdfwritebind6 [ /fxchunks /fxbb ] readonly put
 .xpostsys /.pdfwritebind5 [ /mkrng /mkmh /mkmw /mkbits /miint /midec /mirows /mim /minc /mih /miw ] readonly put
 .xpostsys /.pdfwritebind3 [ /spy3 /spx3 /spy2 /spx2 /spy1 /spx1 ] readonly put
 .xpostsys /.pdfwritebind4 [ /y /x ] readonly put
@@ -149,6 +150,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .state /.pdfclipopen .dev /.pdfclipopen get put
         .state /.pdfmasks 64 dict put  % masks already filed, so a repeated glyph files once
         .state /.pdfpatterns 0 array put  % tiling cells filed as /Pattern resources
+        .state /.pdfforms 0 array put  % form descriptions filed as /XObject resources
         .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
         .state /.opused 8 dict put   % Overprint states used on this page -> ExtGState entries
 
@@ -720,6 +722,54 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .state /.pdfclipopen false put
         } if
     } //.indict exec } bind
+
+    % A form reaches a consumer as the format's own construct: a Form
+    % XObject holding the description as a content stream of its own, and
+    % a Do naming it wherever the form is placed (PDF 8.10). The
+    % description is run once and what it painted is captured; every
+    % later placement is that object drawn again.
+    %
+    % Keyed on the bytes and the box, each compared in full: a resource
+    % is those bytes under that box, so two agreeing are one. The
+    % placement is NOT part of the key -- it is written at the placement
+    % and not into the object -- so one description put in ten places is
+    % one object drawn ten times, which is what the construct is for.
+    /FormXObject {  % bbox chunks IMAGE  .  n
+    24 {
+        //.pdfwritebind6 {exch def} forall
+        /fxlen 0 def fxchunks { length fxlen add /fxlen exch def } forall
+        /fxhit -1 def
+        0 1 .state /.pdfforms get length 1 sub {
+            /fxi exch def
+            fxhit 0 lt {
+                /fxc .state /.pdfforms get fxi get def
+                fxc /len get fxlen eq {
+                    fxc /bb get fxbb .pdfsame
+                    { fxc /chunks get fxchunks .pdfsame }{ false } ifelse
+                    { /fxhit fxi def } if
+                } if
+            } if
+        } for
+        fxhit 0 lt {
+            /fxhit .state /.pdfforms get length def
+            .state /.pdfforms [ .state /.pdfforms get aload pop
+                << /bb fxbb /chunks fxchunks /len fxlen >> ] put
+        } if
+        fxhit
+    } //.indevwork exec } bind
+
+    % Draw a filed form where this placement puts it. The offset is the
+    % device's own, and the stream is already in the device's coordinates
+    % by its first operator, so the placement is a translation in the
+    % space the content is written in and needs no flip composed into it.
+    /PlaceForm {  % n dx dy IMAGE  .  -
+    8 {
+        /pfdy exch def /pfdx exch def /pfn exch def
+        .qsave
+        (1 0 0 1 ) .put pfdx .pdfnumstr .put ( ) .put pfdy .pdfnumstr .put
+        ( cm /Fm) .put pfn 20 string cvs .put ( Do\n) .put
+        .qrestore
+    } //.indevwork exec } bind
 
     % Overprint reaches a consumer as an ExtGState selection and by no
     % other route, so a stream with nothing written into it is already in
@@ -1441,13 +1491,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             ( >>) .vw
         } if
-        nimg 0 gt {
+        nimg 0 gt prpat nfm 0 gt and or {
             ( /XObject <<) .vw
             0 1 nimg 1 sub {
                 /ii exch def
                 ( /Im) .vw ii 20 string cvs .vw
                 ( ) .vw imgobjs ii get 20 string cvs .vw ( 0 R) .vw
             } for
+            prpat {
+                0 1 nfm 1 sub {
+                    /fj exch def
+                    ( /Fm) .vw fj 20 string cvs .vw
+                    ( ) .vw formobjs fj get 20 string cvs .vw ( 0 R) .vw
+                } for
+            } if
             ( >>) .vw
         } if
         .state /.opused get length 0 gt {
@@ -1562,6 +1619,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /ws width .pdfnumstr def
         /nseps .dev //.internaldict /.pdfsepcount get exec def
         /nimg .state /.pdfimages get length def
+        /nfm .state /.pdfforms get length def
 
         % Content stream object
         /coobj .nextobj def
@@ -1798,6 +1856,34 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ( >>\nstream\n) .vw ptc { .vw } forall (\nendstream\nendobj\n) .vw
         } for
 
+        % This page's form objects. Every number is taken before any of
+        % them is written, for the reason the cells above give: each
+        % carries the page's own resources and those name the objects
+        % standing beside it.
+        /formobjs nfm array def
+        0 1 nfm 1 sub { formobjs exch .nextobj put } for
+        0 1 nfm 1 sub {
+            /fmi exch def
+            /fme .state /.pdfforms get fmi get def
+            /fmo formobjs fmi get def
+            fmo .recordoff
+            flated {
+                fme /chunks get //.internaldict /.flatecompress get exec
+                /fmf exch def /fmc exch def
+            }{
+                /fmf false def /fmc fme /chunks get def
+            } ifelse
+            /fmlen 0 def fmc { length fmlen add /fmlen exch def } forall
+            fmo 20 string cvs .vw ( 0 obj\n) .vw
+            (<< /Type /XObject /Subtype /Form /BBox [) .vw
+            fme /bb get { .pdfnumstr .vw ( ) .vw } forall
+            (] /Resources <<) .vw
+            false .pdfresources
+            ( >> /Length ) .vw fmlen 20 string cvs .vw
+            fmf { ( /Filter /FlateDecode) .vw } if
+            ( >>\nstream\n) .vw fmc { .vw } forall (\nendstream\nendobj\n) .vw
+        } for
+
         % The page object, referencing the content, every registered
         % separation and this page's images; its parent is the page tree.
         /pgobj .nextobj def
@@ -1817,6 +1903,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .state /.pdfimages 0 array put
         .state /.pdfmasks get //.emptydict exec
         .state /.pdfpatterns 0 array put
+        .state /.pdfforms 0 array put
         .state /.pdfshadings 0 array put  % shadings filed as /Shading resources
         .state /.opused get //.emptydict exec
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
