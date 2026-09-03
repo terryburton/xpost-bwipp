@@ -187,4 +187,30 @@
     dup /ok eq { pop true } { pop false } ifelse
 (ReusableStreamDecode) (still builds a filter the chain gives no parameters) assert2
 
+% A reusable stream is read to its end before it answers anything, so its
+% whole source becomes a buffer the process holds -- and that buffer is not
+% in VM, so nothing the language offers bounds it. Left unbounded it is an
+% amplifier and not merely a cost: the byte 0x81 is a fixed point of
+% run-length decoding, so a stream of them grows sixty-four times for every
+% decoding layer stacked over it, and a program of a couple of hundred
+% bytes reaches hundreds of gigabytes in six. What is asked here is that
+% the stated limit is reached and refused, and that a stream below it is
+% carried as before.
+/rf.seed (\201\201) def
+{ rf.seed
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  closefile } outcome /ok eq
+    (four layers of the amplification are carried) assert
+{ rf.seed
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  /RunLengthDecode filter /ReusableStreamDecode filter
+  closefile } outcome /ok ne
+    (a fifth is refused rather than held) assert
+
 verdict

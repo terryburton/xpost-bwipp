@@ -6201,6 +6201,33 @@ Xpost_Object xpost_file_cons_filter_flate(Xpost_Memory_File *mem, Xpost_Object s
 }
 #endif
 
+/* What one reusable stream may hold.
+ *
+ * A reusable stream is read to its end before it answers anything, so its
+ * whole source becomes a buffer this process holds. That buffer is not in
+ * VM, so nothing the language offers bounds it: not vmreclaim, not the
+ * composite limits, not any user parameter -- the interpreter has no
+ * ceiling of its own to inherit here.
+ *
+ * Left unbounded it is an amplifier rather than merely a cost. The byte
+ * 0x81 is a fixed point of run-length decoding, so a stream of them grows
+ * sixty-four times for every decoding layer stacked over it: a program of
+ * a couple of hundred bytes reaches tens of megabytes at four layers,
+ * hundreds at five, and hundreds of gigabytes at six, with nothing between
+ * it and the machine.
+ *
+ * So a limit is stated. It is far above any stream a page description
+ * carries -- a full page at six hundred dots to the inch in three
+ * components comes to about a hundred megabytes -- and far below what one
+ * more layer of the amplification reaches. It is also a figure the suite
+ * can reach: a limit too high to test is a limit nothing holds to. PLRM 3.11 gives limitcheck for
+ * exactly this, "an implementation limit has been exceeded"; the filter
+ * constructors answer through a single object and the caller reads a
+ * failed construction as an ioerror, which is the error a program sees
+ * until that signature carries a reason.
+ */
+#define XPOST_RSD_MAX ((size_t)256 * 1024 * 1024)
+
 Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src)
 {
     Xpost_File *source = xpost_file_get_file_pointer(mem, src);
@@ -6216,6 +6243,11 @@ Xpost_Object xpost_file_cons_filter_rsd(Xpost_Memory_File *mem, Xpost_Object src
     {
         char b = (char)c;
 
+        if (data.len >= XPOST_RSD_MAX)
+        {
+            xpost_strbuf_free(&data);
+            return invalid;
+        }
         if (xpost_strbuf_append(&data, &b, 1))
         {
             xpost_strbuf_free(&data);
