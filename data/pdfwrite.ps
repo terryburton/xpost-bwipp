@@ -1569,6 +1569,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     {
         .pathelems 0 gt {
             .pdfstrokecolor
+            % The width as it stands, however thin. PDF reads a width of
+            % zero as the thinnest line the device can draw, which is what
+            % PLRM 7.5.1 says of a PostScript one, so writing zero for a
+            % hairline looks like the faithful translation -- and it is
+            % not worth making. MEASURED on a page carrying two thousand
+            % round-capped dots a hundredth of a point wide: writing them
+            % as zero left the page looking exactly as it did, the same
+            % marks present and the same marks missing, and took a
+            % consumer 2856 ms to draw where the width as written took
+            % 162. Consumers of this format already hold a stroke to a
+            % minimum they can show; what they do not do is take a
+            % thinnest-line stroke cheaply.
             currentlinewidth 0 dtransform dup mul exch dup mul add sqrt
             .snum ( w\n) .sput
             currentlinecap 20 string cvs .sput ( J\n) .sput

@@ -1097,9 +1097,17 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     12 { //.svgwritebind3 {exch def} forall
         .pathelems 0 gt {
             (<path fill="none" stroke=) .put spr spg spb .svgrgb
+            % As the PDF writer does, and for the same reason: a stroke
+            % too thin for any medium is said in the format's own terms.
+            % SVG has no width meaning "the thinnest there is" -- zero
+            % means no stroke at all -- but a non-scaling stroke is the
+            % same idea, one unit wide in the space it is drawn on
+            % whatever the transform.
             ( stroke-width=") .put
             currentlinewidth 0 dtransform dup mul exch dup mul add sqrt
-            .svgnum
+            dup 0.1 lt
+                { pop 1 .svgnum (" vector-effect="non-scaling-stroke) .put }
+                { .svgnum } ifelse
             (" stroke-linecap=") .put
             currentlinecap dup 0 eq { pop (butt) }{ 1 eq { (round) }{ (square) } ifelse } ifelse .put
             (" stroke-linejoin=") .put
