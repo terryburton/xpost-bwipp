@@ -122,14 +122,20 @@ struct Xpost_File
     int job_stream;
     int eot; /* a 0x04 was read from a job_stream: this job ended at the
                 delimiter and the stream has more after it */
-    /* A decode filter that met data its coding cannot represent latches
-       this. It is not end-of-data: the data is wrong, and PLRM 3.13 makes
-       that an ioerror for every filter that can tell (an ASCII85 character
-       outside the alphabet, an impossible 5-tuple, a damaged compressed
-       stream). The reading operator asks after the read and raises, so a
-       program is told its stream was corrupt rather than handed a short
-       answer that reads like a clean end. Every subtype begins with this
-       struct, so one latch serves all of them. */
+    /* A filter that cannot go on latches the reason here -- the error
+       name a program is to be told, not a flag. A decode filter that met
+       data its coding cannot represent latches ioerror: it is not
+       end-of-data, the data is wrong, and PLRM 3.13 makes that an ioerror
+       for every filter that can tell (an ASCII85 character outside the
+       alphabet, an impossible 5-tuple, a damaged compressed stream). The
+       reading operator asks after the read and raises what it finds, so a
+       program is told what went wrong rather than handed a short answer
+       that reads like a clean end.
+
+       A reason rather than a flag because not everything a filter refuses
+       is an ioerror: an implementation limit is a limitcheck (PLRM 3.11),
+       and a parameter out of range is a rangecheck. Every subtype begins
+       with this struct, so one latch serves all of them. */
     int err;
 };
 
@@ -601,6 +607,9 @@ FILE *xpost_file_stdio_stream_get(Xpost_File *fp);
  * The reading operators ask this rather than the outermost filter's own
  * latch, so a corrupt inner stream is the ioerror PLRM 3.13 makes it.
  */
+/* The error latched by the outermost filter in a decode chain that has
+   one, or zero. A chain is read through its outermost, so a corrupt inner
+   filter's latch is the chain's. The answer is the error name to raise. */
 int xpost_file_stream_err(Xpost_File *fp);
 
 /**

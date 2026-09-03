@@ -933,12 +933,14 @@ int xpost_op_file_read(Xpost_Context *ctx,
     if (xpost_file_ioblock_disarm())
         return ioblock;
     {
-        /* as readstring: a filter that failed to decode is an ioerror,
-           not the end of the data (PLRM 3.13), and a chain is read
-           through its outermost, so any inner filter's latch counts */
+        /* as readstring: a filter that could not go on is the reason it
+           latched and not the end of the data (PLRM 3.13), and a chain is
+           read through its outermost, so any inner filter's latch counts */
         Xpost_File *fp = xpost_file_get_file_pointer(ctx->lo, f);
-        if (fp && xpost_file_stream_err(fp))
-            return ioerror;
+        int ferr = fp ? xpost_file_stream_err(fp) : 0;
+
+        if (ferr)
+            return ferr;
     }
     if (xpost_object_get_type(b) == invalidtype)
     {
@@ -1133,8 +1135,12 @@ int xpost_op_file_readhexstring (Xpost_Context *ctx,
        represent latched it, and PLRM 3.13 makes corrupt filter input an
        ioerror rather than the end of the data. A chain is read through
        its outermost, so a corrupt inner filter's latch is the chain's. */
-    if (xpost_file_stream_err(f))
-        return ioerror;
+    {
+        int ferr = xpost_file_stream_err(f);
+
+        if (ferr)
+            return ferr;
+    }
     fflush(stdout);
     S.comp_.sz = n;
     xpost_stack_push(ctx->lo, ctx->os, S);
@@ -1251,8 +1257,12 @@ int _readstring (Xpost_Context *ctx,
        an ioerror, so the program is told rather than handed a clean-
        looking end of data. A chain is read through its outermost, so a
        corrupt inner filter's latch is the chain's. */
-    if (xpost_file_stream_err(f))
-        return ioerror;
+    {
+        int ferr = xpost_file_stream_err(f);
+
+        if (ferr)
+            return ferr;
+    }
     /* the count read is compared against the string's own length in the
        wider signed type: a read that answered short answers short */
     if (n == (integer)S.comp_.sz)
@@ -1424,8 +1434,12 @@ int xpost_op_file_readline (Xpost_Context *ctx,
        Asked before the line is weighed against the string, so a
        truncated read is reported as the corruption it is rather than as
        a line that did not fit. */
-    if (xpost_file_stream_err(f))
-        return ioerror;
+    {
+        int ferr = xpost_file_stream_err(f);
+
+        if (ferr)
+            return ferr;
+    }
     if (n == S.comp_.sz)
     {
         /* The string is exactly full. A line that ends here has been read,

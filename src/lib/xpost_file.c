@@ -1492,7 +1492,7 @@ a85_readch(Xpost_File *f)
         {
             XPOST_LOG_INFO("character %d in ASCII85Decode stream", c);
             ff->base.eod = 1;
-            ff->base.methods.err = 1;
+            ff->base.methods.err = ioerror;
             break;
         }
         grp[n++] = c - '!';
@@ -1532,7 +1532,7 @@ a85_readch(Xpost_File *f)
         {
             XPOST_LOG_INFO("group value exceeds 2^32-1 in ASCII85Decode stream");
             ff->base.eod = 1;
-            ff->base.methods.err = 1;
+            ff->base.methods.err = ioerror;
             return EOF;
         }
         t32 = (unsigned int)tuple;
@@ -2554,7 +2554,7 @@ hex_readch(Xpost_File *f)
     {
         XPOST_LOG_INFO("character %d in ASCIIHexDecode stream", c);
         ff->base.eod = 1;
-        ff->base.methods.err = 1;
+        ff->base.methods.err = ioerror;
         return EOF;
     }
     do
@@ -2573,7 +2573,7 @@ hex_readch(Xpost_File *f)
         {
             XPOST_LOG_INFO("character %d in ASCIIHexDecode stream", c);
             ff->base.eod = 1;
-            ff->base.methods.err = 1;
+            ff->base.methods.err = ioerror;
             lo = 0;
         }
         else if (!ff->base.eod)
@@ -2844,7 +2844,7 @@ flate_refill(Xpost_FlateFile *ff)
         {
             XPOST_LOG_INFO("FlateDecode error %d", ret);
             ff->base.eod = 1;
-            ff->base.methods.err = 1;
+            ff->base.methods.err = ioerror;
             break;
         }
     }
@@ -2888,7 +2888,7 @@ flate_refill(Xpost_FlateFile *ff)
             {
                 XPOST_LOG_INFO("FlateDecode error %d", ret);
                 ff->base.eod = 1;
-                ff->base.methods.err = 1;
+                ff->base.methods.err = ioerror;
                 break;
             }
             if (ff->strm.avail_out == 0)   /* a byte past the buffer; stream continues */
@@ -3093,7 +3093,7 @@ dct_readch(Xpost_File *f)
            it, and the answer is not derivable from what does. */
         ff->base.eod = 1;
         if (ff->sawsoi && ff->ranout)
-            ff->base.methods.err = 1;
+            ff->base.methods.err = ioerror;
         return EOF;
     }
     if (!ff->started)
@@ -3623,7 +3623,7 @@ lzw_readch(Xpost_File *f)
     {
         XPOST_LOG_INFO("LZWDecode: code out of range");
         ff->base.base.eod = 1;
-        ff->base.base.methods.err = 1;
+        ff->base.base.methods.err = ioerror;
         return EOF;
     }
 
@@ -4183,7 +4183,7 @@ fax_decoderow(Xpost_FaxFile *ff)
     {
         XPOST_LOG_INFO("CCITTFaxDecode: damaged row %d", ff->rowsdone);
         ff->base.base.eod = 1;
-        ff->base.base.methods.err = 1;
+        ff->base.base.methods.err = ioerror;
         return EOF;
     }
 
@@ -6900,7 +6900,7 @@ int xpost_file_stream_err(Xpost_File *fp)
     while (fp)
     {
         if (fp->err)
-            return 1;
+            return fp->err;
         if (fp->wraps != XPOST_FILE_WRAPS_SOURCE)
             break;
         fp = ((Xpost_FilterBase *)fp)->source;
