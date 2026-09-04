@@ -1130,8 +1130,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
         /shdc shbx shax sub dup mul shby shay sub dup mul add sqrt def
 
-        shbr 0 le { false }{
-        shdc shbr shar sub ge { false }{
+        % Both tests are written as the thing that must hold rather than
+        % as the thing that must not, so a coordinate that is not a
+        % number -- which answers false to every comparison -- is
+        % declined here rather than reaching the emission below and
+        % leaving a part-written element in the document.
+        shbr 0 gt shdc shbr shar sub lt and {
             /shid .state /.svggrads get def
             .state /.svggrads shid 1 add put
             /shn 32 def          % stops across the ramp
@@ -1193,7 +1197,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 
             shopen { (</g>\n) .put } if
             true
-        } ifelse } ifelse
+        }{ false } ifelse
     } bind
 
     /ClipPath {  % path evenodd serial IMAGE  .  -
