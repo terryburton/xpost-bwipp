@@ -206,6 +206,8 @@ src/lib/xpost_object.c       xpost_object_dict_get_access outlives replaced-at-i
 src/lib/xpost_object.c       xpost_object_dict_set_access outlives replaced-at-init
 src/lib/xpost_object.c       xpost_object_file_get_access outlives replaced-at-init
 src/lib/xpost_object.c       xpost_object_file_set_access outlives replaced-at-init
+src/lib/xpost_op_control.c   name_gptr              reset xpost_oper_init_control_ops
+src/lib/xpost_op_control.c   name_grestore          reset xpost_oper_init_control_ops
 src/lib/xpost_op_font.c      name_BlendPix          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_CIDFontType       reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_CharStrings       reset xpost_oper_init_font_ops

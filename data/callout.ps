@@ -307,43 +307,19 @@ systemdict begin
 %  itself to run.
 %
 /.callout {  % {proc} keys ndict  .  -
-    % pr ks nd
-    exch dup null eq { pop //.conothing } if exch
-
-    % ov: what the named slots hold on the way in
-    1 index length dup 0 gt { array }{ pop //.conothing } ifelse
-    2 index 1 index graphicsdict //.cosave exec
-
-    % ds: the machinery's own dictionaries, taken off here and held
-    % outermost first for the program below to put back.
-    1 index dup 0 gt { array }{ pop //.conothing } ifelse
-    2 index 1 sub -1 0 {
-        1 index exch currentdict put
-        end
-    } for
-
-    % The depths to come back to
-    graphicsdict /gptr get
-    countdictstack
-
-    % The three operators the program is made of are read out of the
-    % table baked in above rather than looked up: the program is built
-    % here and so is never bound, and it runs under the dictionary stack
-    % the caller had, where a program may have defined any of those names
-    % over the standard one.
+    %  The bracket itself is mechanism and is written in C
+    %  (xpost_op_control.c, .calloutframe): a call frame with an unwind,
+    %  which no program can call or see and whose correctness rests on
+    %  the depth of two stacks rather than on anything the manual
+    %  describes. Written here it built a program of eighteen elements
+    %  per call, which an image calling its data source once per run paid
+    %  for once per run.
     %
-    % pr ks nd ov ds gp dd
-    [
-        counttomark 7 add index //.coops /stopped get
-        counttomark 2 add index //.gsunwind //.coops /exec get
-        counttomark 1 add index //.dsunwind //.coops /exec get
-        counttomark 3 add index //.cobeginall //.coops /exec get
-        counttomark 6 add index counttomark 4 add index graphicsdict
-            //.corestore //.coops /exec get
-        //.costop //.coops /if get
-    ] cvx
-    7 { exch pop } repeat
-    exec
+    %  What stays here is the policy: what stands for a slot that was not
+    %  there on the way in. The caller's other two statements -- which
+    %  slots it parked in, and how many of its dictionaries stand between
+    %  the procedure and the program's scope -- arrive as operands.
+    //.coabsent //.calloutframe
 } def
 
 %

@@ -133,8 +133,10 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
     _(wrapdone,            "wrap.done") \
     _(wrapsealed,          "wrap.sealed") \
     /* the boundary an operator calling back into a procedure of the \
-       program's leaves on the execution stack */ \
-    _(calloutdone,         "callout.done")
+       program's leaves on the execution stack, and the continuation \
+       that takes the bracket's frame off again */ \
+    _(calloutdone,         "callout.done") \
+    _(calloutunwind,       "callout.unwind")
 
 /**
  * @def XPOST_OP_CODE

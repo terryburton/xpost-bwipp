@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /*
  * Xpost - a PostScript Level-3 interpreter
  * Copyright (c) 2013-2016 Michael Joshua Ryan
@@ -641,6 +642,324 @@ int xpost_op_calloutdone(Xpost_Context *ctx)
     return 0;
 }
 
+/* The two names the bracket reads: the graphics state stack's depth,
+   which it puts back, and the operator that puts it back. Interned once
+   at registration rather than per call. */
+static Xpost_Object name_gptr;
+static Xpost_Object name_grestore;
+
+/* the depth the graphics state stack stands at */
+static
+integer _callout_gsdepth(Xpost_Context *ctx)
+{
+    Xpost_Object v;
+
+    if (xpost_object_get_type(ctx->graphicsdict) != dicttype)
+        return 0;
+    v = xpost_dict_get(ctx, ctx->graphicsdict, name_gptr);
+    return (xpost_object_get_type(v) == integertype) ? v.int_.val : 0;
+}
+
+/* grestore, which is written in PostScript and so is reached as the
+   operator the promotion left in systemdict rather than called */
+static
+Xpost_Object _callout_grestore(Xpost_Context *ctx)
+{
+    int n = (int)xpost_stack_count(ctx->lo, ctx->ds);
+    int i;
+
+    /* Looked up the way a name is looked up, from the top of the
+       dictionary stack down, rather than assumed to sit in whichever
+       dictionary is at the bottom: the bracket runs with the caller's
+       stack, and a caller that has taken dictionaries off has moved
+       what is where. */
+    for (i = 0; i < n; i++)
+    {
+        Xpost_Object d = xpost_stack_topdown_fetch(ctx->lo, ctx->ds, i);
+        Xpost_Object v;
+
+        if (xpost_object_get_type(d) != dicttype)
+            continue;
+        v = xpost_dict_get(ctx, d, name_grestore);
+        if (xpost_object_get_type(v) != invalidtype)
+            return v;
+    }
+    return null;
+}
+
+/* --- the callout bracket ---------------------------------------------
+
+   The bracket the machinery runs a procedure of the program's under.
+   It hides the machinery's own dictionaries, remembers what the caller
+   parked in the graphics dictionary, and puts both back however the
+   procedure ends -- returning, or failing and being raised again.
+
+   This is mechanism rather than language: no program can call it or see
+   it, and what makes it correct is the depth of two stacks rather than
+   anything the manual describes (doc/xpost_design.dox, "What is C and
+   what is PostScript"). What it protects, though, is policy and stays
+   with the caller: the caller says which slots it parked in and how
+   many of its dictionaries stand between the procedure and the
+   program's scope.
+
+   The frame rides the execution stack beneath the procedure, the way a
+   wrapped operator's frame does, so that nothing of the bracket's lies
+   on the operand stack the procedure takes its operands from and leaves
+   its results on. A stopped context -- the boolean false the stopped
+   operator leaves -- sits between the frame and the procedure, so a
+   failure unwinds to there and no further, and the continuation beneath
+   reads that boolean to learn which way the procedure ended.
+
+   MEASURED: the same bracket written in PostScript built a program of
+   eighteen elements per call and allocated twice. An image whose
+   run-length data source is called once per run spent seventy per cent
+   of its whole run inside it. */
+
+/* Take down what each named slot of the graphics dictionary holds, so
+   that a procedure re-entering the machinery and writing the same slots
+   cannot cost the caller what it parked there. A slot that is not there
+   on the way in is recorded as absent rather than as null, which is a
+   value a slot may legitimately hold. */
+static
+int _callout_save_slots(Xpost_Context *ctx, Xpost_Object keys,
+                        Xpost_Object vals, Xpost_Object absent)
+{
+    int n = keys.comp_.sz;
+    int i;
+
+    for (i = 0; i < n; i++)
+    {
+        Xpost_Object k = xpost_array_get(ctx, keys, i);
+        Xpost_Object v = xpost_dict_get(ctx, ctx->graphicsdict, k);
+
+        if (xpost_object_get_type(v) == invalidtype)
+            v = absent;
+        if (xpost_array_put(ctx, vals, i, v))
+            return unregistered;
+    }
+    return 0;
+}
+
+/* The undo of the above: each slot gets its value back, and a slot that
+   was absent is undefined again rather than left holding one. */
+static
+int _callout_restore_slots(Xpost_Context *ctx, Xpost_Object keys,
+                           Xpost_Object vals, Xpost_Object absent)
+{
+    int n = keys.comp_.sz;
+    int i;
+
+    for (i = 0; i < n; i++)
+    {
+        Xpost_Object k = xpost_array_get(ctx, keys, i);
+        Xpost_Object v = xpost_array_get(ctx, vals, i);
+        int ret;
+
+        if (xpost_dict_compare_objects(ctx, v, absent) == 0)
+        {
+            /* A slot absent on the way in is absent again. Undefining a
+               key the dictionary does not hold is not a failure here:
+               the procedure may never have defined it, and PLRM 3.3.9
+               has undef ignore a key that is not there. */
+            ret = xpost_dict_undef(ctx, ctx->graphicsdict, k);
+            if (ret == undefined)
+                ret = 0;
+        }
+        else
+            ret = xpost_dict_put(ctx, ctx->graphicsdict, k, v);
+        if (ret)
+            return ret;
+    }
+    return 0;
+}
+
+/* {proc} keys ndict absent  .calloutframe  -
+   Run the program's procedure under the bracket. keys names the graphics
+   dictionary slots to put back afterwards and may be null; ndict is how
+   many of the machinery's own dictionaries stand between the procedure
+   and the program's scope, and come off before it runs; absent is what
+   stands for a slot that was not there on the way in.
+
+   The frame is pushed object by object rather than gathered into an
+   array, so that the bracket allocates nothing at all where the caller
+   names no slots -- which is every caller but one. Nothing allocated
+   means nothing to keep the collector's hands off between the taking
+   down and the frame reaching the execution stack, which is a root. */
+static
+int xpost_op_callout(Xpost_Context *ctx,
+                     Xpost_Object P,
+                     Xpost_Object keys,
+                     Xpost_Object N,
+                     Xpost_Object absent)
+{
+    Xpost_Object ov;
+    int nd = N.int_.val;
+    int nk = 0;
+    int i;
+
+    if (nd < 0)
+        return rangecheck;
+    if (xpost_object_get_type(keys) == arraytype)
+        nk = keys.comp_.sz;
+    else if (xpost_object_get_type(keys) != nulltype)
+        return typecheck;
+    if (nd > (int)xpost_stack_count(ctx->lo, ctx->ds))
+        return dictstackunderflow;
+
+    /* What the named slots hold on the way in. The only allocation the
+       bracket makes, and it is made before anything is taken down: from
+       here to the frame going on there is nothing that can collect. */
+    ov = null;
+    if (nk)
+    {
+        int ret;
+
+        ov = xpost_object_cvlit(xpost_array_cons(ctx, (unsigned int)nk));
+        if (xpost_object_get_type(ov) != arraytype)
+            return VMerror;
+        if (!xpost_stack_push(ctx->lo, ctx->hold, ov))
+            return stackoverflow;
+        ret = _callout_save_slots(ctx, keys, ov, absent);
+        if (ret)
+            return ret;
+    }
+
+    if (!xpost_stack_push(ctx->lo, ctx->es, absent) ||
+        !xpost_stack_push(ctx->lo, ctx->es, ov) ||
+        !xpost_stack_push(ctx->lo, ctx->es, keys))
+        return execstackoverflow;
+
+    /* The machinery's own dictionaries, innermost taken first and so
+       lying deepest, which leaves the continuation popping them
+       outermost first -- the order they must go back on. */
+    for (i = 0; i < nd; i++)
+    {
+        Xpost_Object d = xpost_stack_pop(ctx->lo, ctx->ds);
+
+        if (xpost_object_get_type(d) == invalidtype)
+            return dictstackunderflow;
+        if (!xpost_stack_push(ctx->lo, ctx->es, d))
+            return execstackoverflow;
+    }
+
+    /* Taking a dictionary off changes what every name sees, which is
+       what begin and end bump this for; the bracket moves the stack
+       without going through them, so it says so itself. A cache keyed on
+       the generation would otherwise answer for the scope that stood
+       before the machinery's dictionaries came off. */
+    if (nd)
+        ++ctx->namebind_gen;
+
+    if (!xpost_stack_push(ctx->lo, ctx->es, xpost_int_cons(nd)) ||
+        !xpost_stack_push(ctx->lo, ctx->es,
+                          xpost_int_cons(_callout_gsdepth(ctx))) ||
+        !xpost_stack_push(ctx->lo, ctx->es,
+                          xpost_int_cons((integer)xpost_stack_count(ctx->lo,
+                                                                   ctx->ds))) ||
+        !xpost_stack_push(ctx->lo, ctx->es, XPOST_OP(ctx, calloutunwind)) ||
+        /* the stopped context: a failure unwinds to here and no further,
+           and the continuation reads the boolean it leaves to learn
+           which way the procedure ended */
+        !xpost_stack_push(ctx->lo, ctx->es, xpost_bool_cons(0)) ||
+        !xpost_stack_push(ctx->lo, ctx->es, xpost_object_cvx(P)))
+        return execstackoverflow;
+    return 0;
+}
+
+/* -  callout.unwind  -
+   put back what the bracket took down, and raise again what the
+   procedure raised. */
+static
+int xpost_op_calloutunwind(Xpost_Context *ctx)
+{
+    Xpost_Object stopped_, dd, gp, nd, keys, ov, absent;
+    int gsnow, want, i, ret, moved;
+
+    stopped_ = xpost_stack_pop(ctx->lo, ctx->os);
+    if (xpost_object_get_type(stopped_) != booleantype)
+        return unregistered;
+    dd = xpost_stack_pop(ctx->lo, ctx->es);
+    gp = xpost_stack_pop(ctx->lo, ctx->es);
+    nd = xpost_stack_pop(ctx->lo, ctx->es);
+    if (xpost_object_get_type(nd) != integertype)
+        return unregistered;
+
+    /* A gsave the procedure left open -- or one the machinery's own
+       setup left open inside the bracket -- is closed, and the state it
+       saved put back. grestore is written in PostScript, so this reaches
+       it as the operator the promotion left in systemdict and comes back
+       here to finish; the common case is a depth that never moved. */
+    gsnow = _callout_gsdepth(ctx);
+    want = gp.int_.val;
+    if (gsnow > want)
+    {
+        Xpost_Object gr = _callout_grestore(ctx);
+
+        /* grestore is whatever the language has made of it -- the
+           operator the promotion leaves, or the procedure it is before
+           that -- and either runs from the execution stack. What must
+           not be scheduled is a name that answered with nothing. */
+        if (xpost_object_get_type(gr) == invalidtype ||
+            xpost_object_get_type(gr) == nulltype)
+            return undefined;
+        gr = xpost_object_cvx(gr);
+        if (!xpost_stack_push(ctx->lo, ctx->es, nd) ||
+            !xpost_stack_push(ctx->lo, ctx->es, gp) ||
+            !xpost_stack_push(ctx->lo, ctx->es, dd) ||
+            !xpost_stack_push(ctx->lo, ctx->es, XPOST_OP(ctx, calloutunwind)))
+            return execstackoverflow;
+        for (i = gsnow; i > want; i--)
+            if (!xpost_stack_push(ctx->lo, ctx->es, gr))
+                return execstackoverflow;
+        if (!xpost_stack_push(ctx->lo, ctx->os, stopped_))
+            return stackoverflow;
+        return 0;
+    }
+
+    /* end until the dictionary stack stands where it stood while the
+       procedure ran, then put the machinery's own back on, outermost
+       first, which is the order they come off the frame */
+    moved = ((integer)xpost_stack_count(ctx->lo, ctx->ds) != dd.int_.val)
+            || nd.int_.val;
+    while ((integer)xpost_stack_count(ctx->lo, ctx->ds) > dd.int_.val)
+        if (xpost_object_get_type(xpost_stack_pop(ctx->lo, ctx->ds)) ==
+            invalidtype)
+            return dictstackunderflow;
+    for (i = 0; i < nd.int_.val; i++)
+    {
+        Xpost_Object d = xpost_stack_pop(ctx->lo, ctx->es);
+
+        if (xpost_object_get_type(d) != dicttype)
+            return unregistered;
+        if (!xpost_stack_push(ctx->lo, ctx->ds, d))
+            return dictstackoverflow;
+    }
+
+    /* the scope is the caller's again, which every name must see: the
+       bracket moved the dictionary stack without going through begin and
+       end, so it bumps the generation they bump. Asked rather than
+       assumed, because a bracket over no dictionaries that the procedure
+       left alone has changed nothing and need not spend the cache. */
+    if (moved)
+        ++ctx->namebind_gen;
+
+    keys = xpost_stack_pop(ctx->lo, ctx->es);
+    ov = xpost_stack_pop(ctx->lo, ctx->es);
+    absent = xpost_stack_pop(ctx->lo, ctx->es);
+    if (xpost_object_get_type(ov) == arraytype && ov.comp_.sz)
+    {
+        ret = _callout_restore_slots(ctx, keys, ov, absent);
+        if (ret)
+            return ret;
+    }
+
+    /* what failed in there is raised again, so the caller's own error
+       handling sees the error the procedure raised */
+    if (stopped_.int_.val)
+        return xpost_op_stop(ctx);
+    return 0;
+}
+
 /* proc  .coexec  -
    run proc with that boundary beneath it. The boundary leaves the
    execution stack with proc, whether proc returns or is abandoned. */
@@ -900,6 +1219,16 @@ int xpost_oper_init_control_ops (Xpost_Context *ctx,
     INSTALL;
     op = xpost_operator_cons(ctx, ".coexec", (Xpost_Op_Func)xpost_op_proc_coexec, 1, proctype);
     INSTALL;
+    name_gptr = xpost_name_cons(ctx, "gptr");
+    name_grestore = xpost_name_cons(ctx, "grestore");
+    op = xpost_operator_cons(ctx, ".calloutframe", (Xpost_Op_Func)xpost_op_callout,
+                             4, proctype, anytype, integertype, anytype);
+    INSTALL;
+    /* the bracket's continuation, reached by opcode from the frame it
+       rides beneath and never by name, so it is made without being put
+       in systemdict -- as the other continuations are */
+    op = xpost_operator_cons(ctx, "callout.unwind",
+                             (Xpost_Op_Func)xpost_op_calloutunwind, 0);
     op = xpost_operator_cons(ctx, ".wrapop", (Xpost_Op_Func)xpost_op_wrapop, 2, nametype, proctype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".wrapopsig", (Xpost_Op_Func)xpost_op_wrapopsig, 3,
