@@ -5597,6 +5597,44 @@ int xpost_dev_pdf_fmt_num(char *o, double v)
     return _pdf_fmt_num(o, v);
 }
 
+/* The SVG number: an integer where the value is whole, else exactly two
+   decimals, which is what data/device.ps writes every coordinate and
+   dimension of an SVG document through. The compiled half wrote four,
+   so one document carried numbers at two precisions according to which
+   half emitted them. Asked of a colour and not of a coordinate: a
+   component is a component wherever it is written, while a coordinate
+   may be written inside a matrix that scales it, and is then out on the
+   page by whatever it was rounded by (data/svgwrite.ps says the same of
+   .svgfull). Two decimals of a percentage carry an eight-bit component
+   back exactly, which is what a consumer draws. */
+int xpost_dev_svg_fmt_num(char *o, double v)
+{
+    long m;
+    long ip, fp;
+    int len = 0, digits = 2;
+
+    if (v != v)
+        v = 0.0;
+    else if (v > PDF_NUM_MAX)
+        v = PDF_NUM_MAX;
+    else if (v < -PDF_NUM_MAX)
+        v = -PDF_NUM_MAX;
+    if (v > 21000000.0 || v < -21000000.0)
+        return _pdf_fmt_long(o, (long)v);
+    m = (long)round(v * 100.0);
+    if (m % 100 == 0)
+        return _pdf_fmt_long(o, m / 100);
+    if (m < 0) { o[len++] = '-'; m = -m; }
+    ip = m / 100;
+    fp = m % 100;
+    len += _pdf_fmt_long(o + len, ip);
+    o[len++] = '.';
+    while (digits > 0 && fp % 10 == 0) { fp /= 10; digits--; }
+    if (digits == 2) { o[len++] = (char)('0' + fp / 10); o[len++] = (char)('0' + fp % 10); }
+    else             { o[len++] = (char)('0' + fp); }
+    return len;
+}
+
 /* Emit the content-stream operators for a filled path into the accumulator:
    the flattened subpaths ("x y m" / "x y l", closed with "h") and a
    nonzero-winding fill ("f") -- the rule the fill operator has: overlapping
@@ -5752,12 +5790,8 @@ static int _svgfillpoly(Xpost_Context *ctx,
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return undefined;
 
-    len = 0;
-    memcpy(tmp + len, "<path fill=\"rgb(", 16); len += 16;
-    len += _pdf_fmt_num(tmp + len, PDFNUMVAL(r) * 100); tmp[len++] = '%'; tmp[len++] = ',';
-    len += _pdf_fmt_num(tmp + len, PDFNUMVAL(g) * 100); tmp[len++] = '%'; tmp[len++] = ',';
-    len += _pdf_fmt_num(tmp + len, PDFNUMVAL(b) * 100); tmp[len++] = '%';
-    memcpy(tmp + len, ")\" fill-rule=\"nonzero\" d=\"", 26); len += 26;
+    len = xpost_dev_svg_path_open(tmp, PDFNUMVAL(r), PDFNUMVAL(g),
+                                  PDFNUMVAL(b), 0);
     ret = xpost_strbuf_append(&a.content, tmp, len);
 
     n = poly.comp_.sz;
@@ -6716,6 +6750,36 @@ static int _pdfresadd(Xpost_Context *ctx, Xpost_Object kind,
 /* what the description costs to hold: the stream's own dictionary, the
    entry in the page's resources, and the reference to it */
 #define PDF_GLY_HOLD   150
+/* Open the element a filled path is the body of, in the one place all
+   three callers reach for it.
+
+   The rule is written only where it is not SVG's own: nonzero is the
+   default a reader assumes, so naming it spends twenty bytes on every
+   filled path in the document to say what the document says already --
+   and a mesh reaches this a hundred thousand times over. The glyph path
+   has always left it out; this is the rest of the tree agreeing.
+
+   Answers the length written. */
+int xpost_dev_svg_path_open(char *buf, double r, double g, double b,
+                            int evenodd)
+{
+    int n = 0;
+
+    memcpy(buf + n, "<path fill=\"rgb(", 16); n += 16;
+    n += xpost_dev_svg_fmt_num(buf + n, r * 100); buf[n++] = '%'; buf[n++] = ',';
+    n += xpost_dev_svg_fmt_num(buf + n, g * 100); buf[n++] = '%'; buf[n++] = ',';
+    n += xpost_dev_svg_fmt_num(buf + n, b * 100); buf[n++] = '%';
+    if (evenodd)
+    {
+        memcpy(buf + n, ")\" fill-rule=\"evenodd\" d=\"", 26); n += 26;
+    }
+    else
+    {
+        memcpy(buf + n, ")\" d=\"", 6); n += 6;
+    }
+    return n;
+}
+
 int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
                              const double *bbox, const char *body,
                              size_t len, int *index)

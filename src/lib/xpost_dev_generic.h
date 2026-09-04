@@ -124,6 +124,9 @@ int xpost_dev_pdf_state(Xpost_Context *ctx, Xpost_Object devdic,
    thousand times be written once. */
 /* Whether an outline drawn again is worth a description of its own yet:
    1 with the number to place, 0 to write the outline where it stands. */
+int xpost_dev_svg_fmt_num(char *o, double v);
+int xpost_dev_svg_path_open(char *buf, double r, double g, double b,
+                            int evenodd);
 int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
                              const double *bbox, const char *body,
                              size_t len, int *index);

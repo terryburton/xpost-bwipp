@@ -1972,15 +1972,7 @@ int _fillpath_emit(Xpost_Context *ctx,
     /* the PDF device emits its fill colour itself, before the walk */
     if (svg)
     {
-        n = 0;
-        memcpy(tmp + n, "<path fill=\"rgb(", 16); n += 16;
-        n += xpost_dev_pdf_fmt_num(tmp + n, comp[0] * 100); tmp[n++] = '%'; tmp[n++] = ',';
-        n += xpost_dev_pdf_fmt_num(tmp + n, comp[1] * 100); tmp[n++] = '%'; tmp[n++] = ',';
-        n += xpost_dev_pdf_fmt_num(tmp + n, comp[2] * 100); tmp[n++] = '%';
-        if (evenodd)
-            { memcpy(tmp + n, ")\" fill-rule=\"evenodd\" d=\"", 26); n += 26; }
-        else
-            { memcpy(tmp + n, ")\" fill-rule=\"nonzero\" d=\"", 26); n += 26; }
+        n = xpost_dev_svg_path_open(tmp, comp[0], comp[1], comp[2], evenodd);
         ret = xpost_dev_pdf_append(ctx, devdic, tmp, n);
         if (ret)
             return ret;
