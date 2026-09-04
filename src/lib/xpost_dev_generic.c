@@ -6200,8 +6200,9 @@ static int _pdfimgcount(Xpost_Context *ctx, Xpost_Object devdic)
 /* .pdfimgget  i devdic  .  dict
 
    One of them back in the shape it was filed in, for Emit to write the
-   object around. The samples come back as a single string: the object
-   they are written into has no rows either. */
+   object around. The samples come back as a run of strings, each within
+   the length a string can count; the object they are written into has no
+   rows of its own, so what the run is cut at is nobody else's business. */
 static int _pdfimgget(Xpost_Context *ctx, Xpost_Object idx, Xpost_Object devdic)
 {
     Pdf_Acc a;
@@ -6253,15 +6254,37 @@ static int _pdfimgget(Xpost_Context *ctx, Xpost_Object idx, Xpost_Object devdic)
                 return VMerror;
         IMGPUT("mrng", xpost_object_cvlit(arr));
     }
-    str = xpost_string_cons(ctx, (unsigned)e->rowslen, e->rows);
-    if (xpost_object_get_type(str) == invalidtype)
-        return VMerror;
-    arr = xpost_array_cons(ctx, 1);
-    if (xpost_object_get_type(arr) == invalidtype)
-        return VMerror;
-    if (xpost_array_put(ctx, arr, 0, xpost_object_cvlit(str)))
-        return VMerror;
-    IMGPUT("rows", xpost_object_cvlit(arr));
+    {
+        /* The samples come back in strings a string can count. An image
+           of any size at all passes this way -- a page-sized one is
+           hundreds of thousands of bytes -- and a string carries its
+           length in a field that stops at 65535, so the samples are
+           handed over in as many pieces as that takes. Every reader of
+           them already takes a run of pieces: the compressors take an
+           array, and the length is summed across it. */
+        size_t pos = 0;
+        int nchunks = (int)((e->rowslen + 65534) / 65535);
+
+        if (nchunks == 0)
+            nchunks = 1;
+        arr = xpost_array_cons(ctx, (unsigned)nchunks);
+        if (xpost_object_get_type(arr) == invalidtype)
+            return VMerror;
+        for (i = 0; i < nchunks; i++)
+        {
+            size_t chunk = (size_t)e->rowslen - pos;
+
+            if (chunk > 65535)
+                chunk = 65535;
+            str = xpost_string_cons(ctx, (unsigned)chunk, e->rows + pos);
+            if (xpost_object_get_type(str) == invalidtype)
+                return VMerror;
+            if (xpost_array_put(ctx, arr, i, xpost_object_cvlit(str)))
+                return VMerror;
+            pos += chunk;
+        }
+        IMGPUT("rows", xpost_object_cvlit(arr));
+    }
 #undef IMGPUT
     xpost_stack_push(ctx->lo, ctx->os, d);
     return 0;
@@ -6891,15 +6914,34 @@ static int _pdfresget(Xpost_Context *ctx, Xpost_Object kind,
         RESPUT("obj", xpost_int_cons(e->obj));
     if (e->written)
         RESPUT("written", xpost_bool_cons(1));
-    str = xpost_string_cons(ctx, (unsigned)e->bodylen, e->body);
-    if (xpost_object_get_type(str) == invalidtype)
-        return VMerror;
-    arr = xpost_array_cons(ctx, 1);
-    if (xpost_object_get_type(arr) == invalidtype)
-        return VMerror;
-    if (xpost_array_put(ctx, arr, 0, xpost_object_cvlit(str)))
-        return VMerror;
-    RESPUT("chunks", xpost_object_cvlit(arr));
+    {
+        /* The body in strings a string can count. A pattern's or a
+           form's body is as long as the marks in it, which is longer
+           than a string's length field reaches, and the readers of this
+           take a run of pieces already. */
+        size_t pos = 0;
+        int nchunks = (int)((e->bodylen + 65534) / 65535);
+
+        if (nchunks == 0)
+            nchunks = 1;
+        arr = xpost_array_cons(ctx, (unsigned)nchunks);
+        if (xpost_object_get_type(arr) == invalidtype)
+            return VMerror;
+        for (j = 0; j < nchunks; j++)
+        {
+            size_t chunk = (size_t)e->bodylen - pos;
+
+            if (chunk > 65535)
+                chunk = 65535;
+            str = xpost_string_cons(ctx, (unsigned)chunk, e->body + pos);
+            if (xpost_object_get_type(str) == invalidtype)
+                return VMerror;
+            if (xpost_array_put(ctx, arr, j, xpost_object_cvlit(str)))
+                return VMerror;
+            pos += chunk;
+        }
+        RESPUT("chunks", xpost_object_cvlit(arr));
+    }
 #undef RESPUT
     xpost_stack_push(ctx->lo, ctx->os, d);
     return 0;
