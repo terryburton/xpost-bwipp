@@ -1366,7 +1366,13 @@ int xpost_record_image_rows(const Xpost_Record_Image *img,
     a -= 2.0;
     b += 2.0;
     *y0 = *y1 = 0;
-    if (b < 0.0 || a > (double)img->height)
+    /* Written as the tests the range must pass rather than the ones it
+       must fail. The edges come of a division by the scale, so a scale
+       that is not a number leaves them not numbers, and one answers
+       false to every comparison -- an ordinary pair of rejections would
+       pass it to the conversion below, which has no integer for it. A
+       range that is not a number names no rows. */
+    if (!(b >= 0.0) || !(a <= (double)img->height))
         return 0;
     /* brought inside the image before it is counted in rows, so that a
        range far off the page does not name a row number no int holds */
