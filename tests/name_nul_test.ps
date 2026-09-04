@@ -201,18 +201,22 @@ end
 
 % --- fonts -------------------------------------------------------------
 % A face is found by handing the name to the host's font configuration.
-% A build with no face library has no configuration to ask, and these
-% cases would be asking nothing; they are left out rather than passed.
+% A build with no face library has no configuration to ask, and a host
+% whose configuration answers no plain name has nothing to answer these
+% with either: what is asked below is which names that configuration
+% obtains, and where it obtains none the questions are not about names.
+% So the plain name is the way in rather than a case of its own, and
+% where it is not available the cases are left out rather than passed.
 
-systemdict /NOFACES known not {
+systemdict /NOFACES known not
+    { /Times-Roman /Font resourcestatus { pop pop true }{ false } ifelse }
+    { false } ifelse
+{
 
     /nultimes { <54696d65732d526f6d616e00> cvn } bind def
 
     % what a font resource reports it can obtain. The refusal here is a
     % value -- false -- so the unknown name says what false means.
-    /Times-Roman /Font resourcestatus
-        { pop pop true }{ false } ifelse
-        (a plain font name is available as a resource) assert
     nultimes /Font resourcestatus
         { pop pop true }{ false } ifelse not
         (a nul-carrying font name is not available as a resource) assert

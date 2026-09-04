@@ -225,22 +225,51 @@ fs.serifital fs.sansital ne
 % A word counts where it is the whole of a word. Sansom is not a sans,
 % Serifina is not a serif and Monotype is not a monospace, and all three
 % would be if the name were searched for the letters instead of split
-% into the words it is written in. Each must reach what a name saying
-% nothing reaches.
+% into the words it is written in. Sansom is not a sans and Monotype is
+% not a monospace.
 %
-% Told apart only where this machine answers the three kinds with three
-% faces: where its default is already the kind a trap would wrongly ask
-% for, a trap that fired would look exactly like one that did not.
-fs.serif fs.plain ne fs.mono fs.plain ne and {
-    /XpostSerifinaZZ fs.face fs.plain eq
+% Two of the three are asked of a name that carries a class word of its
+% own as well as the trap. What this interpreter read is then visible in
+% the answer whatever the configuration would have done with a name it
+% was given no class for: the trap words outrank the anchor -- monospace
+% over sans-serif over serif -- so a trap that fired would take the
+% answer away from the anchor's face and to its own.
+%
+% That matters because a configuration may answer a name by the letters
+% in it rather than by any word: one that does hands back the generic's
+% face for a name containing the generic's letters, which says nothing
+% about the words read here. Anchoring the name puts the question beyond
+% it.
+/fs.trap {          % /name  anchorface  trapface  (label)  .  -
+    /fs.t.lab exch def /fs.t.trap exch def
+    /fs.t.anchor exch def /fs.t.nm exch def
+    fs.t.trap fs.t.anchor eq {
+        (not asked: ) print fs.t.lab print
+        ( -- this host answers both of those kinds with one face,)
+          print ( so a trap that fired could not be seen) print (\n) print flush
+    }{
+        fs.t.nm fs.face fs.t.anchor eq fs.t.lab assert
+    } ifelse
+} bind def
+
+/XpostSerifMonoxxZZ fs.serif fs.mono
+    (a mono-shaped word inside a longer word is not the word) fs.trap
+/XpostSerifSansomZZ fs.serif fs.sans
+    (a sans-shaped word inside a longer word is not the word) fs.trap
+
+% The serif trap has no kind that outranks it, so no anchor makes it
+% visible; it can only be asked of a name carrying nothing else, and then
+% only where the configuration answers such a name with its default. The
+% control carries the letters of a generic inside a word and no class
+% word at all: where that reaches the generic's face, this host answers
+% by the letters and the trap could not be told from the answer.
+/XpostQqserifqqZZ fs.face fs.serif ne {
+    /XpostSerifinaZZ fs.face fs.serif ne
         (a serif-shaped word inside a longer word is not the word) assert
-    /XpostMonotypeZZ fs.face fs.plain eq
-        (a mono-shaped word inside a longer word is not the word) assert
-    /XpostSansomZZ fs.face fs.plain eq
-        (a sans-shaped word inside a longer word is not the word) assert
 }{
-    (SKIPPED: this host answers fewer than three kinds with three faces,)
-      print ( so a trap that fired could not be seen) print (\n) print flush
+    (not asked: a serif-shaped word inside a longer word is not the word)
+      print ( -- this host answers a name by the letters in it,) print
+      ( so a trap that fired could not be seen) print (\n) print flush
 } ifelse
 
 % ------------------------------------------------- a name that says no kind
