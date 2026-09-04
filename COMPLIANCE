@@ -4,20 +4,14 @@ Xpost Postscript Compliance
 Where this interpreter departs from the published language, and nothing
 else.
 
-It used to list every operator, and two hundred and fifty-nine of those
-lines said the operator's name and no more. A name with nothing beside it
-carries no information a reader can act on: implemented is the expected
-state, and the whole of what a reader needs is where it is not.
+A name with nothing beside it carries no information a reader can act on:
+implemented is the expected state, and the whole of what a reader needs is
+where it is not. A list of what works is also unable to report its own
+gaps, because nothing inside it can say what is missing from it.
 
-Such a list is also unable to report its own gaps. This one had eighty-
-seven of them -- composefont, cshow, setbbox, the CIDInit and CMap
-groups, globalvmstatus and the rest -- every one of them swept and tested
-in the operator campaign, none of them ever written down here. Nothing
-inside a list of what works can say what is missing from it.
-
-So what is left is the exceptions: an operator that is partly there, one
-that is not there at all, and one that is there with something worth
-saying about how. What is NOT here is the assurance that everything else
+So what this file holds is the exceptions: an operator that is partly
+there, one that is not there at all, and one that is there with something
+worth saying about how. What is NOT here is the assurance that everything else
 is implemented, because a document cannot carry that assurance honestly.
 tests/plrm-operators holds every operator the specification defines, and
 a guard asks a running interpreter which of them it has -- so the
@@ -37,8 +31,8 @@ Level 1 operators
 -----------------
 
  [X] image (12-bit samples render at the raster's 8-bit depth)
- [X] setscreen (a spot procedure that leaves no result loses nothing
-     from the caller's stack, where an error is the commoner answer)
+ [X] setscreen (a spot procedure that leaves no result is tolerated
+     rather than refused, and loses nothing from the caller's stack)
  [X] base font CharStrings (a face whose program cannot be read
      publishes glyph indices)
  [X] base font Encoding (recovered from the face and not read out of the
@@ -58,7 +52,6 @@ Level 1 operators
 Level 2 operators
 -----------------
 
- [X] setcolorspace (all colour-space families)
  [X] setpagedevice (OutputDevice, PageSize, HWResolution, OutputFile,
      PageOffset, ImagingBBox, Policies; a request states page-device
      parameters and a key that is not one of them is accepted -- the
@@ -87,8 +80,8 @@ Level 2 operators
  [X] Install (a request whose Install fails stays in force, so the
      procedure runs again on the next activation of the device; the
      specification does not say what becomes of a request whose Install
-     does not complete, and practice differs -- the page device the
-     request replaced is sometimes put back and sometimes not)
+     does not complete, so this is the reading taken rather than a rule it
+     states)
  [X] BeginPage, EndPage (called with the count of pages the device has
      transmitted, EndPage also with the reason -- 0 showpage, 1 copypage,
      2 the device going away -- and its boolean decides whether the page
@@ -99,8 +92,7 @@ Level 2 operators
      handover, which would leave the device impossible to replace.
      copypage ends a page with reason 1 and does not count it, as the
      operator descriptions have it; collapsing copypage into showpage,
-     reason 0 and counted, is also open to a LanguageLevel 3
-     interpreter and is the commoner choice)
+     reason 0 and counted, is also open to a LanguageLevel 3 interpreter)
  [X] image with dict argument (ImageTypes 1, 3 and 4; Interpolate
      smooths the samples of any shape on the direct raster path,
      while a mask still decides each pixel by its nearest sample;
@@ -115,14 +107,6 @@ Level 2 operators
  [X] setundercolorremoval (recorded only)
  [X] makepattern (every tile repaints its cell; text through a CMap
      composite under a pattern colour paints the underlying colour)
- [X] filter (decode filters: ASCIIHex, ASCII85, SubFile, RunLength,
-     Flate, LZW, CCITTFax, DCT, ReusableStream; encode filters:
-     ASCIIHex, ASCII85, Null, RunLength, Flate, LZW, CCITTFax, DCT.
-     A data source or target may be a string, a file or a procedure,
-     and a procedure is called as the filter wants data or needs to be
-     rid of it)
- [X] defineresource, findresource, resourcestatus, resourceforall,
-     undefineresource
  [X] findfont, definefont and undefinefont as the Font category's
      operations (a name the host does not carry is substituted for by
      findresource as it is by findfont, which is the reading 3.9.2's
@@ -178,7 +162,7 @@ Level 2 operators
  [X] setstrokeadjust, currentstrokeadjust (recorded only)
  [X] shared VM (the global-VM view under other names, not a third bank)
  [X] binary object sequences (the native-real formats carry their reals in
-     the sequence's byte order, as deployed writers do)
+     the sequence's byte order)
 
 Level 3 operators
 -----------------
@@ -217,8 +201,6 @@ Level 3 operators
      that derives its metrics by procedure is shown with the metrics it
      would have had without one
  [X] setsmoothness, currentsmoothness (recorded only)
- [X] Type 4 CIDFonts, and the BitmapFontInit procedure set: addglyph,
-     removeall, removeglyphs
  [/] FontSetInit procedure set: StartData reads its data and defines
      no FontSet, so a font a document sends this way is unavailable;
      findresource reports the set undefined. Compact font format
@@ -337,33 +319,29 @@ Known behavioural deviations
  .fontnameavailable and /Font resourcestatus read the whole name and
  report such a name as unavailable.
 
+ An access attribute restricts the operations allowed on an object's
+ value (PLRM 3.3.2), and the invalidaccess entry names accessing a value
+ in violation of its access among the causes the error is raised for.
+ That is a rule about what is done to an object rather than about which
+ operator does it, so operators are held to it whose own PLRM 8.2 entries
+ do not list the error. It reaches two sets of them.
+
  An operator that reads the characters of a string operand raises
- invalidaccess when the string's access withholds that read, and seven of
- them do so although their PLRM 8.2 entries do not list the error among
- the ones they raise: charpath, file, run, deletefile, renamefile,
- findfont and currentdevparams. The rule those seven are held to is not
- an operator's own -- PLRM 3.3.2 has an access attribute restrict the
- operations allowed on an object's value, and the invalidaccess entry
- names the read of an execute-only string among the violations it is
- raised for -- and it is a rule about what is done to the string rather
- than about which operator does it. charpath is defined as the outlines a
- show of the same string would make, and show's own entry lists the
- error; a filename or a font name is read exactly as status and
+ invalidaccess when the string's access withholds that read, and seven do
+ so whose entries do not list it: charpath, file, run, deletefile,
+ renamefile, findfont and currentdevparams. charpath is defined as the
+ outlines a show of the same string would make, and show's own entry
+ lists the error; a filename or a font name is read exactly as status and
  setdevparams read theirs, and those entries list it too. Answering
  instead would leave each of the seven able to report what an unreadable
  string spells.
 
  What a text operator paints comes out of the font's Encoding,
  CharStrings and Metrics, so it reads them, and an access that withholds
- that read raises invalidaccess. charpath is the one of those operators
- whose PLRM 8.2 entry does not list the error. The rule it is held to is
- not its own -- PLRM 3.3.2 has an access attribute restrict the
- operations allowed on an object's value, and the invalidaccess entry
- names accessing a value in violation of its access among the causes it
- is raised for -- and charpath is defined as the outlines a show of the
- same string would make, whose entry does list the error. Answering
- instead would leave charpath able to report what a font's Encoding
- assigns to a character code that the program may not read.
+ that read raises invalidaccess. charpath is again the one whose entry
+ does not list the error. Answering instead would leave it able to report
+ what a font's Encoding assigns to a character code the program may not
+ read.
 
  Idiom recognition does not match a template procedure, or a candidate
  procedure, whose access withholds the read the comparison needs, where
@@ -388,8 +366,9 @@ Known behavioural deviations
      source is under no such restriction and may read the stream it supplies.
  [X] filter  a data source procedure that re-enters its own stream more than
      two levels deep still delivers every byte it supplied, once, in the order
-     the stream has them, where some interpreters drop or repeat bytes past
-     that depth and do not agree with each other on which.
+     the stream has them, rather than dropping or repeating bytes past that
+     depth. The specification does not bound how deeply such a procedure
+     may re-enter its own stream.
  [X] vmstatus  a count of bytes too large for the integer type is reported as
      a real, where the operator is defined to answer three integers. Both
      banks together span more bytes than the type counts, and an integer
@@ -414,7 +393,7 @@ Known behavioural deviations
      the interpreter. It never falls, so it is also the largest the bank has
      ever been.
  [X] SubFileDecode  a zero count with an empty EOD string passes zero bytes
-     (PLRM), where some interpreters read to end-of-file.
+     (PLRM), rather than reading to end-of-file.
  [X] SubFileDecode  the form that supplies a parameter dictionary and the
      count and EOD string together -- the second of the three the operator is
      defined with (PLRM 3.13) -- raises typecheck. The count and string alone,
@@ -466,18 +445,17 @@ Known behavioural deviations
      TransformPQR procedures will see rather than clamping them, and says
      outright that they must accept values outside it.
  [X] ]  a construction closed over more objects than an array can hold is
-     limitcheck, where some interpreters return an array shorter than the
-     objects they were given.
+     limitcheck, rather than an array shorter than the objects it was given.
  [X] >>  a construction closed over more pairs than a dictionary can hold is
-     limitcheck, where some interpreters return a dictionary shorter than the
-     pairs they were given.
+     limitcheck, rather than a dictionary shorter than the pairs it was
+     given.
  [X] ==, pstack  a structure that contains itself, or that shares a subtree
      many ways, is printed as far as a budget of depth and of printing done
      allows, and the operator then returns: past the budget an array prints
      as an array rather than being entered and an element list stops short.
-     The commoner behaviour is to descend into such a structure until the
-     execution stack overflows, and abandon the job on the error that
-     raises. PLRM 8.2 leaves the details of how == formats its output
+     The alternative is to descend into such a structure until the execution
+     stack overflows, and abandon the job on the error that raises. PLRM
+     8.2 leaves the details of how == formats its output
      "intentionally unspecified", and says what these operators write for a
      structure that ends and nothing about one that does not. Returning is
      what the standard error report needs: it prints every operand stack
@@ -487,9 +465,9 @@ Known behavioural deviations
      stack as it stood when the operator was called (PLRM 3.11.1) -- the values
      it held, not merely the depth it stood at. Where the operator had run a
      procedure of the program's, and that procedure left values of its own or
-     took values from beneath the call, none of that shows through; some
-     interpreters put the depth back and leave the procedure's leavings, and
-     the slots it emptied, on show underneath.
+     took values from beneath the call, none of that shows through, rather
+     than the depth alone being put back and the procedure's leavings, and
+     the slots it emptied, being left on show underneath.
  [X] font cache  a Type 3 glyph description that sets a colour of its own
      reaches the page in one colour through the cache and another built
      afresh: the cache remembers coverage, so a cached glyph takes the colour
@@ -555,17 +533,16 @@ Implementation limits
 Interpreter parameters
 ----------------------
 
- PLRM Appendix C tabulates fifty-one parameters: seventeen user parameters
- in Table C.1 and thirty-four system parameters in Table C.2. This
- interpreter answers with twenty-two of them and adds four of its own.
+ PLRM Appendix C tabulates the user parameters in Table C.1 and the system
+ parameters in Table C.2. This interpreter answers with some of them and
+ adds four of its own.
 
  Carried, and reported by currentuserparams: MaxFontItem, MaxExecStack,
  MaxDictStack, MaxOpStack, VMThreshold, VMReclaim, IdiomRecognition,
- HalftoneMode, MaxFormItem. By
- currentsystemparams: MaxFontCache, CurFontCache, MaxDisplayList,
- CurDisplayList, GenericResourceDir, GenericResourcePathSep, RealFormat,
- ByteOrder, Revision, PrinterName, BuildTime, MaxFormCache,
- CurFormCache.
+ HalftoneMode, MaxFormItem. By currentsystemparams: MaxFontCache,
+ CurFontCache, MaxDisplayList, CurDisplayList, GenericResourceDir,
+ GenericResourcePathSep, RealFormat, ByteOrder, Revision, PrinterName,
+ BuildTime, MaxFormCache, CurFormCache, CurScreenStorage.
 
  [/] setsystemparams sets the one system parameter that has a setter, and
      that is all there is to set. MaxFontCache is the glyph cache's
@@ -589,8 +566,8 @@ Interpreter parameters
      rather than frozen into the body -- a frozen one would be the stamp
      of whichever build wrote the virtual memory image.
 
- The absent twenty-seven, by the section that describes them. The other two
- the tables name are the passwords, which are dealt with below:
+ The absent, by the section that describes them. The passwords the tables
+ name are dealt with below:
 
  [/] C.3.2  MinFontCompress. Of the font cache's three parameters the two
      that bound it are carried -- MaxFontItem, what may be cached, and
@@ -615,20 +592,19 @@ Interpreter parameters
      is not tuned by parameter.
 
      MaxScreenItem bounds what one screen may occupy, and here that is
-     bounded already. The cell a screen tiles the plane with is chosen
-     from a fixed table of lattice vectors, none longer than twenty-five,
-     so a cell cannot hold more than about sixteen hundred values however
-     the frequency, the angle or the device resolution are asked for.
-     MEASURED: an ordinary screen at sixty lines per inch builds a cell of
-     four by four -- sixteen values, some hundreds of bytes -- and no
-     frequency from one to three hundred moved it. A parameter bounding
-     that would be a limit on something that cannot grow, which is the
-     kind this file exists to refuse rather than to add. HalftoneMode is the one of the group that
-     is carried, and carried as the mode that is true: mode 0 has the
-     halftone-setting operators behave as usual rather than put a product's
-     own screen in place of the one asked for, which is what happens here.
-     A request for either of the other modes is answered with 0, the rule
-     the fixed stack sizes are answered by.
+     bounded already: the cell a screen tiles the plane with is chosen
+     from a fixed table of lattice vectors, so its extent cannot grow
+     however the frequency, the angle or the device resolution are asked
+     for. A parameter bounding that would be a limit on something that
+     cannot grow, which is the kind this file exists to refuse rather
+     than to add.
+
+     HalftoneMode is the one of the group that is carried, and carried as
+     the mode that is true: mode 0 has the halftone-setting operators
+     behave as usual rather than put a product's own screen in place of
+     the one asked for, which is what happens here. A request for either
+     of the other modes is answered with 0, the rule the fixed stack
+     sizes are answered by.
  [ ] C.3.5  MaxLocalVM. Local VM grows as a job needs it, bounded by the
      machine rather than by a parameter.
  [ ] C.3.6  FontResourceDir. It locates the files of the Font category,
