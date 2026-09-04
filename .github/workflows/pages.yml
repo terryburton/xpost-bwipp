@@ -1,0 +1,80 @@
+name: pages
+
+# The rendered reference is published from the branch the project
+# releases from, and from nowhere else. A pull request builds nothing
+# here: what a reader sees at the published address is what was merged,
+# and a branch that has not been merged must not be able to replace it.
+#
+# This is its own workflow rather than a job on a platform lane. The
+# reference describes the tree, not a build of it, so publishing it does
+# not wait on whether one platform's suite went green -- and a lane that
+# published would make its own failures hide the documentation as well.
+on:
+  push:
+    branches: [ master, main ]
+  # so a publication can be repeated without an empty commit, which is
+  # what is wanted when the site is lost rather than the tree changed
+  workflow_dispatch:
+
+# deploy-pages claims the artifact through an id-token rather than by
+# writing to the repository, so nothing here needs write access to the
+# tree. contents stays read for that reason.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One publication at a time. A run already under way is left to finish
+# rather than cancelled: the deployment replaces the site wholesale, and
+# stopping it half way is the one outcome worse than publishing late.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: render the reference
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y doxygen
+    # Run from the tree root, because every path in the Doxyfile --
+    # INPUT, IMAGE_PATH, OUTPUT_DIRECTORY -- is written relative to it.
+    # doc/meson.build runs it from the same place for the same reason.
+    #
+    # The configuration is fed on standard input with the LaTeX output
+    # turned off after it, which is how doxygen takes an override. Only
+    # the HTML is published, and rendering a manual nothing collects
+    # would be most of the run's time spent on an artifact nobody asks
+    # for.
+    - name: Render
+      run: (cat doc/Doxyfile; echo 'GENERATE_LATEX=NO') | doxygen -
+    # A doxygen that cannot read its input still exits zero and leaves an
+    # empty tree behind, so what it produced is asked about rather than
+    # what it returned. Without this the deployment would replace the
+    # site with nothing and report success.
+    - name: The reference was rendered
+      run: |
+        test -s doc/html/index.html \
+          || { echo "doxygen produced no index.html"; exit 1; }
+        n=$(find doc/html -name '*.html' | wc -l)
+        [ "$n" -gt 10 ] \
+          || { echo "doxygen produced only $n pages; expected the whole reference"; exit 1; }
+        echo "rendered $n pages"
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: doc/html
+
+  deploy:
+    name: publish
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - id: deployment
+      uses: actions/deploy-pages@v4
