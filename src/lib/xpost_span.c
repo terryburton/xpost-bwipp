@@ -114,6 +114,27 @@ xpost_span_sort (struct band_span *spans, int n)
    that band and from nothing else -- so keeping only the bands asked
    for settles those bands exactly as keeping every band would, and
    the ones dropped were about to be sorted, wound and thrown away. */
+/* The band a coordinate lies in, as an int.
+
+   A coordinate reaches the scan converter as whatever the program's
+   arithmetic made of it, and real arithmetic reaches an infinity by
+   overflowing and a not-a-number by taking one infinity from another.
+   Converting either to an int is undefined, and so is converting a
+   finite value past the width of one, so the value is brought inside
+   the range first. The ends stand for "below every band" and "above
+   every band", which the row window then drops as it drops any band it
+   was not asked for; a not-a-number names no row at all and takes the
+   same exit. */
+static int
+_band_of(double y)
+{
+    if (!(y >= (double)(INT_MIN + 1)))   /* also catches a not-a-number */
+        return INT_MIN + 1;
+    if (y > (double)(INT_MAX - 1))
+        return INT_MAX - 1;
+    return (int)floor(y);
+}
+
 static
 int _span_push(struct band_span **spans, int *cap, int *n,
                const Xpost_Span_Rows *rows,
@@ -247,7 +268,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
            (0 until the first non-horizontal edge; starting at a
            least-y vertex the first direction can only be upward) */
         dirn = 0;
-        ib = (int)floor(points[s0 + base].y);
+        ib = _band_of(points[s0 + base].y);
         lo = hi = points[s0 + base].x;
         submin = submax = lo;
         code = 0;
@@ -281,7 +302,7 @@ int xpost_span_scanconvert(Xpost_Span_Vertex *points,
             d = Q.y > P.y ? 1 : -1;
             /* the band this edge starts in: a start exactly on a band
                boundary belongs to the band ahead of travel */
-            eb = (int)floor(P.y);
+            eb = _band_of(P.y);
             if (d < 0 && (double)eb == P.y)
                 eb--;
 

@@ -662,12 +662,28 @@ struct _rect_painter
 
 /* The span consumer that paints. It turns each resolved span into the
    driver's FillRect over the columns the span reaches. */
+/* A span end as a column, brought inside the width of the integer it is
+   converted to. A coordinate arrives as whatever the program's
+   arithmetic made of it, and converting an infinity, a not-a-number or a
+   value past that width is undefined; the ends stand for "left of every
+   column" and "right of every one", and a not-a-number takes the low
+   end, so a span carrying one closes on the empty test below. */
+static integer
+_span_column(double v, int up)
+{
+    if (!(v >= (double)(INT_MIN + 1)))   /* also catches a not-a-number */
+        return (integer)(INT_MIN + 1);
+    if (v > (double)(INT_MAX - 1))
+        return (integer)(INT_MAX - 1);
+    return (integer)(up ? ceil(v) : floor(v));
+}
+
 static
 int _rect_paint(Xpost_Span_Consumer *c, int band, double lo, double hi)
 {
     struct _rect_painter *p = (struct _rect_painter *)c;
-    integer xlo = (integer)floor(lo);
-    integer xhi = (integer)ceil(hi);
+    integer xlo = _span_column(lo, 0);
+    integer xhi = _span_column(hi, 1);
     int i;
 
     /* Paint columns [floor(lo), ceil(hi)): every pixel whose interior
