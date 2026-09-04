@@ -162,6 +162,33 @@
 % reads `count`, or that lays and clears a mark of its own, gets a different
 % answer with one of ours underneath it -- and suites here have bodies that
 % do exactly that.
+% A procedural font, and the current font once this has run. A suite that
+% needs to show a character in order to reach something else -- a glyph's
+% coverage, the colour the painting machinery resolves for one -- selects
+% this rather than a face, because a build carrying no face library has no
+% face to select and answers invalidfont to findfont. The glyph is a solid
+% box, which is enough to be shown; suites about faces themselves ask
+% `systemdict /NOFACES known` instead and leave their case out.
+/testfont3 {                            % -  .  -
+    /.testfont3dict 8 dict def
+    .testfont3dict begin
+        /FontType 3 def
+        /FontMatrix [0.001 0 0 0.001 0 0] def
+        /FontBBox [0 0 1000 1000] def
+        /Encoding 256 array def
+        0 1 255 { Encoding exch /.notdef put } for
+        Encoding 65 /A put
+        /CharProcs 2 dict def
+        CharProcs /A { 700 0 0 0 700 700 setcachedevice
+                       0 0 700 700 rectfill } put
+        CharProcs /.notdef { 0 0 setcharwidth } put
+        /BuildGlyph { exch /CharProcs get exch 2 copy known not
+                      { pop /.notdef } if get exec } def
+    end
+    /.TestFont3 .testfont3dict definefont pop
+    /.TestFont3 findfont 12 scalefont setfont
+} bind def
+
 /outcome {                              % { body }  .  /ok | /errorname
     //.testlib /gs get currentgstate pop
     count 1 sub //.testlib exch /base exch put

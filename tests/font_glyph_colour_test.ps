@@ -235,12 +235,17 @@ tdplain tdinvert samepage
   grestore
   snap
 } bind def
-/tfplain  { plain  } facedraw def
-/tfinvert { invert } facedraw def
-tfplain 255 count 64 64 mul eq not
-    (the face glyph painted in black marks the page) assert
-tfplain tfinvert samepage
-    (and a transfer function that inverts white paints the same page) assert
+% Asked only of a build that has faces to draw through. Where there are
+% none the other two routes above still answer, and this route does not
+% exist to be asked about.
+systemdict /NOFACES known not {
+    /tfplain  { plain  } facedraw def
+    /tfinvert { invert } facedraw def
+    tfplain 255 count 64 64 mul eq not
+        (the face glyph painted in black marks the page) assert
+    tfplain tfinvert samepage
+        (and a transfer function that inverts white paints the same page) assert
+} if
 
 % The control. A transfer function that changes nothing must leave both
 % routes where they were: without it, a case that painted black whatever
@@ -248,8 +253,10 @@ tfplain tfinvert samepage
 /tkident PKEY { { } settransfer 1 setgray } drawthrough def
 tkident 255 count 64 64 mul eq
     (white through an identity function leaves the whole page white) assert
-/tfident { { } settransfer 1 setgray } facedraw def
-tfident 255 count 64 64 mul eq
-    (and leaves it white for a face glyph too) assert
+systemdict /NOFACES known not {
+    /tfident { { } settransfer 1 setgray } facedraw def
+    tfident 255 count 64 64 mul eq
+        (and leaves it white for a face glyph too) assert
+} if
 
 verdict

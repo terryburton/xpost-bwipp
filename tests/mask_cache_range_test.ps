@@ -1,4 +1,4 @@
-%!
+%!testlib
 % A captured glyph mask is handed to the cache in a dictionary: buf
 % holds the coverage bytes, and w and h say how the cache is to read
 % them -- h rows of w bytes, copied whole into the cache's own store.
@@ -10,7 +10,7 @@
 % rangecheck, and the operator must still be there afterwards.
 
 /fails 0 def
-/note { print (\n) print } def
+/say { print (\n) print } def
 
 /id 1183615869 internaldict def
 /mput id /.maskcacheput get def
@@ -35,11 +35,11 @@
   countdictstack d0 sub { end } repeat
   exch
   { dup (rangecheck) eq
-    { pop (ok   ) print label note }
+    { pop (ok   ) print label say }
     { /fails fails 1 add def
-      (FAIL: ) print label print ( raised ) print note } ifelse }
+      (FAIL: ) print label print ( raised ) print say } ifelse }
   { pop /fails fails 1 add def
-    (FAIL: ) print label print ( raised no error) note } ifelse
+    (FAIL: ) print label print ( raised no error) say } ifelse
 } def
 
 % --- the dimensions read the coverage bytes ---
@@ -60,15 +60,15 @@ cstat 7 array astore /before exch def
 { d mput } stopped
 { /fails fails 1 add def
   (FAIL: a sound capture raised ) print
-  $error /errorname get 128 string cvs note }
+  $error /errorname get 128 string cvs say }
 { cstat 7 array astore /after exch def
   /grew false def
   0 1 6 { /i exch def
     after i get before i get gt { /grew true def } if } for
   grew
-  { (ok   a sound capture still reaches the cache) note }
+  { (ok   a sound capture still reaches the cache) say }
   { /fails fails 1 add def
-    (FAIL: a sound capture cached nothing) note } ifelse } ifelse
+    (FAIL: a sound capture cached nothing) say } ifelse } ifelse
 
 % --- what the cache tells one entry from another by ---
 % An entry belongs to one mask under one transform, and the cache is
@@ -94,10 +94,10 @@ cstat 7 array astore /before exch def
 % one, and the calls below would be refused for want of it rather than
 % answering about the keys they are here to ask about. Showing a
 % character resolves one the ordinary way.
-/Helvetica findfont 12 scalefont setfont 0 0 moveto (A) show
+testfont3 0 0 moveto (A) show
 /require { % bool label  .  -
-    exch { (ok   ) print note }
-         { /fails fails 1 add def (FAIL: ) print note } ifelse
+    exch { (ok   ) print say }
+         { /fails fails 1 add def (FAIL: ) print say } ifelse
 } def
 % The key is a serial paired with the name of the thing the mask is of;
 % what varies below is the transform, so the same serial and name stand
@@ -160,5 +160,5 @@ cstat 7 array astore /before exch def
 [ 1 0 0 1 0 0 ] -1 ask null eq
     (a negative mask number files nothing) require
 
-fails 0 eq { (SUCCESS) = }{ (FAILURES: ) print fails 20 string cvs note } ifelse
+fails 0 eq { (SUCCESS) = }{ (FAILURES: ) print fails 20 string cvs say } ifelse
 quit

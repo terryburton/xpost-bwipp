@@ -803,23 +803,30 @@ da wcheck not (a dictionary IS sealed by sealing another object of it) bchk
 /withfont { initgraphics /Helvetica findfont 12 scalefont setfont
             10 10 moveto } bind def
 
+% A case about access selects no font. The showing operators ask the
+% access question before they look at the font, so the answer does not
+% need one -- and a build carrying no face library cannot select one,
+% so selecting a font here would put its refusal in front of the
+% question these cases are about.
+/nofont { initgraphics 10 10 moveto } bind def
+
 { withfont (Hi) show }                    showok         (show of a readable string) chk
 { withfont (Hi) readonly show }           showok         (show of a read-only string) chk
-{ withfont (Hi) executeonly show }        /invalidaccess (show of an execute-only string) chk
-{ withfont (Hi) noaccess show }           /invalidaccess (show of a no-access string) chk
+{ nofont (Hi) executeonly show }          /invalidaccess (show of an execute-only string) chk
+{ nofont (Hi) noaccess show }             /invalidaccess (show of a no-access string) chk
 { withfont 1 0 (Hi) ashow }               showok         (ashow of a readable string) chk
-{ withfont 1 0 (Hi) noaccess ashow }      /invalidaccess (ashow of a no-access string) chk
+{ nofont 1 0 (Hi) noaccess ashow }        /invalidaccess (ashow of a no-access string) chk
 { withfont 1 0 32 (Hi) widthshow }        showok         (widthshow of a readable string) chk
-{ withfont 1 0 32 (Hi) noaccess widthshow }
+{ nofont 1 0 32 (Hi) noaccess widthshow }
                                           /invalidaccess (widthshow of a no-access string) chk
 { withfont 1 0 32 1 0 (Hi) awidthshow }   showok         (awidthshow of a readable string) chk
-{ withfont 1 0 32 1 0 (Hi) noaccess awidthshow }
+{ nofont 1 0 32 1 0 (Hi) noaccess awidthshow }
                                           /invalidaccess (awidthshow of a no-access string) chk
 { withfont (Hi) stringwidth pop pop }     showok         (stringwidth of a readable string) chk
-{ withfont (Hi) executeonly stringwidth pop pop }
+{ nofont (Hi) executeonly stringwidth pop pop }
                                           /invalidaccess (stringwidth of an execute-only string) chk
 { withfont (Hi) true charpath }           showok         (charpath of a readable string) chk
-{ withfont (Hi) noaccess true charpath }  /invalidaccess (charpath of a no-access string) chk
+{ nofont (Hi) noaccess true charpath }    /invalidaccess (charpath of a no-access string) chk
 
 % Two strings are compared element by element and a string compared with
 % a name is compared against the name's characters, so either reads the

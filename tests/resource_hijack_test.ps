@@ -46,7 +46,23 @@
 /c_status { /Font /Category resourcestatus { pop pop } if } bind def
 /c_forall { (*) { pop } 128 string /Category resourceforall } bind def
 /c_undef  { /RH1 /Generic undefineresource } bind def
-/c_font   { /Courier findfont pop } bind def
+% A font this file defined rather than a face, so the case asks whether
+% findfont survives the redefinitions in a build that carries no face
+% library too, where a face name would answer invalidfont before the
+% question was reached.
+/RHfont 8 dict def
+RHfont begin
+    /FontType 3 def
+    /FontMatrix [0.001 0 0 0.001 0 0] def
+    /FontBBox [0 0 1000 1000] def
+    /Encoding 256 array def
+    0 1 255 { Encoding exch /.notdef put } for
+    /CharProcs 1 dict def
+    CharProcs /.notdef { 0 0 setcharwidth } put
+    /BuildGlyph { pop pop 0 0 setcharwidth } def
+end
+/RHfont RHfont definefont pop
+/c_font   { /RHfont findfont pop } bind def
 /c_page   { << /PageSize [612 792] >> setpagedevice } bind def
 
 % ---- the redefinitions --------------------------------------------------

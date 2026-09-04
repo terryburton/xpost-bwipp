@@ -183,9 +183,15 @@ userdict /xg.tail known { xg.tail (read past the block) eq }{ false } ifelse
 % that same operation (PLRM 3.9.2), so asking for one of the container's
 % fonts by name is answered with a font rather than with the absence. The
 % set is the level a program is told at.
-{ /FontSetProbeAlpha /Font findresource pop }
-    (a font named by the container is substituted for rather than refused)
-    works
+% Asked only of a build that has faces: substitution answers with a face,
+% and one carrying no face library has none to answer with, so there the
+% name is refused rather than substituted for and the question does not
+% arise.
+systemdict /NOFACES known not {
+    { /FontSetProbeAlpha /Font findresource pop }
+        (a font named by the container is substituted for rather than refused)
+        works
+} if
 
 % ---- what StartData holds to whatever it does with the data -----------
 %
