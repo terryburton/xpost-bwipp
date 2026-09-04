@@ -292,18 +292,16 @@
  * operator at all. None of that entitles a program to a member.
  *
  * The password is nevertheless published, so a dictionary it opens is a root
- * of the object graph every program holds. For most of this tree's life that
- * root **was** `.internaldict` -- the machinery's own working dictionary, the
- * one its bodies bake in with `//.internaldict`. Every operator the machinery
- * needed was therefore published, because it needed it, and the lockdown's
- * relocation sweep kept adding to the pile: each name taken out of
- * `systemdict` for tidiness arrived somewhere a program could still call it.
- * MEASURED, before the split: 137 entry points, among them three that
- * installed machinery state and one that answered with the live graphics
+ * of the object graph every program holds. That is the reason the two uses
+ * are separate objects: were the published root the machinery's own working
+ * dictionary, every operator the machinery needed would be published because
+ * it needed it, and each name taken out of `systemdict` for tidiness would
+ * arrive somewhere a program could still call it -- among them the ones that
+ * install machinery state, and the one answering with the live graphics
  * state, whose `currgstate` a program could write and whose device slot
  * decides where the marks go.
  *
- * The two uses are now separate objects. `internaldict` answers with
+ * So `internaldict` answers with
  * `.plrminternaldict`, which holds nothing. The machinery keeps
  * `.internaldict` and reaches it as it always did, through the reference
  * frozen into the bodies that use it -- the password was never the
@@ -313,9 +311,9 @@
  * dictionary instead, because the registers and the suites that read them
  * have to be able to ask what a shipped run refuses to be asked. Such a run
  * boots to a different language, so it reads and writes a virtual-memory
- * image named apart from the ordinary one: MEASURED, before the name told
- * them apart, a census run wrote an image and the next plain run booted from
- * it holding every entry point the census had kept.
+ * image named apart from the ordinary one. Sharing the name would let a
+ * census run write an image that a later plain run booted from, and that run
+ * would hold every entry point the census had kept.
  *
  * @subsection dicts_moves What the lockdown still moves, and why each has to stay
  *
@@ -480,8 +478,8 @@
  *
  * **The image.** A run cannot boot into a more permissive language than it
  * asked for. The census flag is part of the virtual-memory image's name, so
- * the two kinds of run never read each other's. MEASURED before it was: a
- * census run wrote an image and the next plain run booted from it holding
+ * the two kinds of run never read each other's: sharing the name would let a
+ * census run write an image that a later plain run booted from, holding
  * every entry point the census had kept.
  *
  * **The counterweight.** Everything the specification entitles a program to

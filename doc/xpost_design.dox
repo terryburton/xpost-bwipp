@@ -798,17 +798,17 @@
  * resolving through the cache to another procedure is stepped in
  * place -- a procedure call without surfacing -- and @c if and
  * @c ifelse continue into the chosen branch in the same frame.
- * Twenty operators are executed inline when their operands sit in
- * the operand stack's top segment: the stack shufflers (pop, exch,
- * dup, index, roll), integer add, sub and mul with overflow falling
- * back to the general case, the six relationals, the conditionals,
- * def, array get and put, and type. Every fused body reuses the
- * operator's own shared core -- the same access checks, the same
- * range-preserving arithmetic, the same comparison -- and any
- * precondition failure falls through to the generic path, keeping
- * error behaviour identical; a structural test extracts the fused
- * list from the source and requires an equivalence case for each, so an
- * operator cannot join the fast path without joining the proof. The
+ * Some of the operators a program spends most of its steps on --
+ * @c dup and @c exch, integer @c add, @c lt, @c if -- are executed
+ * inline when their operands sit in the operand stack's top segment.
+ * Every fused body reuses the operator's own shared core, so the access
+ * checks, the range-preserving arithmetic and the comparisons are the
+ * ones the operator itself uses, and any precondition failure -- an
+ * operand out of the segment, an arithmetic overflow -- falls through
+ * to the generic path, keeping error behaviour identical. A structural
+ * test reads the fused list out of the walker and requires an
+ * equivalence case for each, so an operator cannot join the fast path
+ * without joining the proof. The
  * walker re-derives its cached pointers whenever either arena has moved,
  * roots the element being executed so an anonymous procedure is not
  * swept mid-element, and repeats
@@ -855,7 +855,18 @@
  *
  * @section design_errors Errors
  *
- * The error mechanism bridges the two languages. The C side raises:
+ * The error mechanism bridges the two languages, and the boundary falls
+ * where it does for the reason every other one does (@ref
+ * design_langsplit). Raising is mechanism: what makes it correct is
+ * that the stacks come back to a known depth, which is a fact about
+ * this interpreter's frames rather than anything the specification
+ * describes, and no program can be allowed to leave it half done.
+ * Reporting is policy: which handler runs, what @c $error holds and
+ * what the banner says are things the specification describes and a
+ * program is entitled to change, so they are written in PostScript
+ * where a reader looking to change them would look.
+ *
+ * The C side raises:
  * an operator that refuses returns an error code, and the
  * interpreter's error path unwinds the stacks to their depths at the
  * innermost live wrapped call -- an operator leaves nothing behind
@@ -1145,13 +1156,33 @@
  * @section design_devices Devices
  *
  * A device is a dictionary of named methods -- a small systemdict
- * for marks. The raster formats are classes implemented in
- * PostScript over one shared method suite, specialised per format
- * by a class generator: grayscale and colour are parameterisations,
- * bilevel and TIFF are copies with emission overridden. A class can
- * be subclassed, overriding as much or as little as it needs. An
- * instance is a copy of its class with the page's dimensions and
- * the run's requests written over it.
+ * for marks. It is a dictionary rather than a C vtable for the reason
+ * the whole language split is drawn (@ref design_langsplit): what a
+ * format offers and how it puts a mark down are decisions about the
+ * format, which is policy, and policy is written where a reader would
+ * look to change it. Resolving a mark into spans is mechanism and stays
+ * in C.
+ *
+ * The raster formats are classes implemented in PostScript over one
+ * shared method suite, specialised per format by a class generator:
+ * grayscale and colour are parameterisations, bilevel and TIFF are
+ * copies with emission overridden. A class can be subclassed,
+ * overriding as much or as little as it needs. An instance is a copy of
+ * its class with the page's dimensions and the run's requests written
+ * over it.
+ *
+ * One suite shared by every format is what makes a new format cheap,
+ * and it is also what makes a new *question* expensive. An entry on a
+ * class is not that class's private business: the machinery above the
+ * device reads it and sends different work accordingly, so the entry is
+ * a question the whole family has been asked, and a device that does
+ * not answer it is answering by default -- including the devices whose
+ * author never heard the question. A feature added to one member
+ * therefore has to be settled for all of them. That is not a discipline
+ * a reader can be asked to remember, so the registers hold it:
+ * tests/check-device-facts.sh requires every entry any device states to
+ * be accounted for on every device, and a difference between two of
+ * them to carry a reason.
  *
  * The suite is small enough to state. Taking the 8-bit grayscale class
  * as the example -- colour differs only in how many colour values each
@@ -1251,6 +1282,20 @@
  * through the compiled rectangle fill without an interpreted loop
  * between them.
  *
+ * A device that can take a whole path is given one rather than spans,
+ * and that decision is worth stating because of what rides on it. Spans
+ * are flat by construction, so a path that goes to the span machinery
+ * arrives at the device as line segments however it was drawn -- which
+ * for a raster is no loss, and for a writer is the difference between a
+ * curve a reader can scale and a polygon that approximates one at the
+ * resolution this run happened to use. So the question is asked as: is
+ * everything the device would need to reproduce this drawing still
+ * available to it? A path within the clip qualifies, and so does one
+ * whose clip is itself a shape the device can be handed; a page's own
+ * clip carries no shape, so it is not a reason to withhold the path
+ * from a drawing that crosses the page edge -- what leaves the page is
+ * the device's to drop.
+ *
  * Images take one of two routes. Where the mapping is axis-aligned,
  * the clip is rectangular and the device keeps rows, each image row
  * is written through one compiled row blitter, with the colour
@@ -1299,10 +1344,39 @@
  * callback bracket -- with the cell's marks going to the device
  * like any others (and into the record, when the page is recorded,
  * once per cell: a pattern's cells fall under no bitmap-sharing
- * rule, because each cell is a fresh run of a program). Shadings
- * subdivide their geometry to a stated target -- half a device unit,
- * with a cap on the halvings -- so their smoothness is a function of
- * the device resolution rather than a constant chosen once.
+ * rule, because each cell is a fresh run of a program).
+ *
+ * Every colour component a device is handed passes one fold, which
+ * brings it inside the channel before anything converts it. The clamp
+ * is there because the pipeline can hand a device a component outside
+ * the range: setgray and its siblings substitute the nearest valid
+ * value, but a transfer function and a tint transform are the
+ * program's own procedures and answer whatever they compute. Real
+ * arithmetic also reaches values that are not numbers at all -- an
+ * overflow gives an infinity, and the difference of two gives a
+ * not-a-number -- and no operator refuses them, so they arrive here
+ * too. The fold's tests are written as the conditions a component must
+ * pass rather than the ones it must fail, because a not-a-number
+ * answers false to every comparison and a pair of ordinary range tests
+ * would pass it through to a conversion that has no integer to give
+ * for it. Being one fold rather than one per device is the point: what
+ * a colour becomes is then the same wherever it is painted.
+ *
+ * A shading is a colour that varies over an area, and the cheapest
+ * true way to paint one is to let the thing that already walks pixels
+ * vary the colour as it goes. So where the device can take a triangle
+ * with a colour at each corner, it is handed one, and the colour is
+ * solved as a plane and evaluated per pixel along each span: the cost
+ * is the area painted, and the result is as smooth as the device is.
+ * Subdividing is the fallback, not the method. Where a device cannot
+ * take one -- and every device answers for itself, so the walk asks
+ * rather than assumes -- the geometry is halved until each piece is
+ * flat enough to fill in one colour, to a target of half a device unit
+ * with a cap on the halvings, which makes smoothness a function of the
+ * resolution rather than a constant chosen once. The difference
+ * between the two roads is large: the fallback spends a fill on every
+ * half-pixel, which is why the question is asked per triangle rather
+ * than settled per page.
  * Halftone screens are threshold cells derived once per screen
  * change: the cell's geometry is computed at one site whatever
  * shape described it, the per-pixel question is asked at one
@@ -1311,7 +1385,7 @@
  *
  * @section design_vector The vector writers
  *
- * Three devices write structure rather than pixels: pdfwrite,
+ * Some devices write structure rather than pixels: pdfwrite,
  * svgwrite and dscwrite. Each is a PostScript class implementing
  * the same driver contract as the rasters -- they receive the same
  * resolved marks, which is what keeps their output geometrically
@@ -1332,6 +1406,43 @@
  * write and read halves of the same convention, and deliberately do
  * not share code: a writer that read its own output would only
  * prove it agrees with itself.
+ *
+ * Two rules decide what a writer puts down, and between them they
+ * account for most of what these devices do beyond transcribing marks.
+ *
+ * The first is that a writer says a thing in the format's own terms
+ * where the format has terms for it. A rectangle is written as a
+ * rectangle rather than as four line segments; a stroke thinner than
+ * the medium can draw is written as the thinnest it has rather than
+ * being dropped or widened; an image is offered in the encodings the
+ * format admits and goes out in whichever came out smaller; a shading
+ * goes over whole where the format has a construct for that shading,
+ * and is decomposed into fills only where it has none. The gain is not
+ * only size: a reader that understands the construct can do things with
+ * it -- scale it, restyle it, search it -- that it cannot do with the
+ * fills a decomposition leaves.
+ *
+ * Which constructs a writer has is the writer's own answer, stated on
+ * it, because one format's native form is another's absence. A device
+ * declares the shading types it holds natively on @c /ShadingTypes, and
+ * the walk decomposes the rest. A declaration is a claim about a type,
+ * though, and whether a construct can carry a particular shading can
+ * turn on its geometry -- SVG's radial gradient is one circle and a
+ * focal point, so it describes only the pairs whose smaller circle lies
+ * inside the larger. So the writer answers a second time when it is
+ * handed one: @c /ShadingPaint returns whether it wrote the shading,
+ * and one it declines is decomposed as though the type had never been
+ * claimed. A writer that declines must do so before writing anything.
+ *
+ * The second rule is that a thing drawn more than once is described
+ * once and placed again. A glyph, a form, an image: the description
+ * goes into the document's resources under a handle, and each later
+ * appearance is a placement naming it. What makes this worth the
+ * bookkeeping is that repetition is the normal case -- a page of text
+ * is one alphabet drawn hundreds of times -- so the saving is
+ * proportional to the page rather than to the description. The store is
+ * keyed by the content itself, so two callers that build the same
+ * description independently still share one copy.
  *
  * A fourth structural device, bbox, renders nothing and reports the
  * bounding box of what would have been painted. It declares the
@@ -1597,7 +1708,27 @@
  * library fails configuration unless the faceless build was asked
  * for by name -- and it runs in a CI lane of its own.
  *
- * @section design_resources Resources
+ *  *
+ * Text reaches a vector writer as text where it can, and as marks
+ * where it cannot, and the choice is about what the reader on the far
+ * side already has. A reader of PDF is required to carry a set of
+ * standard faces, so for those the page need only say which face,
+ * which character codes, and where -- the reader draws them. Sending
+ * outlines instead would be describing to a reader something it
+ * already owns.
+ *
+ * What makes naming exact rather than approximate is the widths. The
+ * engine that laid the text out knows what each show actually advanced
+ * by, and the page declares that, so a reader stepping its own pen
+ * through the string arrives where this engine arrived. The pen is
+ * checked against that expectation at every glyph and the run is broken
+ * where they part, so text that spaces its own characters states a
+ * fresh origin rather than drifting. Where the face is not one the
+ * reader is required to have, or the glyph comes from a procedure or a
+ * bitmap rather than an outline, the description goes into the document
+ * and the rule above applies instead: written once, placed again.
+ *
+@section design_resources Resources
  *
  * The resource machinery is the language's registry of named
  * instances per category, held in global memory. A category is two

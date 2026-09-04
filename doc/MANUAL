@@ -27,8 +27,9 @@ the behavioural deviations and the implementation limits; doc/COMPAT
 says where each user-visible name comes from.
 
 How much is tested is a fair question to ask of an interpreter. The
-suite is 432 tests, run at both of the object widths the tree builds at;
-doc/GATING.md says which run answers which question. Beside it are
+suite runs at both of the object widths the tree builds at, and covers
+the language, the graphics, the devices and the interpreter's own
+machinery; doc/GATING.md says which run answers which question. Beside it are
 corpora of real programs, fetched rather than committed, rendered and
 compared page by page (tests/corpus/README.md). tools/coverage.sh
 reports how much of the C sources a full run executes, one report per
@@ -97,6 +98,18 @@ it is written to. A page is letter unless the program says otherwise or
 `-g` does; `-g` wants the whole geometry and refuses less, so it is
 `-g 2550x3300+0+0` rather than `-g 2550x3300`. `xpost --help` lists
 every option and every device the build was configured with.
+
+Two switches change what a run is rather than what it draws, and both
+are worth knowing before they are wanted. `--jobserver` reads standard
+input as a stream of jobs framed by Control-D rather than as one
+program: the interpreter serves jobs it did not choose, which is what a
+process sitting behind a queue does, and each job is bounded from the
+next so nothing one job left behind reaches the one after. Because such
+a run serves programs nobody vetted, it admits nobody at administrator
+level unless a password variable says otherwise -- whereas a run given
+one program has nobody to protect from it, and admits at that level with
+neither variable set. `--no-graphics` locks the interpreter down without
+loading the graphics at all, for a run that only needs the language.
 
 A run of several pages needs a name per page, and the output name says
 where the page number goes:
@@ -723,10 +736,22 @@ a name whose value is a PostScript procedure lands in the array
 as the procedure itself, and an executable array nested inside
 another is pushed rather than executed.
 
-Nearly everything in systemdict here is an operator object. Of its 401
-entries 356 are operators; 20 hold a procedure, 2 hold a literal array
-(the two standard encodings), and the rest are standard data such as the
-page sizes and $error. Every operator the language defines is here, and
+Nearly everything in systemdict here is an operator object, and that is
+a decision rather than an accident. bind replaces a name with an
+operator only where the name already answers with one, so an operator
+written as a plain PostScript procedure is invisible to it, and the
+ordinary prolog idiom
+
+  /setlinewidth { 2 mul setlinewidth } bind def
+
+would call itself for ever -- a hang rather than an error, which is the
+worst way for an interpreter to disagree with a program. So an operator
+the language defines is wrapped into an operator object whatever it is
+written in, and what a program can do to a name is the same either way.
+A few entries hold a procedure, two hold a literal array (the two
+standard encodings), and the rest are standard data such as the page
+sizes and $error. A run given --no-sandbox carries a few operators more, the ones
+that reach the file system. Every operator the language defines is here, and
 none of the interpreter's own machinery is -- that lives in an internal
 dictionary off the dictionary stack -- so systemdict is the whole
 language and nothing else, and userdict and globaldict start empty. The
@@ -736,7 +761,7 @@ asked outright:
   /add load type    %  operatortype
   /=print load type %  arraytype
 
-`=print` is one of the 20, so this prints nothing and leaves both the
+`=print` is one of the few, so this prints nothing and leaves both the
 string and the procedure behind:
 
   [ (hi) /=print load ] cvx exec
