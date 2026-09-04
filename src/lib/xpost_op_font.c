@@ -3817,8 +3817,7 @@ int _show_char_outline(Xpost_Context *ctx,
        recognises a description by what it says -- so the same glyph at a
        second size, which is a different outline, files separately as it
        must. */
-    if (!f.svg &&
-        xpost_object_get_type(xpost_dict_get(ctx, devdic,
+    if (xpost_object_get_type(xpost_dict_get(ctx, devdic,
                                              name_FormXObject)) != invalidtype)
         f.rel = 1;
     /* and in the font program's own units where the matrix that puts
@@ -3906,6 +3905,11 @@ int _show_char_outline(Xpost_Context *ctx,
                     f.rel = 0;
                     f.gs = 0;
                     f.has = 0;
+                    /* the SVG prefix is the head of the element the
+                       outline is the body of, and it went with the
+                       fragment that was just dropped */
+                    if (f.svg)
+                        _frag_put(&f, t, (size_t)n);
                     if (!xpost_font_face_glyph_outline(face, glyph_index,
                                                        &sink, advance_x,
                                                        advance_y))
@@ -3915,7 +3919,8 @@ int _show_char_outline(Xpost_Context *ctx,
                     }
                     if (f.has && !f.oom)
                     {
-                        _frag_put(&f, "f\n", 2);
+                        _frag_put(&f, f.svg ? "\"/>\n" : "f\n",
+                                  f.svg ? 4 : 2);
                         if (!f.oom &&
                             xpost_dev_pdf_append(ctx, devdic, f.d.s, f.d.len))
                         {
@@ -3928,6 +3933,41 @@ int _show_char_outline(Xpost_Context *ctx,
                     return 1;
                 }
                 pn = 0;
+                if (f.svg)
+                {
+                    /* the same placement the other syntax spells with a
+                       matrix and an invocation: the description is a
+                       group written once and this is where it goes */
+                    memcpy(pl + pn, "<use xlink:href=\"#xq", 20); pn += 20;
+                    pn += sprintf(pl + pn, "%d", idx);
+                    memcpy(pl + pn, "\" transform=\"matrix(", 20); pn += 20;
+                    if (f.gs)
+                    {
+                        int c;
+
+                        for (c = 0; c < 4; c++)
+                        {
+                            pn += xpost_dev_pdf_fmt_num(pl + pn, ts->cdmat[c]);
+                            pl[pn++] = ',';
+                        }
+                    }
+                    else
+                    {
+                        memcpy(pl + pn, "1,0,0,1,", 8); pn += 8;
+                    }
+                    pn += xpost_dev_pdf_fmt_num(pl + pn, f.px); pl[pn++] = ',';
+                    pn += xpost_dev_pdf_fmt_num(pl + pn, f.py);
+                    memcpy(pl + pn, ")\"/>\n", 5); pn += 5;
+                    if (xpost_dev_pdf_append(ctx, devdic, pl, (size_t)pn))
+                    {
+                        xpost_strbuf_free(&f.d);
+                        return 0;
+                    }
+                    if (!f.oom)
+                        *inked = 1;
+                    xpost_strbuf_free(&f.d);
+                    return 1;
+                }
                 memcpy(pl + pn, "q ", 2); pn += 2;
                 if (f.gs)
                 {

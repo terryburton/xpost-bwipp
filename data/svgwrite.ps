@@ -1156,6 +1156,22 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         height sy div .wnum (pt" viewBox="0 0 ) .w
         width .wnum ( ) .w height .wnum (">\n) .w
 
+        %  Descriptions filed while the page was drawn. A shape that came
+        %  back often enough to pay for a name of its own -- a letter of
+        %  a page of text is the case this exists for -- is written once
+        %  here and placed by reference wherever it falls. The store is
+        %  the one the other writer files into, so what is worth filing,
+        %  and when, is decided in one place for both formats; only the
+        %  spelling of the description and of the placement differ.
+        /nfm 0 .dev //.internaldict /.pdfrescount get exec def
+        0 1 nfm 1 sub {
+            /fmi exch def
+            /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
+            (<defs><g id="xq) .w fmi 20 string cvs .w (">\n) .w
+            fme /chunks get { .w } forall
+            (</g></defs>\n) .w
+        } for
+
         .dev //.internaldict /.pdfchunks get exec { .w } forall
 
         (</svg>\n) .w
