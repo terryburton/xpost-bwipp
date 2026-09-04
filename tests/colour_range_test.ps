@@ -306,6 +306,24 @@ dup null eq { pop 0 } if
 dup 0 ge exch 1 le and
     (an ordinary out-of-range component is folded too) assert
 
+% Real arithmetic reaches values that are not numbers by ordinary means:
+% an overflow gives an infinity, and the difference of two infinities is
+% not a number at all. A transfer function is the program's own
+% procedure, so a device is handed one, and it has to arrive inside the
+% range like any other -- the fold to the device's integer scale has no
+% integer to give for it, and a comparison against the ends of the range
+% is answered false by it, so a fold written as a pair of range tests
+% passes it straight through.
+{ pop 1e300 1e300 mul 1e300 1e300 mul sub } handedfor
+dup null eq { pop -1 } if
+dup 0 ge exch 1 le and
+    (a component that is not a number reaches the device inside the range) assert
+
+{ pop 1e300 1e300 mul } handedfor
+dup null eq { pop -1 } if
+dup 0 ge exch 1 le and
+    (an infinite component reaches the device inside the range) assert
+
 % and an in-range component still arrives as itself
 { pop 0.25 } handedfor
 dup null eq { pop -1 } if
