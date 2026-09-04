@@ -43,6 +43,7 @@
 
 //#include "xpost_interpreter.h"
 #include "xpost_operator.h"
+#include "xpost_op_array.h"  /* the shared composite length */
 #include "xpost_op_string.h"
 
 static
@@ -67,9 +68,12 @@ static
 int Slength(Xpost_Context *ctx,
             Xpost_Object S)
 {
-    if (!xpost_object_is_readable(ctx, S))
-        return invalidaccess;
-    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(S.comp_.sz));
+    Xpost_Object t;
+    int ret = xpost_op_composite_length_checked(ctx, S, &t);
+
+    if (ret)
+        return ret;
+    xpost_stack_push(ctx->lo, ctx->os, t);
     return 0;
 }
 

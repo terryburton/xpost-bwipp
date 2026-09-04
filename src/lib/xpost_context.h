@@ -66,6 +66,8 @@ enum { C_FREE, C_IDLE, C_RUN, C_WAIT, C_IOBLOCK, C_ZOMB };
  */
 #define XPOST_OP_REFS(_) \
     /* recognised inline by the procedure walker */ \
+    _(oplength,            "length") \
+    _(opcounttomark,       "counttomark") \
     _(oppop,               "pop") \
     _(opexch,              "exch") \
     _(opdup,               "dup") \

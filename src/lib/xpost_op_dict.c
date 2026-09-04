@@ -334,14 +334,10 @@ int xpost_op_dict_any_get(Xpost_Context *ctx,
                           Xpost_Object K)
 {
     Xpost_Object v;
+    int ret = xpost_op_dict_get_checked(ctx, D, K, &v);
 
-    if (!xpost_object_is_readable(ctx, D))
-        return invalidaccess;
-    if (!_key_readable(ctx, K))
-        return invalidaccess;
-    v = xpost_dict_get(ctx, D, K);
-    if (xpost_object_get_type(v) == invalidtype)
-        return undefined;
+    if (ret)
+        return ret;
     xpost_stack_push(ctx->lo, ctx->os, v);
     return 0;
 }

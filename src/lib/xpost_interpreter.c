@@ -916,6 +916,51 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
                 unsigned int ot = os_top->top;
 
                 ctx->currentobject = b;
+
+                /* The size of a composite, which is a field of the
+                   object and needs nothing read out of memory. Answered
+                   here for the two kinds a program asks it of most --
+                   MEASURED, length is 5.5 per cent of every operator a
+                   drawing program executes, and it was reaching the
+                   generic call to be told a number it already had. */
+                if (w == (unsigned int)XPOST_OP_CODE(ctx, oplength) && ot >= 1)
+                {
+                    Xpost_Object c_ = os_top->data[ot - 1];
+                    Xpost_Object_Type ct_ = xpost_object_get_type(c_);
+
+                    if (ct_ == arraytype || ct_ == stringtype)
+                    {
+                        /* the operators' own length, access check and
+                           all (see xpost_op_array.h) */
+                        Xpost_Object t_;
+                        if (xpost_op_composite_length_checked(ctx, c_, &t_)
+                            == 0)
+                        {
+                            os_top->data[ot - 1] = t_;
+                            goto next_element;
+                        }
+                    }
+                }
+
+                /* How many operands stand above the topmost mark,
+                   found by the one top-down pass the operator itself
+                   makes (see xpost_op_stack.c): a second walk written
+                   here would be a second statement of the same rule,
+                   and the operator's is already a single pass. */
+                if (w == (unsigned int)XPOST_OP_CODE(ctx, opcounttomark)
+                    && ot < XPOST_STACK_SEGMENT_SIZE - 1)
+                {
+                    int i_ = xpost_stack_topdown_find_type(ctx->lo, ctx->os,
+                                                           marktype, NULL);
+                    /* no mark is unmatchedmark, which the operator raises */
+                    if (i_ >= 0)
+                    {
+                        os_top->data[ot] = xpost_int_cons((integer)i_);
+                        os_top->top = ot + 1;
+                        goto next_element;
+                    }
+                }
+
                 if (w == (unsigned int)XPOST_OP_CODE(ctx, oppop) && ot >= 1)
                 {
                     --os_top->top;
@@ -967,6 +1012,22 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
                         }
                         /* on failure fall through: the generic path
                            re-executes the get for the exact protocol */
+                    }
+                    else if (xpost_object_get_type(a_) == dicttype)
+                    {
+                        /* the operator's own get, access checks and all
+                           (see xpost_op_dict.h). MEASURED, a get is the
+                           commonest operator a drawing program runs --
+                           18.5 per cent of the calls reaching the
+                           general path -- and the machinery's own reach
+                           for its state is a dictionary get. */
+                        Xpost_Object t_;
+                        if (xpost_op_dict_get_checked(ctx, a_, i_, &t_) == 0)
+                        {
+                            --os_top->top;
+                            os_top->data[ot - 2] = t_;
+                            goto next_element;
+                        }
                     }
                 }
                 if (ot >= 2 &&

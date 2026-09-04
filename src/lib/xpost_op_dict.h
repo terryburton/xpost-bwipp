@@ -60,6 +60,35 @@ xpost_dict_def_cached(Xpost_Context *ctx, Xpost_Memory_File *dmem,
     return 0;
 }
 
+/*
+ * The dictionary get core, shared between the operator and the
+ * interpreter's fused procedure execution so the checks each lookup
+ * performs exist once.
+ *
+ * A dictionary must be readable to be read (PLRM 3.3.2). A string key
+ * is read to find the name it spells, so a string whose access
+ * withholds reading names nothing and is refused; every other kind of
+ * key is taken as the object it is and nothing is read. A key the
+ * dictionary does not hold is undefined.
+ */
+static inline int
+xpost_op_dict_get_checked(Xpost_Context *ctx, Xpost_Object D,
+                          Xpost_Object K, Xpost_Object *out)
+{
+    Xpost_Object v;
+
+    if (!xpost_object_is_readable(ctx, D))
+        return invalidaccess;
+    if (xpost_object_get_type(K) == stringtype &&
+        !xpost_object_is_readable(ctx, K))
+        return invalidaccess;
+    v = xpost_dict_get(ctx, D, K);
+    if (xpost_object_get_type(v) == invalidtype)
+        return undefined;
+    *out = v;
+    return 0;
+}
+
 int xpost_op_any_load(Xpost_Context *ctx, Xpost_Object K);
 int xpost_op_privatedict_load(Xpost_Context *ctx, Xpost_Object K);
 /* copy the contents of dict S into dict D; used to give a forked context its

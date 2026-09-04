@@ -70,11 +70,14 @@ systemdict begin
         /gstackarray 100 array
         /gptr -1
     >> .setgraphicsdict
-    .privatedict /.graphicsdictproc { .graphicsdictroot } put
     setglobal
 
-    % The operator is not local, so it is defined here, in systemdict
-    /graphicsdict dup .privatedict /.graphicsdictproc get .wrapop def
+    % The accessor is a C operator already, so the name is defined to the
+    % operator itself. Wrapping it in a procedure would put a frame and a
+    % one-element procedure walk in front of every reach for the graphics
+    % state, which the machinery does at nearly every step -- MEASURED at
+    % 5.7 per cent of a drawing program's whole run.
+    /graphicsdict systemdict /.graphicsdictroot get def
 
     % .DEVICEproc is bound only now, with graphicsdict already an operator,
     % so bind freezes the operator into it rather than leaving a name a

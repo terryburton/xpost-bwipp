@@ -27,6 +27,26 @@
  * (PLRM 3.3.2), and the index must name an element of it; an index
  * outside the array is a rangecheck.
  */
+/*
+ * The length of a composite, shared between the operators and the
+ * interpreter's fused procedure execution.
+ *
+ * An array and a string answer their length by the same rule, and each
+ * must be readable to answer at all (PLRM 3.3.2): a length is read out
+ * of the object, so an object whose access withholds reading has no
+ * length to give. The size is a field of the object and no memory is
+ * reached to find it.
+ */
+static inline int
+xpost_op_composite_length_checked(Xpost_Context *ctx, Xpost_Object O,
+                                  Xpost_Object *out)
+{
+    if (!xpost_object_is_readable(ctx, O))
+        return invalidaccess;
+    *out = xpost_int_cons(O.comp_.sz);
+    return 0;
+}
+
 static inline int
 xpost_op_array_get_checked(Xpost_Context *ctx, Xpost_Object A, integer i,
                            Xpost_Object *out)

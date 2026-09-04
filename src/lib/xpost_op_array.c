@@ -144,9 +144,12 @@ static
 int xpost_op_array_length (Xpost_Context *ctx,
                            Xpost_Object A)
 {
-    if (!xpost_object_is_readable(ctx, A))
-        return invalidaccess;
-    if (!xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(A.comp_.sz)))
+    Xpost_Object t;
+    int ret = xpost_op_composite_length_checked(ctx, A, &t);
+
+    if (ret)
+        return ret;
+    if (!xpost_stack_push(ctx->lo, ctx->os, t))
         return stackoverflow;
 
     return 0;

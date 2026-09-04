@@ -125,8 +125,10 @@
 /wa  [ 1 2 3 ] def                   % writeable array
 /va  [ 1 2 3 ] def                   % writeable array the cases may leave altered
 /rod 3 dict dup /a 1 put readonly def
+/nad 3 dict dup /a 1 put noaccess def   % noaccess dictionary
 /wd  3 dict def
 /ros (abc) readonly def
+/nas (abc) noaccess def             % noaccess string, usable as a key
 /ws  (abc) def
 /pka 1 2 3 3 packedarray def         % packed array: read-only, own type
 /mx 2147483647 def
@@ -356,6 +358,66 @@
 (true { 1 } noaccess { 2 } ifelse) same
 (false { 1 } noaccess { 2 } ifelse) same
 (true { 1 } { 2 } noaccess ifelse) same
+
+% --- get from a dictionary: the other composite the fused copy answers ---
+%
+% A dictionary get is the commonest thing a drawing program asks for, so
+% the fused copy answers one; these ask it for everything a dictionary
+% get can end in. The key is read to find the name it spells only when it
+% is a string, so a string whose access withholds reading names nothing
+% and is refused, while a key of any other type is taken as it stands and
+% an unreadable one is not a refusal. A key the dictionary does not hold
+% is undefined, which the fused copy must decline rather than answer.
+(rod /zz get)                  same
+(wd /nothere get)              same
+(nad /a get)                   same
+(rod (a) get)                  same
+(rod nas get)                  same
+(rod 1 get)                    same
+(wd 5 7 put wd 5 get)          same
+(wd null 3 put wd null get)    same
+(rod true get)                 same
+(wd /k 5 put wd /k get)        same
+
+% --- length: every type it admits, every type it refuses, and access ---
+%
+% The fused copy answers from the object's own size field, which only
+% two of the types length accepts carry in the place it reads; the rest
+% must reach the operator, so each is asked here. A composite that may
+% not be read has no length either, and the packed array is asked
+% because it is a distinct type whose size sits in the same field --
+% answering it from the fused copy would be a divergence in the other
+% direction, silently accepting what the operator's own type test
+% decides.
+(wa length)                    same
+(ws length)                    same
+(roa length)                   same
+(ros length)                   same
+(naa length)                   same
+(pka length)                   same
+(wd length)                    same
+(rod length)                   same
+(/abc length)                  same
+({ 1 2 } length)               same
+([ ] length)                   same
+(() length)                    same
+(1 length)                     same
+(true length)                  same
+(null length)                  same
+(length)                       same
+
+% --- counttomark: the mark's distance, and the absence of a mark ---
+%
+% The count is a walk of the stack, so it is asked with the mark at the
+% top, buried, and absent -- the last being the case the fused copy must
+% decline rather than answer, since an unmatched mark is an error and a
+% mark further down than the copy looks is still a mark.
+(mark counttomark)             same
+(mark 1 2 3 counttomark)       same
+(1 2 mark 3 counttomark)       same
+(mark mark 1 counttomark)      same
+(counttomark)                  same
+(1 2 3 counttomark)            same
 
 % --- the results are also correct, not merely equal on both paths ---
 wa 0 get 42 eq (a put through the fixture stored its value) assert
