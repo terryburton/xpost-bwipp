@@ -3,6 +3,7 @@
  * Copyright (c) 2013-2016 Michael Joshua Ryan
  * Copyright (c) 2013 Vincent Torri
  * Copyright (c) 2013 Thorsten Behrens
+ * Copyright (c) 2026 Terry Burton
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
@@ -152,8 +153,9 @@ _xpost_main_banner(void)
     int mic;
 
     xpost_version_get(&maj, &min, &mic);
-    printf("Xpost %d.%d.%d\n", maj, min, mic);
-    printf("Copyright (C) 2013, Michael Joshua Ryan. All rights reserved.\n");
+    printf("xpost-BWIPP %d.%d.%d, hereafter \"xpost\"\n", maj, min, mic);
+    printf("based on xpost by M Joshua Ryan (luser droog)\n");
+    printf("Copyright (C) 2013-2026, Michael Joshua Ryan and collaborators.\n");
     printf("Licensed under the BSD 3-clause licence, without any warranty;\n");
     printf("the file COPYING states the terms.\n");
 }

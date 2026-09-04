@@ -2,6 +2,7 @@
  * Xpost - a PostScript Level-3 interpreter
  * Copyright (c) 2013-2024 Michael Joshua Ryan
  * Copyright (c) 2013-2024 Vincent Torri
+ * Copyright (c) 2026 Terry Burton
  * SPDX-License-Identifier: BSD-3-Clause
  */
 

@@ -1,12 +1,23 @@
-[![Linux CI](https://github.com/luser-dr00g/xpost/actions/workflows/linux.yml/badge.svg)](https://github.com/luser-dr00g/xpost/actions/workflows/linux.yml)
-[![Windows CI](https://github.com/luser-dr00g/xpost/actions/workflows/msys2.yml/badge.svg)](https://github.com/luser-dr00g/xpost/actions/workflows/msys2.yml)
-[![OS X CI](https://github.com/luser-dr00g/xpost/actions/workflows/osx.yml/badge.svg)](https://github.com/luser-dr00g/xpost/actions/workflows/osx.yml)
+[![Linux CI](https://github.com/terryburton/xpost-bwipp/actions/workflows/linux.yml/badge.svg)](https://github.com/terryburton/xpost-bwipp/actions/workflows/linux.yml)
+[![Windows CI](https://github.com/terryburton/xpost-bwipp/actions/workflows/msys2.yml/badge.svg)](https://github.com/terryburton/xpost-bwipp/actions/workflows/msys2.yml)
+[![OS X CI](https://github.com/terryburton/xpost-bwipp/actions/workflows/osx.yml/badge.svg)](https://github.com/terryburton/xpost-bwipp/actions/workflows/osx.yml)
 
-## Xpost
+## xpost-BWIPP
 
-Xpost is a cross-platform interpreter for the PostScript Language
-written in C. It implements LanguageLevel 3, graphics included, and is
-built and tested on Linux, Windows and macOS.
+This is xpost-BWIPP, hereafter "xpost": a cross-platform PostScript
+Level-3 interpreter written in C, based on xpost by M Joshua Ryan (luser
+droog). The original design has been extensively reworked and extended
+to serve the needs of Barcode Writer in Pure PostScript. Graphics are
+included, and it is built and tested on Linux, Windows and macOS.
+
+The PostScript Language Reference Manual and the Technical Notes that
+follow it are the sole design authority. Other interpreters serve only
+as black-box oracles. Where behaviour departs from the specification,
+COMPLIANCE records it.
+
+Development has largely been vibe coded against specifications derived
+from the reference. At this point it is highly experimental and should
+not be used on untrusted inputs.
 
 The whole interpreter is a library, `libxpost`. The `xpost` program is a
 small application over it (`src/bin/xpost_main.c`), and

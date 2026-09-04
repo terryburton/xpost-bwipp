@@ -14,12 +14,25 @@
  *
  * @section xpost_intro Introduction
  *
- * xpost is a PostScript LanguageLevel 3 interpreter, built as a shared
- * library (libxpost) with a command-line interpreter and an embedding
- * example on top of it. README.md at the tree root describes what it
- * implements, its output devices, and how it is tested. doc/COMPAT
- * records where each user-visible name comes from, and COMPLIANCE at the
- * tree root records the deviations from the published language.
+ * This is xpost-BWIPP, hereafter "xpost": a PostScript Level-3
+ * interpreter based on xpost by M Joshua Ryan (luser droog). The
+ * original design has been extensively reworked and extended to serve
+ * the needs of Barcode Writer in Pure PostScript.
+ *
+ * The PostScript Language Reference Manual and the Technical Notes that
+ * follow it are the sole design authority. Other interpreters serve
+ * only as black-box oracles. Where behaviour departs from the
+ * specification, COMPLIANCE records it.
+ *
+ * xpost is built as a shared library (libxpost) with a command-line
+ * interpreter and an embedding example on top of it. README.md at the
+ * tree root describes what it implements, its output devices, and how
+ * it is tested. doc/COMPAT records where each user-visible name comes
+ * from.
+ *
+ * Development has largely been vibe coded against specifications
+ * derived from the reference. At this point it is highly experimental
+ * and should not be used on untrusted inputs.
  *
  * @section xpost_compilation Compilation and installation
  *

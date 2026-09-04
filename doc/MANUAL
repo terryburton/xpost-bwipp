@@ -428,8 +428,9 @@ where the standard input is a terminal -- either with no program named
 at all, or after the named program has ended.
 
   $ build/src/bin/xpost
-  Xpost 0.0.1
-  Copyright (C) 2013, Michael Joshua Ryan. All rights reserved.
+  xpost-BWIPP 0.0.1, hereafter "xpost"
+  based on xpost by M Joshua Ryan (luser droog)
+  Copyright (C) 2013-2026, Michael Joshua Ryan and collaborators.
   Licensed under the BSD 3-clause licence, without any warranty;
   the file COPYING states the terms.
   PS>

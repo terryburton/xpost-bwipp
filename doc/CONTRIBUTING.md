@@ -218,6 +218,7 @@ read and not the thirtieth. A PostScript file:
 % Emit a DSC-conformant PostScript document from the recorded page.
 %
 % Copyright (c) 2013-2016 Michael Joshua Ryan
+% Copyright (c) 2026 Terry Burton
 % SPDX-License-Identifier: BSD-3-Clause
 ```
 
@@ -231,14 +232,17 @@ the product on its first line:
  * xpost_dev_generic.c -- the shared PostScript base device class.
  *
  * Copyright (c) 2013-2016 Michael Joshua Ryan
+ * Copyright (c) 2026 Terry Burton
  * SPDX-License-Identifier: BSD-3-Clause
  */
 ```
 
 The magic line is `%!PS`, never a bare `%!`. These data files are read
 by the interpreter rather than spooled, so the line is a convention and
-not load-bearing, but it is written in full. `check-file-headers` holds
-every file to a conforming header.
+not load-bearing, but it is written in full. A file more than one
+person holds copyright in names each of them, a line apiece and
+oldest first. `check-file-headers` holds every file to a conforming
+header.
 
 ### Saying what a file is for
 

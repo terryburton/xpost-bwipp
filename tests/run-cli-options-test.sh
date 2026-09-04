@@ -378,19 +378,19 @@ else
     # to read it, and the same three things decide that as decide whether
     # a session is offered at all. A session is opened with a greeting.
     got=$(on_terminal "'$xpost' --no-sandbox -d null '$work/noquit.ps'")
-    printf '%s\n' "$got" | grep -q '^Xpost [0-9]' \
+    printf '%s\n' "$got" | grep -q '^xpost-BWIPP [0-9]' \
         || note "a session at a terminal was not opened with a greeting"
     printf '%s\n' "$got" | grep -q 'program-ran' \
         || note "a greeted run at a terminal did not run its program"
 
     # asked for quiet, it is not
     got=$(on_terminal "'$xpost' -q --no-sandbox -d null '$work/noquit.ps'")
-    printf '%s\n' "$got" | grep -q '^Xpost [0-9]' \
+    printf '%s\n' "$got" | grep -q '^xpost-BWIPP [0-9]' \
         && note "a run asked for quiet greeted the terminal anyway"
 
     # and with a file waiting for the run, there is no session to open
     got=$(on_terminal "'$xpost' --no-sandbox -d null -o '$work/tty2.null' '$work/noquit.ps'")
-    printf '%s\n' "$got" | grep -q '^Xpost [0-9]' \
+    printf '%s\n' "$got" | grep -q '^xpost-BWIPP [0-9]' \
         && note "a run with an output file greeted the terminal it was started from"
 
     # The page boundary is the other thing said to a person: the

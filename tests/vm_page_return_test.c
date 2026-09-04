@@ -1,7 +1,7 @@
 /*
- * Xpost - a Level-2 Postscript interpreter
+ * Xpost - a PostScript Level-3 interpreter
  * Copyright (C) 2013-2016, Michael Joshua Ryan
- * All rights reserved.
+ * Copyright (c) 2026 Terry Burton
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
