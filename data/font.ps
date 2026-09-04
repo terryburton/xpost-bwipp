@@ -1578,7 +1578,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     graphicsdict /currgstate get /currfont get
     dup //.fontroute exec /composite eq {
         dup /FMapType get 9 eq {
-            /CMap get //.xpostsys /.cmapnext get exec exch pop
+            % .cmapnext answers the font number, the character code and
+            % the width in bytes; only the last is this procedure's
+            % answer, and the other two go the way the FMapType branch
+            % below sends its own pair.
+            /CMap get //.xpostsys /.cmapnext get exec 3 1 roll pop pop
         }{
             0 //.xpostsys /.fmapnext get exec 3 1 roll pop pop
         } ifelse
