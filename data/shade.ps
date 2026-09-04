@@ -429,6 +429,33 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         }{ false } ifelse
     }{ false } ifelse def
 
+    /flatpass {  % -  .  -
+        %  Each cell in one colour, taken at its centre. The cells are
+        %  smaller than the plane painter's, because a flat cell says
+        %  less about the function across it than a plane does.
+        /fw x1 x0 sub 0 dtransform dup mul exch dup mul add sqrt
+            //.fncellflat div ceiling cvi 1 2 copy lt { exch } if pop
+            200 2 copy gt { exch } if pop def
+        /fh 0 y1 y0 sub dtransform dup mul exch dup mul add sqrt
+            //.fncellflat div ceiling cvi 1 2 copy lt { exch } if pop
+            200 2 copy gt { exch } if pop def
+        /fdx x1 x0 sub fw div def
+        /fdy y1 y0 sub fh div def
+        0 1 fw 1 sub { /i exch def
+            0 1 fh 1 sub { /j exch def
+                /cx x0 i fdx mul add def
+                /cy y0 j fdy mul add def
+                cx fdx 2 div add cy fdy 2 div add fn //.fneval2 exec pop setcolor
+                newpath
+                cx cy moveto
+                cx fdx add cy lineto
+                cx fdx add cy fdy add lineto
+                cx cy fdy add lineto
+                closepath fill
+            } for
+        } for
+    } def
+
     /cw fastok { //.fncellplane }{ //.fncellflat } ifelse def
     /nx x1 x0 sub 0 dtransform dup mul exch dup mul add sqrt
         cw div ceiling cvi 1 2 copy lt { exch } if pop 200 2 copy gt { exch } if pop def
@@ -446,35 +473,40 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             /jj exch def
             [ 0 1 nx { dup dx mul x0 add  y0 jj dy mul add  evalc exch pop } for ]
         } def
+        /planeok true def
         /prow 0 row def
-        0 1 ny 1 sub { /j exch def
+        0 1 ny 1 sub { /j exch def planeok {
             /crow j 1 add row def
-            0 1 nx 1 sub { /i exch def
+            0 1 nx 1 sub { /i exch def planeok {
                 /ax x0 i dx mul add def /ay y0 j dy mul add def
                 /bx ax dx add def /by ay dy add def
                 /pa [ ax ay prow i get aload pop ] def
                 /pb [ bx ay prow i 1 add get aload pop ] def
                 /pc [ bx by crow i 1 add get aload pop ] def
                 /pd [ ax by crow i get aload pop ] def
-                /va pa def /vb pb def /vc pc def //.xpostsys /.gtrishade get exec pop
-                /va pa def /vb pc def /vc pd def //.xpostsys /.gtrishade get exec pop
-            } for
+                % The plane painter answers whether it painted: a device
+                % without the machinery for it declines, and a cell whose
+                % triangles are declined is filled flat from its centre,
+                % which is what this shading did before the painter was
+                % there. Taking the answer for granted left such a device
+                % with nothing on the page at all.
+                %  The plane painter answers whether it painted. A
+                %  device without the machinery for it declines, and
+                %  declines for every triangle alike, so the first
+                %  refusal settles the whole shading: nothing has been
+                %  painted yet by a painter that refuses, and the flat
+                %  road paints all of it at its own resolution.
+                /va pa def /vb pb def /vc pc def
+                //.xpostsys /.gtrishade get exec
+                { /va pa def /vb pc def /vc pd def
+                  //.xpostsys /.gtrishade get exec pop
+                }{ /planeok false def } ifelse
+            } if } for
             /prow crow def
-        } for
+        } if } for
+        planeok not { flatpass } if
     }{
-    0 1 nx 1 sub { /i exch def
-        0 1 ny 1 sub { /j exch def
-            /cx x0 i dx mul add def
-            /cy y0 j dy mul add def
-            cx dx 2 div add cy dy 2 div add fn //.fneval2 exec pop setcolor
-            newpath
-            cx cy moveto
-            cx dx add cy lineto
-            cx dx add cy dy add lineto
-            cx cy dy add lineto
-            closepath fill
-        } for
-    } for
+    flatpass
     } ifelse
     end
 } def
