@@ -832,15 +832,21 @@ int xpost_op_callout(Xpost_Context *ctx,
     /* The machinery's own dictionaries, innermost taken first and so
        lying deepest, which leaves the continuation popping them
        outermost first -- the order they must go back on. */
+    /* Every one of them reaches the execution stack before any leaves the
+       dictionary stack. A dictionary taken off and then refused room
+       would be on neither, and the dictionary stack it came from is the
+       one a caught error carries on running against. */
     for (i = 0; i < nd; i++)
     {
-        Xpost_Object d = xpost_stack_pop(ctx->lo, ctx->ds);
+        Xpost_Object d = xpost_stack_topdown_fetch(ctx->lo, ctx->ds, i);
 
         if (xpost_object_get_type(d) == invalidtype)
             return dictstackunderflow;
         if (!xpost_stack_push(ctx->lo, ctx->es, d))
             return execstackoverflow;
     }
+    for (i = 0; i < nd; i++)
+        (void)xpost_stack_pop(ctx->lo, ctx->ds);
 
     /* Taking a dictionary off changes what every name sees, which is
        what begin and end bump this for; the bracket moves the stack
