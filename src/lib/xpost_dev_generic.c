@@ -6134,10 +6134,19 @@ static int _pdfimgadd(Xpost_Context *ctx, Xpost_Object d, Xpost_Object devdic)
         e->haspol = 1;
         e->pol = _img_int(ctx, d, "pol", 0);
     }
-    if (xpost_object_get_type(_img_field(ctx, d, "mbits")) != invalidtype)
     {
-        e->hasmbits = 1;
-        e->mbits = _img_int(ctx, d, "mbits", 0);
+        /* The stencil's object number, where there is a stencil. The
+           caller states the slot whether or not it filled it, so a null
+           here means an image with no stencil of its own -- a colour-key
+           image is masked by its sample values and by nothing else, and
+           recording a number for it would name object nought. */
+        Xpost_Object mb = _img_field(ctx, d, "mbits");
+
+        if (xpost_object_get_type(mb) == integertype)
+        {
+            e->hasmbits = 1;
+            e->mbits = mb.int_.val;
+        }
     }
     e->ndec = _img_nums(ctx, d, "dec", e->dec, 16);
     if (e->ndec < 0)

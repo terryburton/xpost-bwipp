@@ -1966,6 +1966,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             % consumer is to drop, as one min-max pair per component. The
             % language states them normalised and PDF wants them in the
             % space the samples are written in, which here is eight bits.
+            %  An image carries one or the other and never both: PDF
+            %  8.9.6.4 gives /Mask a single value, the stream of a stencil
+            %  or the ranges of a colour key, and PLRM 4.10.4 has an image
+            %  masked one way or the other. Written as a choice, so that
+            %  two entries of one name cannot reach a reader whatever the
+            %  recorder handed over.
             ime /mrng known { ime /mrng get null ne }{ false } ifelse {
                 ( /Mask [) .vw
                 ime /mrng get {
@@ -1974,7 +1980,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     20 string cvs .vw ( ) .vw
                 } forall
                 (]) .vw
-            } if
+            }{
 
             % A stencil mask keeps its own grid and is written as an image
             % of its own, which the colour image names (PDF 8.9.6.4). A set
@@ -1983,6 +1989,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ime /mbits known { ime /mbits get null ne }{ false } ifelse {
                 ( /Mask ) .vw imgobjs ime /mbits get get 20 string cvs .vw ( 0 R) .vw
             } if
+            } ifelse
             } ifelse
             ime /int get { ( /Interpolate true) .vw } if
             ( /Length ) .vw imlen 20 string cvs .vw
