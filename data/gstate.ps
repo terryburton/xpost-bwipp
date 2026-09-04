@@ -283,8 +283,8 @@ setglobal
 %  parent. PLRM 2nd ed 7.1: the graphics state is private to a context, and fork
 %  forms the child by copying the graphics state stack -- the current state and
 %  every gsave beneath it. fork shares the parent's privatedict (it is a struct
-%  copy), and the graphics state lives there under .graphicsdict, so the child is
-%  given its own copy of privatedict holding a private, copied .graphicsdict.
+%  copy), and the graphics state lives there under graphicsdict, so the child is
+%  given its own copy of privatedict holding a private, copied graphicsdict.
 %  .privatedict and the C graphics operators both read the running context's
 %  privatedict, so from here the child's graphics reach its own state while the
 %  rest of privatedict's machinery stays shared. .gstatecopy copies into a fresh

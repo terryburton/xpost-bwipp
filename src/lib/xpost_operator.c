@@ -918,7 +918,7 @@ Xpost_Object xpost_operator_cons_wrapped(Xpost_Context *ctx,
    The hold stack is used as temporary storage to hold the
    arguments for an operator-function call.
    If the operator-function does not itself call xpost_operator_exec,
-   the arguments may be restored by xpost_interpreter.c:_on_error().
+   the arguments may be restored by xpost_interpreter.c:_onerror().
    xpost_operator_exec checks its argument with ctx->currentobject
    and sets a flag indicating consistency which is then checked by
    on_error()
@@ -1205,7 +1205,7 @@ int xpost_operator_exec(Xpost_Context *ctx,
        stack. Nearly half the calls a rendering job makes arrive here --
        the looping operators reschedule their step operators through the
        execution stack every iteration -- so this case keeps only what
-       the full path gives it: the currentobject record _on_error reads,
+       the full path gives it: the currentobject record _onerror reads,
        a hold stack left empty exactly as the argument mover leaves it
        for a zero-operand call (composite constructors push their
        collector-defense objects there), and the shared post-call checks.

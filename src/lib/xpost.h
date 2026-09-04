@@ -129,7 +129,7 @@ XPAPI const char *xpost_lib_dir_get(void);
  *
  * @return The path of the data directory.
  *
- * This function returns the path of the data directory, based on the shared library. More precisely, it is xpost_lib_path_get()../share/xpost.
+ * This function returns the path of the data directory, based on the shared library. More precisely, it is xpost_lib_dir_get()../share/xpost.
  */
 XPAPI const char *xpost_data_dir_get(void);
 
