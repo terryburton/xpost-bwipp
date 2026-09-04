@@ -227,11 +227,19 @@ systemdict /NOFACES known not
     % findfont answers an unknown name with a substituted face rather
     % than an error, so the widths say which face answered: a name that
     % is not Times-Roman must not be answered with Times-Roman's face.
+    %
+    % Asked only where the configuration substitutes at all. Obtaining a
+    % name it carries and answering for one it does not are two different
+    % things a host may or may not do, and one that names faces but
+    % substitutes for none refuses here rather than answering, which is
+    % not what these cases are about.
     /w { findfont 20 scalefont setfont (AB) stringwidth pop } bind def
-    /plainw /Times-Roman w def
-    /subw /NoSuchFontZZ w def
-    plainw subw ne
-        (the substituted face is not the face Times-Roman names) assert
+    { /NoSuchFontZZ findfont pop } stopped not {
+        /plainw /Times-Roman w def
+        /subw /NoSuchFontZZ w def
+        plainw subw ne
+            (the substituted face is not the face Times-Roman names) assert
+    } if
     % DEVIATION, recorded in COMPLIANCE under font names: the host's
     % configuration is asked with the characters as C text, so a name
     % carrying a nul is resolved as the shorter name it begins with and
