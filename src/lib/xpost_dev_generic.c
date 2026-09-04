@@ -6212,7 +6212,7 @@ static int _pdfimgadd(Xpost_Context *ctx, Xpost_Object d, Xpost_Object devdic)
         return VMerror;
     e->rowslen = total;
     total = 0;
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n && e->rows; i++)
     {
         Xpost_Object r = xpost_array_get(ctx, rows, i);
 
@@ -6445,7 +6445,7 @@ static int _pdfobjadd(Xpost_Context *ctx, Xpost_Object num,
         return VMerror;
     e->len = total;
     total = 0;
-    for (i = 0; i < m; i++)
+    for (i = 0; i < m && e->body; i++)
     {
         Xpost_Object c = xpost_array_get(ctx, chunks, i);
 
@@ -6618,7 +6618,9 @@ static int _res_same(const Pdf_Res *e, const Pdf_Res *f)
             if (e->mat[i] != f->mat[i])
                 return 0;
     }
-    return e->bodylen == 0 || memcmp(e->body, f->body, e->bodylen) == 0;
+    return e->bodylen == 0
+           || (e->body && f->body
+               && memcmp(e->body, f->body, e->bodylen) == 0);
 }
 
 /* .pdfresadd  kind dict devdic  .  index
@@ -6673,7 +6675,7 @@ static int _pdfresadd(Xpost_Context *ctx, Xpost_Object kind,
         return VMerror;
     cand.bodylen = total;
     total = 0;
-    for (i = 0; i < m; i++)
+    for (i = 0; i < m && cand.body; i++)
     {
         Xpost_Object c = xpost_array_get(ctx, chunks, i);
 
