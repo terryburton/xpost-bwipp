@@ -30,6 +30,11 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef _WIN32
+# include <io.h>
+# include <fcntl.h>
+#endif
+
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>
 #endif
@@ -695,6 +700,18 @@ int main(int argc, char *argv[])
             (unsigned int)XPOST_OBJECT_TAG_EXTRA_BITS_SIZE);
     fprintf(stderr, "COMP_MAX_ENT = %u\n",
             (unsigned int)XPOST_OBJECT_COMP_MAX_ENT);
+#endif
+
+#ifdef _WIN32
+    /* The standard streams carry bytes. print writes the characters of
+       its string and file writes the bytes of its (PLRM 8.2), and a host
+       whose runtime opens these in a text mode turns each newline among
+       them into a pair -- which is a page of PostScript or PDF written
+       to the standard output arriving corrupted, and a program that
+       prints a byte getting a different byte back. Asked for once here,
+       before anything is written. */
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stderr), _O_BINARY);
 #endif
 
 #ifdef _WIN32
