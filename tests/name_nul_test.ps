@@ -234,12 +234,13 @@ systemdict /NOFACES known not
     % substitutes for none refuses here rather than answering, which is
     % not what these cases are about.
     /w { findfont 20 scalefont setfont (AB) stringwidth pop } bind def
-    { /NoSuchFontZZ findfont pop } stopped not {
-        /plainw /Times-Roman w def
+    /plainw /Times-Roman w def
+    mark { /NoSuchFontZZ findfont pop } stopped not {
         /subw /NoSuchFontZZ w def
         plainw subw ne
             (the substituted face is not the face Times-Roman names) assert
     } if
+    cleartomark
     % DEVIATION, recorded in COMPLIANCE under font names: the host's
     % configuration is asked with the characters as C text, so a name
     % carrying a nul is resolved as the shorter name it begins with and
