@@ -96,6 +96,35 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  decimals, never exponential -- round(n*100) sidesteps binary-float
 %  print noise.
 %
+%  How well an image is to be encoded where the encoding is lossy, as a
+%  percentage of full quality. Asked by every writer that can encode one
+%  that way, so the places a caller may say it -- the device itself, a
+%  host setting recorded with -p, and the distiller parameters, where it
+%  is a QFactor inside the dictionary named for the kind of image -- are
+%  read in one order, in one place, whichever writer is asking.
+%
+.xpostsys /.imagequality {  % dev nc dparams  .  int
+    3 dict begin
+        /iqdp exch def /iqnc exch def /iqdev exch def
+        iqdev /pdf_image_quality known {
+            iqdev /pdf_image_quality get
+        }{
+            //.hostdict /pdf_image_quality known {
+                //.hostdict /pdf_image_quality get
+            }{
+                iqnc 1 eq { /GrayImageDict }{ /ColorImageDict } ifelse
+                dup iqdp exch known {
+                    iqdp exch get
+                    dup type /dicttype eq {
+                        dup /QFactor known
+                            { /QFactor get 100 mul cvi }{ pop 75 } ifelse
+                    }{ pop 75 } ifelse
+                }{ pop 75 } ifelse
+            } ifelse
+        } ifelse
+    end
+} put
+
 .xpostsys /.num2str {  % num  .  str
     % Rounded to the two places that get written, before it is asked
     % whether the number is whole. A value a hair either side of a whole

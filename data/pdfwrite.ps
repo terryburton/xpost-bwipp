@@ -1481,27 +1481,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     } bind
 
     /.imagequality {  % nc  .  int
-        %  In the same order .imageencoding asks: the device's own
-        %  setting, then the host settings where -p records one, then
-        %  the distiller parameters, where the quality is a QFactor --
-        %  the fraction of full quality asked for -- inside the
-        %  dictionary Adobe names for the kind of image.
-        .dev /pdf_image_quality 2 copy known
-            { get exch pop }
-            { pop pop
-              //.hostdict /pdf_image_quality 2 copy known
-                  { get exch pop }
-                  { pop pop
-                    1 eq { /GrayImageDict }{ /ColorImageDict } ifelse
-                    //.distillerparams exch 2 copy known
-                        { get
-                          dup type /dicttype eq
-                              { /QFactor 2 copy known
-                                  { get 100 mul cvi }{ pop pop 75 } ifelse }
-                              { pop 75 } ifelse }
-                        { pop pop 75 } ifelse }
-                  ifelse }
-        ifelse
+        %  Where a caller may say it, and in what order, is the same
+        %  question for every writer that encodes an image lossily, and
+        %  is answered once for all of them (data/device.ps).
+        .dev exch //.distillerparams //.xpostsys /.imagequality get exec
     } bind
 
     % Take a whole sampled image: the rows (one interleaved 8-bit string

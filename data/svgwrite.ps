@@ -398,10 +398,30 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             sipr
         } for ]
-        siw sih //.internaldict /.pngencode get exec
+
+        %  The rows once, and then the two encodings this format carries
+        %  weighed against each other. A photograph costs a fraction kept
+        %  lossily of what it costs kept exact, and a drawing costs less
+        %  kept exact than lossily; which an image is, is answered by
+        %  encoding it both ways and keeping the smaller, as the other
+        %  writer answers it. How much may be lost is the caller's, said
+        %  where it is said for every writer (data/device.ps).
+        /sirgb exch def
+        /sijpg null def
+        sirgb siw sih 3 .dev 3 //.distillerparams
+            //.xpostsys /.imagequality get exec
+            //.internaldict /.dctcompress get exec
+            { /sijpg exch def }{ pop } ifelse
+        /sijl 0 def
+        sijpg null ne { sijpg { length sijl add /sijl exch def } forall } if
+
+        sirgb siw sih //.internaldict /.pngencode get exec
         /.sicg .clipgroup def
         {
             /sipng exch def
+            /sipl 0 def sipng { length sipl add /sipl exch def } forall
+            %  the lossy one only where it is actually smaller
+            /siuj sijpg null ne { sijl sipl lt }{ false } ifelse def
             (<image transform="matrix\() .put
             sim 0 get .svgnum (,) .put sim 1 get .svgnum (,) .put
             sim 2 get .svgnum (,) .put sim 3 get .svgnum (,) .put
@@ -410,8 +430,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             (" height=") .put sih .svgnum
             (" preserveAspectRatio="none" image-rendering=") .put
             siint { (auto") }{ (pixelated") } ifelse .put
-            ( xlink:href="data:image/png;base64,) .put
-            sipng { //.internaldict /.base64 get exec .put } forall
+            ( xlink:href="data:image/) .put
+            siuj { (jpeg) }{ (png) } ifelse .put (;base64,) .put
+            siuj { sijpg }{ sipng } ifelse
+                { //.internaldict /.base64 get exec .put } forall
             ("/>\n) .put
         }{
 
