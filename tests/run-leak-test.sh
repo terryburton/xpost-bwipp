@@ -69,7 +69,7 @@ verdict_ok "$out" "the suite" || exit 1
 # what the checker found: anything lost outright, or lost through
 # something that was, is memory the run held for the program and never
 # gave up
-lost=$(sed -n 's/^==[0-9]*==  *\(definitely\|indirectly\) lost: \([0-9,]*\) bytes.*/\2/p' \
+lost=$(sed -nE 's/^==[0-9]*==  *(definitely|indirectly) lost: ([0-9,]*) bytes.*/\2/p' \
        "$log" | tr -d ',')
 if [ -z "$lost" ]; then
     echo "FAILURES: the checker reported no leak summary"

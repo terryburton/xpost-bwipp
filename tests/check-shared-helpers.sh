@@ -177,7 +177,7 @@ tr -d '\r' < "$pairreg" | sed 's/#.*//' | awk 'NF { print }' > "$work/pairex"
 for f in "$src"/tests/check-*.sh; do
     [ -e "$f" ] || continue
     b=$(basename "$f")
-    hand=$(sed -n 's/.*comm -\(23\|13\)  *\("[^"]*"\)  *\("[^"]*"\).*/\1 \2 \3/p' "$f" \
+    hand=$(sed -nE 's/.*comm -(23|13)  *("[^"]*")  *("[^"]*").*/\1 \2 \3/p' "$f" \
         | awk '{ k = $2 " " $3; d[k] = d[k] $1 " " }
                END { for (k in d) if (d[k] ~ /23/ && d[k] ~ /13/) print k }')
     excuse=$(awk -v n="$b" '$1 == n { $1 = ""; sub(/^ /, ""); print; exit }' "$work/pairex")

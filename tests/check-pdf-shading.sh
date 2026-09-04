@@ -85,7 +85,7 @@ for t in axial:2 radial:3 funcbased:1; do
         || { echo "FAIL: no /ShadingType $ty in the $n PDF"; fail=1; }
     grep -q '/Shading' "$work/$n.pdf" \
         || { echo "FAIL: no /Shading resource in the $n PDF"; fail=1; }
-    grep -q ' sh$\| sh ' "$work/$n.pdf" \
+    grep -Eq ' sh$| sh ' "$work/$n.pdf" \
         || { echo "FAIL: no sh operator in the $n content stream"; fail=1; }
 done
 

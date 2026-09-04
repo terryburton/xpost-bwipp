@@ -38,7 +38,13 @@ EOF
 check() {  # $1 name
     f=$work/$1.pdf
     [ -s "$f" ] || { echo "FAIL: $1 produced no file"; fail=1; return; }
-    used=$(sed -n 's:.*/\(Im[0-9]*\|Fm[0-9]*\|P[0-9]*\|GS[0-9]*\|Sh[0-9]*\)[ ]*\(Do\|scn\|gs\|sh\).*:\1:p' "$f" | sort -u)
+    # Read with an extended regular expression: `\|` inside a basic one is
+    # a GNU extension, and the sed in the base system of macOS takes it as
+    # a literal bar. The list would come out empty there and every case
+    # would report that it named no resource and tested nothing.
+    used=$(grep -aoE '/(Im|Fm|P|GS|Sh)[0-9]*[[:space:]]*(Do|scn|gs|sh)' "$f" \
+           | awk '{ sub(/^\//, ""); sub(/[[:space:]]*(Do|scn|gs|sh)$/, ""); print }' \
+           | sort -u)
     [ -n "$used" ] || { echo "FAIL: $1 names no resource, so it tests nothing"; fail=1; return; }
     for n in $used; do
         # a resource is defined either as an indirect reference to an
