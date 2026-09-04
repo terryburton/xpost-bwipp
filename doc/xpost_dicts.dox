@@ -22,7 +22,7 @@
  * `WIN32` is *not* one of these. It is settled by the build (`#ifdef _WIN32`), so
  * it is the same for every run of that build and belongs with the language.
  *
- * Those live in **`.hostdict`** and nowhere else (below). The interpreter writes
+ * Those live in <b>`.hostdict`</b> and nowhere else (below). The interpreter writes
  * every one of them itself, from one table in `xpost_interpreter.c`, *after* the
  * language is in place -- so a value that came from the invocation can never be
  * mistaken for part of the language, and a language built once and reused cannot
@@ -114,7 +114,7 @@
  * (1, empty), `userdict` (2, top). `statusdict`, `serverdict`, `$error`,
  * `errordict`, `FontDirectory` are **not** on the stack; `systemdict` *names* them
  * (they resolve by bare name through that entry) but they are local dictionaries.
- * **`userdict` is empty at start-up** -- every interpreter name is *defined* in its
+ * <b>`userdict` is empty at start-up</b> -- every interpreter name is *defined* in its
  * final home (`systemdict` for the language, a private dictionary for the
  * machinery), so a program starts with a clean namespace. `userdict` is the
  * bootstrap's own workspace while the load runs -- the private namespaces
@@ -228,7 +228,7 @@
  * | `.xpostsys /.resources` | global | persistent | (member, writable) | the resource instance table; `defineresource` writes it; global-persistent per PLRM. A shallow read-only seal of `.xpostsys` correctly leaves this member writable |
  * | `.xpostsys /.hostdict` | global | per-run settled | (member, writable) | **what this run settled, and nothing else** -- see below. Writable for the same reason `.resources` is: the seal is shallow |
  *
- * @subsection dicts_hostdict hostdict -- what this run settled
+ * @subsection dicts_hostdict .hostdict -- what this run settled
  *
  * Everything above is the language. `.hostdict` is the one dictionary that is not:
  * every member is a value *this* launch decided, and every member is written by the
@@ -249,7 +249,7 @@
  * | `OutputBufferIn`, `OutputBufferOut` | the framebuffer an embedding caller lends the raster device and where it wants the finished one written back; the pointers travel in strings a program cannot read |
  * | `StartDevice`, `StartDeviceAsked` | the device this run was started with (`-d`), and whether one was asked for at all rather than defaulted; the run's own page device is made from this after the modules load |
  * | `StartPageSize` | the page size this run was started at, as `[width height]` |
- * | `RecordSpill` | where a retained page's marks are held: the `--spill=auto|never|always` selection |
+ * | `RecordSpill` | where a retained page's marks are held: the `--spill` selection of `auto`, `never` or `always` |
  * | `MaxBandBytes` | the `-b` budget for what one band of a page may cost |
  *
  * The boot files read a setting through the accessor `.xpostsys /.hostvalue`, so a
@@ -270,18 +270,16 @@
  * dropping the userdict anchor, so a program can neither reach, enumerate, nor
  * overwrite the namespace; the frozen references keep it working.
  *
- * Reading is closed too, and by the means this document once recorded as
- * impossible. Every procedure body stored under a name in a machinery
- * namespace is made execute-only at the lockdown; what stays readable is
- * the data, because the machinery reads it. Nothing in either namespace
- * is writable. How many are of each kind is not stated here: the
- * namespace cannot be named by a program, so no run can be asked to
- * confirm a figure written in prose. `tests/dict_homes.golden` registers
- * the membership and is held to the sources in both directions. The
- * objection recorded here was that `executeonly` everywhere would break
- * the `1183615869 internaldict` path; that path no longer runs through
- * the machinery's dictionary at all, which is what made the rest of it
- * possible. See @ref dicts_password.
+ * Reading is closed too. Every procedure body stored under a name in a
+ * machinery namespace is made execute-only at the lockdown; what stays
+ * readable is the data, because the machinery reads it. Nothing in
+ * either namespace is writable. How many are of each kind is not stated
+ * here: the namespace cannot be named by a program, so no run can be
+ * asked to confirm a figure written in prose. `tests/dict_homes.golden`
+ * registers the membership and is held to the sources in both
+ * directions. What makes `executeonly` everywhere affordable is that the
+ * `1183615869 internaldict` path does not run through the machinery's
+ * dictionary at all. See @ref dicts_password.
  *
  * @subsection dicts_password What the password opens, and what it does not
  *
@@ -327,9 +325,9 @@
  * | device classes -> `privatedict` | the raster and vector device bases | a derived class is written by naming its parent (`/.xpost_PBMIMAGE .xpost_PGMIMAGE dup length 2 add dict copy def`). The step is also not a move: it takes a **local copy with headroom**, which is what makes a job's page setup revert with the save level instead of persisting into the next. (How many depends on which devices the build compiles in.) |
  * | `.error` -> `privatedict` | one name | each of `errordict`'s handlers bakes a `//.error` reference, so it has to be findable on the dictionary stack while `errordict` is built. |
  *
- * Everything else that used to move now does not: the language is read into
- * `systemdict`, and the machinery anchors, the wrapped-procedure register and
- * the device makers are defined into `privatedict` directly.
+ * Nothing else moves: the language is read into `systemdict`, and the
+ * machinery anchors, the wrapped-procedure register and the device makers are
+ * defined into `privatedict` directly.
  *
  * @section dicts_local Private -- local machinery, in privatedict (off the dict stack)
  *
@@ -379,47 +377,55 @@
  *
  * @section dicts_adding Adding a procedure, operator, or dictionary
  *
- * 0. **Is it the language, or is it this run's?** If the value comes from the
- *    command line, the environment, the embedding caller, or the state of the
- *    process (a terminal, a file, a clock) -- and anything reads it once the
- *    language is loaded -- it is a **setting**: register it in
- *    `tests/host_settings.golden`, add it to `host_settings[]` in
- *    `xpost_interpreter.c`, write it there, and read it through `.hostvalue`. It
- *    belongs in no other dictionary. A value the load consumes and nothing reads
- *    afterwards is not a setting and stays with the machinery that reads it.
- *
- * 1. **Lifecycle -> VM.** Anything written during a render, or that a program may
- *    change and expect `restore` to revert, is *per-render mutable* -> it, and any
- *    dictionary holding it, must be **local**. Only *static* or *deliberately
- *    persistent* values may be **global**. (A global composite may not reference a
- *    local one -- the load-time check enforces it.)
- *
- * 2. **Program-facing?**
- *    - A standard operator/procedure -> `systemdict` (public, sealed).
- *    - A standard program-facing dictionary that is mutable -> a **local** dict
- *      that `systemdict` names (`copyudtosd` + relocation), like `statusdict`.
- *    - A non-standard name a program is *meant* to see -> it must be on the
- *      documented extension list, or it does not belong in `systemdict`.
- *
- * 3. **Private -> which home?**
- *    - Static, global, reached only by a frozen `//` -> `.xpostsys` (bake it via
- *      `.xpostsys begin ... //.h exec` for hot paths, or use the run-time
- *      `//.xpostsys /.h get exec` form for mutually-recursive helpers), or
- *      `.internaldict` for a relocated C operator or an internal flag. Reference it
- *      with a frozen `//` so it survives the seal.
- *    - Local (per-render mutable, or holds local objects) -> **`privatedict`**.
- *      Reach it with the `.privatedict` operator (PostScript) or `ctx->privatedict`
- *      (C). This keeps local machinery both isolated *and* hidden.
- *    - Reached **by name at run time** by C or by a standard program name -> it must
- *      stay anchored on the dict stack; it cannot be hidden. Keep it dotted if
- *      private, and record why in the kept-names table above.
- *
- * 4. **A global dictionary may hold a mutable *member* only if that member is
- *    itself intentionally persistent** (like `.xpostsys /.resources`). An
- *    accidentally-mutable member of a global dictionary leaks across jobs -- this
- *    is the bug fixed for the device classes and `statusdict`/`serverdict`. Note
- *    `readonly` is shallow (per PLRM, per-object for arrays/strings, shared for
- *    dicts, never recursive), so sealing a container does not lock its members.
+ * <ol start="0">
+ * <li>
+ * **Is it the language, or is it this run's?** If the value comes from the
+ * command line, the environment, the embedding caller, or the state of the
+ * process (a terminal, a file, a clock) -- and anything reads it once the
+ * language is loaded -- it is a **setting**: register it in
+ * `tests/host_settings.golden`, add it to `host_settings[]` in
+ * `xpost_interpreter.c`, write it there, and read it through `.hostvalue`. It
+ * belongs in no other dictionary. A value the load consumes and nothing reads
+ * afterwards is not a setting and stays with the machinery that reads it.
+ * </li>
+ * <li>
+ * **Lifecycle -> VM.** Anything written during a render, or that a program may
+ * change and expect `restore` to revert, is *per-render mutable* -> it, and any
+ * dictionary holding it, must be **local**. Only *static* or *deliberately
+ * persistent* values may be **global**. (A global composite may not reference a
+ * local one -- the load-time check enforces it.)
+ * </li>
+ * <li>
+ * **Program-facing?**
+ * - A standard operator/procedure -> `systemdict` (public, sealed).
+ * - A standard program-facing dictionary that is mutable -> a **local** dict
+ *   that `systemdict` names (`copyudtosd` + relocation), like `statusdict`.
+ * - A non-standard name a program is *meant* to see -> it must be on the
+ *   documented extension list, or it does not belong in `systemdict`.
+ * </li>
+ * <li>
+ * **Private -> which home?**
+ * - Static, global, reached only by a frozen `//` -> `.xpostsys` (bake it via
+ *   `.xpostsys begin ... //.h exec` for hot paths, or use the run-time
+ *   `//.xpostsys /.h get exec` form for mutually-recursive helpers), or
+ *   `.internaldict` for a relocated C operator or an internal flag. Reference it
+ *   with a frozen `//` so it survives the seal.
+ * - Local (per-render mutable, or holds local objects) -> <b>`privatedict`</b>.
+ *   Reach it with the `.privatedict` operator (PostScript) or `ctx->privatedict`
+ *   (C). This keeps local machinery both isolated *and* hidden.
+ * - Reached **by name at run time** by C or by a standard program name -> it must
+ *   stay anchored on the dict stack; it cannot be hidden. Keep it dotted if
+ *   private, and record why in the kept-names table above.
+ * </li>
+ * <li>
+ * **A global dictionary may hold a mutable *member* only if that member is
+ * itself intentionally persistent** (like `.xpostsys /.resources`). An
+ * accidentally-mutable member of a global dictionary leaks across jobs, which is
+ * what holds the device classes and `statusdict`/`serverdict` in local VM. Note
+ * `readonly` is shallow (per PLRM, per-object for arrays/strings, shared for
+ * dicts, never recursive), so sealing a container does not lock its members.
+ * </li>
+ * </ol>
  *
  * @section dicts_invariants What is claimed, and what holds each claim
  *

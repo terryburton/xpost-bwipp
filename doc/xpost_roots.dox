@@ -40,68 +40,68 @@
  * In the tree below, (G) is global and (L) is local.
  *
  * @verbatim
- * COLLECTOR ROOTS
- * |
- * +- special entities -- below `start`, never swept ----------- per bank
- * |    FREE . SAVE_STACK . CONTEXT_LIST . NAME_STACK . NAME_TREE
- * |    BOGUS_NAME
- * |
- * +- save stack ......................... both banks
- * |    +- the backups a save took        (G) and (L), one stack each
- * |         the descent into a backup's members crosses banks with the
- * |         rest of the walk, so a backed-up composite marks what it
- * |         holds in the other bank
- * |
- * +- name stack ......................... both banks
- * |    +- (L) interned names
- * |    +- (G) interned names
- * |         a name is interned into the bank the allocation mode
- * |         selects, so both stacks hold names; each name's characters
- * |         are an entity of their own, above `start`
- * |
- * +- the operator table's procedures ...  (G)
- * |         the table is the memory file's own storage and no part of
- * |         either arena, so the walk does not reach it; what keeps the
- * |         procedures alive is .wrappedprocs, below
- * |
- * +- per context
- *    +- os    operand stack ............. (L)
- *    +- es    execution stack ........... (L)
- *    +- hold ............................ (L)  an operator's temporaries
- *    +- ds    dictionary stack .......... (L)
- *    |   +- systemdict ................................. (G)
- *    |   |   +- the language: operators and procedures .. (G)
- *    |   |   +- sanctioned exceptions (PLRM 3.7.2) ...... (L)
- *    |   |       userdict . $error . errordict . statusdict
- *    |   |       serverdict . FontDirectory
- *    |   +- userdict ................................... (L)
- *    |
- *    +- the objects the context holds on its own account, declared and
- *    |  walked from one list (XPOST_CONTEXT_OBJECT_ROOTS):
- *    |   +- currentobject ............... either
- *    |   +- executingarray .............. either  the array a procedure
- *    |   |                                        is being run out of
- *    |   +- arcstartproc ................ (G)  built while the arc
- *    |   |                                     operators are installed
- *    |   +- pagedevice .................. (L)  device instance dictionary
- *    |   |   +- ImgData ................. (G)  array of
- *    |   |        +- row strings ........ (G)  the raster
- *    |   +- pagedevice_destroy .......... (L)
- *    |   +- privatedict ................. (L)  local machinery
- *    |   |   +- device classes .......... (L)
- *    |   |   +- .gscratch / .gtemplate .. (L)
- *    |   |   +- .error .................. (L)
- *    |   |   +- .wrappedprocs ........... (L) holding (G) procedures
- *    |   +- globalprivatedict = .xpostsys  (G)  global machinery
- *    |   |   +- helper procedures ....... (G)
- *    |   |   +- .resources .............. (G)  resource instance table
- *    |   |   +- .facecache .............. (G)  one entry per face
- *    |   |        +- /<face name> ....... (G)  /CharStrings, /sfnts
- *    |   +- run_input_file .............. (L)
- *    |   +- window_device ............... (L)
- *    |   +- event_handler ............... either
- *    |   +- localfontdir / globalfontdir  (L) / (G)
- * @endverbatim
+COLLECTOR ROOTS
+|
++- special entities -- below `start`, never swept ----------- per bank
+|    FREE . SAVE_STACK . CONTEXT_LIST . NAME_STACK . NAME_TREE
+|    BOGUS_NAME
+|
++- save stack ......................... both banks
+|    +- the backups a save took        (G) and (L), one stack each
+|         the descent into a backup's members crosses banks with the
+|         rest of the walk, so a backed-up composite marks what it
+|         holds in the other bank
+|
++- name stack ......................... both banks
+|    +- (L) interned names
+|    +- (G) interned names
+|         a name is interned into the bank the allocation mode
+|         selects, so both stacks hold names; each name's characters
+|         are an entity of their own, above `start`
+|
++- the operator table's procedures ...  (G)
+|         the table is the memory file's own storage and no part of
+|         either arena, so the walk does not reach it; what keeps the
+|         procedures alive is .wrappedprocs, below
+|
++- per context
+   +- os    operand stack ............. (L)
+   +- es    execution stack ........... (L)
+   +- hold ............................ (L)  an operator's temporaries
+   +- ds    dictionary stack .......... (L)
+   |   +- systemdict ................................. (G)
+   |   |   +- the language: operators and procedures .. (G)
+   |   |   +- sanctioned exceptions (PLRM 3.7.2) ...... (L)
+   |   |       userdict . $error . errordict . statusdict
+   |   |       serverdict . FontDirectory
+   |   +- userdict ................................... (L)
+   |
+   +- the objects the context holds on its own account, declared and
+   |  walked from one list (XPOST_CONTEXT_OBJECT_ROOTS):
+   |   +- currentobject ............... either
+   |   +- executingarray .............. either  the array a procedure
+   |   |                                        is being run out of
+   |   +- arcstartproc ................ (G)  built while the arc
+   |   |                                     operators are installed
+   |   +- pagedevice .................. (L)  device instance dictionary
+   |   |   +- ImgData ................. (G)  array of
+   |   |        +- row strings ........ (G)  the raster
+   |   +- pagedevice_destroy .......... (L)
+   |   +- privatedict ................. (L)  local machinery
+   |   |   +- device classes .......... (L)
+   |   |   +- .gscratch / .gtemplate .. (L)
+   |   |   +- .error .................. (L)
+   |   |   +- .wrappedprocs ........... (L) holding (G) procedures
+   |   +- globalprivatedict = .xpostsys  (G)  global machinery
+   |   |   +- helper procedures ....... (G)
+   |   |   +- .resources .............. (G)  resource instance table
+   |   |   +- .facecache .............. (G)  one entry per face
+   |   |        +- /<face name> ....... (G)  /CharStrings, /sfnts
+   |   +- run_input_file .............. (L)
+   |   +- window_device ............... (L)
+   |   +- event_handler ............... either
+   |   +- localfontdir / globalfontdir  (L) / (G)
+@endverbatim
  *
  * @section roots_members Notes on particular members
  *

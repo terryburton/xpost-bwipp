@@ -180,64 +180,64 @@
  * operators, and the operator modules know nothing of each other.
  *
  * @verbatim
- * core        xpost_memory     the arena, and the table that indexes it
- *             xpost_stack      the segmented stacks
- *             xpost_save       save and restore
- *             xpost_free       the free lists
- *             xpost_garbage    the collector  (+ _diag, what it reports)
- *             xpost_handle     naming a block that is not in virtual memory
- *             xpost_vm_image   a context's virtual memory as one file
- *
- * objects     xpost_object     tags, and the simple constructors
- *             xpost_array      a run of objects in the arena
- *             xpost_string     a run of bytes in the arena
- *             xpost_dict       the hash table every name is looked up in
- *             xpost_name       the trees that give each name a number
- *             xpost_file       disk files, and the filters over one
- *             xpost_operator   the operator table, in row order
- *
- * run         xpost_interpreter  the main loop
- *             xpost_context      the stacks, the two banks, the roots
- *             xpost_error        raising, and the record a handler reads
- *             xpost_main         starting a run and taking it down
- *             xpost_log          where the interpreter's own messages go
- *             xpost_compat       what the hosts disagree about (+ _posix,
- *                                _win32)
- *
- * operators   xpost_oplib      asks each module below to install what it owns
- *             xpost_op_stack   xpost_op_boolean  xpost_op_control
- *             xpost_op_math    xpost_op_array    xpost_op_string
- *             xpost_op_dict    xpost_op_type     xpost_op_save
- *             xpost_op_file    xpost_op_token    xpost_op_misc
- *             xpost_op_path    xpost_op_matrix   xpost_op_font
- *             xpost_op_param   xpost_op_context  xpost_op_packedarray
- *
- * imaging     xpost_span       a row of pixels a paint covers
- *             xpost_matrix     the transformations a graphics state holds
- *             xpost_font       faces, glyphs, and the rendered-glyph cache
- *             xpost_record     the recorded page
- *             xpost_spill      the scratch file such a page may go to
- *             xpost_strbuf     a growing byte buffer, outside virtual memory
- *
- * devices     xpost_dev_generic  what every other device inherits from
- *             xpost_dev_driver   loads a device by name
- *             xpost_dev_record   keeps the marks instead of the pixels
- *             xpost_dev_raster   the embedder's rasters, per pixel layout
- *             xpost_dev_bgr      the BGR raster
- *             xpost_dev_png      PNG, with and without alpha
- *             xpost_dev_jpeg     JPEG
- *             xpost_dev_xcb      the X11 window, through XCB
- *             xpost_dev_win32    the Windows window
- *
- * dsc         xpost_dsc_parse    reads the structuring comments
- *             xpost_dsc_file     gets a file's bytes to that reader
- *
- * programs    xpost              the command-line interpreter
- *             xpost_dsc          prints what the comments say
- *             xpost_view         puts a rendered page in a window
- *                                (+ _xcb, _win32 back ends)
- *             xpost_client       drives the interpreter as a library
- * @endverbatim
+core        xpost_memory     the arena, and the table that indexes it
+            xpost_stack      the segmented stacks
+            xpost_save       save and restore
+            xpost_free       the free lists
+            xpost_garbage    the collector  (+ _diag, what it reports)
+            xpost_handle     naming a block that is not in virtual memory
+            xpost_vm_image   a context's virtual memory as one file
+
+objects     xpost_object     tags, and the simple constructors
+            xpost_array      a run of objects in the arena
+            xpost_string     a run of bytes in the arena
+            xpost_dict       the hash table every name is looked up in
+            xpost_name       the trees that give each name a number
+            xpost_file       disk files, and the filters over one
+            xpost_operator   the operator table, in row order
+
+run         xpost_interpreter  the main loop
+            xpost_context      the stacks, the two banks, the roots
+            xpost_error        raising, and the record a handler reads
+            xpost_main         starting a run and taking it down
+            xpost_log          where the interpreter's own messages go
+            xpost_compat       what the hosts disagree about (+ _posix,
+                               _win32)
+
+operators   xpost_oplib      asks each module below to install what it owns
+            xpost_op_stack   xpost_op_boolean  xpost_op_control
+            xpost_op_math    xpost_op_array    xpost_op_string
+            xpost_op_dict    xpost_op_type     xpost_op_save
+            xpost_op_file    xpost_op_token    xpost_op_misc
+            xpost_op_path    xpost_op_matrix   xpost_op_font
+            xpost_op_param   xpost_op_context  xpost_op_packedarray
+
+imaging     xpost_span       a row of pixels a paint covers
+            xpost_matrix     the transformations a graphics state holds
+            xpost_font       faces, glyphs, and the rendered-glyph cache
+            xpost_record     the recorded page
+            xpost_spill      the scratch file such a page may go to
+            xpost_strbuf     a growing byte buffer, outside virtual memory
+
+devices     xpost_dev_generic  what every other device inherits from
+            xpost_dev_driver   loads a device by name
+            xpost_dev_record   keeps the marks instead of the pixels
+            xpost_dev_raster   the embedder's rasters, per pixel layout
+            xpost_dev_bgr      the BGR raster
+            xpost_dev_png      PNG, with and without alpha
+            xpost_dev_jpeg     JPEG
+            xpost_dev_xcb      the X11 window, through XCB
+            xpost_dev_win32    the Windows window
+
+dsc         xpost_dsc_parse    reads the structuring comments
+            xpost_dsc_file     gets a file's bytes to that reader
+
+programs    xpost              the command-line interpreter
+            xpost_dsc          prints what the comments say
+            xpost_view         puts a rendered page in a window
+                               (+ _xcb, _win32 back ends)
+            xpost_client       drives the interpreter as a library
+@endverbatim
  *
  * The PostScript side is the files in the data directory, loaded
  * through one module loader. init.ps builds the machinery and loads
@@ -253,9 +253,8 @@
  * helper, which is why it is stated once, in callout.ps, rather than
  * discovered per file.
  *
- * Neither set has a unit-test main() left in it: the six that once lived
- * behind @c TESTMODULE_* symbols are gone, and every test that runs is in
- * tests/.
+ * Neither set carries a unit-test main() of its own: every test that runs
+ * is in tests/.
  *
  * @section design_boot Booting, and fast initialisation from an image
  *
@@ -363,11 +362,13 @@
  * and widens the integer to 64 bits and the real to double. The
  * bounds that follow:
  *
- *   field width          16 bit          32 bit
- *   composite length     65,535          4,294,967,295
- *   entity numbers       524,287         2,147,483,647
- *   integer              32 bit          64 bit
- *   real                 float           double
+ * @verbatim
+   field width          16 bit          32 bit
+   composite length     65,535          4,294,967,295
+   entity numbers       524,287         2,147,483,647
+   integer              32 bit          64 bit
+   real                 float           double
+@endverbatim
  *
  * The narrow composite bound is the architectural limit PLRM
  * Appendix B.1 documents; the entity range is wider than the length
@@ -398,9 +399,11 @@
  * offers, all chosen for the same property -- the base never moves as
  * the file grows:
  *
- *   a mapping extended in place      mmap with mremap
- *   a reservation committed piecewise  mmap without mremap, and Win64
- *   the host allocator               a host with neither
+ * @verbatim
+   a mapping extended in place        mmap with mremap
+   a reservation committed piecewise  mmap without mremap, and Win64
+   the host allocator                 a host with neither
+@endverbatim
  *
  * The middle arrangement reserves the whole range an offset can
  * address without being charged for it, and commits more (in one-MiB
@@ -435,18 +438,18 @@
  * sixteen free-list heads (see @ref design_free). Each row describes
  * one entity -- one allocated thing:
  *
- *   @c adr    where the entity's bytes begin, as an offset from base
- *   @c used   how many of those bytes are in use -- an entity may
- *             occupy a larger block than it needs, when it was served
- *             from the free list
- *   @c sz     the size of the whole allocated block
- *   @c mark   the collector's mark bits and the save machinery's
- *             level bookkeeping; for file entities, the birth stamp
- *             (see @ref design_save)
- *   @c tag    what kind of thing the block holds, where the collector
- *             or the handle machinery needs to know -- it is how the
- *             collector closes a file it reclaims, and how a block
- *             holding a handle on host state is recognised
+ * - @c adr -- where the entity's bytes begin, as an offset from base
+ * - @c used -- how many of those bytes are in use; an entity may
+ *   occupy a larger block than it needs, when it was served from the
+ *   free list
+ * - @c sz -- the size of the whole allocated block
+ * - @c mark -- the collector's mark bits and the save machinery's
+ *   level bookkeeping; for file entities, the birth stamp (see
+ *   @ref design_save)
+ * - @c tag -- what kind of thing the block holds, where the collector
+ *   or the handle machinery needs to know: it is how the collector
+ *   closes a file it reclaims, and how a block holding a handle on
+ *   host state is recognised
  *
  * A sixth field, @c nextfree, links rows into the free lists; it
  * lives in the row precisely so that freed storage itself holds
@@ -707,9 +710,11 @@
  * Then the pages under the freed run go back to the operating system
  * in a single call, each host by its own route:
  *
- *   Linux          madvise MADV_DONTNEED
- *   Windows        DiscardVirtualMemory
- *   other POSIX    the range re-mapped in place, MAP_FIXED
+ * @verbatim
+   Linux          madvise MADV_DONTNEED
+   Windows        DiscardVirtualMemory
+   other POSIX    the range re-mapped in place, MAP_FIXED
+@endverbatim
  *
  * The portable route serves Linux too at about three times the cost
  * of the native call, and XPOST_RETURN_REMAPS asks for it anyway,
@@ -1708,7 +1713,6 @@
  * library fails configuration unless the faceless build was asked
  * for by name -- and it runs in a CI lane of its own.
  *
- *  *
  * Text reaches a vector writer as text where it can, and as marks
  * where it cannot, and the choice is about what the reader on the far
  * side already has. A reader of PDF is required to carry a set of
@@ -1937,9 +1941,9 @@
  * tag and works it out. The raw one carries a @c _memory suffix:
  *
  * @verbatim
- * xpost_array_get_memory(mem, a, i)   raw -- caller names the bank
- * xpost_array_get(ctx, a, i)          banked -- read off the tag
- * @endverbatim
+xpost_array_get_memory(mem, a, i)   raw -- caller names the bank
+xpost_array_get(ctx, a, i)          banked -- read off the tag
+@endverbatim
  *
  * and the same pairing holds for the puts, the constructors, and the string
  * and dictionary equivalents.
@@ -1949,9 +1953,9 @@
  * State it rather than inheriting it:
  *
  * @verbatim
- * Xpost_Object arr = xpost_object_cvx(xpost_array_cons(ctx, 12));   executable
- * Xpost_Object arr = xpost_object_cvlit(xpost_array_cons(ctx, 12)); literal
- * @endverbatim
+Xpost_Object arr = xpost_object_cvx(xpost_array_cons(ctx, 12));   executable
+Xpost_Object arr = xpost_object_cvlit(xpost_array_cons(ctx, 12)); literal
+@endverbatim
  *
  * <b>Terminology.</b> A datum in the arena is an @e entity when what is meant
  * is the bytes themselves, and an @e entry when what is meant is the table row
@@ -1963,16 +1967,16 @@
  * @subsection design_tunables Tunable constants
  *
  * @verbatim
- * XPOST_STACK_SEGMENT_SIZE            xpost_stack.h    objects per segment (1000)
- * XPOST_FREE_NBUCKETS                 xpost_free.h     size-class buckets (16)
- * XPOST_FREE_SCAN_LIMIT               xpost_free.h     entries scanned per bucket (8)
- * XPOST_GARBAGE_COLLECTION_THRESHOLD  xpost_free.h     bytes between collections
- *                                                      (4,000,000; XPOST_GC_THRESHOLD
- *                                                      overrides)
- * XPOST_RECORD_NEST                   xpost_record.h   form placement depth (12)
- * XPOST_REPLAY_BATCH                  xpost_dev_record.c  marks per replay turn (512)
- * RECORD_WEIGH_EVERY                  xpost_record.c   marks between spill weighings (64)
- * @endverbatim
+XPOST_STACK_SEGMENT_SIZE            xpost_stack.h    objects per segment (1000)
+XPOST_FREE_NBUCKETS                 xpost_free.h     size-class buckets (16)
+XPOST_FREE_SCAN_LIMIT               xpost_free.h     entries scanned per bucket (8)
+XPOST_GARBAGE_COLLECTION_THRESHOLD  xpost_free.h     bytes between collections
+                                                     (4,000,000; XPOST_GC_THRESHOLD
+                                                     overrides)
+XPOST_RECORD_NEST                   xpost_record.h   form placement depth (12)
+XPOST_REPLAY_BATCH                  xpost_dev_record.c  marks per replay turn (512)
+RECORD_WEIGH_EVERY                  xpost_record.c   marks between spill weighings (64)
+@endverbatim
  *
  * @subsection design_matrix Matrices
  *
@@ -2003,8 +2007,8 @@
  * installing anything. An alias is enough to keep one to hand:
  *
  * @verbatim
- * alias xpost="$PWD/build/src/bin/xpost"
- * @endverbatim
+alias xpost="$PWD/build/src/bin/xpost"
+@endverbatim
  *
  * The same fallback is a trap for anything that reads the tree
  * programmatically. A guard handed the wrong source root does not fail: it
