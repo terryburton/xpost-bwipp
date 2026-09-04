@@ -31,13 +31,25 @@
 # from the manifest fails below -- so a device added to the roster
 # arrives here on the day it is added and says so.
 #
-# TWO ROUTES, not one. Each device is rendered twice: the single page to a
-# fixed output name, and a three-page job to a name carrying a %d, which
-# asks for a file per page. In a paginated device those are two different
-# writers -- one accumulates into a document opened once for the run, the
-# other opens and finalises a document per page -- and only the first had
-# bytes held anywhere, so a change to the second was invisible here. The
-# per-page route's entries are named <device>%d in the manifest.
+# THREE ROUTES, not one. A paginated device carries state between pages,
+# and which state it carries depends on where the document ends, so each
+# of the three ways a job can end up on disk is a route of its own and
+# each is held here.
+#
+#   <device>       the single page to a fixed output name
+#   <device>-all   the three-page job to a fixed output name: one
+#                  document opened once and finalised at the end of the
+#                  run, with three pages written into it
+#   <device>%d     the three-page job to a name carrying a %d, which
+#                  opens and finalises a document per page
+#
+# A page after the first is where all of this shows. What the writer
+# restates at a page end -- the matrix its marks are made under, the
+# selections its stream carries, the descriptions its content calls --
+# is written once for the first page and has to be written again for
+# each page after it, and a device that leaves one out produces a page
+# that is well formed and wrong. Held on one route and not the others,
+# such a page ships.
 #
 # Regenerate after an INTENDED rendering change (declare it in the same
 # commit) with:
@@ -128,6 +140,30 @@ for dev in $devices; do
     printf '%s  %s\n' "$(sum "$out")" "$dev" >> "$out_manifest"
 done
 
+# ---- the same devices through the one-document multi-page route ----
+#
+# The same three pages the per-page route below writes as three files,
+# written here into the one document a run opens once. What differs
+# between the two is where a document starts and ends, which is exactly
+# what a writer's per-page state is measured against.
+for dev in $devices; do
+    out="$work/golden.$dev-all"
+    err=$("$xpost" -q $ns -d "$dev" -o "$out" "$pages" </dev/null 2>&1)
+    status=$?
+    verdict_run "$status" "$err" "$dev-all" || exit 1
+    if printf '%s' "$err" | grep -q '%%\[ Error'; then
+        echo "FAIL $dev-all: $(printf '%s' "$err" | grep '%%\[ Error' | head -1)"
+        fail=1
+        continue
+    fi
+    if [ ! -s "$out" ]; then
+        echo "FAIL $dev-all: produced no output"
+        fail=1
+        continue
+    fi
+    printf '%s  %s\n' "$(sum "$out")" "$dev-all" >> "$out_manifest"
+done
+
 # ---- the same devices through the per-page route ----
 #
 # The pages are joined in order and hashed as one, so a device answers
@@ -193,6 +229,12 @@ for dev in $devices; do
         echo "FAIL: $dev is rendered but absent from the manifest"
         fail=1
     fi
+    if ! grep -q " $dev-all\$" "$manifest"; then
+        echo "FAIL: $dev is rendered through the one-document multi-page"
+        echo "      route and absent from the manifest, so that route holds"
+        echo "      no bytes"
+        fail=1
+    fi
     if ! grep -q " $dev%d\$" "$manifest"; then
         echo "FAIL: $dev is rendered through the per-page route and absent"
         echo "      from the manifest, so that route holds no bytes"
@@ -232,7 +274,8 @@ fi
 # compare per device so a mismatch names its device
 while read -r want dev; do
     case $dev in
-        pdfwrite|svgwrite|dscwrite|pdfwrite%d|svgwrite%d|dscwrite%d)
+        pdfwrite|svgwrite|dscwrite|pdfwrite-all|svgwrite-all|dscwrite-all|\
+        pdfwrite%d|svgwrite%d|dscwrite%d)
             if [ "$byte_exact_only_raster" = 1 ]; then
                 echo "NOTE $dev: not held to the byte on $platform;"
                 echo "     the manifest was made on $reference, and what this"

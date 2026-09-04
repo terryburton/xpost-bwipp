@@ -479,6 +479,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     0 0 .dev //.internaldict /.pdfrescut get exec
 
     .streamreset
+    % and the page matrix at the head of the emptied stream, the way the
+    % first page had it written at Create. The marks are made in the
+    % device's y-down units and every page carries the matrix that puts
+    % them on a y-up page; a page that starts without it is drawn upside
+    % down, since what is missing is a transform and not a mark.
+    (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
  } //.indevwork exec } put
 
 %
