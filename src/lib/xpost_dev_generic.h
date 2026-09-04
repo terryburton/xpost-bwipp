@@ -151,7 +151,7 @@ int xpost_dev_gouraud_paint(Xpost_Context *ctx, Xpost_Object devdic,
 int xpost_dev_pdf_text_glyph(Xpost_Context *ctx, Xpost_Object devdic,
                              const char *base, int code, const char *gname,
                              double width, const double *mat,
-                             double px, double py, int *taken);
+                             double px, double py, int marks, int *taken);
 
 /* Close any run of text in hand, so that what follows it in the content
    is not inside a text object. */

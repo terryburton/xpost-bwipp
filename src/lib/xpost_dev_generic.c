@@ -4677,6 +4677,7 @@ typedef struct
     unsigned char used[256];
     short width[256];         /* thousandths of the em */
     char *gname[256];         /* what each code is called, or NULL */
+    int emitted;              /* a run naming it reached the page */
 } Pdf_Fnt;
 
 /* The run of text being gathered. A run holds while the font, the
@@ -4690,6 +4691,7 @@ typedef struct
     double mat[4];            /* text space to the page, without the origin */
     double x, y;              /* where the run starts */
     double nx, ny;            /* where its next glyph must land */
+    int inked;                /* whether any glyph in it marks the page */
     Xpost_String_Buffer codes;
 } Pdf_Txt;
 
@@ -5303,12 +5305,20 @@ static int _pdf_text_emit(Pdf_Acc *a)
     int n = 0;
     int i;
 
-    if (!a->txt.open || a->txt.codes.len == 0)
+    /* A run of blanks marks nothing, and writing it would leave content
+       on a page that the same text drawn as outlines leaves empty: an
+       outline with no contour covers no pixel (PLRM 7.5.1). The glyphs
+       stay in the run while it gathers, so a space between two words
+       does not break the run in two. */
+    if (!a->txt.open || a->txt.codes.len == 0 || !a->txt.inked)
     {
         a->txt.open = 0;
         a->txt.codes.len = 0;
+        a->txt.inked = 0;
         return 0;
     }
+    if (a->txt.fnt >= 0 && a->txt.fnt < a->nfnts)
+        a->fnts[a->txt.fnt].emitted = 1;
     memcpy(h + n, "BT /F", 5); n += 5;
     n += sprintf(h + n, "%d", a->txt.fnt);
     /* the size rides in the matrix, so the font is set at one and the
@@ -5387,6 +5397,11 @@ static int _pdffontres(Xpost_Context *ctx, Xpost_Object devdic)
     {
         int lo = -1, hi = -1;
 
+        /* A font only a run of blanks named was never written, and
+           declaring it would put a resource on a page that has nothing
+           on it. */
+        if (!a.fnts[i].emitted)
+            continue;
         for (c = 0; c < 256; c++)
             if (a.fnts[i].used[c])
             {
@@ -5464,7 +5479,7 @@ int xpost_dev_pdf_text_flush(Xpost_Context *ctx, Xpost_Object devdic)
 int xpost_dev_pdf_text_glyph(Xpost_Context *ctx, Xpost_Object devdic,
                              const char *base, int code, const char *gname,
                              double width, const double *mat,
-                             double px, double py, int *taken)
+                             double px, double py, int marks, int *taken)
 {
     Pdf_Acc a;
     Xpost_Object priv;
@@ -5519,7 +5534,10 @@ int xpost_dev_pdf_text_glyph(Xpost_Context *ctx, Xpost_Object devdic,
         a.txt.x = px;
         a.txt.y = py;
         a.txt.codes.len = 0;
+        a.txt.inked = 0;
     }
+    if (marks)
+        a.txt.inked = 1;
 
     /* the three characters a string may not simply carry (PLRM 3.2.2
        gives the same three to a PostScript string, and PDF took them) */

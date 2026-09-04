@@ -3607,6 +3607,49 @@ static int _frag_closepath(void *user)
     return _frag_put(f, "h\n", 2);
 }
 
+/* Whether a glyph puts anything on the page at all.
+
+   A blank -- a space, or any glyph whose outline holds no contour --
+   marks nothing, and a writer that names it in a text run would put
+   content on a page that the same job drawn as outlines leaves empty.
+   PLRM 7.5.1 has a glyph mark the pixels its outline covers, and an
+   outline with no contour covers none. Asked through the outline the
+   drawing road would take, so the two roads agree about what is blank. */
+static int _ink_moveto(void *user, double x, double y)
+{
+    (void)x; (void)y; *(int *)user = 1; return 1;   /* one is enough */
+}
+static int _ink_lineto(void *user, double x, double y)
+{
+    (void)x; (void)y; *(int *)user = 1; return 1;
+}
+static int _ink_curveto(void *user, double x1, double y1, double x2,
+                        double y2, double x3, double y3)
+{
+    (void)x1; (void)y1; (void)x2; (void)y2; (void)x3; (void)y3;
+    *(int *)user = 1; return 1;
+}
+static int _ink_closepath(void *user)
+{
+    *(int *)user = 1; return 1;
+}
+
+static
+int _glyph_marks(void *face, unsigned int glyph_index)
+{
+    Xpost_Font_Outline_Sink sink;
+    int inked = 0;
+
+    memset(&sink, 0, sizeof sink);
+    sink.moveto = _ink_moveto;
+    sink.lineto = _ink_lineto;
+    sink.curveto = _ink_curveto;
+    sink.closepath = _ink_closepath;
+    sink.user = &inked;
+    (void)xpost_font_face_glyph_outline_units(face, glyph_index, &sink, 1000);
+    return inked;
+}
+
 static int _glyph_text_ok(Xpost_Context *ctx, Xpost_Object devdic,
                           const textstate *ts, void *face,
                           unsigned int glyph_index, Xpost_Object glyphkey,
@@ -3728,9 +3771,20 @@ int _show_char_outline(Xpost_Context *ctx,
     {
         int astext = 0;
 
+        int marks = 0;
+
         if (_glyph_text_ok(ctx, devdic, ts, face, glyph_index, glyphkey, code))
         {
-            if (xpost_dev_pdf_state(ctx, devdic, XPOST_PDF_GS_FILL, t, (size_t)n)
+            /* A glyph that marks nothing writes no colour and starts no
+               page: the state goes down with the first glyph of the run
+               that does mark, which is still before the run itself
+               reaches the page. A job of blanks leaves the page it found
+               (PLRM 7.5.1: a glyph marks the pixels its outline covers,
+               and an outline with no contour covers none). */
+            marks = _glyph_marks(face, glyph_index);
+            if (marks
+                && xpost_dev_pdf_state(ctx, devdic, XPOST_PDF_GS_FILL, t,
+                                       (size_t)n)
                 && xpost_dev_pdf_append(ctx, devdic, t, (size_t)n))
             {
                 xpost_strbuf_free(&f.d);
@@ -3748,7 +3802,7 @@ int _show_char_outline(Xpost_Context *ctx,
                                                &bx0, &by0, &bx1, &by1,
                                                advance_x, advance_y))
                 return 0;
-            *inked = 1;
+            *inked = marks;
             return 1;
         }
     }
@@ -4027,7 +4081,8 @@ static void _show_glyph_as_text(Xpost_Context *ctx, Xpost_Object devdic,
     for (i = 0; i < 4; i++)
         mat[i] = (double)ts->cdmat[i] * (double)ts->emunits;
     if (xpost_dev_pdf_text_glyph(ctx, devdic, base, code, gname, w,
-                                 mat, px, py, taken))
+                                 mat, px, py, _glyph_marks(face, glyph_index),
+                                 taken))
         *taken = 0;
 }
 
