@@ -210,13 +210,21 @@ xpost_dev_num_to_int(Xpost_Object obj)
    Unclamped, the scale below wraps the stored channel -- 1.7 lands as
    0.69 of full scale, the byte having run past the top of its range --
    so the ink comes out a different colour rather than the nearest
-   one. */
+   one.
+
+   A component that is not a number is held here too. Real arithmetic
+   reaches an infinity by overflowing and a not-a-number by taking one
+   infinity from another, and a tint transform is the program's own
+   procedure, so either can arrive. The lower test is written as a
+   negation because a not-a-number answers false to every comparison and
+   an ordinary pair of range tests would pass it straight through to the
+   scale below, where there is no integer to convert it to. */
 static inline double
 xpost_dev_num_to_component(Xpost_Object obj)
 {
     double d = xpost_object_number(obj);
 
-    if (d < 0.0) return 0.0;
+    if (!(d > 0.0)) return 0.0;
     if (d > 1.0) return 1.0;
     return d;
 }

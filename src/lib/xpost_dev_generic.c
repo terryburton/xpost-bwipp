@@ -789,8 +789,11 @@ static int _gouraud_take(Xpost_Span_Consumer *c, int band, double lo, double hi)
 
             /* a corner colour is a colour, but the plane through three
                of them runs past the range outside the triangle, and a
-               pixel on the boundary can sit a rounding step outside it */
-            if (v < 0.0) v = 0.0;
+               pixel on the boundary can sit a rounding step outside it.
+               Written so that anything which is not a number lands at
+               the bottom of the range rather than reaching the
+               conversion below, which has no integer to convert it to */
+            if (!(v > 0.0)) v = 0.0;
             else if (v > 1.0) v = 1.0;
             val[k] = v;
             q[k] = (int)(v * 255.0 + 0.5);
@@ -867,8 +870,12 @@ int xpost_dev_gouraud_paint(Xpost_Context *ctx, Xpost_Object devdic,
         /* Three corners on a line fix no plane. Such a triangle encloses
            no area and the conversion states no span for it, but the
            coefficients are computed before that is known, and a
-           division by nothing would put a NaN in them. */
-        if (det > -1e-12 && det < 1e-12)
+           division by nothing would put a NaN in them. The test is
+           written to keep anything that is not a number here too: a
+           vertex far enough out that the products overflow leaves the
+           determinant not-a-number, which answers false to every
+           comparison and would otherwise be divided by. */
+        if (!(det > 1e-12 || det < -1e-12))
         {
             p.a[k] = 0.0;
             p.b[k] = 0.0;
