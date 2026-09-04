@@ -169,38 +169,25 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 .xpost_DSCWRITE /FormXObject {  % bbox chunks IMAGE  .  n
 24 {
     //.pdfwritebind6 {exch def} forall
-    /fxlen 0 def fxchunks { length fxlen add /fxlen exch def } forall
-    /fxwas 0 .dev //.internaldict /.pdfrescount get exec def
 
-    % Filed beside the content that calls it, and recognised there: a
-    % description already filed is the same bytes, so the record answers
-    % with the one it holds and the count does not move.
-    /fxhit 0 << /bb fxbb /chunks fxchunks >>
-        .dev //.internaldict /.pdfresadd get exec def
-    fxhit fxwas eq {
-
-        % Written where it is first used, so a page carries every
-        % definition its own marks call and stays a page a reader may
-        % take on its own.
-        (/xf) .put fxhit 20 string cvs .put ( {\n) .put
-        % held to the box it declares, in the operators the prolog
-        % defines: a clip standing while the description paints and
-        % taken away with it
-        (q ) .put fxbb 0 get .pdfnumstr .put ( ) .put
-        fxbb 1 get .pdfnumstr .put ( ) .put
-        fxbb 2 get fxbb 0 get sub .pdfnumstr .put ( ) .put
-        fxbb 3 get fxbb 1 get sub .pdfnumstr .put ( re W n\n) .put
-        fxchunks { .put } forall
-        (Q\n} def\n) .put
-    } if
-    fxhit
+    % Filed, and recognised where it is filed: a description already
+    % filed is the same bytes, so the record answers with the one it
+    % holds and the count does not move.
+    %
+    % Filed and no more. What a page defines is written from the record
+    % when the page is emitted, by the one route, because a description
+    % reaches that record from the glyph machinery as well and never
+    % passes through here. Writing the definition here instead leaves a
+    % page calling letters nothing defined.
+    0 << /bb fxbb /chunks fxchunks >>
+        .dev //.internaldict /.pdfresadd get exec
 } //.indevwork exec } put
 
 .xpost_DSCWRITE /PlaceForm {  % n dx dy IMAGE  .  -
 8 {
     /pfdy exch def /pfdx exch def /pfn exch def
     (gsave ) .put pfdx .pdfnumstr .put ( ) .put pfdy .pdfnumstr .put
-    ( translate xf) .put pfn 20 string cvs .put ( grestore\n) .put
+    ( translate /Fm) .put pfn 20 string cvs .put ( Do grestore\n) .put
 } //.indevwork exec } put
 
 %
@@ -428,6 +415,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         (/k { setcmykcolor } bind def\n) .vw
         (/G /g load def /RG /rg load def /K /k load def\n) .vw
         (/cm { 6 array astore concat } bind def\n) .vw
+        % A description this page defined, called where it is placed.
+        % The name is on the stack as a literal, which is what a
+        % procedure is looked up by, so the call is the lookup and
+        % the run of what it found.
+        (/Do { load exec } bind def\n) .vw
         (%%EndProlog\n) .vw
 
         % And the size as something that runs, not only as something that
@@ -462,6 +454,34 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     sx 1 ne sy 1 ne or {
         1 sx div .vwnum ( ) .vw 1 sy div .vwnum ( scale\n) .vw
     } if
+
+    % The descriptions this page's marks call, defined ahead of them. A
+    % page of this format is meant to be readable on its own, so the
+    % definitions are the page's own and are written into it rather than
+    % into a prolog the pages share.
+    %
+    % Read out of the record whoever filed them -- a form the program
+    % placed twice, a letter the glyph machinery filed for itself -- so
+    % that a page defines everything it calls and calls nothing it did
+    % not define. The record holds this page's descriptions alone: it is
+    % given up at the page end below.
+    /nfm 0 .dev //.internaldict /.pdfrescount get exec def
+    0 1 nfm 1 sub {
+        /fmi exch def
+        /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
+        /fmb fme /bb get def
+        (/Fm) .vw fmi 20 string cvs .vw ( {\n) .vw
+        % held to the box it declares, in the operators the prolog
+        % defines: a clip standing while the description paints and
+        % taken away with it
+        (q ) .vw fmb 0 get .vwnum ( ) .vw
+        fmb 1 get .vwnum ( ) .vw
+        fmb 2 get fmb 0 get sub .vwnum ( ) .vw
+        fmb 3 get fmb 1 get sub .vwnum ( re W n\n) .vw
+        fme /chunks get { .vw } forall
+        (Q\n} def\n) .vw
+    } for
+
     .dev //.internaldict /.pdfchunks get exec { .vw } forall
 
     (showpage\n) .vw
@@ -476,7 +496,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % one page was written is not the next page's to call, whatever one
     % file they share. The page end is this device's own, which is why
     % this is here and not in the class it is copied from.
+    %
+    % The stamp beside the record moves with it, so that a note of a
+    % description filed for the page just ended -- the glyph machinery
+    % keeps one for every outline it has filed -- is read as a note
+    % against a record nothing reaches, and the outline is filed again
+    % for the page now starting rather than called by a number that page
+    % never defined.
     0 0 .dev //.internaldict /.pdfrescut get exec
+    .dev //.internaldict /.pdfformbump get exec
 
     .streamreset
     % and the page matrix at the head of the emptied stream, the way the

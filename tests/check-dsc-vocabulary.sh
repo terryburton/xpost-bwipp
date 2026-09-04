@@ -42,6 +42,13 @@ gsave newpath 400 10 40 40 rectclip 390 0 60 60 rectfill grestore
 gsave  60.5 300.5 translate F execform grestore
 gsave 160.5 300.5 translate F execform grestore
 gsave 100 500 moveto 200 500 260 560 300 500 curveto 2 setlinewidth stroke grestore
+% A face the reader cannot be assumed to have, so its letters are drawn
+% rather than named -- and a letter that comes back often enough is filed
+% as a description and called wherever it falls, which is a second route
+% into the vocabulary below and the one that reached it with no
+% definition written. Repeated because filing is what repetition buys.
+/NotAFaceAReaderHas 10 selectfont
+1 1 12 { 40 mul 700 exch moveto (the quick brown fox jumps over the lazy dog) show } for
 showpage
 EOF
 
@@ -55,7 +62,7 @@ grep -oE '^/[A-Za-z][A-Za-z0-9]* \{' "$work/out.dsc" \
 grep -oE '/[A-Za-z][A-Za-z0-9]* /[A-Za-z][A-Za-z0-9]* load def' "$work/out.dsc" \
     | sed 's|^/||; s| .*||' | sort -u >> "$work/defined"
 # names the output defines for itself as it goes (a description's procedure)
-grep -oE '^/xf[0-9]+ \{' "$work/out.dsc" | sed 's|^/||; s| {$||' | sort -u >> "$work/defined"
+grep -oE '^/Fm[0-9]+ \{' "$work/out.dsc" | sed 's|^/||; s| {$||' | sort -u >> "$work/defined"
 sort -u "$work/defined" -o "$work/defined"
 # The page only. The prolog is where the operators are defined, and it
 # is written in the reader's own language by definition; what is being

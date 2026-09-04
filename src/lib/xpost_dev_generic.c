@@ -4670,6 +4670,7 @@ typedef struct
     size_t len;
     int count;
     int form;     /* the description once filed, or -1 */
+    int gen;      /* which record that number was minted against */
 } Pdf_Gly;
 
 /* An ExtGState the page's content selects. The content says /GS<key> gs
@@ -6860,6 +6861,7 @@ int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
         g->len = len;
         g->count = 1;
         g->form = -1;
+        g->gen = a.formgen;
         g->body = len ? (char *)malloc(len) : NULL;
         if (len && !g->body)
             return 0;
@@ -6875,6 +6877,16 @@ int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
         return 0;
     }
     g->count++;
+    /* The number of a filed description is only good against the record
+       that minted it. A writer whose pages are files of their own gives
+       the record up at each page end and stamps the next one, and a
+       number kept from before that names a description the document
+       being written does not carry -- a placement of nothing, or of
+       whatever else has since been filed under it. Read as no note at
+       all, so the outline is filed again for this document, which the
+       count says at once that it will pay for. */
+    if (g->form >= 0 && g->gen != a.formgen)
+        g->form = -1;
     if (g->form >= 0)
     {
         *index = g->form;
@@ -6902,6 +6914,7 @@ int xpost_dev_pdf_glyph_form(Xpost_Context *ctx, Xpost_Object devdic,
             memcmp(a.glys[i].body, body, len) == 0)
         {
             a.glys[i].form = *index;
+            a.glys[i].gen = a.formgen;
             break;
         }
     if (!_pdf_acc_put(ctx, priv, &a))

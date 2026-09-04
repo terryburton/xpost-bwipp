@@ -2434,6 +2434,20 @@ test('pdf-save-resource',
   suite: cost_fast,
   timeout: 180)
 
+# A description is filed once and placed wherever it recurs, and the number
+# that comes back is only good against the record that minted it. Where each
+# page is a file of its own that record is given up at the page end, so a
+# page after the first must not place a description by a number the page
+# before it minted: the file is well formed either way and the run reports
+# success, while the consumer draws the wrong letters or none.
+test('vector-page-references',
+  find_program('tests/check-vector-page-references.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # Analytic shadings reach the PDF as shading dictionaries rather than as the
 # flat cells a decomposition would leave: the consumer draws the gradient.
 test('pdf-shading',

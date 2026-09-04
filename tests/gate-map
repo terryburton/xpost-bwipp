@@ -198,6 +198,7 @@ device test vecbase
 device test dsc-vocabulary
 device testif svg-render
 device test vector-stroke-clip
+device test vector-page-references
 device test dsc-roundtrip
 device test vecout-gc
 device testif window-device
@@ -212,6 +213,7 @@ font path data/cid.ps
 font test cid-generated
 font test cid-show
 font test execform-cache
+font test vector-page-references
 font test font-*
 font test fontset-startdata
 font test font-serial
@@ -546,6 +548,7 @@ guards test op-references
 guards test private-refs
 guards test vecbase
 guards test dsc-vocabulary
+guards test vector-page-references
 guards test operator-identity
 guards test operator-names
 guards test image-config
