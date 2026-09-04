@@ -33,6 +33,13 @@ static Xpost_Dsc_File *file = NULL;
 static int page_num = 0;
 static Xpost_View_Window *win = NULL;
 static void *buffer = NULL;
+/* Where the run has got to, and what it takes to start another: a run
+   only ever goes forwards, so reaching an earlier page means running the
+   file again from the beginning in a context that has not seen it. */
+static int run_page = -1;
+static int page_width = 0;
+static int page_height = 0;
+static Xpost_Output_Message run_msg = XPOST_OUTPUT_MESSAGE_QUIET;
 
 static void
 _xpost_view_license(void)
@@ -144,14 +151,48 @@ _xpost_view_page_set(void)
     const unsigned char *base = xpost_dsc_file_base_get(file);
     size_t len = xpost_dsc_file_length_get(file);
 
-    /* Run the whole file as one program. Splitting the DSC prolog and page
-       into separate xpost_run calls does not preserve interpreter state
-       between them, and a file's showpage -- which the buffer device needs in
-       order to emit the rendered page -- may live in the trailer rather than
-       the page body, so the entire file has to run as a unit. */
-    xpost_run(ctx, XPOST_INPUT_STRING, (void *)base, len);
+    /* The file runs as one program: a page's bytes alone do not carry
+       what the prolog defined, and a showpage may live in the trailer
+       rather than the page body. What selects the page is where the run
+       is stopped -- the context returns at every showpage -- so the page
+       wanted is the one reached after that many returns.
+
+       Every page starts the run over, in a context that has not run the
+       file. A resumption carries the page before it: the buffer the
+       device paints into is not cleared between one showpage and the
+       next, so a page reached by resuming arrives with the earlier page
+       still under it. A fresh context is the one way to be given the
+       page and nothing else. */
+    {
+        if (ctx)
+            xpost_destroy(ctx);
+        ctx = xpost_create("raster:bgra",
+                           XPOST_OUTPUT_BUFFEROUT,
+                           &buffer,
+                           XPOST_SHOWPAGE_RETURN,
+                           run_msg,
+                           XPOST_USE_SIZE, page_width, page_height);
+        if (!ctx)
+        {
+            fprintf(stderr, "Xpost failed to create interpreter context\n");
+            return;
+        }
+        xpost_run(ctx, XPOST_INPUT_STRING, (void *)base, len);
+        run_page = 0;
+    }
+
+    /* The buffer a returned page is left in is not cleared when the next
+       page begins, so a page reached by resuming would arrive with the
+       one before it still under it. The page about to be drawn is given
+       a blank sheet. */
+    for (run_page = 0; run_page < page_num; run_page++)
+    {
+        if (buffer)
+            memset(buffer, 0xff, (size_t)4 * page_width * page_height);
+        xpost_run(ctx, XPOST_INPUT_RESUME, (void *)base, len);
+    }
+
     xpost_view_page_display(win, buffer);
-    xpost_run(ctx, XPOST_INPUT_RESUME, (void *)base, len);
 }
 
 void xpost_view_page_change(int i)
@@ -197,13 +238,13 @@ int main(int argc, char *argv[])
      * XPOST_DSC_STATUS_SUCCESS: no error and DSC
      */
 
-    if (status == XPOST_DSC_STATUS_ERROR)
-    {
-        fprintf(stderr, "File %s not conforming to DSC\n", psfile);
-        goto del_file;
-    }
-
-    if (status == XPOST_DSC_STATUS_NO_DSC)
+    /* What the structuring comments are read for is the page count and the
+       page size. A file that does not carry them, or carries them in a form
+       the parser refuses, is still a program this interpreter runs -- so it
+       is shown at the default size rather than declined. Refusing here would
+       make the viewer answer for the file's structure rather than for what
+       the interpreter draws from it. */
+    if (status == XPOST_DSC_STATUS_ERROR || status == XPOST_DSC_STATUS_NO_DSC)
     {
         width = 612;
         height = 792;
@@ -220,23 +261,17 @@ int main(int argc, char *argv[])
         goto free_dsc;
     }
 
-    ctx = xpost_create("raster:bgra",
-                       XPOST_OUTPUT_BUFFEROUT,
-                       &buffer,
-                       XPOST_SHOWPAGE_RETURN,
-                       output_msg,
-                       XPOST_USE_SIZE, width, height);
-    if (!ctx)
-    {
-        fprintf(stderr, "Xpost failed to create interpreter context\n");
-        goto quit_xpost;
-    }
+    /* What a run is made from, kept because every backward step makes
+       another one. */
+    page_width = width;
+    page_height = height;
+    run_msg = output_msg;
 
     win = xpost_view_win_new(10, 10, width, height);
     if (!win)
     {
         fprintf(stderr, "Can not create window\n");
-        goto destroy_context;
+        goto quit_xpost;
     }
 
     /* Render the first page. The prolog is run together with the page inside
@@ -253,13 +288,10 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
-  destroy_context:
-    xpost_destroy(ctx);
   quit_xpost:
     xpost_quit();
   free_dsc:
     xpost_dsc_free(dsc);
-  del_file:
     xpost_dsc_file_del(file);
 
     return EXIT_FAILURE;
