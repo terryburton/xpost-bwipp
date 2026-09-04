@@ -1854,11 +1854,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  decides nothing.
 %
 /charpath [ /stringtype /booleantype ] {  % str bool  .  -
+    % The string is asked for its access before the graphics state is
+    % asked for a font, as it is by every other operator that names
+    % glyphs by a string's characters: a string the program may not read
+    % is an operand fault and is answered whatever font is in force.
+    1 index /charpath //.needread exec pop
     /charpath //.needfont exec
     3 dict begin
     /cpwant exch def
     /cpstr exch def
-    cpstr /charpath //.needread exec pop
     /cpfont graphicsdict /currgstate get /currfont get //.cshsubst exec def
     cpfont //.fontroute exec /build eq {
         cpstr stringwidth rmoveto
