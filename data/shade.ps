@@ -1628,6 +1628,13 @@ end
 %  and a device that answers for a type it cannot write would put a name in
 %  its output that its output never defines. A device that states nothing
 %  takes none, and is painted by the walk as it always was.
+%
+%  /ShadingTypes answers for a type, and some of what a type can express
+%  turns on the geometry of the particular shading rather than on the type
+%  alone. So the writer answers again when it is handed one: /ShadingPaint
+%  returns whether it wrote the shading, and one it declines is decomposed
+%  here as though the device had never stated the type at all. A writer that
+%  declines must do so before it has written anything.
 /.shdevtypes {  % type  .  bool
     DEVICE /ShadingTypes 2 copy known
         { get exch known }{ pop pop pop false } ifelse
@@ -1779,7 +1786,7 @@ end
                 { true }
                 { dup /Function 2 copy known { get //.shdevfnok exec }{ pop pop false } ifelse }
             ifelse
-            { DEVICE dup /ShadingPaint get exec true }{ pop false } ifelse
+            { DEVICE dup /ShadingPaint get exec }{ pop false } ifelse
         }{ pop false } ifelse
     }{ pop false } ifelse
 } def

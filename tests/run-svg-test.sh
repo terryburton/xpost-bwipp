@@ -63,12 +63,18 @@ grep -q '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/
 # document, and the picture then goes missing with nothing said.
 grep -q 'xlink:href="data:image/' "$a" || fail "image reference through xlink"
 grep -q ' href="data:image/' "$a" && fail "image referred to by a bare href"
-grep -q '<path fill="rgb(0%,0%,100%)" d="M20 80L80 80L80 40L20 40Z"/>' "$a" || fail "filled rect path"
-grep -q '<path fill="none" stroke="rgb(100%,0%,0%)" stroke-width="2" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" d="M100 80L140 50L180 80"/>' "$a" || fail "stroked path"
-grep -q '<path fill="rgb(0%,0%,0%)" d="M[0-9.]* [0-9.]* C' "$a" || fail "glyph outline"
-grep -q '<path fill="rgb(0%,100%,0%)" d="M175 30C' "$a" || fail "curve-preserving circle fill"
+grep -q '<path fill="#0000ff" d="M20 80L80 80L80 40L20 40Z"/>' "$a" || fail "filled rect path"
+grep -q '<path fill="none" stroke="#ff0000" stroke-width="2" stroke-linecap="butt" stroke-linejoin="round" stroke-miterlimit="10" d="M100 80L140 50L180 80"/>' "$a" || fail "stroked path"
+grep -q '<path fill="#000000" d="M[0-9.]* [0-9.]* C' "$a" || fail "glyph outline"
+grep -q '<path fill="#00ff00" d="M175 30C' "$a" || fail "curve-preserving circle fill"
 grep -q 'stroke-width="1"[^>]*d="M140 70C' "$a" || fail "curve-preserving stroke"
-grep -q 'd="M10.1235 95L15.1235 95L15.1235 93L10.1235 93Z"' "$a" || fail "four-decimal coordinates"
+# A coordinate is written to two decimals, the precision the writer states
+# for every number it puts down, and never in exponential form. Marks reach
+# this in device space -- a scale the program set is already in the number
+# rather than in a transform above it -- so a decimal here is a hundredth
+# of a point. A matrix is written to its full precision instead, because it
+# multiplies everything drawn under it.
+grep -q 'd="M10.12 95L15.12 95L15.12 93L10.12 93Z"' "$a" || fail "two-decimal coordinates"
 grep -q '<image transform="matrix(' "$a" || fail "sampled image element"
 # PNG where the build can write one -- a format a reader is required to
 # have -- and the bitmap where it cannot

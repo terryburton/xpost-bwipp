@@ -796,7 +796,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % reference, because the dictionary it came from belongs to the program
     % and the program may go on to change it; what is written at the end of
     % the page has to be what was painted.
-    /ShadingPaint {  % shdict IMAGE  .  -
+    /ShadingPaint {  % shdict IMAGE  .  bool
     12 {
         .shdescribe /shdesc exch def
 
@@ -819,6 +819,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .qrestore
             .state /.pdfclipopen false put
         } if
+        true
     } //.indevwork exec } bind
 
     % Paint the current path in a filed cell: the /Pattern colour space

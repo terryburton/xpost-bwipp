@@ -37,7 +37,7 @@ run axial '0 0 300 300 rectclip
     # the ramp is described, not drawn: several stops, and the ends carry colour
     s=$(grep -c '<stop' "$work/axial.svg")
     test "$s" -ge 8 || { echo "FAIL: only $s stops describe the ramp"; fail=1; }
-    grep -q 'stop-color="rgb(100%,0%,0%)"' "$work/axial.svg" \
+    grep -q 'stop-color="#ff0000"' "$work/axial.svg" \
         || { echo "FAIL: the ramp does not start at the colour C0 names"; fail=1; }
     # the mapping from the painting space travels with it, and is well formed
     grep -qE 'gradientTransform="matrix\([-0-9. ]*\)"' "$work/axial.svg" \
@@ -67,16 +67,28 @@ run pattern '<< /PatternType 2
         || { echo "FAIL: a shading pattern did not reach a gradient"; fail=1; }
 }
 
-# SCOPE. A radial shading has no gradient here and must still decompose --
-# without this the checks above would pass on a writer that claimed every
-# type and wrote the wrong thing for most of them.
-run radial '0 0 300 300 rectclip
+# SCOPE. An SVG gradient is one circle and a focal point, so the pair of
+# circles a radial shading names goes over only where the smaller lies
+# wholly inside the larger. A nested pair is written as a gradient; a pair
+# that slides clear of one another has no focus to name and decomposes.
+# Without both arms these checks would pass on a writer that claimed every
+# geometry and wrote the wrong thing for most of them.
+run radialnested '0 0 300 300 rectclip
 << /ShadingType 3 /ColorSpace /DeviceGray /Coords [150 150 10 150 150 140]
    /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> shfill' && {
-    grep -q '<linearGradient' "$work/radial.svg" \
+    grep -q '<radialGradient' "$work/radialnested.svg" \
+        || { echo "FAIL: a nested radial shading was not written as a gradient"; fail=1; }
+    grep -q '<linearGradient' "$work/radialnested.svg" \
         && { echo "FAIL: a radial shading was written as a linear gradient"; fail=1; }
-    test "$(grep -c '<path' "$work/radial.svg")" -gt 2 \
-        || { echo "FAIL: the radial shading painted almost nothing"; fail=1; }
+}
+
+run radialapart '0 0 300 300 rectclip
+<< /ShadingType 3 /ColorSpace /DeviceGray /Coords [60 150 10 240 150 40]
+   /Function << /FunctionType 2 /Domain [0 1] /C0 [0] /C1 [1] /N 1 >> >> shfill' && {
+    grep -q 'Gradient' "$work/radialapart.svg" \
+        && { echo "FAIL: a radial shading SVG cannot state was written as a gradient"; fail=1; }
+    test "$(grep -c '<path' "$work/radialapart.svg")" -gt 2 \
+        || { echo "FAIL: a declined radial shading painted almost nothing"; fail=1; }
 }
 
 # a page with no shading names no gradient

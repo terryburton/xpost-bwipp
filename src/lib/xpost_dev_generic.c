@@ -4414,11 +4414,10 @@ static int _pdf_fmt_long(char *o, long v)
 #define PDF_NUM_MAX      1.0e9
 #define PDF_NUM_FRAC_MAX 1.0e5
 
-/* write a PDF number: an integer when integral, else up to four decimals
-   with trailing zeros trimmed (never exponential). round(v*10000) avoids
-   binary-float print noise; 0.0001pt is finer than any raster grid the
-   consumer will draw on. */
-static int _pdf_fmt_num(char *o, double v)
+/* write a number: an integer when integral, else up to `digits` decimals
+   (scale = 10^digits) with trailing zeros trimmed, never exponential.
+   round(v*scale) avoids binary-float print noise. */
+static int _fmt_num_prec(char *o, double v, long scale, int digits)
 {
     if (v != v)
         v = 0.0;
@@ -4431,12 +4430,12 @@ static int _pdf_fmt_num(char *o, double v)
         return _pdf_fmt_long(o, (long)v);
     else
     {
-        long m = (long)round(v * 10000.0);
+        long m = (long)round(v * (double)scale);
         long ip, fp;
-        int len = 0, digits = 4;
+        int len = 0;
         if (m < 0) { o[len++] = '-'; m = -m; }
-        ip = m / 10000;
-        fp = m % 10000;
+        ip = m / scale;
+        fp = m % scale;
         len += _pdf_fmt_long(o + len, ip);
         if (fp)
         {
@@ -5591,49 +5590,30 @@ int xpost_dev_pdf_append(Xpost_Context *ctx, Xpost_Object devdic,
     return 0;
 }
 
+/* A PDF number carries four decimals: 0.0001pt is finer than any raster
+   grid a consumer will draw on. */
+static int _pdf_fmt_num(char *o, double v)
+{
+    return _fmt_num_prec(o, v, 10000, 4);
+}
+
 /* Exported PDF number formatter (see _pdf_fmt_num) */
 int xpost_dev_pdf_fmt_num(char *o, double v)
 {
     return _pdf_fmt_num(o, v);
 }
 
-/* The SVG number: an integer where the value is whole, else exactly two
-   decimals, which is what data/device.ps writes every coordinate and
-   dimension of an SVG document through. The compiled half wrote four,
-   so one document carried numbers at two precisions according to which
-   half emitted them. Asked of a colour and not of a coordinate: a
-   component is a component wherever it is written, while a coordinate
-   may be written inside a matrix that scales it, and is then out on the
-   page by whatever it was rounded by (data/svgwrite.ps says the same of
-   .svgfull). Two decimals of a percentage carry an eight-bit component
-   back exactly, which is what a consumer draws. */
+/* An SVG coordinate carries two. The writer emits marks in device space --
+   a scale a program set is already in the numbers rather than in a
+   transform above them -- so a decimal here is a hundredth of a point,
+   which no output resolution resolves. Matrices are not written through
+   this: a matrix multiplies everything drawn under it, so what would be
+   lost in its last decimals is not bounded by the page. */
 int xpost_dev_svg_fmt_num(char *o, double v)
 {
-    long m;
-    long ip, fp;
-    int len = 0, digits = 2;
-
-    if (v != v)
-        v = 0.0;
-    else if (v > PDF_NUM_MAX)
-        v = PDF_NUM_MAX;
-    else if (v < -PDF_NUM_MAX)
-        v = -PDF_NUM_MAX;
-    if (v > 21000000.0 || v < -21000000.0)
-        return _pdf_fmt_long(o, (long)v);
-    m = (long)round(v * 100.0);
-    if (m % 100 == 0)
-        return _pdf_fmt_long(o, m / 100);
-    if (m < 0) { o[len++] = '-'; m = -m; }
-    ip = m / 100;
-    fp = m % 100;
-    len += _pdf_fmt_long(o + len, ip);
-    o[len++] = '.';
-    while (digits > 0 && fp % 10 == 0) { fp /= 10; digits--; }
-    if (digits == 2) { o[len++] = (char)('0' + fp / 10); o[len++] = (char)('0' + fp % 10); }
-    else             { o[len++] = (char)('0' + fp); }
-    return len;
+    return _fmt_num_prec(o, v, 100, 2);
 }
+
 
 /* Emit the content-stream operators for a filled path into the accumulator:
    the flattened subpaths ("x y m" / "x y l", closed with "h") and a
@@ -5804,8 +5784,8 @@ static int _svgfillpoly(Xpost_Context *ctx,
             double y = PDFNUMVAL(xpost_array_get(ctx, e, 1));
             len = 0;
             tmp[len++] = needmove ? 'M' : 'L';
-            len += _pdf_fmt_num(tmp + len, x); tmp[len++] = ' ';
-            len += _pdf_fmt_num(tmp + len, y);
+            len += xpost_dev_svg_fmt_num(tmp + len, x); tmp[len++] = ' ';
+            len += xpost_dev_svg_fmt_num(tmp + len, y);
             needmove = 0;
             ret = xpost_strbuf_append(&a.content, tmp, len);
         }
@@ -6760,22 +6740,55 @@ static int _pdfresadd(Xpost_Context *ctx, Xpost_Object kind,
    has always left it out; this is the rest of the tree agreeing.
 
    Answers the length written. */
+/* A colour as the six hex digits an SVG paint takes. A channel is scaled
+   and truncated the way the driver contract scales one for a device that
+   keeps rows, so the same colour reaches the same eight-bit value however
+   it is written down. Eight bits is finer than the flatness a decomposed
+   shading is held to, so a fill states the colour the walk settled on. */
+static int _svg_fmt_rgb(char *o, double r, double g, double b)
+{
+    static const char hex[] = "0123456789abcdef";
+    double c[3];
+    int i, n = 0;
+
+    c[0] = r; c[1] = g; c[2] = b;
+    o[n++] = '#';
+    for (i = 0; i < 3; i++)
+    {
+        double t = c[i] * 255.0;
+        int v;
+
+        /* Brought inside the channel before the conversion, so what is
+           converted is always a value an int holds: a component that
+           reached here as a not-a-number or an infinity has no integer
+           to convert to. The comparison is written to keep a
+           not-a-number, which answers false to every test, at the
+           bottom of the channel. */
+        if (!(t > 0.0))
+            t = 0.0;
+        else if (t > 255.0)
+            t = 255.0;
+        v = (int)t;
+        o[n++] = hex[(v >> 4) & 15];
+        o[n++] = hex[v & 15];
+    }
+    return n;
+}
+
 int xpost_dev_svg_path_open(char *buf, double r, double g, double b,
                             int evenodd)
 {
     int n = 0;
 
-    memcpy(buf + n, "<path fill=\"rgb(", 16); n += 16;
-    n += xpost_dev_svg_fmt_num(buf + n, r * 100); buf[n++] = '%'; buf[n++] = ',';
-    n += xpost_dev_svg_fmt_num(buf + n, g * 100); buf[n++] = '%'; buf[n++] = ',';
-    n += xpost_dev_svg_fmt_num(buf + n, b * 100); buf[n++] = '%';
+    memcpy(buf + n, "<path fill=\"", 12); n += 12;
+    n += _svg_fmt_rgb(buf + n, r, g, b);
     if (evenodd)
     {
-        memcpy(buf + n, ")\" fill-rule=\"evenodd\" d=\"", 26); n += 26;
+        memcpy(buf + n, "\" fill-rule=\"evenodd\" d=\"", 25); n += 25;
     }
     else
     {
-        memcpy(buf + n, ")\" d=\"", 6); n += 6;
+        memcpy(buf + n, "\" d=\"", 5); n += 5;
     }
     return n;
 }

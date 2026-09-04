@@ -3560,9 +3560,18 @@ static int _frag_xy(glyphfrag *f, double x, double y)
             if (gy > f->y1) f->y1 = gy;
         }
     }
-    n = xpost_dev_pdf_fmt_num(t, gx);
-    t[n++] = ' ';
-    n += xpost_dev_pdf_fmt_num(t + n, gy);
+    if (f->svg)
+    {
+        n = xpost_dev_svg_fmt_num(t, gx);
+        t[n++] = ' ';
+        n += xpost_dev_svg_fmt_num(t + n, gy);
+    }
+    else
+    {
+        n = xpost_dev_pdf_fmt_num(t, gx);
+        t[n++] = ' ';
+        n += xpost_dev_pdf_fmt_num(t + n, gy);
+    }
     t[n++] = ' ';
     return _frag_put(f, t, n);
 }
@@ -3737,11 +3746,7 @@ int _show_char_outline(Xpost_Context *ctx,
     }
     else if (f.svg)
     {
-        memcpy(t, "<path fill=\"rgb(", 16); n = 16;
-        n += xpost_dev_pdf_fmt_num(t + n, r * 100); t[n++] = '%'; t[n++] = ',';
-        n += xpost_dev_pdf_fmt_num(t + n, g * 100); t[n++] = '%'; t[n++] = ',';
-        n += xpost_dev_pdf_fmt_num(t + n, b * 100); t[n++] = '%';
-        memcpy(t + n, ")\" d=\"", 6); n += 6;
+        n = xpost_dev_svg_path_open(t, r, g, b, 0);
     }
     else
     {

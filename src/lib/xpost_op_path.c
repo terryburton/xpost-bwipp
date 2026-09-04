@@ -2024,7 +2024,7 @@ int _fillpath_emit(Xpost_Context *ctx,
             for (i = 0; i < nco; i++)
             {
                 if (i) tmp[n++] = ' ';
-                n += xpost_dev_pdf_fmt_num(tmp + n, co[i]);
+                n += xpost_dev_svg_fmt_num(tmp + n, co[i]);
             }
         }
         else

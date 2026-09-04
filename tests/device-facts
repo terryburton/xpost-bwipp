@@ -290,11 +290,16 @@ answer pdfwrite set:1,2,3,4,5,6,7 data/pdfwrite.ps
     and every mesh type as the same dictionary carrying a stream of packed
     records -- a vertex for a Gouraud mesh, a whole patch for a patch one,
     whose length follows the flag that opens it.
-answer svgwrite set:2 data/svgwrite.ps
-    SVG has a gradient for the axial case and nothing that answers the
-    others: a function-based shading has no SVG form, and a radial one
-    needs a focal radius not every consumer reads. Only the axial type is
-    claimed, and the rest decompose.
+answer svgwrite set:2,3 data/svgwrite.ps
+    SVG has a gradient for the axial case and one for part of the radial
+    case; a function-based shading has no SVG form and decomposes.
+    An SVG radial gradient is one circle and a focal point with no radius
+    of its own (SVG 1.1 13.2.3), where the shading names two circles with
+    independent centres and radii (PLRM 4.9.3), so only the shadings whose
+    smaller circle lies wholly inside the larger have a focus to name.
+    Claiming the type therefore commits the writer to answering again for
+    the shading it is handed: /ShadingPaint returns whether it wrote one,
+    and a geometry SVG cannot state is declined there and decomposes.
 disposition settled
 
 question TextRuns dscwrite pdfwrite
@@ -765,9 +770,12 @@ method .streamdefaults dscwrite pdfwrite
 method .streamreset dscwrite pdfwrite
 method StrokePath dscwrite pdfwrite svgwrite
 method .svgfull svgwrite
+method .svghex svgwrite
 method .svgnum svgwrite
 method .svgrgb svgwrite
 method .svgsame svgwrite
+method .svgshaxial svgwrite
+method .svgshradial svgwrite
 method .t0build dscwrite pdfwrite
 method .t4build dscwrite pdfwrite
 method .takecolor bgr jpeg pbm pgm png pngalpha ppm raster tiff

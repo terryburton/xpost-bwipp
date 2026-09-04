@@ -134,6 +134,7 @@ xpost_dev_png_option_roster
 xpost_dev_png_options_set
 xpost_dev_record_takemask
 xpost_dev_svg_fmt_num
+xpost_dev_svg_fmt_num
 xpost_dev_svg_path_open
 xpost_device_ground_channels
 xpost_device_ground_scaled

@@ -159,12 +159,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         //.num2str exec .put
     } bind
 
-    % Append a colour as an rgb() percentage triple, quoted
+    /.svghexdig (0123456789abcdef) readonly def
+
+    % One channel as the two hex digits an SVG paint takes, scaled and
+    % truncated the way a device that keeps rows scales one, so the same
+    % colour reaches the same eight-bit value however it is written down.
+    /.svghex {  % n  .  -
+        255 mul cvi
+        dup 0 lt { pop 0 } if dup 255 gt { pop 255 } if
+        dup -4 bitshift //.svghexdig exch 1 getinterval .put
+        15 and //.svghexdig exch 1 getinterval .put
+    } bind
+
+    % Append a colour as the quoted six hex digits an SVG paint takes. A
+    % channel gets eight bits, which is finer than the flatness a
+    % decomposed shading is held to, so what is written is the colour the
+    % walk that produced it settled on.
     /.svgrgb {  % r g b  .  -
-        ("rgb\() .put
-        3 -1 roll 100 mul .svgnum (%,) .put
-        exch 100 mul .svgnum (%,) .put
-        100 mul .svgnum (%\)") .put
+        ("#) .put 3 -1 roll .svghex exch .svghex .svghex (") .put
     } bind
 
     /PutPix {  % r g b x y IMAGE  .  -
@@ -988,7 +1000,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % the axial case and nothing for the others: a function-based shading
     % has no SVG form at all, and a radial one needs a focal radius that
     % not every consumer reads. Those decompose, as they always have.
-    /ShadingTypes << 2 true >>
+    /ShadingTypes << 2 true 3 true >>
 
     % A colour, whatever space the shading states it in, as the RGB an SVG
     % stop takes. The count is the function's own, so the space is read off
@@ -1021,9 +1033,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % extend, and SVG has no spread that stops. A stop of no opacity at
     % that end says the same thing: pad carries it outward, so beyond the
     % axis nothing is laid down.
-    /ShadingPaint {  % shdict IMAGE  .  -
+    /ShadingPaint {  % shdict IMAGE  .  bool
     24 {
         /shsh exch def
+        shsh /ShadingType get 3 eq { .svgshradial }{ .svgshaxial } ifelse
+    } //.indevwork exec } bind
+
+    % An axial shading as an SVG gradient. The device states this type, so
+    % the answer is always that it was written.
+    /.svgshaxial {  % -  .  true
         /shfn shsh /Function get def
         /shco shsh /Coords get def
         /shex shsh /Extend 2 copy known { get }{ pop pop [false false] } ifelse def
@@ -1073,7 +1091,110 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         (" fill="url\(#xg) .put shid 20 string cvs .put (\)"/>\n) .put
 
         shopen { (</g>\n) .put } if
-    } //.indevwork exec } bind
+        true
+    } bind
+
+    % A radial shading as an SVG gradient, where the pair of circles is one
+    % SVG can state.
+    %
+    % PLRM 4.9.3 gives the shading two circles with independent centres and
+    % radii, and blends between them. SVG 1.1 13.2.3 gives a gradient one
+    % circle and a focal point, with no radius of its own: the family it can
+    % describe is therefore the one whose smaller circle lies wholly inside
+    % the larger, where the circles of the blend are the level sets of a
+    % cone and the focus is that cone's apex. Where the circles cross, or
+    % one slides clear of the other, no such apex lies inside the gradient's
+    % circle and the shading is declined here for the walk to decompose.
+    %
+    % The inner radius has no counterpart on an SVG gradient, so it is
+    % carried in the offsets instead: the ramp is mapped onto the band from
+    % the radius ratio to one, and the region inside the smaller circle
+    % takes whatever the offset at that ratio holds.
+    /.svgshradial {  % -  .  bool
+        /shfn shsh /Function get def
+        /shco shsh /Coords get def
+        /shex shsh /Extend 2 copy known { get }{ pop pop [false false] } ifelse def
+
+        % The gradient is drawn on the larger circle, so the pair is ordered
+        % by radius and the shading's own parameter reversed where that
+        % ordering turned it around.
+        shco 2 get shco 5 get le {
+            /shax shco 0 get def /shay shco 1 get def /shar shco 2 get def
+            /shbx shco 3 get def /shby shco 4 get def /shbr shco 5 get def
+            /shrev false def
+        }{
+            /shax shco 3 get def /shay shco 4 get def /shar shco 5 get def
+            /shbx shco 0 get def /shby shco 1 get def /shbr shco 2 get def
+            /shrev true def
+        } ifelse
+
+        /shdc shbx shax sub dup mul shby shay sub dup mul add sqrt def
+
+        shbr 0 le { false }{
+        shdc shbr shar sub ge { false }{
+            /shid .state /.svggrads get def
+            .state /.svggrads shid 1 add put
+            /shn 32 def          % stops across the ramp
+            /shg 0.0001 def      % how far inside a guard stop leaves the ramp
+            /shfr shar shbr div def
+
+            % the apex of the cone through the two circles
+            /shfx shbr shax mul shar shbx mul sub shbr shar sub div def
+            /shfy shbr shay mul shar shby mul sub shbr shar sub div def
+
+            % which end of the shading's parameter each circle carries
+            /shes shrev { shex 1 get }{ shex 0 get } ifelse def
+            /shel shrev { shex 0 get }{ shex 1 get } ifelse def
+
+            /shlo shes { shfr }{ shfr shg add } ifelse def
+            /shhi shel { 1 }{ 1 shg sub } ifelse def
+
+            /shopen .clipgroup def
+
+            (<radialGradient id="xg) .put shid 20 string cvs .put
+            (" gradientUnits="userSpaceOnUse" gradientTransform="matrix\() .put
+            matrix currentmatrix { .svgnum ( ) .put } forall
+            (\)" cx=") .put shbx .svgnum
+            (" cy=") .put shby .svgnum
+            (" r=") .put shbr .svgnum
+            (" fx=") .put shfx .svgnum
+            (" fy=") .put shfy .svgnum
+            ("  spreadMethod="pad">\n) .put
+
+            % An end the shading does not extend paints nothing beyond
+            % itself, which a gradient says with a stop of no opacity: at
+            % the inner end a pair of them, so the whole disc inside the
+            % smaller circle stays empty rather than blending across it.
+            shes not {
+                (<stop offset="0" stop-color="#000000" stop-opacity="0"/>\n) .put
+                (<stop offset=") .put shfr .svgnum
+                (" stop-color="#000000" stop-opacity="0"/>\n) .put
+            } if
+            0 1 shn {
+                /shi exch def
+                /shu shi shn div def
+                (<stop offset=") .put
+                shlo shu shhi shlo sub mul add .svgnum
+                (" stop-color=) .put
+                shrev { 1 shu sub }{ shu } ifelse
+                shfn //.xpostsys /.fneval get exec .svgshrgb
+                (/>\n) .put
+            } for
+            shel not {
+                (<stop offset="1" stop-color="#000000" stop-opacity="0"/>\n) .put
+            } if
+            (</radialGradient>\n) .put
+
+            % The shading paints the whole region it is given; the clip
+            % above is what bounds it.
+            (<rect x="0" y="0" width=") .put width .svgnum
+            (" height=") .put height .svgnum
+            (" fill="url\(#xg) .put shid 20 string cvs .put (\)"/>\n) .put
+
+            shopen { (</g>\n) .put } if
+            true
+        } ifelse } ifelse
+    } bind
 
     /ClipPath {  % path evenodd serial IMAGE  .  -
     12 {
