@@ -128,6 +128,8 @@ xpost_dev_pdf_form_file
 xpost_dev_pdf_glyph_form
 xpost_dev_pdf_option_roster
 xpost_dev_pdf_state
+xpost_dev_pdf_text_flush
+xpost_dev_pdf_text_glyph
 xpost_dev_png_option_roster
 xpost_dev_png_options_set
 xpost_dev_record_takemask
@@ -234,6 +236,7 @@ xpost_font_cache_status
 xpost_font_face_code_glyph_name
 xpost_font_face_free
 xpost_font_face_get_bbox
+xpost_font_face_glyph_advance_units
 xpost_font_face_glyph_buffer_get
 xpost_font_face_glyph_extents
 xpost_font_face_glyph_index_get

@@ -143,6 +143,20 @@ int xpost_dev_gouraud_paint(Xpost_Context *ctx, Xpost_Object devdic,
                             const double *pt, const double *col, int ncomp,
                             int *painted);
 
+/* Take one glyph as text rather than as a shape: names the base font,
+   the code, what the code is called and how wide the show took it, and
+   the matrix and origin the glyph is set at. Sets *taken when the
+   content took it, and leaves it clear when the caller must draw the
+   glyph itself. */
+int xpost_dev_pdf_text_glyph(Xpost_Context *ctx, Xpost_Object devdic,
+                             const char *base, int code, const char *gname,
+                             double width, const double *mat,
+                             double px, double py, int *taken);
+
+/* Close any run of text in hand, so that what follows it in the content
+   is not inside a text object. */
+int xpost_dev_pdf_text_flush(Xpost_Context *ctx, Xpost_Object devdic);
+
 int xpost_dev_pdf_fmt_num(char *o, double v);
 
 /**

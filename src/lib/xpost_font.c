@@ -2428,6 +2428,31 @@ _glyph_outline(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Si
    letter yields the same description at every size, and the matrix
    that takes character space to the page is what puts it back where
    it belongs. */
+/* A glyph's horizontal advance in the design units the font program is
+   written in, rescaled to the em count the caller keeps glyph space in.
+   Taken unscaled and untransformed, so it is the same number whatever
+   size the glyph is being drawn at -- which is what a width written
+   once for a font has to be. */
+int
+xpost_font_face_glyph_advance_units(void *face, unsigned int glyph_index, int units, double *advance)
+{
+#ifdef HAVE_FREETYPE2
+    int upem = xpost_font_face_units(face);
+
+    if (upem <= 0 || units <= 0)
+        return 0;
+    if (FT_Load_Glyph(face, glyph_index,
+                      FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING | FT_LOAD_NO_SCALE))
+        return 0;
+    *advance = (double)((FT_Face)face)->glyph->metrics.horiAdvance
+             * (double)units / (double)upem;
+    return 1;
+#else
+    (void)face; (void)glyph_index; (void)units; (void)advance;
+    return 0;
+#endif
+}
+
 int
 xpost_font_face_glyph_outline_units(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, int units)
 {

@@ -297,6 +297,29 @@ answer svgwrite set:2 data/svgwrite.ps
     claimed, and the rest decompose.
 disposition settled
 
+question TextRuns dscwrite pdfwrite
+    Whether this writer can say a run of text: name a face the reader is
+    required to have, and let the reader draw the glyphs, rather than
+    drawing their shapes into the page. data/font.ps reads this before
+    it draws a glyph, and draws the shape where the answer is no.
+    There is no family answer. It is a property of the format rather
+    than of the device: PDF has the construct, and PostScript, which
+    dscwrite writes, does not have one this writer emits. svgwrite does
+    not carry the fact at all, so it is not asked.
+    A writer that says yes takes on the rest of it -- declaring for
+    every code shown the width the show advanced by, so that a reader
+    stepping a string arrives where this engine did.
+family per-device
+answer pdfwrite true data/pdfwrite.ps
+    PDF names a font in the page resources and sets text in the content
+    (PDF 9.4), and the fourteen faces a reader is required to have need
+    not be carried at all.
+answer dscwrite false data/dscwrite.ps
+    This writer writes PostScript, which has no construct this writer
+    emits for the purpose. It says so explicitly because it copies the
+    class that says yes, and a copy carries what it was copied from.
+disposition settled
+
 question PatternOverlap pdfwrite svgwrite
     Whether the tiling construct this writer has can hold a cell larger
     than the step between cells. PLRM Table 4.9 lets XStep and YStep

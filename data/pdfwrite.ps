@@ -128,6 +128,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % 8.7.3.1), so it can.
     /PatternOverlap true
 
+    % A glyph from one of the fourteen faces a reader is required to
+    % have need not be drawn: the content names the face and says which
+    % characters, and the reader draws them. Declared here so the text
+    % machinery knows this writer can carry a run at all.
+    /TextRuns true
+
     % The shading types this writer holds natively (PDF 8.7.4.5). The mesh
     % types carry their geometry in a stream it does not restate.
     /ShadingTypes << 1 true 2 true 3 true 4 true 5 true 6 true 7 true >>
@@ -1708,6 +1714,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % counts and object numbers that method worked out.
     /.pdfresources {  % withpatterns  .  -
         /prpat exch def
+
+        % The fonts the content named, written whole rather than as
+        % objects of their own: what the page carries is which face,
+        % which codes, what each is called and how wide it was taken to
+        % be, which is a few hundred bytes. Reading it also clears the
+        % record, so the next page starts with none.
+        .dev //.internaldict /.pdffontres get exec .vw
         nseps 0 gt {
             ( /ColorSpace <<) .vw
             0 1 nseps 1 sub {
@@ -1834,6 +1847,10 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             (%PDF-1.4\n) .vw
             //.vecout /headered true put
         } if
+        % A run of text holds the pen and is closed by anything else
+        % said in the content. Nothing follows the last glyph on a page,
+        % so the page closes it here, before the content is taken.
+        .dev //.internaldict /.pdftextflush get exec
         /Chunks .dev //.internaldict /.pdfchunks get exec def
 
         % CompressPages false (a distiller parameter) leaves the content stream

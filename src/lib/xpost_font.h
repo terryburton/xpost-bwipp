@@ -380,6 +380,13 @@ int xpost_font_face_glyph_outline(void *face, unsigned int glyph_index, const Xp
 int xpost_font_face_glyph_outline_units(void *face, unsigned int glyph_index, const Xpost_Font_Outline_Sink *sink, int units);
 
 /**
+ * @brief A glyph's advance in the font program's own design units,
+ * rescaled to @p units per em. Independent of the size being drawn.
+ * @return 1 on success, 0 otherwise.
+ */
+int xpost_font_face_glyph_advance_units(void *face, unsigned int glyph_index, int units, double *advance);
+
+/**
  * @brief render the given glyph of the given face.
  * font.
  *

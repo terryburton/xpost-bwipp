@@ -4662,6 +4662,37 @@ typedef struct
     int mode;    /* overprint mode */
 } Pdf_Op;
 
+/* A base font the content sets text in, and everything the page has to
+   say about it: which codes were shown, what each one is called, and
+   how wide the show took it to be.
+
+   The widths are the ones the marks were actually made with. A reader
+   places the glyphs of a string by them, so declaring what was used is
+   what lets the content say the string and nothing more -- the pen
+   arrives where this engine put it because it is told the same widths
+   this engine advanced by. */
+typedef struct
+{
+    char base[48];            /* the base font's PostScript name */
+    unsigned char used[256];
+    short width[256];         /* thousandths of the em */
+    char *gname[256];         /* what each code is called, or NULL */
+} Pdf_Fnt;
+
+/* The run of text being gathered. A run holds while the font, the
+   matrix and the pen all continue from the glyph before -- the pen
+   because a reader advances it by the declared width, so a glyph the
+   show put anywhere else has to start a run of its own. */
+typedef struct
+{
+    int open;
+    int fnt;
+    double mat[4];            /* text space to the page, without the origin */
+    double x, y;              /* where the run starts */
+    double nx, ny;            /* where its next glyph must land */
+    Xpost_String_Buffer codes;
+} Pdf_Txt;
+
 typedef struct
 {
     Xpost_String_Buffer content;
@@ -4693,6 +4724,10 @@ typedef struct
     int *sephash;    /* name index: a separation's position + 1, 0 empty */
     int sephashcap;  /* a power of two, or 0 when the index is absent */
     Pdf_Gs *gs;      /* what the stream carries, or NULL: then nothing is known */
+    Pdf_Fnt *fnts;
+    int nfnts;
+    int fntcap;
+    Pdf_Txt txt;
 } Pdf_Acc;
 
 /* Load/store the accumulator struct via the device's /Private string. The raw
@@ -4801,6 +4836,18 @@ static void _pdf_acc_reclaim(void *block)
     a->glys = NULL;
     a->nglys = 0;
     a->glycap = 0;
+    for (i = 0; i < a->nfnts; i++)
+    {
+        int c;
+        for (c = 0; c < 256; c++)
+            free(a->fnts[i].gname[c]);
+    }
+    free(a->fnts);
+    a->fnts = NULL;
+    a->nfnts = 0;
+    a->fntcap = 0;
+    xpost_strbuf_free(&a->txt.codes);
+    memset(&a->txt, 0, sizeof a->txt);
 }
 
 /* Create the content accumulator and stash it in the device's /Private. Called
@@ -4812,6 +4859,10 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
     int ret;
 
     xpost_strbuf_init(&a.content, 4096);
+    a.fnts = NULL;
+    a.nfnts = 0;
+    a.fntcap = 0;
+    memset(&a.txt, 0, sizeof a.txt);
     a.seps = NULL;
     a.nseps = 0;
     a.sepcap = 0;
@@ -5204,6 +5255,301 @@ static int _pdfsubend(Xpost_Context *ctx, Xpost_Object at, Xpost_Object devdic)
 /* Exported accumulator access for the text operators: they build a
    complete content-stream fragment per glyph outline and append it in
    one call. */
+/* --- text, said as text ----------------------------------------------
+
+   A glyph drawn as an outline costs its shape at every occurrence, and
+   filing the shape and placing it costs a placement. Neither is what a
+   page of text is: the reader already has the face, so the content need
+   only name it and say which characters, and the reader draws them.
+
+   MEASURED on a waterfall of two faces at nine sizes, drawing the
+   outlines came to thirty-seven times what naming them does.
+
+   What makes it exact rather than approximate is the widths. This
+   declares, for every code shown, the width the show ACTUALLY advanced
+   by, so a reader stepping the pen through a string arrives where this
+   engine arrived. Where it would not -- a show that spaces its
+   characters itself, a glyph placed by anything but its own width --
+   the pen is checked against expectation at every glyph and the run is
+   broken where they part, so the next run states its own origin. */
+
+/* Find, or start, the record for a base font. */
+static int _pdf_fnt_index(Pdf_Acc *a, const char *base)
+{
+    int i;
+
+    for (i = 0; i < a->nfnts; i++)
+        if (strcmp(a->fnts[i].base, base) == 0)
+            return i;
+    if (a->nfnts == a->fntcap)
+    {
+        int nc = a->fntcap ? a->fntcap * 2 : 4;
+        Pdf_Fnt *nf = (Pdf_Fnt *)realloc(a->fnts, (size_t)nc * sizeof(Pdf_Fnt));
+
+        if (!nf)
+            return -1;
+        a->fnts = nf;
+        a->fntcap = nc;
+    }
+    memset(&a->fnts[a->nfnts], 0, sizeof(Pdf_Fnt));
+    strncpy(a->fnts[a->nfnts].base, base, sizeof(a->fnts[0].base) - 1);
+    return a->nfnts++;
+}
+
+/* Write the run gathered so far into the content, and close it. */
+static int _pdf_text_emit(Pdf_Acc *a)
+{
+    char h[256];
+    int n = 0;
+    int i;
+
+    if (!a->txt.open || a->txt.codes.len == 0)
+    {
+        a->txt.open = 0;
+        a->txt.codes.len = 0;
+        return 0;
+    }
+    memcpy(h + n, "BT /F", 5); n += 5;
+    n += sprintf(h + n, "%d", a->txt.fnt);
+    /* the size rides in the matrix, so the font is set at one and the
+       widths are read as the thousandths of the em they are */
+    memcpy(h + n, " 1 Tf ", 6); n += 6;
+    for (i = 0; i < 4; i++)
+    {
+        n += xpost_dev_pdf_fmt_num(h + n, a->txt.mat[i]);
+        h[n++] = ' ';
+    }
+    n += xpost_dev_pdf_fmt_num(h + n, a->txt.x); h[n++] = ' ';
+    n += xpost_dev_pdf_fmt_num(h + n, a->txt.y);
+    memcpy(h + n, " Tm (", 5); n += 5;
+    if (xpost_strbuf_append(&a->content, h, (size_t)n))
+        return VMerror;
+    if (xpost_strbuf_append(&a->content, a->txt.codes.s, a->txt.codes.len))
+        return VMerror;
+    if (xpost_strbuf_append(&a->content, ") Tj ET\n", 8))
+        return VMerror;
+    a->txt.open = 0;
+    a->txt.codes.len = 0;
+    return 0;
+}
+
+/* dev  .pdftextflush  -
+   Close any run of text, so the content stream is complete before it is
+   written out. The append path closes a run whenever anything else is
+   said, so this is only for the end, where nothing else is said. */
+static int _pdftextflush(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    return xpost_dev_pdf_text_flush(ctx, devdic);
+}
+
+/* -  .pdffontres  string
+   The /Font entry for the page's resources, and the empty string where
+   the page set no text.
+
+   Written whole rather than as objects of its own: a font this names is
+   one the reader already has, so all the page carries is which one,
+   which codes it used, what each is called and how wide it was taken to
+   be. That is a few hundred bytes, and an indirect object apiece would
+   cost more to refer to than to say.
+
+   Reading it also clears the record: the resources are written once for
+   the page, and the page after this one begins with none of its fonts.  */
+static int _pdffontres(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv, str;
+    Xpost_String_Buffer b;
+    char t[128];
+    int i, c, ret;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    if (a.txt.open && _pdf_text_emit(&a))
+        return VMerror;
+    if (a.nfnts == 0)
+    {
+        if (!_pdf_acc_put(ctx, priv, &a))
+            return VMerror;
+        str = xpost_string_cons(ctx, 0, NULL);
+        if (xpost_object_get_type(str) == invalidtype)
+            return VMerror;
+        xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(str));
+        return 0;
+    }
+    xpost_strbuf_init(&b, 512);
+#define PUT(lit) do { if (xpost_strbuf_append(&b, lit, sizeof(lit) - 1)) \
+                          goto oom; } while (0)
+#define PUTN(v) do { int n_ = sprintf(t, "%d", (int)(v)); \
+                     if (xpost_strbuf_append(&b, t, (size_t)n_)) goto oom; \
+                   } while (0)
+    PUT(" /Font <<");
+    for (i = 0; i < a.nfnts; i++)
+    {
+        int lo = -1, hi = -1;
+
+        for (c = 0; c < 256; c++)
+            if (a.fnts[i].used[c])
+            {
+                if (lo < 0) lo = c;
+                hi = c;
+            }
+        if (lo < 0)
+            continue;
+        PUT(" /F"); PUTN(i);
+        PUT(" << /Type /Font /Subtype /Type1 /BaseFont /");
+        if (xpost_strbuf_append(&b, a.fnts[i].base, strlen(a.fnts[i].base)))
+            goto oom;
+        PUT(" /FirstChar "); PUTN(lo);
+        PUT(" /LastChar "); PUTN(hi);
+        PUT(" /Widths [");
+        for (c = lo; c <= hi; c++)
+        {
+            PUT(" ");
+            PUTN(a.fnts[i].used[c] ? a.fnts[i].width[c] : 0);
+        }
+        PUT(" ] /Encoding << /Type /Encoding /Differences [");
+        for (c = lo; c <= hi; c++)
+            if (a.fnts[i].used[c] && a.fnts[i].gname[c])
+            {
+                PUT(" "); PUTN(c); PUT(" /");
+                if (xpost_strbuf_append(&b, a.fnts[i].gname[c],
+                                        strlen(a.fnts[i].gname[c])))
+                    goto oom;
+            }
+        PUT(" ] >> >>");
+    }
+    PUT(" >>");
+#undef PUT
+#undef PUTN
+    for (i = 0; i < a.nfnts; i++)
+        for (c = 0; c < 256; c++)
+            free(a.fnts[i].gname[c]);
+    free(a.fnts);
+    a.fnts = NULL;
+    a.nfnts = 0;
+    a.fntcap = 0;
+    if (!_pdf_acc_put(ctx, priv, &a))
+    {
+        xpost_strbuf_free(&b);
+        return VMerror;
+    }
+    str = xpost_string_cons(ctx, (unsigned int)b.len, b.s);
+    ret = xpost_object_get_type(str) == invalidtype ? VMerror : 0;
+    xpost_strbuf_free(&b);
+    if (ret)
+        return ret;
+    xpost_stack_push(ctx->lo, ctx->os, xpost_object_cvlit(str));
+    return 0;
+oom:
+    xpost_strbuf_free(&b);
+    return VMerror;
+}
+
+int xpost_dev_pdf_text_flush(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return 0;
+    if (!a.txt.open)
+        return 0;
+    if (_pdf_text_emit(&a))
+        return VMerror;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
+}
+
+int xpost_dev_pdf_text_glyph(Xpost_Context *ctx, Xpost_Object devdic,
+                             const char *base, int code, const char *gname,
+                             double width, const double *mat,
+                             double px, double py, int *taken)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    Pdf_Fnt *f;
+    int fi, i;
+    char esc[4];
+    int en = 0;
+    double dx;
+
+    *taken = 0;
+    if (code < 0 || code > 255 || !gname || !*base)
+        return 0;
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return 0;
+    fi = _pdf_fnt_index(&a, base);
+    if (fi < 0)
+        return 0;
+    f = &a.fnts[fi];
+    if (f->used[code])
+    {
+        /* the same code twice with different widths is a font this
+           cannot describe: one width is declared for one code */
+        if (f->width[code] != (short)(width + 0.5))
+        {
+            if (!_pdf_acc_put(ctx, priv, &a))
+                return VMerror;
+            return 0;
+        }
+    }
+
+    /* does it continue the run in hand? */
+    if (a.txt.open)
+    {
+        int same = a.txt.fnt == fi;
+
+        for (i = 0; i < 4 && same; i++)
+            if (a.txt.mat[i] - mat[i] > 1e-9 || mat[i] - a.txt.mat[i] > 1e-9)
+                same = 0;
+        if (same &&
+            (px - a.txt.nx < 5e-4 && a.txt.nx - px < 5e-4) &&
+            (py - a.txt.ny < 5e-4 && a.txt.ny - py < 5e-4))
+            ;                       /* it does */
+        else if (_pdf_text_emit(&a))
+            return VMerror;
+    }
+    if (!a.txt.open)
+    {
+        a.txt.open = 1;
+        a.txt.fnt = fi;
+        for (i = 0; i < 4; i++)
+            a.txt.mat[i] = mat[i];
+        a.txt.x = px;
+        a.txt.y = py;
+        a.txt.codes.len = 0;
+    }
+
+    /* the three characters a string may not simply carry (PLRM 3.2.2
+       gives the same three to a PostScript string, and PDF took them) */
+    if (code == '(' || code == ')' || code == '\\')
+        esc[en++] = '\\';
+    esc[en++] = (char)code;
+    if (xpost_strbuf_append(&a.txt.codes, esc, (size_t)en))
+        return VMerror;
+
+    if (!f->used[code])
+    {
+        f->used[code] = 1;
+        f->width[code] = (short)(width + 0.5);
+        f->gname[code] = (char *)malloc(strlen(gname) + 1);
+        if (!f->gname[code])
+            return VMerror;
+        strcpy(f->gname[code], gname);
+    }
+
+    /* where the reader will leave the pen, which is where the next
+       glyph has to be for the run to go on */
+    dx = (double)f->width[code] / 1000.0;
+    a.txt.nx = px + mat[0] * dx;
+    a.txt.ny = py + mat[1] * dx;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    *taken = 1;
+    return 0;
+}
+
 int xpost_dev_pdf_append(Xpost_Context *ctx, Xpost_Object devdic,
                          const char *s, size_t n)
 {
@@ -5213,6 +5559,12 @@ int xpost_dev_pdf_append(Xpost_Context *ctx, Xpost_Object devdic,
 
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return undefined;
+    /* A text object holds the pen and nothing else may be said inside
+       it, so anything else reaching the content closes the run first.
+       Every mark comes through here, which is what makes that one
+       place rather than every caller's business. */
+    if (a.txt.open && _pdf_text_emit(&a))
+        return VMerror;
     ret = xpost_strbuf_append(&a.content, s, n);
     if (ret)
         return ret;
@@ -7088,6 +7440,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".pdfopadd", (Xpost_Op_Func)_pdfopadd, 4,
             integertype, booleantype, integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfopcount", (Xpost_Op_Func)_pdfopcount, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdffontres", (Xpost_Op_Func)_pdffontres, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdftextflush", (Xpost_Op_Func)_pdftextflush, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfopget", (Xpost_Op_Func)_pdfopget, 2,
             integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfopcut", (Xpost_Op_Func)_pdfopcut, 2,

@@ -110,6 +110,7 @@ static Xpost_Object name_FillRect;
 static Xpost_Object name_FontBBox;
 static Xpost_Object name_FontMatrix;
 static Xpost_Object name_FontName;
+static Xpost_Object name_TextRuns;
 static Xpost_Object name_FontType;
 static Xpost_Object name_GlyphData;
 static Xpost_Object name_GlyphExtents;
@@ -171,6 +172,7 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_FontBBox, "FontBBox" },
     { &name_FontMatrix, "FontMatrix" },
     { &name_FontName, "FontName" },
+    { &name_TextRuns, "TextRuns" },
     { &name_FontType, "FontType" },
     { &name_GlyphData, "GlyphData" },
     { &name_GlyphExtents, "GlyphExtents" },
@@ -384,6 +386,7 @@ typedef struct textstate
        the mapping whether or not the font declares metrics */
     int cdmat_have;
     int emunits;            /* the em count glyph space is kept in */
+    Xpost_Object fontname;  /* what the font dictionary calls itself */
     Xpost_Object blendpix;  /* the device's BlendPix method, or invalid */
     int blend;              /* bits of edge coverage the device is sent, 0 for none */
     int vector;             /* the device consumes glyph outlines, not bitmaps */
@@ -2824,6 +2827,7 @@ textstate _text_state_get(Xpost_Context *ctx,
     ts.cdmat_ok = xpost_object_get_type(ts.metrics) == dicttype
                && ts.cdmat_have;
     ts.emunits = _char_space_units(ctx, fontdict);
+    ts.fontname = xpost_dict_get(ctx, fontdict, name_FontName);
     ts.blend = _text_blends(ctx, devdic, &ts.blendpix);
     vec = xpost_dict_get(ctx, devdic, name_VectorGlyphs);
     ts.vector = xpost_object_get_type(vec) == booleantype && vec.int_.val;
@@ -3603,6 +3607,15 @@ static int _frag_closepath(void *user)
     return _frag_put(f, "h\n", 2);
 }
 
+static int _glyph_text_ok(Xpost_Context *ctx, Xpost_Object devdic,
+                          const textstate *ts, void *face,
+                          unsigned int glyph_index, Xpost_Object glyphkey,
+                          int code);
+static void _show_glyph_as_text(Xpost_Context *ctx, Xpost_Object devdic,
+                                const textstate *ts, void *face,
+                                unsigned int glyph_index, Xpost_Object glyphkey,
+                                int code, double px, double py, int *taken);
+
 static
 int _show_char_outline(Xpost_Context *ctx,
                        Xpost_Object devdic,
@@ -3616,6 +3629,8 @@ int _show_char_outline(Xpost_Context *ctx,
                        Xpost_Object comp2,
                        Xpost_Object comp3,
                        Xpost_Object comp4,
+                       Xpost_Object glyphkey,
+                       int code,
                        long *advance_x,
                        long *advance_y,
                        int *inked)
@@ -3703,6 +3718,40 @@ int _show_char_outline(Xpost_Context *ctx,
        stream's record claiming bytes it does not carry. */
     if (f.svg)
         _frag_put(&f, t, n);
+
+    /* Before any of the shape work: a glyph of a face the reader is
+       required to have need not be drawn at all. The colour goes first,
+       because it is a state operator and a run of text carries none --
+       and stating it closes whatever run is open, which is right, since
+       a run painted in one colour cannot continue in another. */
+    if (!f.svg)
+    {
+        int astext = 0;
+
+        if (_glyph_text_ok(ctx, devdic, ts, face, glyph_index, glyphkey, code))
+        {
+            if (xpost_dev_pdf_state(ctx, devdic, XPOST_PDF_GS_FILL, t, (size_t)n)
+                && xpost_dev_pdf_append(ctx, devdic, t, (size_t)n))
+            {
+                xpost_strbuf_free(&f.d);
+                return 0;
+            }
+            _show_glyph_as_text(ctx, devdic, ts, face, glyph_index, glyphkey,
+                                code, xpos, ypos, &astext);
+        }
+        if (astext)
+        {
+            long bx0, by0, bx1, by1;
+
+            xpost_strbuf_free(&f.d);
+            if (!xpost_font_face_glyph_extents(face, glyph_index,
+                                               &bx0, &by0, &bx1, &by1,
+                                               advance_x, advance_y))
+                return 0;
+            *inked = 1;
+            return 1;
+        }
+    }
 
     /* A writer that can hold a description gets the glyph written in its
        own space and placed, rather than written out again wherever the
@@ -3878,6 +3927,110 @@ int _show_char_outline(Xpost_Context *ctx,
    variants add is where the pen goes between glyphs. */
 
 
+/* The fourteen faces a reader is required to have (PLRM 5.2 lists the
+   set a Level 2 interpreter provides). A page that sets one of these
+   need not carry it: naming it is enough, and the reader draws the
+   glyphs. Any other face has to be drawn here, because the reader
+   cannot be assumed to have it and a substitute would not be the page
+   the program asked for. */
+static int _base14(const char *n)
+{
+    static const char *const set[] = {
+        "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
+        "Helvetica", "Helvetica-Bold", "Helvetica-Oblique",
+        "Helvetica-BoldOblique",
+        "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
+        "Symbol", "ZapfDingbats"
+    };
+    unsigned i;
+
+    for (i = 0; i < sizeof set / sizeof set[0]; i++)
+        if (strcmp(n, set[i]) == 0)
+            return 1;
+    return 0;
+}
+
+/* A name's characters, as a C string. */
+static int _name_chars(Xpost_Context *ctx, Xpost_Object n, char *b, size_t sz)
+{
+    Xpost_Object s;
+    size_t k;
+
+    if (xpost_object_get_type(n) != nametype)
+        return 0;
+    s = xpost_name_get_string(ctx, n);
+    if (xpost_object_get_type(s) != stringtype)
+        return 0;
+    k = s.comp_.sz;
+    if (k == 0 || k >= sz)
+        return 0;
+    memcpy(b, xpost_string_get_pointer(ctx, s), k);
+    b[k] = 0;
+    return 1;
+}
+
+/* Whether this glyph can go into a run of text at all. Everything it
+   cannot be sure of answers no -- a writer that carries no runs, a face
+   the reader may not have, a glyph with no name to ask for it by, a
+   metrics entry moving the glyph off its own width -- so drawing the
+   shape is what happens by default and stays correct. */
+static int _glyph_text_ok(Xpost_Context *ctx, Xpost_Object devdic,
+                          const textstate *ts, void *face,
+                          unsigned int glyph_index, Xpost_Object glyphkey,
+                          int code)
+{
+    char base[48], gname[64];
+    double w;
+    Xpost_Object tr;
+
+    if (code < 0 || code > 255)
+        return 0;
+    tr = xpost_dict_get(ctx, devdic, name_TextRuns);
+    if (xpost_object_get_type(tr) != booleantype || !tr.int_.val)
+        return 0;
+    if (!ts->cdmat_have || ts->emunits <= 0)
+        return 0;
+    /* a /Metrics entry moves a glyph off its own width, which is the one
+       thing a run of text cannot say */
+    if (xpost_object_get_type(ts->metrics) == dicttype)
+        return 0;
+    if (!_name_chars(ctx, ts->fontname, base, sizeof base) || !_base14(base))
+        return 0;
+    if (!_name_chars(ctx, glyphkey, gname, sizeof gname))
+        return 0;
+    if (!xpost_font_face_glyph_advance_units(face, glyph_index, 1000, &w))
+        return 0;
+    return 1;
+}
+
+/* Put the glyph into the run, having established that it may go there.
+   Answers through *taken: clear where the writer would not take it after
+   all, and the caller then draws the shape. */
+static void _show_glyph_as_text(Xpost_Context *ctx, Xpost_Object devdic,
+                                const textstate *ts, void *face,
+                                unsigned int glyph_index, Xpost_Object glyphkey,
+                                int code, double px, double py, int *taken)
+{
+    char base[48], gname[64];
+    double w, mat[4];
+    int i;
+
+    *taken = 0;
+    if (!_name_chars(ctx, ts->fontname, base, sizeof base))
+        return;
+    if (!_name_chars(ctx, glyphkey, gname, sizeof gname))
+        return;
+    if (!xpost_font_face_glyph_advance_units(face, glyph_index, 1000, &w))
+        return;
+    /* text space to the page: character space carries the size, and one
+       text unit is the em, which is emunits of character space */
+    for (i = 0; i < 4; i++)
+        mat[i] = (double)ts->cdmat[i] * (double)ts->emunits;
+    if (xpost_dev_pdf_text_glyph(ctx, devdic, base, code, gname, w,
+                                 mat, px, py, taken))
+        *taken = 0;
+}
+
 static
 int _show_glyph(Xpost_Context *ctx,
                 Xpost_Object devdic,
@@ -3888,6 +4041,7 @@ int _show_glyph(Xpost_Context *ctx,
                 real *ypos,
                 unsigned int glyph_index,
                 Xpost_Object glyphkey,
+                int code,
                 int ncomp,
                 Xpost_Object comp1,
                 Xpost_Object comp2,
@@ -3921,6 +4075,7 @@ int _show_glyph(Xpost_Context *ctx,
         if (!_show_char_outline(ctx, devdic, ts, data.face, glyph_index,
                                 *xpos + sbx / 65536.0, *ypos - sby / 65536.0,
                                 ncomp, comp1, comp2, comp3, comp4,
+                                glyphkey, code,
                                 &advance_x, &advance_y, inked))
             return 0;
     }
@@ -4048,6 +4203,7 @@ int _show_char(Xpost_Context *ctx,
                                                      data.face, ch);
     return _show_glyph(ctx, devdic, putpix, data, ts, xpos, ypos,
                        glyph_index, _encoded_name(ctx, ts->encoding, ch),
+                       (int)ch,
                        ncomp, comp1, comp2, comp3, comp4, inked);
 }
 
@@ -4323,8 +4479,10 @@ int _glyphshow_common(Xpost_Context *ctx,
     glyph_index = byname
         ? _glyph_index_for_name(ctx, ts.charstrings, data.face, gname)
         : gid;
+    /* glyphshow names a glyph rather than a code, so there is no code
+       for a run of text to carry: this one is drawn */
     painted = _show_glyph(ctx, devdic, putpix, data, &ts, &xpos, &ypos,
-                          glyph_index, glyphkey,
+                          glyph_index, glyphkey, -1,
                           ncomp, comp[0], comp[1], comp[2], comp[3], &inked);
 
     /* the point the operator reached is the point it leaves behind,

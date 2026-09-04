@@ -57,7 +57,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  through the bracket that takes it off again however the body ends, error
 %  included (.indict, callout.ps).
 %
-/.xpost_DSCWRITE .xpost_PDFWRITE dup length 2 add dict copy def
+/.xpost_DSCWRITE .xpost_PDFWRITE dup length 4 add dict copy def
+
+%  A run of text is a PDF construct -- a font resource named from the
+%  page, and BT ... Tj ET in the content -- and this writer writes
+%  PostScript. The base class carries the answer yes and a copy carries
+%  what it was copied from, so the answer is said again here. Saying
+%  nothing would put PDF text operators into a PostScript program.
+.xpost_DSCWRITE /TextRuns false put
 
 %
 %  The output plumbing is inherited from that base: .vw (pdfwrite.ps)

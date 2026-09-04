@@ -216,6 +216,7 @@ src/lib/xpost_op_font.c      name_FillRect          reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_FontBBox          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FontMatrix        reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FontName          reset xpost_oper_init_font_ops
+src/lib/xpost_op_font.c      name_TextRuns          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FontType          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_GlyphData         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_GlyphExtents      reset xpost_oper_init_font_ops
