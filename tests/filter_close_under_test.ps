@@ -101,11 +101,20 @@ q.g status (and its own source is left open where its parameter is false) assert
 q.g closefile
 
 % ---- the parameter is a boolean ---------------------------------------
+%
+% The file is opened before the refusal and named, so that the refusal
+% leaves something to close: the error unwinds the operand the open file
+% was sitting on, and a file still open is a file some hosts will not let
+% the name be deleted from underneath.
 
-{ nm (r) file << /CloseSource 1 >> /ASCIIHexDecode filter } /typecheck
+/b.f nm (r) file def
+{ b.f << /CloseSource 1 >> /ASCIIHexDecode filter } /typecheck
     (a CloseSource that is not a boolean) raises
-{ nm (w) file << /CloseTarget (yes) >> /ASCIIHexEncode filter } /typecheck
+b.f closefile
+/b.f2 nm (w) file def
+{ b.f2 << /CloseTarget (yes) >> /ASCIIHexEncode filter } /typecheck
     (a CloseTarget that is not a boolean) raises
+b.f2 closefile
 
 % ---- a source with nothing to close -----------------------------------
 % A string standing as the data source is not a file, so there is nothing

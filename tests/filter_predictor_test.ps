@@ -146,11 +146,20 @@ want eq (rows may each use their own filter) assert
     (sixteen-bit samples round trip) assert
 
 % the parameters an encoding stage is defined for, refused as the
-% decoding one refuses them
-{ nm (w) file << /Predictor 99 >> /FlateEncode filter } /rangecheck
+% decoding one refuses them.
+%
+% The file is opened before the refusal and named, so that the refusal
+% leaves something to close: the error unwinds the operand the open file
+% was sitting on, and a file still open is a file some hosts will not let
+% the name be deleted from underneath.
+/x.p nm (w) file def
+{ x.p << /Predictor 99 >> /FlateEncode filter } /rangecheck
     (an encoder predictor out of range) raises
-{ nm (w) file << /Predictor 2 /BitsPerComponent 4 >> /LZWEncode filter }
+x.p closefile
+/x.p nm (w) file def
+{ x.p << /Predictor 2 /BitsPerComponent 4 >> /LZWEncode filter }
     /rangecheck (an encoder sample narrower than a byte) raises
+x.p closefile
 
 nm deletefile
 
