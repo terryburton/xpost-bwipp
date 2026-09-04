@@ -292,6 +292,48 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         } //.indevwork exec
     } bind
 
+    % Write a run of bytes as one base64 stream, cut into pieces the
+    % encoder can answer.
+    %
+    % Base64 is four bytes out for every three in, and what comes out is
+    % a string, so a run over about forty-eight kilobytes has no string
+    % to be encoded into and is refused. What arrives here is whatever
+    % produced the bytes: a compressed image comes in pieces of its own
+    % choosing, and a photograph's is one piece as large as the picture.
+    % So the pieces are re-cut here rather than trusted, and a stream is
+    % written the same way however it was handed over.
+    %
+    % Cut at a multiple of three, so each piece stands alone. Base64 pads
+    % the end of what it is given, and padding in the middle of a stream
+    % is padding a reader stops at; a piece that is a multiple of three
+    % has no padding to place.
+    /.b64stream {  % [str ...]  .  -
+        .dev 12 {
+        /bsa exch def
+        /bsbuf 48000 string def
+        /bsp 0 def
+        bsa {
+            /bss exch def
+            /bsi 0 def
+            {
+                bsi bss length ge { exit } if
+                /bsn bss length bsi sub def
+                48000 bsp sub dup bsn lt { /bsn exch def }{ pop } ifelse
+                bsbuf bsp bss bsi bsn getinterval putinterval
+                /bsp bsp bsn add def
+                /bsi bsi bsn add def
+                bsp 48000 eq {
+                    bsbuf //.internaldict /.base64 get exec .put
+                    /bsp 0 def
+                } if
+            } loop
+        } forall
+        bsp 0 gt {
+            bsbuf 0 bsp getinterval //.internaldict /.base64 get exec .put
+        } if
+        } //.indevwork exec
+    } bind
+
     % Take a whole sampled image as an embedded bitmap: the samples
     % decode to rgb, pack as a bottom-up 24-bit BMP, and ride a base64
     % data URI under the image-to-device matrix.
@@ -373,7 +415,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ("  preserveAspectRatio="none") .put
             qkint not { ( image-rendering="pixelated") .put } if
             ( xlink:href="data:image/png;base64,) .put
-            qkpng { //.internaldict /.base64 get exec .put } forall
+            qkpng .b64stream
             ("/>\n) .put
         }{ pop } ifelse
         .qkcg { (</g>\n) .put } if
@@ -450,8 +492,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             siint { (auto") }{ (pixelated") } ifelse .put
             ( xlink:href="data:image/) .put
             siuj { (jpeg) }{ (png) } ifelse .put (;base64,) .put
-            siuj { sijpg }{ sipng } ifelse
-                { //.internaldict /.base64 get exec .put } forall
+            siuj { sijpg }{ sipng } ifelse .b64stream
             ("/>\n) .put
         }{
 

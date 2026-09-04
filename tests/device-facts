@@ -661,6 +661,7 @@ disposition settled
 # The rest of the census
 
 # The calls a device takes.
+method .b64stream svgwrite
 method .bandsink bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .bandwrite bgr jpeg pbm pgm png pngalpha ppm raster tiff
 method .begindoc dscwrite pdfwrite

@@ -42,6 +42,24 @@ newpath 200 200 150 0 360 arc closepath 200 200 75 0 360 arc closepath
 eoclip newpath
 0 0 1 setrgbcolor newpath 0 0 moveto 400 0 lineto 400 400 lineto 0 400 lineto closepath fill
 showpage
+<< /HWResolution [72 72] /OutputFile ($tmp/big.svg) /PageSize [500 500] >> setpagedevice
+% An image whose encoded bytes are more than one string can hold. What
+% the writer embeds is a data URI, and base64 answers with a string, so
+% a picture whose encoded form runs past what a string holds has to
+% reach the encoder in pieces; handed over whole it is refused and the
+% page is lost with an error.
+% Noise, and taken from the high bits of the generator: the low ones of
+% a sequence like this repeat on a short cycle, and samples drawn from
+% them compress away to a picture far too small to ask this question.
+% Seeded, so the run puts the same picture down every time.
+42 srand
+gsave 0 0 translate 500 500 scale
+/rowdata 1500 string def
+500 500 8 [ 500 0 0 -500 0 500 ]
+  { 0 1 1499 { rowdata exch rand 256 idiv 256 mod put } for rowdata }
+  false 3 colorimage
+grestore
+showpage
 << /OutputDevice /null >> setpagedevice
 quit
 PSEOF
@@ -87,6 +105,31 @@ grep -q 'image-rendering="pixelated"' "$a" || fail "image-rendering attribute"
 # no attribute may carry a stray quote inside its value
 grep -qE '"[a-zA-Z-]+="[^"]*"[^ />]' "$a" && fail "malformed attribute run"
 grep -q '</svg>' "$a" || fail "closing tag"
+
+# --- an image larger than one string still reaches the document -------
+#
+# base64 answers with a string, so a picture whose encoded form is over
+# about forty-eight kilobytes has to be handed to the encoder in pieces.
+# Handed over whole it is refused, the run reports the error and the page
+# is lost -- which verdict_run above has already read. What is left to
+# hold is that the pieces join into one stream a reader can decode:
+# padding closes a base64 stream, so it may appear only at the very end,
+# and the whole body must be a multiple of four bytes.
+big=$tmp/big.svg
+[ -s "$big" ] || fail "no output for the large-image page"
+body=$(grep -o ';base64,[A-Za-z0-9+/=]*' "$big" | sed 1q)
+body=${body#;base64,}
+[ -n "$body" ] || fail "the large-image page carries no embedded image"
+n=${#body}
+[ "$n" -gt 65535 ] || fail "the embedded image is $n bytes encoded, which one
+      string holds, so the piecing this checks is never reached"
+[ $((n % 4)) -eq 0 ] || fail "the encoded image is $n bytes, not a multiple of four"
+# padding closes a stream, so every = is in the last four bytes: take
+# those off and none may remain
+case ${body%????} in
+    *=*) fail "the encoded image carries padding away from its end, so a
+      reader stops there and the rest of the picture is dropped" ;;
+esac
 grep -q 'width="200pt" height="100pt" viewBox="0 0 400 200"' "$b" || fail "144dpi page in points"
 grep -q 'd="M40 160L160 160L160 80L40 80Z"' "$b" || fail "144dpi coordinates"
 
