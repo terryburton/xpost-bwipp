@@ -268,6 +268,40 @@ a new file joins the day it is added; a source in both fails too, so the list
 cannot rot into a standing excuse. Adding a name back is letting one file off
 a rule the rest keep, and wants an argument rather than a line.
 
+## Deciding which language a thing goes in
+
+The C core is the virtual machine and what has to be fast; everything
+above it is PostScript in `data/`. Inside the graphics that line is drawn
+by profiling -- see `doc/xpost_design.dox`, "What is C and what is
+PostScript" -- but one class of code never reaches profiling, and it is
+easy to write in the wrong language by accident.
+
+Ask who the reader is. If someone would open the file to learn or change
+**what the language does** -- which operators exist, what a colour space
+means, how a pattern tiles, what a device promises -- that is policy, and
+it belongs in PostScript however hot it is. If the only reader is the
+interpreter itself, and correctness rests on the depth of a stack rather
+than on anything the manual describes -- a call frame and its unwind,
+dispatch, the stacks, memory -- that is mechanism, and it belongs in C
+however cold it looks. Written in PostScript, mechanism is a second
+implementation of something the C already has.
+
+The tell is that a mechanism's parts are used nowhere else and no program
+can reach them: they are the named steps of one sequence rather than a
+decomposition into pieces that mean anything apart.
+
+Policy stays in PostScript even when its mechanism moves to C. What a
+bracket protects, which dictionaries it hides, which slots it saves, are
+the caller's decisions and stay written where the caller is.
+
+Hold that line for the transitions above all. Every handover from the
+machinery to a program's own procedure -- an image's data source, a
+pattern's paint procedure, a colour space's decoding, a halftone's spot
+function -- pays for its mechanism once per handover, and a program may
+ask for millions of them. A dear transition is what makes a PostScript
+implementation of anything look too slow to keep, so making it cheap is
+what lets the rest stay PostScript.
+
 ## Writing PostScript
 
 The data files are the interpreter's own PostScript, read into a sealed

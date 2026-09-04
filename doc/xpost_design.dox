@@ -124,6 +124,43 @@
  * device keeps a no-op fill so that discarded pages are not rendered
  * first and thrown away after.
  *
+ * Profiling draws that line, but it does not draw every line. One class
+ * of code is never a candidate for PostScript however cheap it looks,
+ * and it is worth naming because it is easy to write by accident: the
+ * interpreter's own mechanism, as distinct from the language's policy.
+ * A call frame and its unwind, dispatch, the stacks, the memory: these
+ * are how the interpreter runs a program, not what the language does,
+ * and a program can neither call them nor observe them. Written in
+ * PostScript they are a second implementation of something the C
+ * already has -- the wrapped-operator frame rides the execution stack
+ * in C, and a bracket that saves the same depths and unwinds them the
+ * same way is that frame again in another language. Written in C they
+ * cost a call.
+ *
+ * The test is who the reader is. If a reader would go to the file to
+ * learn what the language does, or to change what it does -- which
+ * operators exist, what a colour space means, how a pattern tiles, what
+ * a device promises -- it is policy and belongs in PostScript. If the
+ * only reader is the interpreter itself, and correctness rests on the
+ * depth of a stack rather than on anything the manual describes, it is
+ * mechanism and belongs in C. Policy stays PostScript even where its
+ * mechanism moves: what a bracket protects, which dictionaries it
+ * hides and which slots it saves, are the caller's decisions and stay
+ * where the caller is written.
+ *
+ * The reason to hold that line is not the mechanism's own cost. It is
+ * that every handover between the machinery and a program's own
+ * procedure -- an image's data source, a pattern's paint procedure, a
+ * colour space's decoding, a halftone's spot function -- pays for the
+ * mechanism once per handover, and a program may ask for millions of
+ * them. MEASURED on a run-length-compressed image whose data source is
+ * called once per run: the bracket around those calls was seventy per
+ * cent of the whole run. An expensive transition is what makes a
+ * PostScript implementation of anything look too slow to keep, so it
+ * is the transition that has to be cheap for the rest of the design to
+ * stand. Making it cheap keeps code in PostScript; leaving it dear
+ * drives code into C one painter at a time.
+ *
  * One process holds one interpreter, which xpost_create() returns an
  * execution context of and xpost_destroy() ends. The @c fork operator
  * makes further contexts inside the same interpreter; a fork shares
