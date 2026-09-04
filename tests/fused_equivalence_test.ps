@@ -282,6 +282,62 @@
 (1 2 ge)                       same
 (2 2 ge)                       same
 ((abc) (abd) lt)               same
+% a real beside a real, and an integer beside a real, order by the fold
+% the full comparison makes: the integer is taken as a real and the two
+% compare exactly. The pairs that straddle a whole number are asked in
+% both directions, and the ones that are equal after the fold are asked
+% of every relation, since that is where an ordering written twice first
+% disagrees with itself.
+% add, sub and mul over a pair holding a real: the integer beside the
+% real is taken as a real, as the float signature these operators state
+% makes the machinery do, and the result is a real even where it lands on
+% a whole number. The integer pair keeps its own road, whose overflow
+% turns into a real, so the boundary cases are asked of both.
+(1.5 2.5 add)                  same
+(2 1.5 add)                    same
+(1.5 2 add)                    same
+(2.5 0.5 add)                  same
+(1.5 2.5 sub)                  same
+(2 1.5 sub)                    same
+(1.5 2 sub)                    same
+(2.5 2.5 sub)                  same
+(1.5 2.0 mul)                  same
+(2 1.5 mul)                    same
+(1.5 2 mul)                    same
+(0.0 5 mul)                    same
+(2 3 add)                      same
+(mx 1 add)                     same
+(mx 1.0 add)                   same
+(mn 1 sub)                     same
+(mn 1.0 sub)                   same
+(mx 2 mul)                     same
+(mx 2.0 mul)                   same
+((x) 1.5 add)                  same
+(1.5 (x) add)                  same
+(1.5 add)                      same
+(null 1.5 mul)                 same
+(1.5 2.5 lt)                   same
+(2.5 1.5 lt)                   same
+(1.5 1.5 le)                   same
+(1.5 1.5 ge)                   same
+(1.5 1.5 gt)                   same
+(1.5 1.5 lt)                   same
+(1.5 1.5 eq)                   same
+(1.5 1.5 ne)                   same
+(2 2.0 lt)                     same
+(2 2.0 le)                     same
+(2 2.0 gt)                     same
+(2 2.0 ge)                     same
+(2.0 2 eq)                     same
+(2.0 2 ne)                     same
+(1 2.5 lt)                     same
+(2.5 1 lt)                     same
+(2 1.5 gt)                     same
+(1.5 2 gt)                     same
+(-1.5 -2.5 lt)                 same
+(0.0 0 eq)                     same
+(mx 1.0 gt)                    same
+(mn 1.0 lt)                    same
 ((abc) (abc) eq)               same
 ((abc) (ab) gt)                same
 ((ab) (abc) lt)                same

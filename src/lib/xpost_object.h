@@ -617,6 +617,35 @@ static inline int xpost_object_is_composite(Xpost_Object obj)
  * object is exactly such a value, so it is asked about alongside the
  * other three.
  */
+/**
+ * @brief a pair of numbers where either is a real, taken as two reals
+ *
+ * The operators over two reals state a float signature, and the operator
+ * machinery converts an integer operand to a real before calling one.
+ * This is that conversion, in the one place the operators, the object
+ * comparison and the interpreter's fused execution all reach it, so a
+ * pair holding a real is folded the same way whichever road it took.
+ *
+ * A pair of integers is declined: it is not folded at all, and the rules
+ * for it -- an exact result that leaves the integer range becomes a real
+ * -- are its own.
+ */
+static inline int xpost_number_pair_as_real(Xpost_Object X, Xpost_Object Y,
+                                            real *x, real *y)
+{
+    int xt = xpost_object_get_type(X);
+    int yt = xpost_object_get_type(Y);
+
+    if (xt == integertype && yt == integertype)
+        return 0;
+    if ((xt != integertype && xt != realtype) ||
+        (yt != integertype && yt != realtype))
+        return 0;
+    *x = (xt == integertype) ? (real)X.int_.val : X.real_.val;
+    *y = (yt == integertype) ? (real)Y.int_.val : Y.real_.val;
+    return 1;
+}
+
 static inline int xpost_object_is_banked(Xpost_Object obj)
 {
     return xpost_object_is_composite(obj)

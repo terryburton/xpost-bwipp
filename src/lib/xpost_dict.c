@@ -129,19 +129,19 @@ int xpost_dict_compare_objects(Xpost_Context *ctx,
     if (xpost_dict_compare_simple(L, R, &cmp))
         return cmp;
 
+    /* a real on either side orders by the same fold the fused relational
+       operators use (see xpost_dict.h), which is where an integer beside
+       a real is taken as a real. Asked only of a pair holding one,
+       because every other pair reaches it to be declined and this is the
+       road every dictionary key comparison takes. */
+    if ((xpost_object_get_type(L) == realtype ||
+         xpost_object_get_type(R) == realtype) &&
+        xpost_dict_compare_number(L, R, &cmp))
+        return cmp;
+
     /* fold nearly-comparable types to comparable */
     if (xpost_object_get_type(L) != xpost_object_get_type(R))
     {
-        if (xpost_object_get_type(L) == integertype && xpost_object_get_type(R) == realtype)
-        {
-            L = xpost_real_cons((real)L.int_.val);
-            goto cont;
-        }
-        if (xpost_object_get_type(R) == integertype && xpost_object_get_type(L) == realtype)
-        {
-            R = xpost_real_cons((real)R.int_.val);
-            goto cont;
-        }
         if (xpost_object_get_type(L) == nametype && xpost_object_get_type(R) == stringtype)
         {
             L = xpost_name_get_string(ctx, L);
@@ -170,10 +170,6 @@ cont:
         /* booleans, integers and names are settled above; the folds
            reach here as a real or a string */
 
-        /* numbers compare exactly: this function also backs
-           the relational operators */
-        case realtype: return L.real_.val < R.real_.val ? -1 :
-                              L.real_.val > R.real_.val ? 1 : 0;
         case extendedtype:
         {
             double l,r;

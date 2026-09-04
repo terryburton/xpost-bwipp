@@ -150,6 +150,23 @@ static inline int xpost_dict_compare_simple(Xpost_Object l, Xpost_Object r,
     }
 }
 
+/* The numeric fold the relational operators and the dictionary
+   comparison share. A pair of integers is settled by the simple
+   comparison above; an integer beside a real is taken as a real, which
+   is the fold xpost_dict_compare_objects performs, and two reals
+   compare exactly. Anything else is not a number pair and is declined
+   so the caller takes its general road. */
+static inline int xpost_dict_compare_number(Xpost_Object L, Xpost_Object R,
+                                            int *cmp)
+{
+    real l, r;
+
+    if (!xpost_number_pair_as_real(L, R, &l, &r))
+        return 0;
+    *cmp = l < r ? -1 : l > r ? 1 : 0;
+    return 1;
+}
+
 /**
    construct dictionary
    in the memory table of specified memory file
