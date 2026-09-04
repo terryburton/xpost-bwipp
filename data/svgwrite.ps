@@ -165,8 +165,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % truncated the way a device that keeps rows scales one, so the same
     % colour reaches the same eight-bit value however it is written down.
     /.svghex {  % n  .  -
-        255 mul cvi
-        dup 0 lt { pop 0 } if dup 255 gt { pop 255 } if
+        255 mul
+        % Brought inside the channel before the conversion, and written
+        % as the test the value must pass rather than the one it must
+        % fail: a component that is not a number answers false to every
+        % comparison, and cvi has no integer to convert it to.
+        dup 0 gt { dup 255 gt { pop 255 } if }{ pop 0 } ifelse
+        cvi
         dup -4 bitshift //.svghexdig exch 1 getinterval .put
         15 and //.svghexdig exch 1 getinterval .put
     } bind
