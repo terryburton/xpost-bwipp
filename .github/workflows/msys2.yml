@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [master, main]
     types: [opened, synchronize, reopened]
+  # so a lane can be re-run against a tip that has not moved -- what is
+  # wanted when the runner's platform changed underneath it, or when a
+  # push landed before the workflows were registered and triggered none
+  workflow_dispatch:
 
 jobs:
   test:
