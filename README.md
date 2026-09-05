@@ -79,6 +79,11 @@ To build the Doxygen documentation, into `builddir/doc`:
   meson compile -C builddir doc
 ```
 
+The same reference is published from the release branch on every push, so
+it can be read without building anything:
+
+  <https://terryburton.github.io/xpost-bwipp/>
+
 `meson compile -C builddir splint` runs splint, where splint is
 installed; the target does not exist in a build configured without it.
 
@@ -158,6 +163,11 @@ is what to run in the edit-run-edit loop. `doc/GATING.md` says which run
 answers which question.
 
 ## Where the rest is written down
+
+The generated reference -- the pages below marked `.dox`, together with
+the API -- is published at
+<https://terryburton.github.io/xpost-bwipp/>. Everything else is read
+from the tree.
 
 | | |
 | --- | --- |
