@@ -19,11 +19,22 @@ Regenerate after an intended change:
 
 The generator reads the live systemdict from the built interpreter, so the golden
 set always reflects the current build when regenerated on purpose.
+
+IN A CENSUS RUN, which is the interpreter the test itself meets. XPOST_CENSUS
+decides which entry points the lockdown keeps, so a census run boots to a
+different language: .gscratch, .privatedict, DEVICE and graphicsdict stay in
+systemdict there and are swept from it in a shipped run. Every suite here is
+run under it -- tests/verdict.sh exports it centrally, so that a wrapper added
+later cannot be answered with the other language -- and a golden captured
+without it is four names short of what the test then observes, which the test
+reports as four missing systemdict keys. It is set below rather than left to
+whoever regenerates, because the invocation above is what they will type.
 """
 import os, subprocess, sys
 
 XP  = os.environ.get("XPOST", "build/src/bin/xpost")
 ENV = dict(os.environ, XPOST_DATA_DIR=os.path.abspath("data"),
+           XPOST_CENSUS="1",
            LD_LIBRARY_PATH=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(XP))),"lib"))
 
 # Dump every name key of systemdict, one per line, as a plain string,
