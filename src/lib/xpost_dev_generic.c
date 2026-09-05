@@ -3312,8 +3312,23 @@ static int _blit_masked(const unsigned char *mbits, int mrowb, int mrow,
    thresholds they fall against, and the colour each pixel resolves
    to, all read off the dictionary the caller has assembled, which
    is what lets the caller settle them once for the whole image. */
+static int _blit_row(Xpost_Context *ctx, Xpost_Object dict);
+
 int xpost_dev_blit_row(Xpost_Context *ctx,
                        Xpost_Object dict)
+{
+    int ret = _blit_row(ctx, dict);
+
+    xpost_dev_private_drop(ctx);
+    return ret;
+}
+
+/* The walk itself. Wrapped below so that the handle it holds for the
+   length of the walk is given up however the walk ends -- there are many
+   ways out of it, and a hold left standing past its blit would be read by
+   a later one. */
+static int _blit_row(Xpost_Context *ctx,
+                     Xpost_Object dict)
 {
     Xpost_Object bufo, luto, dlutso, tluto, mbitso, mrangeso;
     Xpost_Object tro, tgo, tbo;
@@ -3427,6 +3442,9 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
             sample[ns++] = xpost_int_cons(0);
             sample[ns++] = out.devdic;
             out.fillfp = xpost_operator_direct(ctx, out.fillrect, ns, sample);
+            /* the handle the fill finds its state under is the same for
+               every span of this image, so it is held for the walk */
+            xpost_dev_private_hold(ctx, out.devdic, namepdfPrivate);
             /* The other route, asked for. Both paint the same page --
                the operands are the same objects and the method is the
                same function -- and the only way to hold that claim is to

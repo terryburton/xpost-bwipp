@@ -240,6 +240,29 @@ struct _Xpost_Context {
          shortcuts and for the same reason: a registration cannot forget
          it. Indexed by opcode, which MAXOPS bounds. */
     unsigned char op_inline[1024];
+
+    /**< the instance dictionary whose private handle is remembered below,
+         as an entity number, and zero where nothing is remembered.
+
+         A device's marking method finds its private state by looking the
+         handle up in the instance dictionary, once per call -- and a call
+         is one span, which for an image scaled down is one sample. The
+         lookup answers the same handle every time within one image, so it
+         is asked once and remembered for the run of that image.
+
+         What is remembered is the HANDLE and not the block it names. A
+         handle is resolved to a pointer wherever it is used, so a
+         collection that moves the block is answered correctly; a
+         remembered pointer would not be. The state the handle names may
+         also be written between two calls -- a band move does exactly
+         that -- and that too is seen, because only the lookup is skipped
+         and never the read.
+
+         It is set for the length of one blit and dropped after it, so
+         nothing that could replace the entry runs while it stands. */
+    unsigned int dev_private_ent;
+    Xpost_Object dev_private_key;
+    Xpost_Object dev_private_val;
 #undef XPOST_OP_REF_MEMBER
 
 

@@ -262,13 +262,51 @@ xpost_dev_private_get(Xpost_Context *ctx,
 {
     void *block;
 
-    *privatestr = xpost_dict_get(ctx, devdic, key);
+    /* the handle this instance keeps its state under, remembered for the
+       length of a blit rather than looked up once per span; see the note
+       on dev_private_ent */
+    if (ctx->dev_private_ent
+        && ctx->dev_private_ent == (unsigned int)xpost_object_get_ent(devdic)
+        && ctx->dev_private_key.mark_.padw == key.mark_.padw
+        /* a name is its index AND its bank: two names of one index in
+           the two banks are different names */
+        && ((ctx->dev_private_key.tag ^ key.tag)
+            & XPOST_OBJECT_TAG_DATA_FLAG_BANK) == 0)
+        *privatestr = ctx->dev_private_val;
+    else
+        *privatestr = xpost_dict_get(ctx, devdic, key);
     block = xpost_handle_block_of(ctx, *privatestr, devdic,
                                   XPOST_HANDLE_DEVICE, size);
     if (!block)
         return 0;
     memcpy(priv, block, size);
     return 1;
+}
+
+/* Remember an instance's private handle for the length of one run of
+   marking calls, and forget it.
+
+   Bracketing rather than caching: what stands between the two is a walk
+   over one image, and nothing that could replace the entry runs inside
+   it. Outside the bracket every call looks the handle up as it always
+   did. */
+static inline void
+xpost_dev_private_hold(Xpost_Context *ctx, Xpost_Object devdic,
+                       Xpost_Object key)
+{
+    Xpost_Object v = xpost_dict_get(ctx, devdic, key);
+
+    if (xpost_object_get_type(v) == invalidtype)
+        return;
+    ctx->dev_private_ent = (unsigned int)xpost_object_get_ent(devdic);
+    ctx->dev_private_key = key;
+    ctx->dev_private_val = v;
+}
+
+static inline void
+xpost_dev_private_drop(Xpost_Context *ctx)
+{
+    ctx->dev_private_ent = 0;
 }
 
 /* Store the private struct back into the block its handle names.

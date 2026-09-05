@@ -34,6 +34,7 @@
 # disposition  header[:structure]  member  [reason, for an address]
 count    xpost_context.h:_Xpost_Context     batch
 count    xpost_context.h:_Xpost_Context     callback_error
+count    xpost_context.h:_Xpost_Context     dev_private_ent
 count    xpost_context.h:_Xpost_Context     device_made
 count    xpost_context.h:_Xpost_Context     ds
 count    xpost_context.h:_Xpost_Context     ds_over
