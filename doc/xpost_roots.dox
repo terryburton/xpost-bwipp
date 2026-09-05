@@ -101,6 +101,11 @@ COLLECTOR ROOTS
    |   +- window_device ............... (L)
    |   +- event_handler ............... either
    |   +- localfontdir / globalfontdir  (L) / (G)
+   |   +- graphicsdict ................ (G)  the graphics language's own
+   |   |                                     dictionary and the live
+   |   |                                     graphics state under it
+   |   +- jobstore .................... (L)  what a job's boundary
+   |                                         reverts to
 @endverbatim
  *
  * @section roots_members Notes on particular members
@@ -134,9 +139,17 @@ COLLECTOR ROOTS
  * <b>The operator table.</b> An operator that runs a procedure holds that
  * procedure in the table, and the table is not in virtual memory at all:
  * it is the memory file's own storage, because a signature carries the C
- * function implementing the operator and the arena holds no addresses. So
- * the collector does not reach it, and the procedures are kept alive by
- * @c .wrappedprocs, which it does reach.
+ * function implementing the operator and the arena holds no addresses.
+ * Nothing the object walk reaches therefore names those procedures, so
+ * the collector walks the table itself and marks each one directly. The
+ * procedures live in either bank -- the accessors of per-context local
+ * state are wrapped over local arrays -- so the table is walked whichever
+ * bank is being collected, and the walk stops at the procedures of a bank
+ * not in play.
+ *
+ * @c .wrappedprocs holds the same procedures and the collector reaches it
+ * too, but liveness does not rest on it: an operator's procedure would be
+ * marked from the table with that dictionary empty.
  *
  * The same split is why the job boundary keeps a copy of the table. The
  * boundary reverts both banks to a baseline image, which cannot reach

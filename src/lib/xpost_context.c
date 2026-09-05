@@ -615,13 +615,11 @@ void xpost_context_glob_release(Xpost_Context *ctx, unsigned int id)
    arena out from under it. So the files are released exactly once, by the
    context that outlives every fork of it.
 
-   A context that has ended keeps its number in the context list rather
-   than being taken out of it. What reads that list is the collector,
-   walking the contexts that share a memory file, and it passes over a slot
-   whose state is C_FREE -- so a number naming a context that has ended
-   costs the walk one comparison and can name nothing a sweep would take.
-   Removing it would buy that comparison back at the price of closing a
-   hole in a list every collection reads. */
+   The context list is not this function's business. A context that ends
+   goes through xpost_context_release, which gives the identifier back to
+   both lists as it frees the slot, so that the slot and the place a later
+   fork needs are given up together. By the time a context reaches here
+   its number is already out of the lists the collector walks. */
 void xpost_context_exit(Xpost_Context *ctx)
 {
     unsigned int i;
