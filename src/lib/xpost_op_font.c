@@ -3234,6 +3234,92 @@ int _device_color(Xpost_Context *ctx,
     return 0;
 }
 
+/* The pixels a string's glyphs covered, and the two device methods they
+   go to.
+
+   A glyph is painted a pixel at a time and every covered pixel is a call
+   to the device, so what a call costs is paid once per pixel of every
+   character on a page of text. Sending each through the operand and
+   execution stacks costs more than an operator call, and a string's
+   worth of operands stands on both before a pixel is written.
+
+   The order they are paid out in is not free to change. Within one glyph
+   it would be -- every pixel of a raster is visited once -- but a string
+   is not one glyph, and where two of them put ink in the same place the
+   order decides what the page shows. The execution stack is last in
+   first out and a whole string accumulates on it, so what it paid out
+   was the reverse of the whole string, glyph by glyph and pixel by
+   pixel. That is what is reproduced here: written down as they are
+   counted, over the whole string, and paid out from the end.
+
+   The methods and the colour do not change across a string, so only the
+   pixels are held. */
+struct _glyphpix { int x, y, cov; };
+
+struct _glyphq
+{
+    struct _glyphpix *v;
+    long n, max;
+    Xpost_Op_Func blendfp, putfp;
+    int bound;          /* the two methods have been resolved */
+    int usable;         /* ... and both of them are callable this way */
+    int broke;          /* room ran out; what is held is still owed */
+};
+
+static int
+_glyphq_add(struct _glyphq *q, int x, int y, int cov)
+{
+    if (q->n == q->max)
+    {
+        long want = q->max ? q->max * 2 : 1024;
+        struct _glyphpix *v;
+
+        if (want > (1L << 22))
+            return 0;
+        v = realloc(q->v, (size_t)want * sizeof *v);
+        if (!v)
+            return 0;
+        q->v = v;
+        q->max = want;
+    }
+    q->v[q->n].x = x;
+    q->v[q->n].y = y;
+    q->v[q->n].cov = cov;
+    q->n++;
+    return 1;
+}
+
+/* Pay the string's pixels out, from the end. Answers what the device
+   answered: a device that refuses a pixel stops the rest, the string
+   having got as far as it got. */
+static int
+_glyphq_pay(Xpost_Context *ctx, struct _glyphq *q, Xpost_Object devdic,
+            int ncomp, Xpost_Object comp1, Xpost_Object comp2,
+            Xpost_Object comp3, Xpost_Object comp4)
+{
+    int ret = 0;
+    long i = q->n;
+
+    while (i-- > 0 && !ret)
+    {
+        Xpost_Op_Func fp = q->v[i].cov > 0 ? q->blendfp : q->putfp;
+        Xpost_Object a[8];
+        int an = 0;
+
+        a[an++] = comp1;
+        if (ncomp >= 3) { a[an++] = comp2; a[an++] = comp3; }
+        if (ncomp >= 4) a[an++] = comp4;
+        if (q->v[i].cov > 0)
+            a[an++] = xpost_int_cons(q->v[i].cov);
+        a[an++] = xpost_int_cons(q->v[i].x);
+        a[an++] = xpost_int_cons(q->v[i].y);
+        a[an++] = devdic;
+        ret = xpost_operator_call_direct(ctx, fp, an, a);
+    }
+    q->n = 0;
+    return ret;
+}
+
 /* Plot a rendered glyph bitmap through the device. An 8-bit coverage
    bitmap is thresholded at half coverage -- the sharp rasterization a
    scan conversion of the outline would produce -- unless the device
@@ -3277,7 +3363,8 @@ void _draw_bitmap(Xpost_Context *ctx,
                   Xpost_Object comp2,
                   Xpost_Object comp3,
                   Xpost_Object comp4,
-                  int *inked)
+                  int *inked,
+                  struct _glyphq *q)
 {
     int i, j;
     const unsigned char *tmp;
@@ -3330,6 +3417,34 @@ void _draw_bitmap(Xpost_Context *ctx,
     if (xpost_object_get_type(glyphop) == operatortype
         && (ncomp == 1 || ncomp == 3) && width > 0 && i1 > i0)
         mask = calloc((size_t)(i1 - i0), (size_t)width);
+
+    /* The two methods a covered pixel goes to, resolved once for the
+       string. Both or neither: a pixel at full coverage goes to the
+       device's pixel writer and one at part coverage to its blend, and a
+       pixel that could go neither way is a pixel the page never gets. */
+    if (q && !q->bound)
+    {
+        Xpost_Object sample[8];
+        int k, ns = 0;
+
+        q->bound = 1;
+        sample[ns++] = comp1;
+        if (ncomp >= 3) { sample[ns++] = comp2; sample[ns++] = comp3; }
+        if (ncomp >= 4) sample[ns++] = comp4;
+        for (k = 0; k < 3; k++)
+            sample[ns++] = xpost_int_cons(0);
+        sample[ns++] = devdic;
+        if (xpost_object_get_type(ts->blendpix) == operatortype)
+            q->blendfp = xpost_operator_direct(ctx, ts->blendpix.mark_.padw,
+                                               ns, sample);
+        sample[ns - 4] = sample[ns - 3];
+        sample[ns - 3] = sample[ns - 2];
+        sample[ns - 2] = sample[ns - 1];
+        if (xpost_object_get_type(putpix) == operatortype)
+            q->putfp = xpost_operator_direct(ctx, putpix.mark_.padw,
+                                             ns - 1, sample);
+        q->usable = (q->blendfp != NULL) && (q->putfp != NULL);
+    }
 
     for (i = i0; i < i1; i++)
     {
@@ -3406,6 +3521,16 @@ void _draw_bitmap(Xpost_Context *ctx,
                     mask[(size_t)(i - i0) * (size_t)width + j]
                         = cov < 0 ? 255 : (unsigned char)cov;
                     continue;
+                }
+                if (q && q->usable && !q->broke)
+                {
+                    if (_glyphq_add(q, xpos + j, ypos + i, cov))
+                        continue;
+                    /* room ran out: what is already written down is
+                       still owed, and in front of everything after it,
+                       so the rest of the string goes the old way and the
+                       two are paid out in the right order below */
+                    q->broke = 1;
                 }
                 switch (ncomp)
                 {
@@ -4148,7 +4273,8 @@ int _show_glyph(Xpost_Context *ctx,
                 Xpost_Object comp2,
                 Xpost_Object comp3,
                 Xpost_Object comp4,
-                int *inked)
+                int *inked,
+                struct _glyphq *q)
 {
     unsigned char *buffer;
     int rows;
@@ -4264,7 +4390,7 @@ int _show_glyph(Xpost_Context *ctx,
                 _draw_bitmap(ctx, devdic, putpix, ts,
                              buffer, rows, width, pitch, pixel_mode,
                              (int)px, (int)py,
-                             ncomp, comp1, comp2, comp3, comp4, inked);
+                             ncomp, comp1, comp2, comp3, comp4, inked, q);
         }
     }
     /* a /Metrics entry for this glyph overrides the face's advance */
@@ -4294,7 +4420,8 @@ int _show_char(Xpost_Context *ctx,
                Xpost_Object comp2,
                Xpost_Object comp3,
                Xpost_Object comp4,
-               int *inked)
+               int *inked,
+                struct _glyphq *q)
 {
     /* show does not kern: pair adjustment in PostScript is the
        program's business (kshow, ashow); the advance is the glyph
@@ -4305,7 +4432,7 @@ int _show_char(Xpost_Context *ctx,
     return _show_glyph(ctx, devdic, putpix, data, ts, xpos, ypos,
                        glyph_index, _encoded_name(ctx, ts->encoding, ch),
                        (int)ch,
-                       ncomp, comp1, comp2, comp3, comp4, inked);
+                       ncomp, comp1, comp2, comp3, comp4, inked, q);
 }
 
 /* The pen position, read out of the packed path string in the graphics
@@ -4439,6 +4566,7 @@ int _show(Xpost_Context *ctx,
     Xpost_Object finalize;
     int painted = 1;
     int inked = 0;
+    struct _glyphq gq = { 0 };   /* the string's pixels, paid after it */
     int ret;
 
 
@@ -4497,11 +4625,22 @@ int _show(Xpost_Context *ctx,
     /* render text in char *cstr  with font data  at pen position xpos ypos */
     for (ch = cstr; ch < chend; ch++) {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
-                ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
+                ncomp, comp[0], comp[1], comp[2], comp[3], &inked, &gq))
         {
             painted = 0;
             break;
         }
+    }
+
+    /* the string's pixels, paid out from the end -- see _glyphq_pay */
+    {
+        int qret = _glyphq_pay(ctx, &gq, devdic, ncomp,
+                               comp[0], comp[1], comp[2], comp[3]);
+
+        free(gq.v);
+        gq.v = NULL; gq.max = 0;
+        if (qret)
+            return qret;
     }
 
     /* update current position in the graphics state */
@@ -4550,6 +4689,7 @@ int _glyphshow_common(Xpost_Context *ctx,
     unsigned int glyph_index;
     int painted;
     int inked = 0;
+    struct _glyphq gq = { 0 };   /* the string's pixels, paid after it */
     int ret;
 
     gs = _gstate(ctx);
@@ -4584,7 +4724,15 @@ int _glyphshow_common(Xpost_Context *ctx,
        for a run of text to carry: this one is drawn */
     painted = _show_glyph(ctx, devdic, putpix, data, &ts, &xpos, &ypos,
                           glyph_index, glyphkey, -1,
-                          ncomp, comp[0], comp[1], comp[2], comp[3], &inked);
+                          ncomp, comp[0], comp[1], comp[2], comp[3], &inked,
+                          &gq);
+    {
+        int qret = _glyphq_pay(ctx, &gq, devdic, ncomp,
+                               comp[0], comp[1], comp[2], comp[3]);
+        free(gq.v);
+        if (qret)
+            return qret;
+    }
 
     /* the point the operator reached is the point it leaves behind,
        whether or not the glyph was painted from it */
@@ -5364,7 +5512,7 @@ int _stencilaa(Xpost_Context *ctx,
     xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(1));
     _draw_bitmap(ctx, devdic, putpix, &ts, cov, devh, devw, devw,
                  XPOST_FONT_PIXEL_MODE_GRAY, ix0, iy0,
-                 ncomp, comp[0], comp[1], comp[2], comp[3], &inked);
+                 ncomp, comp[0], comp[1], comp[2], comp[3], &inked, NULL);
     free(cov);
     /* the coverage went to the device rather than through a painting
        operator, so what it left on the page is recorded here */
@@ -5558,7 +5706,7 @@ int _maskcachehit(Xpost_Context *ctx,
                  XPOST_FONT_PIXEL_MODE_GRAY,
                  (int)floor(dx + 0.5) + left,
                  (int)floor(dy + 0.5) - top,
-                 ncomp, comp[0], comp[1], comp[2], comp[3], &inked);
+                 ncomp, comp[0], comp[1], comp[2], comp[3], &inked, NULL);
     /* the mask went to the device rather than through a painting
        operator, so what it left on the page is recorded here */
     if (inked)
@@ -5921,6 +6069,7 @@ int _ashow(Xpost_Context *ctx,
     Xpost_Object finalize;
     int painted = 1;
     int inked = 0;
+    struct _glyphq gq = { 0 };   /* the string's pixels, paid after it */
     int ret;
 
 
@@ -5973,13 +6122,24 @@ int _ashow(Xpost_Context *ctx,
     for (ch = cstr; ch < chend; ch++)
     {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
-                   ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
+                   ncomp, comp[0], comp[1], comp[2], comp[3], &inked, &gq))
         {
             painted = 0;
             break;
         }
         xpos += dx.real_.val;
         ypos += dy.real_.val;
+    }
+
+    /* the string's pixels, paid out from the end -- see _glyphq_pay */
+    {
+        int qret = _glyphq_pay(ctx, &gq, devdic, ncomp,
+                               comp[0], comp[1], comp[2], comp[3]);
+
+        free(gq.v);
+        gq.v = NULL; gq.max = 0;
+        if (qret)
+            return qret;
     }
 
     /* update current position in the graphics state */
@@ -6020,6 +6180,7 @@ int _widthshow(Xpost_Context *ctx,
     Xpost_Object finalize;
     int painted = 1;
     int inked = 0;
+    struct _glyphq gq = { 0 };   /* the string's pixels, paid after it */
     int ret;
 
 
@@ -6072,7 +6233,7 @@ int _widthshow(Xpost_Context *ctx,
     for (ch = cstr; ch < chend; ch++)
     {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
-                   ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
+                   ncomp, comp[0], comp[1], comp[2], comp[3], &inked, &gq))
         {
             painted = 0;
             break;
@@ -6082,6 +6243,17 @@ int _widthshow(Xpost_Context *ctx,
             xpos += cx.real_.val;
             ypos += cy.real_.val;
         }
+    }
+
+    /* the string's pixels, paid out from the end -- see _glyphq_pay */
+    {
+        int qret = _glyphq_pay(ctx, &gq, devdic, ncomp,
+                               comp[0], comp[1], comp[2], comp[3]);
+
+        free(gq.v);
+        gq.v = NULL; gq.max = 0;
+        if (qret)
+            return qret;
     }
 
     /* update current position in the graphics state */
@@ -6124,6 +6296,7 @@ int _awidthshow(Xpost_Context *ctx,
     Xpost_Object finalize;
     int painted = 1;
     int inked = 0;
+    struct _glyphq gq = { 0 };   /* the string's pixels, paid after it */
     int ret;
 
 
@@ -6176,7 +6349,7 @@ int _awidthshow(Xpost_Context *ctx,
     for (ch = cstr; ch < chend; ch++)
     {
         if (!_show_char(ctx, devdic, putpix, data, &ts, &xpos, &ypos, (unsigned char)*ch,
-                ncomp, comp[0], comp[1], comp[2], comp[3], &inked))
+                ncomp, comp[0], comp[1], comp[2], comp[3], &inked, &gq))
         {
             painted = 0;
             break;
@@ -6188,6 +6361,17 @@ int _awidthshow(Xpost_Context *ctx,
             xpos += cx.real_.val;
             ypos += cy.real_.val;
         }
+    }
+
+    /* the string's pixels, paid out from the end -- see _glyphq_pay */
+    {
+        int qret = _glyphq_pay(ctx, &gq, devdic, ncomp,
+                               comp[0], comp[1], comp[2], comp[3]);
+
+        free(gq.v);
+        gq.v = NULL; gq.max = 0;
+        if (qret)
+            return qret;
     }
 
     /* update current position in the graphics state */
