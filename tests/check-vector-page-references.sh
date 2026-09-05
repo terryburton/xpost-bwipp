@@ -36,6 +36,12 @@ set -u
 xpost=${1:?usage: check-vector-page-references.sh <xpost binary>}
 case $xpost in /*) ;; *) xpost=$(pwd)/$xpost ;; esac
 . "$(dirname "$0")/guard-paths.sh"
+# The page each check is read off shows text, because a page's fonts are
+# one of the things named here: a build with no face library cannot make
+# that page and says so rather than reading four checks off a page that
+# was never written.
+. "$(dirname "$0")/verdict.sh"
+skip_if_faceless "$xpost" "the page these checks are read off shows text"
 guard_workdir
 fail=0
 
@@ -209,7 +215,21 @@ showpage
 EOF
 ( cd "$work" && "$xpost" -q -d pdfwrite -o order.pdf order.ps </dev/null >/dev/null 2>&1 )     || { echo "FAIL: the ordering run errored"; fail=1; }
 o=$work/order.pdf
-if [ -s "$o" ]; then
+# Whether this build wrote its text as a run at all. A face the writer
+# cannot name is drawn instead, a glyph at a time, and there is then no
+# run for the three readings below to find -- which is a property of the
+# faces this host resolves and not of the ordering they hold. Read off
+# the file rather than assumed, so a build that names its faces and puts
+# the run in the wrong place still fails: what is asked is whether ANY
+# run was written, and the readings ask where THIS one went.
+runs=0
+[ -s "$o" ] && runs=$( grep -ac ') Tj' "$o" )
+if [ -s "$o" ] && [ "${runs:-0}" -eq 0 ]; then
+    echo "NOTE the ordering page carries no text run: the face it asked for"
+    echo "     is one this build draws rather than names, so where a run"
+    echo "     lands in the stream is not a question this host can be"
+    echo "     asked. The three readings that need one are not made."
+elif [ -s "$o" ]; then
     # the page's own stream: the run set in black must be written before
     # the colour of the box that follows it
     pos_text=$( grep -aob '(before) Tj' "$o" | sed 1q | cut -d: -f1 )

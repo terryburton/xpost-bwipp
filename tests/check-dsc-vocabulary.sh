@@ -23,6 +23,13 @@ guard_require_srcroot "$src"
 reg=$src/tests/dsc-vocabulary
 [ -f "$reg" ] || { echo "check-dsc-vocabulary: no register at $reg"; exit 1; }
 
+# The workload draws text, because a drawn letter filed as a description
+# and called wherever it falls is one of the routes into the vocabulary
+# below: a build with no face library cannot make that page and says so
+# rather than reading a register off a page that was never written.
+. "$(dirname "$0")/verdict.sh"
+skip_if_faceless "$xp" "the workload these operators are read off draws text"
+
 guard_workdir
 fail=0
 
