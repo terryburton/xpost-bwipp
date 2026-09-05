@@ -222,21 +222,30 @@ o=$work/order.pdf
 # the file rather than assumed, so a build that names its faces and puts
 # the run in the wrong place still fails: what is asked is whether ANY
 # run was written, and the readings ask where THIS one went.
-runs=0
-[ -s "$o" ] && runs=$( grep -ac ') Tj' "$o" )
-if [ -s "$o" ] && [ "${runs:-0}" -eq 0 ]; then
-    echo "NOTE the ordering page carries no text run: the face it asked for"
-    echo "     is one this build draws rather than names, so where a run"
-    echo "     lands in the stream is not a question this host can be"
-    echo "     asked. The three readings that need one are not made."
+# Where the text was shown, whatever it was spelled as. What the reading
+# below holds is the ORDER a run is written in, and that is the same claim
+# however the writer encoded the string: as a literal, as hex, or split
+# across several operators. Asking for one spelling made the reading a
+# question about the encoding as well, which is not what it is for.
+#
+# A face the writer cannot name is drawn a glyph at a time instead, and
+# then there is no run at all -- a property of the faces a host resolves
+# and not of the ordering they hold. So the absence of every text-showing
+# operator is the one absence that is not a failure, and it is reported
+# with what the file did contain, so a host that writes text some third
+# way says so rather than being guessed at.
+showops() { grep -aobE '(\)|\]) ?T[jJ]' "$1"; }
+if [ -s "$o" ] && [ -z "$( showops "$o" | sed 1q )" ]; then
+    echo "NOTE the ordering page carries no text-showing operator: the face"
+    echo "     it asked for is one this build draws rather than names, so"
+    echo "     where a run lands in the stream is not a question this host"
+    echo "     can be asked. The readings that need one are not made."
 elif [ -s "$o" ]; then
     # the page's own stream: the run set in black must be written before
     # the colour of the box that follows it
-    pos_text=$( grep -aob '(before) Tj' "$o" | sed 1q | cut -d: -f1 )
-    pos_red=$(  grep -aob '1 0 0 rg'    "$o" | sed 1q | cut -d: -f1 )
-    if [ -z "$pos_text" ]; then
-        echo "FAIL: the ordering page shows no text, so it tests nothing"; fail=1
-    elif [ -z "$pos_red" ]; then
+    pos_text=$( showops "$o" | sed 1q | cut -d: -f1 )
+    pos_red=$(  grep -aob '1 0 0 rg' "$o" | sed 1q | cut -d: -f1 )
+    if [ -z "$pos_red" ]; then
         echo "FAIL: the ordering page states no colour after its text, so the"
         echo "      order this holds is not being reached"; fail=1
     elif [ "$pos_text" -gt "$pos_red" ]; then
@@ -244,10 +253,16 @@ elif [ -s "$o" ]; then
         echo "      after it, so the text is painted in that colour"
         fail=1
     fi
-    # the cell's glyphs belong to the cell, and to nothing else
-    cell=$( grep -ac 'incell' "$o" )
-    [ "$cell" -ge 1 ] || { echo "FAIL: the pattern cell's text is nowhere in the file"
-                           fail=1; }
+    # the cell's glyphs belong to the cell, and to nothing else. Counted as
+    # text-showing operators rather than as the string the program passed,
+    # for the same reason as above: the claim is where the glyphs went.
+    cell=$( showops "$o" | grep -c . )
+    [ "$cell" -ge 2 ] || {
+        echo "FAIL: the page and its cell show text between them and the file"
+        echo "      carries $cell text-showing operator(s), so one of the two"
+        echo "      was not written. What the file does carry:"
+        showops "$o" | sed 1q | sed 's/^/      /'
+        fail=1; }
     # ... and they belong to the CELL, which is the stream that follows
     # the pattern's own dictionary. A run still open when the capture
     # ends is written wherever the content next goes, which is the page
@@ -257,7 +272,7 @@ elif [ -s "$o" ]; then
     # page finds nothing and a check written that way passes on
     # everything.
     incell=$( awk '/\/PatternType/{p=1} p&&/stream$/{s=1;next} s&&/endstream/{exit} s' "$o" \
-              | grep -c 'incell' )
+              | grep -acE '(\)|\]) ?T[jJ]' )
     [ "${incell:-0}" -ge 1 ] || {
         echo "FAIL: the pattern cell's own glyphs are not in the cell. A run"
         echo "      still open when the capture ended is written into the"
