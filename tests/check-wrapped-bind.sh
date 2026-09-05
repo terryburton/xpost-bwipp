@@ -85,11 +85,21 @@ cat > "$work/probe.ps" <<'PSEOF'
   dup .privatedict /.wrappedprocs get exch get exch 24 exch walk } forall
 (promoted ) print n 20 string cvs print (\n) print
 
+% The second population is every procedure body a program reaches through
+% the dictionaries it is handed: systemdict, which is the language's, and
+% statusdict, which is the product's. The page-size and tray conveniences
+% live in the second of those, so a walk of the first alone reports on the
+% language surface and calls it the whole of what a program can reach.
 /m 0 def
-[ systemdict { pop } forall ]
-{ dup systemdict exch get
-  dup xcheck 1 index type /arraytype eq 2 index type /packedarraytype eq or and
-  { /m m 1 add store exch 24 exch walk }{ pop pop } ifelse } forall
+/pop2 {  % dict  .  -
+    /w.src exch def
+    [ w.src { pop } forall ]
+    { dup w.src exch get
+      dup xcheck 1 index type /arraytype eq 2 index type /packedarraytype eq or and
+      { /m m 1 add store exch 24 exch walk }{ pop pop } ifelse } forall
+} def
+systemdict pop2
+statusdict pop2
 (unpromoted ) print m 20 string cvs print (\n) print
 PSEOF
 
@@ -106,7 +116,8 @@ fi
 # the first alone, which is the state this replaced.
 m=$(sed -n 's|^unpromoted ||p' "$work/out" | head -1)
 if [ -z "${m:-}" ] || [ "$m" -lt 10 ]; then
-    echo "FAILURES: the interpreter reported ${m:-no} unpromoted bodies in systemdict; the walk is unusable"
+    echo "FAILURES: the interpreter reported ${m:-no} unpromoted bodies in the"
+    echo "      dictionaries a program is handed; the walk is unusable"
     exit 1
 fi
 

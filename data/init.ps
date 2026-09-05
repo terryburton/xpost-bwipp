@@ -494,8 +494,24 @@ setglobal
 
 %
 %  The page-size convenience operators of the printer products, which
-%  driver prologs invoke from their PPD feature blocks.
+%  driver prologs invoke from their PPD feature blocks, and beside each
+%  medium the tray operator for it. A feature block invokes either, and
+%  on a device with no trays to choose between, selecting the tray a
+%  medium is loaded in can only mean selecting that medium.
 %
+%  In statusdict, which is where the products keep them and where a
+%  prolog looks: `statusdict begin ... end` around the call, or
+%  `statusdict /letter known` to ask first. PLRM says of that dictionary
+%  that its contents are product-dependent, vary from product to product
+%  and from version to version, are not described there at all, and that
+%  naming any of them impairs a program's portability. So a prolog
+%  probes before it calls, and these are not names the language offers.
+%
+%  A tray for each medium and for no imageable area: lettersmall and
+%  a4small name a smaller printable region on the same sheet, and there
+%  is no tray that holds one of those.
+%
+userdict /statusdict get begin
 <<
     /letter      [ 612  792]
     /lettersmall [ 612  792]
@@ -509,10 +525,22 @@ setglobal
     /a5          [ 420  595]
     /b4          [ 728 1032]
     /b5          [ 516  729]
+
+    /lettertray  [ 612  792]
+    /notetray    [ 612  792]
+    /legaltray   [ 612 1008]
+    /ledgertray  [1224  792]
+    /11x17tray   [ 792 1224]
+    /a3tray      [ 842 1191]
+    /a4tray      [ 595  842]
+    /a5tray      [ 420  595]
+    /b4tray      [ 728 1032]
+    /b5tray      [ 516  729]
 >> {
     1 dict dup /PageSize 4 -1 roll put
     /setpagedevice cvx 2 array astore cvx def
 } forall
+end
 
 %
 %  The job server's dictionary. exitserver ends the encapsulated job and

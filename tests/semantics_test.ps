@@ -1002,15 +1002,34 @@ currentpagedevice /HWResolution known not
     (a device switch reverts unstated parameters to defaults) assert
 
 % --- the page-size convenience operators of the printer products ---
+%
+% In statusdict, where the products keep them and where a driver prolog
+% looks for them, so the calls below open it as a prolog does. A tray
+% operator beside each medium answers the same way: on a device with no
+% trays to choose between, the tray a medium is loaded in can only mean
+% that medium.
+statusdict begin
 a4 currentpagedevice /PageSize get
 dup 0 get 595 eq exch 1 get 842 eq and
     (a4 requests the a4 page) assert
+a4tray currentpagedevice /PageSize get
+dup 0 get 595 eq exch 1 get 842 eq and
+    (a4tray requests the a4 page) assert
+ledgertray currentpagedevice /PageSize get
+dup 0 get 1224 eq exch 1 get 792 eq and
+    (ledgertray requests the ledger page) assert
 legal currentpagedevice /PageSize get 1 get 1008 eq
     (legal requests the legal page) assert
 letter currentpagedevice /PageSize get 0 get 612 eq
     (letter requests the letter page) assert
 b4 currentpagedevice /PageSize get 0 get 728 eq
     (b4 measures 728 points across) assert
+end
+% and nowhere else: the language does not offer them, which is what
+% keeps a program that uses one saying so
+systemdict /letter known not (letter is not a language name) assert
+statusdict /letter known (letter is a statusdict name) assert
+statusdict /ledgertray known (ledgertray is a statusdict name) assert
 
 % --- names carry every byte of their string, embedded nuls included
 % (PLRM cvn: a name lexically the same as the string) ---

@@ -19,20 +19,6 @@
 # one that runs a procedure the program supplied, and a name that is inert
 # in a shipped run is different again.
 
-# --- the page sizes (PLRM Appendix; a program calls them to set a size)
-11x17
-a3
-a4
-a4small
-a5
-b4
-b5
-ledger
-legal
-letter
-lettersmall
-note
-
 # --- separation and custom colour (Adobe separation convention). Each
 # --- takes program data and answers; none runs a program's procedure.
 customcolorimage

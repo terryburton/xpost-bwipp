@@ -56,30 +56,6 @@
 #           happens to land close enough that no ink is displaced,
 #           which is luck and not agreement.
 #
-# gb_10-02-listing p1, gb_10-04-listing p1 -- neither page is compared
-#           at all, because the two engines did not draw the same sheet
-#           of paper. Both listings ask for ledger paper the way a
-#           document of their period does, by testing whether the
-#           product dictionary defines a tray for it and calling the
-#           tray operator if it does; the alternative branch scales a
-#           letter sheet down for proofing instead. The dictionary they
-#           test is a product's, not the language's -- PLRM 8.2 gives
-#           statusdict no contents of its own and leaves what is in it
-#           to the product -- so the two engines take opposite branches
-#           by design, and one renders 1224 by 792 while the other
-#           renders 612 by 792. The evaluator reports MEDIA for these
-#           rather than a difference, because a count of differing
-#           pixels reads only the overlap of two such pages and would
-#           report gb_10-04 -- which draws no marks at all, being a
-#           paper-size selection and a bare showpage -- as a perfect
-#           match between two different sheets.
-#
-#           These go when the corpus can say that a program selects its
-#           medium outside the language, which is a thing to declare
-#           about the program rather than about the difference it
-#           produces: the pages are not comparable, and that is true
-#           before either engine is run.
-#
 # ht_type16_file p1 -- a smooth shading screened through a sixteen-bit
 #           threshold array, and the difference is three rows of the
 #           screen's dots out of a page of them: twenty-three dots each
@@ -116,7 +92,5 @@
 gb_07-04-listing p1
 gb_07-05-listing p1
 gb_08-02-listing p1
-gb_10-02-listing p1
-gb_10-04-listing p1
 ht_type16_file p1
 sh_radial_sampled p1
