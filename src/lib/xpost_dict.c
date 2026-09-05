@@ -622,6 +622,58 @@ Xpost_Object clean_key (Xpost_Context *ctx,
     return k;
 }
 
+/* Forget what the names in this dictionary resolve to.
+
+   Pushing a dictionary onto the dictionary stack, or taking one off,
+   changes what the names IN IT resolve to; every other name is answered
+   by the same walk over the same dictionaries it was answered by before.
+   So the answers for its own names are given up and the rest are kept.
+
+   That is the whole of what makes the remembering worth anything.
+   MEASURED on a page of a mathematical text: a dictionary is pushed and
+   popped nine hundred and twenty six thousand times, against five
+   hundred stores into one, so giving up every answer at a push threw
+   away ninety-nine point nine per cent of what was remembered and the
+   record answered one lookup in forty.
+
+   A dictionary large enough that walking it costs more than the answers
+   are worth gives up everything instead, which is what this always did.
+   The machinery's own dictionaries hold a handful of names; userdict and
+   systemdict hold hundreds and are pushed once. */
+void xpost_dict_forget_names(Xpost_Context *ctx, Xpost_Object d)
+{
+    Xpost_Memory_File *mem = xpost_context_select_memory(ctx, d);
+    dichead *dp;
+    dicrec *tp;
+    unsigned int sz;
+    unsigned int i;
+
+    dp = (dichead *)xpost_ent_ptr_checked(mem, xpost_object_get_ent(d));
+    if (!dp)
+    {
+        ++ctx->namebind_gen;
+        return;
+    }
+    sz = DICTABN(dp->sz);
+    if (sz > 64)
+    {
+        ++ctx->namebind_gen;
+        return;
+    }
+    tp = xpost_dict_table_of(dp);
+    for (i = 0; i < sz; i++)
+    {
+        unsigned int key;
+
+        if (xpost_object_get_type(tp[i].key) != nametype)
+            continue;
+        key = ((unsigned int)tp[i].key.mark_.padw << 1) |
+              ((tp[i].key.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK) ? 1 : 0);
+        if (key < ctx->namecache_size)
+            ctx->namecache_gen[key] = ctx->namebind_gen - 1;
+    }
+}
+
 /* keys are overwhelmingly names: equal iff same bank and name index.
    decided inline to spare a function call per probe */
 static inline int

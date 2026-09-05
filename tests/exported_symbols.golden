@@ -151,6 +151,7 @@ xpost_dict_cons_memory
 xpost_dict_convert_extended_to_double
 xpost_dict_convert_extended_to_number
 xpost_dict_dump_memory
+xpost_dict_forget_names
 xpost_dict_get
 xpost_dict_get_access
 xpost_dict_get_memory

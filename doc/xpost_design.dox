@@ -780,12 +780,36 @@ programs    xpost              the command-line interpreter
  * rare types.
  *
  * Name resolution goes through a per-context cache keyed by name and
- * bank, validated by a generation counter that every operation
- * changing what a name can resolve to bumps: dictionary puts and
- * undefs, begin and end, restore, and clearing the dictionary
- * stack. A hit costs an array read and a generation compare; a miss
- * walks the dictionary stack segments topmost-first and stamps the
- * answer. A @c def into the topmost dictionary rewrites the one
+ * bank, validated by a generation counter that most operations
+ * changing what a name can resolve to bump: dictionary puts and
+ * undefs, a change to a dictionary's access, restore, clearing the
+ * dictionary stack, a collection, the job boundary and the callout
+ * bracket. A hit costs an array read, a generation compare and a test
+ * that the generation is not zero; a miss walks the dictionary stack
+ * segments topmost-first and stamps the answer.
+ *
+ * Pushing a dictionary onto the dictionary stack, or taking one off,
+ * does not bump. It changes what the names @em in that dictionary
+ * resolve to and no others, so @c begin and @c end give up the
+ * answers for its own names and leave the rest standing
+ * (@c xpost_dict_forget_names). That is what makes the cache worth
+ * having: a page of a mathematical text pushes and pops a dictionary
+ * nine hundred and twenty six thousand times against five hundred
+ * stores into one, so bumping at a push threw away all but a
+ * thousandth of what was remembered and the cache answered one lookup
+ * in forty. Giving up only the dictionary's own names, it answers one
+ * in four writing SVG and two in three painting pixels. A dictionary
+ * too large to walk, one whose storage cannot be reached, and a
+ * non-dictionary on the stack all bump instead; the machinery's
+ * dictionaries hold a handful of names, and userdict and systemdict
+ * hold hundreds and go on once.
+ *
+ * Generation zero is never an answer. The table is grown zeroed, so an
+ * entry that was never written carries generation zero, and a context
+ * begins there too; while every store bumped at once that state did
+ * not last long enough to be read, but with pushes no longer bumping
+ * it would be, and a name would resolve to the nothing a zeroed entry
+ * holds. A @c def into the topmost dictionary rewrites the one
  * cache entry in place instead of invalidating the world, since its
  * effect on the visible binding is deterministic. When a collection
  * of one bank runs, only entries whose value lives in the collected

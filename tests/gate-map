@@ -461,6 +461,7 @@ language test isolation
 language test lockdown
 language test loop-exit
 language test name-*
+language test name-rebind
 language test namespace
 language test op-*
 language test opsigs-writer

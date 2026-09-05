@@ -89,6 +89,15 @@ xpost_dict_table_of(dichead *dp)
 #define DICTABN(n) (2*(n)+1)
 
 /**
+ * @brief Forget what the names in this dictionary resolve to.
+ *
+ * For a dictionary joining or leaving the dictionary stack: what changes
+ * is the answer for the names it holds, and no other. A dictionary too
+ * large to walk gives up every answer instead.
+ */
+void xpost_dict_forget_names(Xpost_Context *ctx, Xpost_Object d);
+
+/**
  * @brief yields the size in bytes of the table for a dict of size n
  */
 #define DICTABSZ(n) (DICTABN(n) * sizeof(dicrec))

@@ -4537,6 +4537,22 @@ test('stream-exec',
 # raise invalidaccess (or the access operators typecheck) accordingly, across
 # arrays, strings and dictionaries. Standard PostScript that prints SUCCESS on
 # a conforming interpreter too, so it is a conformance test rather than an xpost tautology.
+# What a name resolves to is what a walk of the dictionary stack answers,
+# and the answer is remembered against a generation so that a page setting
+# the same names over and over does not walk for each of them. The
+# remembering is sound only while nothing has changed what the walk would
+# say, and every way that can change is a way a page can carry the wrong
+# value with no error raised and no mark out of place -- so only a
+# comparison can see it. This drives them: a definition changed, a
+# dictionary pushed over one, a write while a dictionary is on the stack,
+# a write while it is OFF the stack and then pushed, an undef, and a store.
+# Standard PostScript that prints SUCCESS on a conforming interpreter.
+test('name-rebind',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/name_rebind_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 test('access',
   find_program('tests/run-ps-test.sh'),
   args: [ xpost_exe, files('tests/access_test.ps') ],

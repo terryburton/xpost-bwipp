@@ -160,7 +160,9 @@ int xpost_op_dict_begin(Xpost_Context *ctx,
     if (!xpost_object_is_readable(ctx, D))
         return invalidaccess;
 
-    ++ctx->namebind_gen; /* visibility changes */
+    /* what this dictionary holds is answered from it now; every other
+       name is answered by the walk it was answered by before */
+    xpost_dict_forget_names(ctx, D);
 
     if (!xpost_stack_push(ctx->lo, ctx->ds, D))
         return dictstackoverflow;
@@ -172,10 +174,18 @@ int xpost_op_dict_begin(Xpost_Context *ctx,
 static
 int xpost_op_end(Xpost_Context *ctx)
 {
-    ++ctx->namebind_gen;
-
     if (xpost_stack_count(ctx->lo, ctx->ds) <= 3)
         return dictstackunderflow;
+    {
+        /* the dictionary leaving the stack: its names are answered from
+           wherever they are answered next, and no other name moves */
+        Xpost_Object D = xpost_stack_topdown_fetch(ctx->lo, ctx->ds, 0);
+
+        if (xpost_object_get_type(D) == dicttype)
+            xpost_dict_forget_names(ctx, D);
+        else
+            ++ctx->namebind_gen;
+    }
     (void)xpost_stack_pop(ctx->lo, ctx->ds);
     return 0;
 }

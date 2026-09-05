@@ -483,7 +483,11 @@ int evalload(Xpost_Context *ctx, Xpost_Object n)
         unsigned int key = ((unsigned int)n.mark_.padw << 1) |
             ((n.mark_.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK) ? 1 : 0);
 
-        if (key < ctx->namecache_size &&
+        /* generation zero is never an answer: the table is grown zeroed,
+           so an entry that was never written carries it. That mattered
+           little while every store threw the generation forward; it
+           matters now that a push gives up only its own names. */
+        if (key < ctx->namecache_size && ctx->namebind_gen != 0 &&
             ctx->namecache_gen[key] == ctx->namebind_gen)
         {
             Xpost_Object x = ctx->namecache_val[key];
@@ -1357,7 +1361,7 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
                 /* resolve via the name cache without leaving the loop */
                 unsigned int key = ((unsigned int)b.mark_.padw << 1) |
                     ((b.mark_.tag & XPOST_OBJECT_TAG_DATA_FLAG_BANK) ? 1 : 0);
-                if (key < ctx->namecache_size &&
+                if (key < ctx->namecache_size && ctx->namebind_gen != 0 &&
                     ctx->namecache_gen[key] == ctx->namebind_gen)
                 {
                     Xpost_Object x = ctx->namecache_val[key];

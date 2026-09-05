@@ -1,0 +1,82 @@
+% A name resolves to what the dictionary stack says it resolves to, now.
+%
+% What a name resolves to is remembered against a generation, so that a
+% page setting the same names over and over does not walk the dictionary
+% stack for each of them. The remembering is only sound while nothing has
+% changed what the walk would answer, and this drives the ways it can.
+%
+% Each case defines a name, reads it, changes what it should resolve to,
+% and reads it again. A reading that came from a remembered answer rather
+% than from the stack shows here as the OLD value, and nowhere else: no
+% error is raised and the page carries no mark, so only a comparison can
+% see it.
+
+% The count is kept in userdict by name rather than defined, because
+% these cases run with dictionaries of their own pushed: a def would
+% land the count in whichever one is current and the tally would be
+% read back from an empty userdict as zero.
+userdict /failures 0 put
+/check { exch { pop }{ (FAIL: ) print print (\n) print
+                       userdict /failures userdict /failures get 1 add put }
+         ifelse } bind def
+
+% --- the value under a name changes in the dictionary it was found in ---
+/A 1 def
+A 1 eq (a name reads what was defined) check
+/A 2 def
+A 2 eq (and reads the new value when it is defined again) check
+
+% --- a dictionary is pushed that redefines it -------------------------
+/D1 3 dict def
+D1 /A 3 put
+D1 begin
+A 3 eq (a dictionary pushed over it answers instead) check
+end
+A 2 eq (and the one beneath answers once it is popped) check
+
+% --- a dictionary is written to WHILE it is on the stack --------------
+/D2 3 dict def
+D2 begin
+/B 10 def
+B 10 eq (a name defined in the current dictionary reads) check
+D2 /B 11 put
+B 11 eq (and reads what a put into that dictionary left) check
+end
+
+% --- a dictionary is written to while it is NOT on the stack, and then
+%     pushed. Nothing the walk answered before it was pushed can stand.
+/D3 3 dict def
+D3 /C 20 put
+/C 99 def
+C 99 eq (a name reads the definition on the stack) check
+D3 begin
+C 20 eq (and reads the pushed dictionary's, which was written off it) check
+D3 /C 21 put
+C 21 eq (and reads a further put into it while it is on the stack) check
+end
+C 99 eq (and the outer one again once it is popped) check
+
+% --- undef removes a binding ------------------------------------------
+/D4 3 dict def
+D4 /E 30 put
+D4 begin
+E 30 eq (a name reads the pushed dictionary's binding) check
+D4 /E undef
+end
+/E 31 def
+E 31 eq (and reads elsewhere once that binding is gone) check
+
+% --- store writes where the name is already defined --------------------
+/F 40 def
+/D5 3 dict def
+D5 begin
+/F 41 store
+F 41 eq (store writes where the name was found) check
+end
+F 41 eq (and that is the outer definition it found) check
+
+userdict /failures get 0 eq
+    { (SUCCESS\n) print }
+    { userdict /failures get =print ( failures\n) print } ifelse
+flush
+quit

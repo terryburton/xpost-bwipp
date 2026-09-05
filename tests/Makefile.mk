@@ -409,6 +409,7 @@ tests/name_intern_test.ps \
 tests/dict_string_key_intern_test.ps \
 tests/name_length_test.c \
 tests/name_nul_test.ps \
+tests/name_rebind_test.ps \
 tests/namespace_test.ps \
 tests/narrow_cursors.golden \
 tests/nographics_test.ps \
