@@ -61,7 +61,10 @@
 #  include <malloc/malloc.h>  /* malloc_zone_pressure_relief */
 # endif
 # ifdef __GLIBC__
-#  include <malloc.h>         /* malloc_trim */
+#  include <malloc.h>         /* malloc_trim, mallinfo2 */
+#  if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 33)
+#   define HAVE_MALLINFO2 1
+#  endif
 # endif
 #endif
 
@@ -103,6 +106,84 @@ static void release_allocator_caches(void)
     malloc_zone_pressure_relief(NULL, 0);
 #elif defined(__GLIBC__)
     malloc_trim(0);
+#endif
+}
+
+/* What the malloc heap holds now: the bytes in it that are in use, and the
+   number of blocks they are in. Zero where the platform does not say.
+
+   Read beside the resident size because the two answer different questions
+   and only the pair says where a growth is. Resident size is every page the
+   process holds, whatever took them; the heap figures are what the
+   allocator has handed out and not been given back. A growth in both is
+   memory allocated and not freed, and the block count then says whether it
+   is many small allocations or few large ones. A growth in the resident
+   size while the heap figures stand still is not in the malloc heap at all,
+   which sends the hunt to mapped storage instead -- the arenas, a
+   reservation, a library's own mappings -- and away from a missing free.
+
+   The block count is the sharper of the two. It is a count of live
+   allocations rather than a quantity of memory, so it does not move when an
+   allocator takes room for itself and it cannot be masked by one that
+   reuses what it holds: a structure that keeps one more allocation per
+   cycle shows as one more block per cycle, exactly, whatever the sizes
+   involved. */
+static void heap_census(long *kib, long *blocks)
+{
+    *kib = 0;
+    *blocks = 0;
+#if defined(__APPLE__)
+    {
+        malloc_statistics_t t;
+
+        /* every zone, which is what the interpreter's allocations are
+           spread over rather than any one of them */
+        malloc_zone_statistics(NULL, &t);
+        *kib = (long)(t.size_in_use / 1024);
+        *blocks = (long)t.blocks_in_use;
+    }
+#elif defined(HAVE_MALLINFO2)
+    {
+        struct mallinfo2 mi = mallinfo2();
+
+        /* glibc reports the bytes in use but not how many blocks they are
+           in, so the count is left unanswered rather than guessed at */
+        *kib = (long)(mi.uordblks / 1024);
+    }
+#endif
+}
+
+/* What the host charges this process for, in KiB, where it offers a figure
+   separate from the resident size. Zero everywhere else.
+
+   The resident size counts every page the process has resident, including
+   ones that are file-backed, shared, or clean and reclaimable at any
+   moment. A page of a mapped file that has been touched is resident and
+   costs the process nothing it cannot be relieved of. Darwin reports a
+   second figure that leaves those out -- what the host would charge if it
+   had to -- and the two answer different questions.
+
+   It is read and printed rather than judged on, because which of the two a
+   check like this should hold to is a decision and not a measurement, and
+   the measurement has to come first. A resident size that climbs while
+   this stands still is pages the process holds and is not being charged
+   for, which is not the retention this check exists to catch; the two
+   climbing together is. Page size is what makes the distinction worth
+   drawing here: where a host maps in a larger unit, the same touched file
+   costs several times as much resident size and the same behaviour reads
+   differently. */
+static long footprint_kib(void)
+{
+#if defined(__APPLE__) && defined(TASK_VM_INFO)
+    task_vm_info_data_t vm;
+    mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+
+    if (task_info(mach_task_self(), TASK_VM_INFO,
+                  (task_info_t)&vm, &count) != KERN_SUCCESS)
+        return 0;
+    return (long)(vm.phys_footprint / 1024);
+#else
+    return 0;
 #endif
 }
 
@@ -155,6 +236,9 @@ int main(void)
     long grown = 0;
     long read_at[CYCLES];   /* what each cycle left held, for the shape */
     long held_live[CYCLES]; /* and what it held with its context still up */
+    long heap_at[CYCLES];   /* and what the malloc heap held, with how many */
+    long heap_blk[CYCLES];  /* blocks it was in, read at the same moments */
+    long foot_at[CYCLES];   /* and what the host charged, where it says */
     int done = 0;
     int i;
 
@@ -209,6 +293,8 @@ int main(void)
             settled = resident_kib();
         grown = resident_kib();
         read_at[i] = grown;
+        heap_census(&heap_at[i], &heap_blk[i]);
+        foot_at[i] = footprint_kib();
         done = i + 1;
     }
 
@@ -243,6 +329,19 @@ int main(void)
         printf("one context costs %ld KiB; over the last %d cycles of %d "
                "the middle step is %ld KiB and the total %ld\n", unit,
                CYCLES - 1 - MEASURED_FROM, CYCLES, middle, grown - settled);
+        /* Printed by a run that passes as well as one that fails, so that
+           a host reporting nothing is told apart from a host reporting no
+           growth. What it held after the first cycle is the control: zero
+           there is a platform that does not answer, and every heap reading
+           below is then empty rather than flat. */
+        printf("the malloc heap held %ld KiB in %ld blocks after the first"
+               " cycle and moved %ld KiB and %ld blocks over the measured"
+               " ones\n", heap_at[0], heap_blk[0],
+               heap_at[done - 1] - heap_at[MEASURED_FROM],
+               heap_blk[done - 1] - heap_blk[MEASURED_FROM]);
+        printf("the host charged %ld KiB after the first cycle and %ld more"
+               " over the measured ones\n", foot_at[0],
+               foot_at[done - 1] - foot_at[MEASURED_FROM]);
         /* The numbers go in the complaint, not only in the line above it.
            What a harness keeps of a failing run is the lines that say they
            are failures, so a measurement printed beside the verdict is a
@@ -271,6 +370,25 @@ int main(void)
             printf("so each context gave back, KiB:\n ");
             for (c = 0; c < done; c++)
                 printf(" %ld", held_live[c] - read_at[c]);
+            printf("\n");
+            /* Where the growth is, which the resident size alone cannot
+               say. These two moving with the resident size is memory
+               allocated and never freed; these standing still while it
+               climbs is a growth outside the malloc heap. A host that does
+               not report them reads as zeros throughout, which is not the
+               same shape as either and cannot be mistaken for one. */
+            printf("what the malloc heap held, KiB above the empty"
+                   " process:\n ");
+            for (c = 0; c < done; c++)
+                printf(" %ld", heap_at[c] - heap_at[0]);
+            printf("\n");
+            printf("and in how many blocks, above the first cycle:\n ");
+            for (c = 0; c < done; c++)
+                printf(" %ld", heap_blk[c] - heap_blk[0]);
+            printf("\n");
+            printf("and what the host charged, KiB above the first cycle:\n ");
+            for (c = 0; c < done; c++)
+                printf(" %ld", foot_at[c] - foot_at[0]);
             printf("\n");
         }
     }
