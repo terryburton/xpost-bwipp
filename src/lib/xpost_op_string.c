@@ -30,6 +30,7 @@
 
 #include <assert.h>
 #include <stdlib.h> /* NULL */
+#include <string.h> /* memmove, for a copy that is one run of bytes */
 
 #include "xpost.h"
 #include "xpost_memory.h"
@@ -87,6 +88,22 @@ int Nlength(Xpost_Context *ctx,
     return 0;
 }
 
+/* Copy every byte of one string into another.
+
+   A string is a run of bytes in the arena, so the copy is a run of bytes
+   and is done as one. Taken a byte at a time it is not the byte that
+   costs: each write re-asks whether the destination may be written to
+   and each read and write goes through the arena's bounds check, so a
+   string of n bytes pays n access checks and 2n bounds checks for n
+   bytes moved. The checks are the same answer every time round, so they
+   are asked once here and the bytes are moved together.
+
+   memmove and not memcpy: an interval shares the storage of the string
+   it was taken from, so a program may copy a string onto itself or onto
+   a part of itself, and the two runs may overlap either way round.
+
+   A string whose storage cannot be reached answers through the byte
+   path instead, which reports what it always reported. */
 static
 int s_copy(Xpost_Context *ctx,
            Xpost_Object S,
@@ -95,6 +112,26 @@ int s_copy(Xpost_Context *ctx,
     unsigned i;
     int ret;
     integer val;
+    char *sp, *dp;
+
+    if (S.comp_.sz == 0)
+        return 0;
+    if (D.comp_.sz < S.comp_.sz)
+        return rangecheck;
+    /* what the per-byte write checks for every byte. The interpreter
+       builds read-only strings before any program runs, and writes them
+       while it is doing so. */
+    if (!ctx->gl->interpreter_get_initializing())
+        if (!xpost_object_is_writeable(ctx, D))
+            return invalidaccess;
+
+    sp = xpost_string_get_pointer(ctx, S);
+    dp = xpost_string_get_pointer(ctx, D);
+    if (sp && dp)
+    {
+        memmove(dp, sp, S.comp_.sz);
+        return 0;
+    }
 
     for (i = 0; i < S.comp_.sz; i++)
     {
