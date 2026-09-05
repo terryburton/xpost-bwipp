@@ -48,6 +48,9 @@
 
 # ifdef HAVE_FONTCONFIG
 static FcConfig *_xpost_font_fc_config = NULL;
+/* whether the configuration has been asked for yet, which is not the
+   same as whether it loaded: a load that failed is not retried */
+static int _xpost_font_fc_asked = 0;
 # endif
 
 static FT_Library _xpost_font_ft_library = NULL;
@@ -577,6 +580,38 @@ static void strike_clear(void);
 /* Starts the font machinery: the rendering library, and the font
    configuration where the build has one. Called once, and answers
    whether faces can be opened at all. */
+#if defined HAVE_FREETYPE2 && defined HAVE_FONTCONFIG
+/* The font configuration, brought up the first time a face is asked for.
+
+   Bringing it up means reading every configuration file the host
+   declares and building what it knows about every font in every
+   directory they name. That is most of what starting the interpreter
+   costs -- a run that paints no text spends more of its life here than
+   anywhere else -- and a program that names no font has no use for any
+   of it.
+
+   Asked for once. A load that failed is not retried: the answer would be
+   the same, and a program asking repeatedly for a face the host cannot
+   offer would otherwise pay the whole scan for each refusal. */
+static FcConfig *
+_xpost_font_fc(void)
+{
+    if (!_xpost_font_fc_asked)
+    {
+        _xpost_font_fc_asked = 1;
+        if (!FcInit())
+        {
+            XPOST_LOG_ERR("cannot start the font configuration");
+            return NULL;
+        }
+        _xpost_font_fc_config = FcInitLoadConfigAndFonts();
+        if (_xpost_font_fc_config == NULL)
+            XPOST_LOG_ERR("cannot load Fc config and fonts");
+    }
+    return _xpost_font_fc_config;
+}
+#endif
+
 int
 xpost_font_init(void)
 {
@@ -586,23 +621,6 @@ xpost_font_init(void)
     err_ft = FT_Init_FreeType(&_xpost_font_ft_library);
     if (err_ft)
         return 0;
-
-# ifdef HAVE_FONTCONFIG
-    {
-        FcBool err_fc;
-
-        err_fc = FcInit();
-        if (!err_fc)
-        {
-            FT_Done_FreeType(_xpost_font_ft_library);
-            return 0;
-        }
-
-        _xpost_font_fc_config = FcInitLoadConfigAndFonts();
-        if (_xpost_font_fc_config == NULL)
-            XPOST_LOG_ERR("cannot load Fc config and fonts");
-    }
-# endif
 #endif
 
     /* coming up is what asks to be taken down, so a module that starts
@@ -624,8 +642,16 @@ xpost_font_quit(void)
 {
 #ifdef HAVE_FREETYPE2
 # ifdef HAVE_FONTCONFIG
-    FcConfigDestroy(_xpost_font_fc_config);
-    FcFini();
+    /* nothing to give up where nothing was ever asked for: a run that
+       named no font never brought the configuration up */
+    if (_xpost_font_fc_asked)
+    {
+        if (_xpost_font_fc_config)
+            FcConfigDestroy(_xpost_font_fc_config);
+        FcFini();
+    }
+    _xpost_font_fc_config = NULL;
+    _xpost_font_fc_asked = 0;
 # endif
 #endif
 
@@ -745,14 +771,14 @@ _fc_match_name(const char *name, FcPattern **request)
     if (!pattern)
         return NULL;
 
-    if (!FcConfigSubstitute (_xpost_font_fc_config, pattern, FcMatchPattern))
+    if (!FcConfigSubstitute (_xpost_font_fc(), pattern, FcMatchPattern))
     {
         FcPatternDestroy(pattern);
         return NULL;
     }
 
     FcDefaultSubstitute(pattern);
-    match = FcFontMatch(_xpost_font_fc_config, pattern, &result);
+    match = FcFontMatch(_xpost_font_fc(), pattern, &result);
     switch (result) {
         case FcResultMatch: break;
         case FcResultNoMatch: goto destroy_match;
@@ -804,13 +830,13 @@ _fc_match_psname(const char *name, FcPattern **request)
         FcPatternDestroy(pattern);
         return NULL;
     }
-    if (!FcConfigSubstitute(_xpost_font_fc_config, pattern, FcMatchPattern))
+    if (!FcConfigSubstitute(_xpost_font_fc(), pattern, FcMatchPattern))
     {
         FcPatternDestroy(pattern);
         return NULL;
     }
     FcDefaultSubstitute(pattern);
-    match = FcFontMatch(_xpost_font_fc_config, pattern, &result);
+    match = FcFontMatch(_xpost_font_fc(), pattern, &result);
     if (result == FcResultNoMatch || result == FcResultOutOfMemory)
     {
         FcPatternDestroy(pattern);
@@ -1091,13 +1117,13 @@ _fc_generic_face(const char *generic, FcPattern *request)
         if (FcPatternGetInteger(request, shape[i], 0, &v) == FcResultMatch)
             (void)FcPatternAddInteger(plain, shape[i], v);
     }
-    if (!FcConfigSubstitute(_xpost_font_fc_config, plain, FcMatchPattern))
+    if (!FcConfigSubstitute(_xpost_font_fc(), plain, FcMatchPattern))
     {
         FcPatternDestroy(plain);
         return NULL;
     }
     FcDefaultSubstitute(plain);
-    face = FcFontMatch(_xpost_font_fc_config, plain, &result);
+    face = FcFontMatch(_xpost_font_fc(), plain, &result);
     FcPatternDestroy(plain);
     if (result == FcResultNoMatch || result == FcResultOutOfMemory)
     {
@@ -1352,9 +1378,9 @@ xpost_font_host_face_count(void)
 #if defined(HAVE_FREETYPE2) && defined(HAVE_FONTCONFIG)
     FcFontSet *set;
 
-    if (!_xpost_font_fc_config)
+    if (!_xpost_font_fc())
         return 0;
-    set = FcConfigGetFonts(_xpost_font_fc_config, FcSetSystem);
+    set = FcConfigGetFonts(_xpost_font_fc(), FcSetSystem);
     return set ? set->nfont : 0;
 #else
     return 0;
@@ -1370,9 +1396,9 @@ xpost_font_host_face_name(int i)
     FcFontSet *set;
     FcChar8 *psname;
 
-    if (!_xpost_font_fc_config || i < 0)
+    if (!_xpost_font_fc() || i < 0)
         return NULL;
-    set = FcConfigGetFonts(_xpost_font_fc_config, FcSetSystem);
+    set = FcConfigGetFonts(_xpost_font_fc(), FcSetSystem);
     if (!set || i >= set->nfont)
         return NULL;
     if (FcPatternGetString(set->fonts[i], FC_POSTSCRIPT_NAME, 0, &psname)
