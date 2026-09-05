@@ -11,10 +11,10 @@
 #
 # THREE PAGES, AND THEY MUST ALL BE THE SAME BYTES.
 #
-#   painted   the page with the form dictionaries read-only, which is
-#             what a description is recorded in and so withdraws the
-#             holding: every use runs its description at its own
-#             position. It is the page the other two are held to.
+#   painted   the page under a clip no drawing can be held under, which
+#             withdraws the holding: every use runs its description at
+#             its own position. It is the page the other two are held
+#             to.
 #   whole     the same page on the device that holds its raster, with
 #             the descriptions held.
 #   banded    the same page on the device that writes down what it is
@@ -118,7 +118,7 @@ same() {
     fi
 }
 
-render painted          pgm:whole -DRO=1                  || fail=1
+render painted          pgm:whole -DAFRESH=1                  || fail=1
 p_whole=$out
 render whole            pgm:whole                         || fail=1
 w=$out
@@ -126,15 +126,15 @@ render banded           pgm:band  -DBB=$budget            || fail=1
 b=$out
 render moved            pgm:whole -DNUDGE=1               || fail=1
 m=$out
-render painted-moved    pgm:whole -DRO=1 -DNUDGE=1        || fail=1
+render painted-moved    pgm:whole -DAFRESH=1 -DNUDGE=1        || fail=1
 pm=$out
 render scaled           pgm:whole -DSCALE=1.07            || fail=1
 s=$out
-render painted-scaled   pgm:whole -DSCALE=1.07 -DRO=1     || fail=1
+render painted-scaled   pgm:whole -DSCALE=1.07 -DAFRESH=1     || fail=1
 ps=$out
 render spill            pgm:whole -DSPILL=1              || fail=1
 sl=$out
-render painted-spill    pgm:whole -DSPILL=1 -DRO=1       || fail=1
+render painted-spill    pgm:whole -DSPILL=1 -DAFRESH=1       || fail=1
 psl=$out
 
 if [ "$fail" -ne 0 ]; then

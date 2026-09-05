@@ -102,6 +102,7 @@ src/lib/xpost_font.c            _fc_generic_family         outlives string-liter
 # registered as reset below, so the table itself holds nothing a
 # teardown could invalidate.
 src/lib/xpost_op_font.c         _op_font_names             outlives string-literals
+src/lib/xpost_op_dict.c         _op_dict_names             outlives string-literals
 src/lib/xpost_op_param.c        _userparam_vmreclaim       outlives string-literals
 src/lib/xpost_op_param.c        _userparam_vmthreshold     outlives string-literals
 src/lib/xpost_op_param.c        _userparam_maxopstack      outlives string-literals
@@ -244,6 +245,11 @@ src/lib/xpost_op_font.c      name_currmatrix        reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_currpath          reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_device            reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_FormXObject       reset xpost_oper_init_font_ops
+src/lib/xpost_op_dict.c      name_BBox              reset xpost_oper_init_dict_ops
+src/lib/xpost_op_dict.c      name_FormType          reset xpost_oper_init_dict_ops
+src/lib/xpost_op_dict.c      name_Implementation    reset xpost_oper_init_dict_ops
+src/lib/xpost_op_dict.c      name_Matrix            reset xpost_oper_init_dict_ops
+src/lib/xpost_op_dict.c      name_PaintProc         reset xpost_oper_init_dict_ops
 src/lib/xpost_op_font.c      name_dotemunits        reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_dotfacecache      reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_dotgraphicsdict   reset xpost_oper_init_font_ops

@@ -156,9 +156,9 @@ Level 2 operators
  [X] insideness testing (infill, ineofill, instroke, inufill,
      inueofill, inustroke; a user path without a leading setbbox is
      accepted rather than rejected)
- [X] execform (a screening page, an unwritable dictionary, or a page whose
-     format has no construct for a description used more than once, paints
-     afresh rather than reusing what was cached)
+ [X] execform (a screening page, a clip that cuts the form's box, or a
+     page whose format has no construct for a description used more than
+     once, paints afresh rather than reusing what was cached)
  [X] setstrokeadjust, currentstrokeadjust (recorded only)
  [X] shared VM (the global-VM view under other names, not a third bank)
  [X] binary object sequences (the native-real formats carry their reals in

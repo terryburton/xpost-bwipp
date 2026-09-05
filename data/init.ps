@@ -2263,10 +2263,6 @@ setglobal
 /execform [ /dicttype ] {  % formdict  .  -
     dup /FormType 2 copy known { get 1 eq }{ pop pop false } ifelse
     not { /execform cvx /rangecheck signalerror } if
-    dup wcheck
-    not {
-        //.execformdirect exec
-    }{
         % The form's paint procedure is the program's, and runs inside
         % this dictionary: an error out of it is a way out of the body
         % like returning is, so the dictionary comes off either way
@@ -2304,13 +2300,37 @@ setglobal
         % dictionary is what makes that test agree with what the cache
         % actually holds: a restore that takes the entries back takes the
         % remembered number with them.
-        fd /.formid known not {
+        % PLRM 8.2 has execform, on a form's first execution, verify the
+        % dictionary, add an entry keyed Implementation whose value is
+        % private to the interpreter, and then make the dictionary
+        % read-only -- directly to the operand dictionary rather than to
+        % a copy, and succeeding even where the dictionary is already
+        % read-only. .formstamp is that write and carries that
+        % verification; the value it writes is the serial below, which is
+        % what the drawing is filed under. So the entry the specification
+        % asks for and the key this cache needs are the one entry, and a
+        % form sealed before it was ever executed is filed like any other.
+        %
+        % Issuing one, and binding the table it files into. Dropping the
+        % table is part of issuing, since a counter that has started
+        % again below what it has handed out names entries the reissued
+        % numbers will name too, so the table is bound after rather than
+        % before.
+        /fc graphicsdict /.formcache 2 copy known { get }{
+            pop pop 32 dict graphicsdict /.formcache 2 index put
+        } ifelse def
+        /mint {  % -  .  -
             //.internaldict /.newformserial get exec
             graphicsdict /.formlast 2 copy known { get }{ pop pop 0 } ifelse
             1 index le not { //.formcachedrop exec } if
             graphicsdict /.formlast 2 index put
-            fd /.formid 3 -1 roll put
-        } if
+            fd exch //.internaldict /.formstamp get exec
+            fd readonly pop
+            /fc graphicsdict /.formcache 2 copy known { get }{
+                pop pop 32 dict graphicsdict /.formcache 2 index put
+            } ifelse def
+        } def
+        fd /Implementation known not { mint } if
 
         % The key: the form and the linear part of the transformation,
         % written out in full rather than rounded, so two executions
@@ -2344,14 +2364,30 @@ setglobal
         % painted in the colour that was in force when it was first
         % used.
         /cm matrix currentmatrix def
-        /key fd /.formid get 20 string cvs
-        [ cm 0 get cm 1 get cm 2 get cm 3 get ] {
-            40 string cvs
-            exch (:) //.strcat exec exch //.strcat exec
-        } forall def
-        /fc graphicsdict /.formcache 2 copy known { get }{
-            pop pop 32 dict graphicsdict /.formcache 2 index put
-        } ifelse def
+        /keyof {  % -  .  string
+            fd /Implementation get 20 string cvs
+            [ cm 0 get cm 1 get cm 2 get cm 3 get ] {
+                40 string cvs
+                exch (:) //.strcat exec exch //.strcat exec
+            } forall
+        } def
+        /key keyof def
+
+        % Whose entry that is. The number is in the program's own
+        % dictionary and the program may write it: a form arriving with
+        % one this cache issued to another form would otherwise be served
+        % that form's drawing, which is the one failure the serial exists
+        % to make impossible. So every entry records the dictionary it was
+        % made from, and an entry made from another one is not this form's
+        % -- the form is issued a number of its own and files under that,
+        % which costs it a capture and leaves the entry it named alone.
+        %
+        % An entry a restore took back, or one the table gave up, leaves
+        % nothing to be asked: the form files afresh under the number it
+        % carries, which is a number no other form has.
+        fc key known {
+            fc key get dup /owner known { /owner get fd ne }{ pop true } ifelse
+        }{ false } ifelse { mint /key keyof def } if
         fd //.execformbox exec
         /fh exch def /fw exch def /fby exch def /fbx exch def
 
@@ -2409,7 +2445,7 @@ setglobal
                     [ fbx fby fbx fw add fby fh add ] fchunks
                         DEVICE dup /FormXObject get exec
                     /fref exch def
-                    fc key << /formref fref /seq fseq 1 add
+                    fc key << /owner fd /formref fref /seq fseq 1 add
                               /formgen //.xpostsys /.formgen get exec
                               /tx cm 4 get /ty cm 5 get >> put
                 } if
@@ -2556,10 +2592,10 @@ setglobal
                      { /seq exch def }{ pop } ifelse pop } forall
                 /seq seq 1 add def
                 held
-                    { fc key << /drawing cap /seq seq
+                    { fc key << /owner fd /drawing cap /seq seq
                                 /tx cm 4 get /ty cm 5 get >> put }
                     { cap dup /Destroy get exec
-                      fc key << /seq seq >> put }
+                      fc key << /owner fd /seq seq >> put }
                 ifelse
 
                 % And the cache as a whole. MaxFormCache bounds what the
@@ -2616,7 +2652,6 @@ setglobal
         } ifelse
         } ifelse
         } //.xpostsys /.indict get exec
-    } ifelse
 } .defop
 
 %

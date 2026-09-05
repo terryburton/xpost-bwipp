@@ -71,11 +71,10 @@
 %
 % The run varies three things through -D:
 %
-%   RO     make the form dictionaries read-only, which is what the copy
-%          is recorded in and so withdraws it, nothing else about the
-%          run changing. It is how the run reaches a page painted by
-%          running every description at every use -- the page the
-%          comparisons are made against.
+%   AFRESH put the page under a clip no drawing can be held under,
+%          which withdraws the holding and nothing else. It is how the
+%          run reaches a page painted by running every description at
+%          every use -- the page the comparisons are made against.
 %   NUDGE  move one placement a fraction of a pixel. The page must
 %          change, which is what says the comparisons can see a
 %          placement that has moved by less than a pixel.
@@ -86,7 +85,7 @@
 %          declares (PLRM 4.7) and this one does; asked for, it does
 %          not, and the run reports what that costs.
 
-/RO where { pop }{ /RO 0 def } ifelse
+/AFRESH where { pop }{ /AFRESH 0 def } ifelse
 /SCALE where { pop }{ /SCALE 1 def } ifelse
 /NUDGE where { pop }{ /NUDGE 0 def } ifelse
 /BB where { pop }{ /BB 0 def } ifelse
@@ -95,6 +94,27 @@
 /W 400 def
 /H 400 def
 << /PageSize [W H] >> setpagedevice
+
+% Withdraw the holding, and nothing else. A drawing is held only under a
+% clip that is an axis-aligned rectangle in the device's own coordinates
+% -- what reaches a recorder is already cut to the clip, so a clip of any
+% other shape is one a captured drawing could not be placed under. So a
+% square turned forty-five degrees and large enough to hold the whole
+% page withdraws the holding while cutting nothing: every use runs its
+% description where it stands, and the page is the page.
+%
+% Sealing the dictionaries is not this control and cannot be: execform
+% stamps its own entry into the operand dictionary and makes it
+% read-only, and PLRM 8.2 has that succeed whether or not the program
+% got there first.
+AFRESH 0 ne {
+    newpath
+    W 2 div H 2 div 900 sub moveto
+    W 2 div 900 add H 2 div lineto
+    W 2 div H 2 div 900 add lineto
+    W 2 div 900 sub H 2 div lineto
+    closepath clip newpath
+} if
 
 globaldict /pa 0 put
 globaldict /pb 0 put
@@ -109,6 +129,11 @@ globaldict /pl 0 put
 % Use a form, counting the use. Every use in the figure goes through
 % this, so PLACEMENTS is what the page asked for however much of it the
 % interpreter had to paint.
+%
+% Where the run asked for it, the use is handed a copy of the dictionary
+% instead: a dictionary the interpreter has not seen is a form it holds
+% nothing for, and the copy carries the same box, the same
+% transformation and the same description, so the page is the page.
 /place { globaldict /pl globaldict /pl get 1 add put execform } bind def
 
 % The innermost figure. Its marks reach every edge of its box: the
@@ -176,14 +201,6 @@ globaldict /pl 0 put
         gsave 92.7 10.4 translate 0.9 0.9 scale 13 rotate FC place grestore
     }
 >> def
-
-% A read-only form dictionary is painted rather than held, the
-% dictionary being what the description is recorded in.
-RO 0 ne {
-    /FC FC readonly def
-    /FB FB readonly def
-    /FA FA readonly def
-} if
 
 % What a band of this page may cost, where the device holds one. Under
 % the budget the page arrives in several bands, so the figure is played

@@ -3207,7 +3207,9 @@ gsave 8 20 translate FmCached execform grestore
 % a rotated transformation is a different key
 gsave 32 32 translate 30 rotate FmCached execform grestore
 userdict /fm.n get 2 eq (a new transformation captures afresh) assert
-% readonly forms paint afresh every time
+% a form the program sealed is stamped and held like any other: PLRM 8.2
+% has execform add its entry and make the dictionary read-only, and has
+% both succeed even where the dictionary is already read-only
 userdict /fm.m 0 put
 /FmPlain << /FormType 1 /Matrix [1 0 0 1 0 0] /BBox [0 0 8 8]
     /PaintProc { pop
@@ -3216,7 +3218,8 @@ userdict /fm.m 0 put
 erasepage
 FmPlain execform
 FmPlain execform
-userdict /fm.m get 2 eq (an unwritable form paints directly each time) assert
+userdict /fm.m get 1 eq (a form sealed before its first use is held) assert
+FmPlain /Implementation known (and takes the entry execform inserts) assert
 initgraphics
 
 % a font dictionary's entries carry the attributes a program reads:

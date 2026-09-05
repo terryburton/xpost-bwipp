@@ -27,11 +27,11 @@
 #   must execute the description the same few times. A single number
 #   would not say this -- it is the standing still that is the claim.
 #
-#   Its control is the same page on the same route with the form
-#   dictionary read-only, which is what the copy is keyed in and so
-#   withdraws it, nothing else about the run changing. The count must
-#   then follow the placements. Without this, a reading that always
-#   answered two would satisfy the check above by never moving.
+#   Its control is the same page on the same route under a clip no
+#   drawing can be held under, which withdraws the copy and nothing
+#   else about the run. The count must then follow the placements.
+#   Without this, a reading that always answered two would satisfy the
+#   check above by never moving.
 #
 #   The route makes no difference to the page, at whole-numbered
 #   placement: the recorded page and the painted page, byte for byte.
@@ -107,13 +107,13 @@ render band9    pgm:band  -DN=9              || fail=1
 b9=$out
 render band25   pgm:band  -DN=25             || fail=1
 b25=$out
-render direct9  pgm:whole -DN=9  -DRO=1      || fail=1
+render direct9  pgm:whole -DN=9  -DAFRESH=1      || fail=1
 d9=$out
-render direct25 pgm:whole -DN=25 -DRO=1      || fail=1
+render direct25 pgm:whole -DN=25 -DAFRESH=1      || fail=1
 d25=$out
 render fcopy    pgm:whole -DN=25 -DFRAC=1         || fail=1
 fc=$out
-render fdirect  pgm:whole -DN=25 -DFRAC=1 -DRO=1  || fail=1
+render fdirect  pgm:whole -DN=25 -DFRAC=1 -DAFRESH=1  || fail=1
 fd=$out
 render fband    pgm:band  -DN=25 -DFRAC=1         || fail=1
 fb=$out

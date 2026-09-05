@@ -7,9 +7,8 @@
 # register for a family of one looks like effort spent on nothing until
 # the second member arrives, which is exactly when nobody thinks to ask
 # whether the first was ever held to anything. What the register buys
-# now is the entries: six of them, two of which this interpreter accepts
-# and does not read, and neither of those two was written down anywhere
-# before this.
+# now is the entries: six of them, one of which this interpreter accepts
+# and does not read, and that one was written down nowhere before this.
 #
 # ---- what this holds
 #
@@ -88,7 +87,7 @@ form() {            # [entry to omit] -> the dictionary text
     [ "$_omit" = BBox ]      || _d="$_d /BBox [0 0 4 4]"
     [ "$_omit" = Matrix ]    || _d="$_d /Matrix [1 0 0 1 0 0]"
     [ "$_omit" = PaintProc ] || _d="$_d $FORMBODY"
-    [ "$_omit" = UniqueID ]  || _d="$_d /UniqueID 42"
+    [ "$_omit" = XUID ]      || _d="$_d /XUID [1 2 3]"
     [ "$_omit" = Implementation ] || _d="$_d"
     printf '%s >>' "$_d"
 }
@@ -191,6 +190,80 @@ while read -r name need use; do
     fi
 done < "$work/reg.entry"
 
+# ---- what execform leaves behind
+#
+# PLRM 4.7 Table 4.4 has execform insert an Implementation entry, and
+# PLRM 8.2 has it make the dictionary read-only -- to the operand
+# dictionary itself rather than to a copy, and succeeding whether or not
+# the program sealed it first. Both are asked of a dictionary the program
+# sealed beforehand, which is the case that has to work for the register's
+# read-only-form row to mean what it says: a form nothing could stamp
+# could not be filed, and would be painted afresh at every placement.
+stamped=$(run "/fd << /FormType 1 /BBox [0 0 4 4] /Matrix [1 0 0 1 0 0]
+                      $FORMBODY >> def
+               /fd fd readonly def
+               fd execform
+               fd /Implementation known not
+                   { /execform cvx /undefined signalerror } if
+               fd wcheck { /execform cvx /invalidaccess signalerror } if")
+case $stamped in
+    ink\ *) ;;
+    undefined)
+        echo "FAIL: execform left no Implementation entry in the form"
+        echo "      dictionary. PLRM 4.7 Table 4.4 has it insert one, and it"
+        echo "      is what says the dictionary has been an operand before"
+        fail=1 ;;
+    invalidaccess)
+        echo "FAIL: execform left the form dictionary writable. PLRM 8.2 has"
+        echo "      it make the dictionary read-only"
+        fail=1 ;;
+    *)  echo "FAIL: stamping a form dictionary the program had sealed answered"
+        echo "      '$stamped'. PLRM 8.2 has the alterations succeed even"
+        echo "      where the dictionary is already read-only"
+        fail=1 ;;
+esac
+
+# ---- and what it will not take from a program
+#
+# The Implementation entry is in the program's own dictionary, and until
+# execform has seen the dictionary the program can write it. A form
+# arriving with a value naming a serial issued to another form must not be
+# served that form's drawing -- which is the one failure a serial exists to
+# make impossible, and the only one that puts a wrong shape on a page while
+# raising nothing.
+#
+# Read as a page rather than as an error: the second form paints an eight
+# by eight square, the first a four by four, so being served the first
+# one's drawing is four times less ink. The honest run is the positive
+# control -- it is what says the two forms paint differently at all, so a
+# forged run answering the same thing is the forgery failing rather than
+# the probe seeing nothing.
+forge='/fa << /FormType 1 /BBox [0 0 4 4] /Matrix [1 0 0 1 0 0]
+              /PaintProc { pop 0 setgray 0 0 4 4 rectfill } >> def
+       fa execform
+       /fb << /FormType 1 /BBox [0 0 8 8] /Matrix [1 0 0 1 0 0]
+              /PaintProc { pop 0 setgray 0 0 8 8 rectfill } >> def'
+honest=$(run "$forge
+              fb execform")
+stolen=$(run "$forge
+              fa execform")
+forged=$(run "$forge
+              fb /Implementation fa /Implementation get put
+              fb execform")
+if [ "$honest" = "$stolen" ]; then
+    echo "FAIL: the two forms this probe uses paint the same page ($honest),"
+    echo "      so a form served the other's drawing would answer what a"
+    echo "      form painting its own does and the reading below sees"
+    echo "      nothing"
+    fail=1
+elif [ "$forged" != "$honest" ]; then
+    echo "FAIL: a form carrying an Implementation entry the program wrote,"
+    echo "      naming a serial issued to another form, painted '$forged'"
+    echo "      where painting its own drawing is '$honest' and being served"
+    echo "      the other form's is '$stolen'"
+    fail=1
+fi
+
 
 # How many times a form's paint procedure runs for two placements, on a
 # stated device. Once means the drawing was held and replayed; twice
@@ -287,22 +360,15 @@ count caches "$(grep -c . "$work/reg.cache")"
 ans=$(run "<< /FormType 1 /Matrix [1 0 0 1 0 0] $FORMBODY >> execform")
 [ "$ans" = undefined ] && echo missing-required >> "$work/got.diverge"
 
-# the identity a cache files by is not the program's UniqueID: two forms
-# carrying one UniqueID and different drawings paint their own drawings
-a=$(run "<< /FormType 1 /BBox [0 0 4 4] /Matrix [1 0 0 1 0 0] /UniqueID 7
+# the identity a cache files by is not the program's XUID: two forms
+# carrying one XUID and different drawings paint their own drawings
+a=$(run "<< /FormType 1 /BBox [0 0 4 4] /Matrix [1 0 0 1 0 0] /XUID [7]
           /PaintProc { pop 0 setgray 0 0 4 4 rectfill } >> execform
-          << /FormType 1 /BBox [0 0 8 8] /Matrix [1 0 0 1 0 0] /UniqueID 7
+          << /FormType 1 /BBox [0 0 8 8] /Matrix [1 0 0 1 0 0] /XUID [7]
           /PaintProc { pop 0 setgray 0 0 8 8 rectfill } >> execform")
 b=$(run "<< /FormType 1 /BBox [0 0 8 8] /Matrix [1 0 0 1 0 0]
           /PaintProc { pop 0 setgray 0 0 8 8 rectfill } >> execform")
 [ "$a" = "$b" ] && echo identity-not-the-programs >> "$work/got.diverge"
-
-# nothing is written into Implementation
-imp=$(run "/fd << /FormType 1 /BBox [0 0 4 4] /Matrix [1 0 0 1 0 0] $FORMBODY >> def
-           fd execform
-           fd /Implementation known { /yes }{ /no } ifelse
-           /no eq not { /execform cvx /rangecheck signalerror } if")
-case $imp in ink\ *) echo implementation-unwritten >> "$work/got.diverge" ;; esac
 
 # a form on a path-writing device painted once per placement rather than
 # emitted once and referred to

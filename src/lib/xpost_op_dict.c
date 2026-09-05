@@ -811,6 +811,71 @@ int xpost_op_cleardictstack(Xpost_Context *ctx)
     return 0;
 }
 
+/* form value  .formstamp  -
+   Write a form dictionary's Implementation entry, past its access.
+
+   PLRM 8.2 (execform): on the first execution of a form the interpreter
+   adds an entry keyed Implementation, whose value is private to it, and
+   then makes the dictionary read-only -- directly to the operand
+   dictionary rather than to a copy, and succeeding even where the
+   dictionary is already read-only. A dictionary carries its access on
+   its value and not on the reference (PLRM 3.3.2), so there is no
+   writable reference for execform to keep, and the write has to pass
+   the attribute rather than go round it. This is that write.
+
+   What it will write into is held to the form dictionary PLRM 4.7 Table
+   4.4 describes: FormType 1, with BBox, Matrix and PaintProc present.
+   That is the verification execform owes a dictionary before altering
+   it, and it is what keeps this a way to stamp a form rather than a way
+   to write a dictionary of a caller's choosing.
+
+   A required entry that is absent is undefined and not typecheck. The
+   name is one the operator looks up in the dictionary it was given, and
+   a name that is not there is what undefined means; a halftone and a
+   shading answer a missing entry the same way, so it is one behaviour
+   across the three families rather than this one being odd. A wrong
+   FormType is typecheck, which is about the value and not about the
+   access the dictionary carries. */
+static Xpost_Object name_FormType;
+static Xpost_Object name_Implementation;
+static Xpost_Object name_BBox;
+static Xpost_Object name_Matrix;
+static Xpost_Object name_PaintProc;
+
+static struct { Xpost_Object *slot; const char *spelling; } _op_dict_names[] =
+{
+    { &name_FormType,       "FormType" },
+    { &name_Implementation, "Implementation" },
+    { &name_BBox,           "BBox" },
+    { &name_Matrix,         "Matrix" },
+    { &name_PaintProc,      "PaintProc" }
+};
+
+static
+int _formstamp(Xpost_Context *ctx,
+               Xpost_Object D,
+               Xpost_Object V)
+{
+    Xpost_Object need[3];
+    Xpost_Object t;
+    unsigned int i;
+
+    need[0] = name_BBox;
+    need[1] = name_Matrix;
+    need[2] = name_PaintProc;
+
+    t = xpost_dict_get(ctx, D, name_FormType);
+    if (xpost_object_get_type(t) != integertype || t.int_.val != 1)
+        return typecheck;
+    for (i = 0; i < sizeof need / sizeof need[0]; i++)
+    {
+        t = xpost_dict_get(ctx, D, need[i]);
+        if (xpost_object_get_type(t) == invalidtype)
+            return undefined;
+    }
+    return xpost_dict_put_internal(ctx, D, name_Implementation, V);
+}
+
 int xpost_oper_init_dict_ops (Xpost_Context *ctx,
                               Xpost_Object sd)
 {
@@ -819,6 +884,23 @@ int xpost_oper_init_dict_ops (Xpost_Context *ctx,
     int ret;
 
     assert(ctx->gl->base);
+
+    /* The names .formstamp reaches a form dictionary's entries by, taken
+       up once, here: a page built of forms stamps one for every form it
+       places, and a lookup by text there would be part of what the page
+       costs. */
+    {
+        size_t ni;
+
+        for (ni = 0; ni < sizeof(_op_dict_names) / sizeof(*_op_dict_names); ni++)
+        {
+            *_op_dict_names[ni].slot =
+                xpost_name_cons(ctx, _op_dict_names[ni].spelling);
+            if (xpost_object_get_type(*_op_dict_names[ni].slot) == invalidtype)
+                return 0;
+        }
+    }
+
     op = xpost_operator_cons(ctx, "dict", (Xpost_Op_Func)xpost_op_int_dict, 1, integertype);
     INSTALL;
     ret = xpost_dict_put(ctx, sd, xpost_name_cons(ctx, "<<"), mark);
@@ -856,6 +938,8 @@ int xpost_oper_init_dict_ops (Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, "forall", (Xpost_Op_Func)xpost_op_dict_proc_forall, 2, dicttype, proctype);
     INSTALL;
     op = xpost_operator_cons(ctx, ".gstatecopy", (Xpost_Op_Func)_gstatecopy, 2, dicttype, dicttype);
+    INSTALL;
+    op = xpost_operator_cons(ctx, ".formstamp", (Xpost_Op_Func)_formstamp, 2, dicttype, anytype);
     INSTALL;
     op = xpost_operator_cons(ctx, "forall.dict.iterate", (Xpost_Op_Func)xpost_op_dict_forall_iterate, 0);
     op = xpost_operator_cons(ctx, "currentdict", (Xpost_Op_Func)xpost_op_currentdict, 0);

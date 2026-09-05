@@ -44,15 +44,17 @@
 %         drawing is the marks the description made and a placement
 %         carries them, so the page must be the page painted afresh
 %         wherever the placements fall.
-%   RO    make the form dictionary read-only, which takes the copy out
-%         of the picture on a device that would otherwise make one. It
-%         is how the run reaches a direct rendering on the route that
-%         caches, and it is the control for the cache reading: the same
-%         page, the same route, the copy the only thing withdrawn.
+%   AFRESH  put the page under a clip no drawing can be held under,
+%         which takes the copy out of the picture on a device that would
+%         otherwise make one. It is how the run reaches a direct
+%         rendering on the route that caches, and it is the control for
+%         the cache reading: the same page, the same route, the same
+%         description under the same transformation, the copy the only
+%         thing withdrawn.
 
 /N where { pop }{ /N 25 def } ifelse
 /FRAC where { pop }{ /FRAC 0 def } ifelse
-/RO where { pop }{ /RO 0 def } ifelse
+/AFRESH where { pop }{ /AFRESH 0 def } ifelse
 
 /W 400 def
 /H 400 def
@@ -73,9 +75,26 @@ globaldict /paints 0 put
     }
 >> def
 
-% A read-only form dictionary is painted rather than copied, the
-% dictionary being what the copy is keyed and recorded in.
-RO 0 ne { /F F readonly def } if
+% Withdraw the copy, and nothing else. A drawing is held only under a
+% clip that is an axis-aligned rectangle in the device's own coordinates
+% -- what reaches a recorder is already cut to the clip, so a clip of any
+% other shape is one a captured drawing could not be placed under. So a
+% square turned forty-five degrees and large enough to hold the whole
+% page withdraws the copy while cutting nothing: every placement runs
+% the description where it stands, and the page is the page.
+%
+% Sealing the dictionary is not this control and cannot be: execform
+% stamps its own entry into the operand dictionary and makes it
+% read-only, and PLRM 8.2 has that succeed whether or not the program
+% got there first.
+AFRESH 0 ne {
+    newpath
+    W 2 div H 2 div 900 sub moveto
+    W 2 div 900 add H 2 div lineto
+    W 2 div H 2 div 900 add lineto
+    W 2 div 900 sub H 2 div lineto
+    closepath clip newpath
+} if
 
 % The placements: a square grid holding N of them, spread over the page.
 % The step is a whole number of device units, or a half short of one

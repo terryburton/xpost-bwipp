@@ -56,7 +56,7 @@ setglobal
     0 1 PLACEMENTS 1 sub {
         pop gsave 50.5 200.5 translate pl.f execform grestore
     } for
-    seen /lastid pl.f /.formid get put
+    seen /lastid pl.f /Implementation get put
     pl.runs
 } bind def
 
@@ -117,7 +117,7 @@ gtally /runs get PLACEMENTS lt
     (a form dictionary in global memory is held) check
 gtally /runs get 0 gt
     (and its description is run at least once) check
-GF /.formid known
+GF /Implementation known
     (and it takes a serial like any other) check
 
 % And now the case the arrangement exists for, on a dictionary of its
@@ -145,7 +145,7 @@ gsave 450.5 200.5 translate GH execform grestore
 sv2 restore
 
 htally /runs get 1 eq (a global form placed inside a save paints there) check
-/gid GH /.formid get def
+/gid GH /Implementation get def
 
 % a form issued a serial after the restore
 0 placed pop

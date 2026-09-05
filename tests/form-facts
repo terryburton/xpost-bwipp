@@ -35,8 +35,8 @@ entry FormType        required  read     the form type, and the only value that 
 entry BBox            required  read     the box the drawing is confined to, in form space
 entry Matrix          required  read     the map from form space to the space execform is called in
 entry PaintProc       required  read     the procedure that paints the drawing
-entry UniqueID        optional  ignored  PLRM 4.7 offers it as the identity a cache may file the form under. The cache here files by a serial of its own instead, so this is accepted and never consulted
-entry Implementation  optional  ignored  PLRM 4.7 leaves it for an implementation to keep its own record of the form in. Nothing is written here, and a form dictionary comes back from execform without one
+entry XUID            optional  ignored  PLRM 4.7 Table 4.4 offers it as the identity a cache may file the form under across the jobs that load it. The cache here files by a serial of its own instead, so this is accepted and never consulted
+entry Implementation  optional  read     PLRM 4.7 Table 4.4 has execform insert it and leaves its type and value to the interpreter. It carries the serial the drawing is filed under, and its presence is what says the dictionary has been an operand to execform before. A value the program wrote is read the same way and answers nothing: the entry it names records which dictionary it was made from
 
 entries 6
 
@@ -60,7 +60,7 @@ cache raster-device      held    a device that takes marks as pixels can be stoo
 cache clip-holds-box     held    the marks reaching a recorder are already cut to the clip, so a clip containing the whole of the form's box cuts nothing off what is captured
 cache clip-cuts-box      afresh  a form the clip cuts would be captured cut, and then placed cut somewhere the clip is not. The capture is refused rather than the placement being wrong
 cache screening-device   afresh  a device that turns a grey into a pattern of pixels does it at the position the marks land on, so marks captured at one position and replayed at another would carry the screen of the first
-cache read-only-form     afresh  the drawing is filed under a serial stamped into the form dictionary, and a dictionary the program made read-only cannot take one
+cache read-only-form     held    the drawing is filed under a serial stamped into the form dictionary, and PLRM 8.2 has execform stamp and seal the operand dictionary whether or not the program sealed it first. So a form the program made read-only is filed like any other
 cache vector-device      held    a device given whole paths has no pixels to record, and holds the description in its own format instead: the marks are captured out of the stream they were painted into and filed as the construct the format has for one, named again at each placement. A device whose format has no such construct paints afresh, which is the answer this row gave for every path writer before any of them had one
 
 caches 6
@@ -73,8 +73,7 @@ caches 6
 #   <what>  <settled|thorn|heading>  <reason>
 
 missing-required  settled  A form dictionary without BBox, Matrix or PaintProc raises undefined, because the entry is fetched and the fetch is what fails. The same is true of a halftone and of a shading, so it is one behaviour across three families rather than this one being odd; it is recorded in each of their registers and would be changed in all three or none
-identity-not-the-programs  settled  PLRM offers UniqueID as what a cache files a form under, and the cache here files by a serial it issues itself. A UniqueID is the program's: two forms may carry the same one, a copy of a form carries the original's, and a program may write a number this interpreter also uses. A serial that only ever moves forward cannot be handed out twice, so no form can be served a drawing another form was filed under. The entry is accepted so that a program written for the specification is not turned away, and it is not consulted
-implementation-unwritten  settled  PLRM leaves Implementation for an implementation to keep its record of the form in, and nothing is written there. What would go in it -- the serial, and whether a drawing was captured -- is kept where a restore can reach it, and a form dictionary is the program's to do as it likes with. Writing into the program's dictionary would also make the entry a thing a program could forge
+identity-not-the-programs  settled  PLRM 4.7 Table 4.4 offers XUID as what a cache files a form under, and the cache here files by a serial it issues itself. An XUID is the program's: two forms may carry the same one, a copy of a form carries the original's, and a program may write a number this interpreter also uses. A serial that only ever moves forward cannot be handed out twice, and an entry records the dictionary it was made from, so a form arriving with a number it was not issued is filed afresh rather than served what that number names. The entry is accepted so that a program written for the specification is not turned away, and it is not consulted
 
 
-divergences 3
+divergences 2

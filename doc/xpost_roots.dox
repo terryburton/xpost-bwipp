@@ -266,10 +266,14 @@ COLLECTOR ROOTS
  *         (@c tests/font_serial_test.ps)</tr>
  * <tr><td>form drawings
  *     <td>@c .newformserial (C)
- *     <td>@c .formid in the form dictionary, either bank
+ *     <td>@c Implementation in the form dictionary, either bank, which is
+ *         the entry PLRM 4.7 Table 4.4 has execform insert
  *     <td>@c .formcache in @c graphicsdict, local. The store is wound back by
  *         a restore, which costs a re-capture and never a wrong drawing,
  *         because the serial an entry was filed under is not issued again.
+ *         The stamp is in the program's own dictionary and the program may
+ *         write one, so an entry records the dictionary it was made from
+ *         and a form arriving with a number it was not issued files afresh.
  *         (@c tests/form_serial_restore_test.ps)</tr>
  * <tr><td>resolved regions,<br>read-back clip bands
  *     <td>@c .newregionserial (C)
