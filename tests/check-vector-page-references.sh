@@ -245,6 +245,45 @@ if [ -s "$o" ]; then
         fail=1; }
 fi
 
+# --- and a stencil painted in a pattern colour ------------------------
+#
+# What a device is handed for a stencil is the bits and the matrix; what
+# says which colour they are painted in is the graphics state, and a
+# pattern is not a colour in the terms that hand-over has for one. So a
+# stencil under a pattern is not handed over: the walk that resolves it
+# into runs assembles them into one path and the tiling runs once over
+# that, which is a pattern fill of the shape the bits describe. Handed
+# over instead, it comes out painted in whatever plain colour lies under
+# the pattern -- a silhouette where the program asked for the tiling to
+# show through the mask, which is what a masked image emulated on Level
+# 2 asks for.
+cat > "$work/stencil.ps" <<'EOF'
+<< /CompressPages false >> setdistillerparams
+/Cell << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 8 8]
+         /XStep 8 /YStep 8
+         /PaintProc { pop 1 0 0 setrgbcolor 0 0 4 4 rectfill } >> def
+/Pattern setcolorspace Cell matrix makepattern setcolor
+gsave 100 500 translate 200 200 scale
+8 8 true [ 8 0 0 -8 0 8 ] { <FF81BDA5A5BD81FF> } imagemask
+grestore
+showpage
+EOF
+( cd "$work" && "$xpost" -q -d pdfwrite -o stencil.pdf stencil.ps </dev/null >/dev/null 2>&1 ) \
+    || { echo "FAIL: the stencil run errored"; fail=1; }
+sp=$work/stencil.pdf
+if [ -s "$sp" ]; then
+    grep -aq '/Pattern cs' "$sp" \
+        || { echo "FAIL: a stencil painted in a pattern colour reaches the"
+             echo "      content without naming the pattern, so it is painted"
+             echo "      in whatever plain colour lies under it"
+             fail=1; }
+    grep -aq '/ImageMask true' "$sp" \
+        && { echo "FAIL: a stencil painted in a pattern colour was handed to"
+             echo "      the writer as a stencil, which has no way to say the"
+             echo "      pattern and paints a silhouette"
+             fail=1; }
+fi
+
 # THE CONTROL. The workload has to reach the machinery this is about: a
 # page that filed nothing would satisfy every check above by having
 # nothing to resolve. Each writer's second page places descriptions, and

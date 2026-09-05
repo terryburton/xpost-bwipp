@@ -2172,7 +2172,20 @@ setglobal
         % Offered before the matrix is concatenated, because what the
         % device wants is the matrix as the caller gave it, not the
         % state this procedure is about to put the graphics state into.
-        DEVICE /PaintStencil known {
+        %  Not under a pattern colour. What a device is handed here is
+        %  the bits and the matrix, and what says which colour they are
+        %  painted in is the graphics state -- which a pattern is not in
+        %  the terms this hand-over has for one. A device given the
+        %  stencil would paint it in whatever plain colour lies under
+        %  the pattern, which is a silhouette where the program asked
+        %  for the tiling to show through the mask.
+        %
+        %  The walk below already has the answer: under a pattern the
+        %  runs assemble into one path and the tiling runs once over it,
+        %  so the mask reaches a writer as a pattern fill of the shape
+        %  the bits describe. That is one fill, not a mark per run.
+        DEVICE /PaintStencil known
+        //.xpostsys /.patternactive get exec not and {
             % A clip admitting nothing is not handed over, for the reason
             % an image under one is not (see .imagepaintm): what the
             % device is given is the bits and the matrix, and there is no
