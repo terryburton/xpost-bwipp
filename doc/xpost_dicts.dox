@@ -132,7 +132,7 @@
  * | `globaldict` | global | persistent | no | the shared global VM programs write to; survives restore by design (PLRM) |
  * | `userdict` | local | program-owned | no | the program's own dictionary; **empty at start-up** |
  * | `$error`, `errordict` | local | mutable | no | error record and handlers; local so a job's error state reverts; **named in** `systemdict` |
- * | `statusdict`, `serverdict` | local | mutable | no | device/product status and job-server state a program may change; local so changes revert; **named in** `systemdict` |
+ * | `statusdict`, `serverdict` | local | mutable | no | device/product status and job-server state a program may change; local so changes revert; **named in** `systemdict`. `statusdict` also carries the page-size and tray conveniences a driver prolog invokes from a PPD feature block (`letter`, `a4`, `ledgertray`, ...), which is where the products keep them: PLRM gives that dictionary no contents of its own and says naming any of them impairs a program's portability, so a prolog opens it and probes before it calls, and the language offers none of them |
  * | `FontDirectory` | local | mutable | read-only to a program | fonts defined while the allocation mode was local; they revert with the save level that defined them; **named in** `systemdict`. Read-only per PLRM Table 3.3: `definefont` and `undefinefont` write it past the attribute and nothing else adds to it. `setglobal` rebinds the name to `GlobalFontDirectory` while the mode is global, so a font defined in terms of another finds the directory its own is going into (PLRM) |
  * | `GlobalFontDirectory` | global | persistent | read-only to a program | fonts defined while the allocation mode was global, and only those; survives the restores that empty `FontDirectory` (PLRM 3.7, Table 3.4). Read-only on the same terms as `FontDirectory` |
  * | `SharedFontDirectory` | global | persistent | read-only to a program | the same dictionary as `GlobalFontDirectory` under its older name, and sealed with it: the attribute belongs to the dictionary, not to the name |
@@ -151,11 +151,11 @@
  * 1. **PLRM-standard operators and procedures** -- the language (PostScript Level
  *    3 / PLRM 3rd ed). The bulk.
  * 2. **A documented extension set** -- non-PLRM names kept deliberately: the
- *    LaserWriter page-size prologs (`letter`, `a4`, ...), the compatible font
- *    directories (`GlobalFontDirectory`, `SharedFontDirectory`), print/debug
- *    utilities (`=only`, `==only`, `=print`), and the multi-context and other
- *    DPS-compatible operators. A non-standard name in `systemdict` must be on this
- *    list.
+ *    compatible font directories (`GlobalFontDirectory`, `SharedFontDirectory`),
+ *    print/debug utilities (`=only`, `==only`, `=print`), and the multi-context and
+ *    other DPS-compatible operators. A non-standard name in `systemdict` must be on
+ *    this list. The page-size prologs are *not* among them: they are a product's
+ *    conveniences and live in `statusdict`, below.
  * 3. **The kept dotted names** -- internal names that *cannot* be relocated into
  *    `.internaldict` because they are reached at a time the frozen references
  *    cannot cover. All are dotted, so no program name collides.
