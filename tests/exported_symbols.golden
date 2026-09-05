@@ -427,9 +427,11 @@ xpost_oper_init_string_ops
 xpost_oper_init_token_ops
 xpost_oper_init_type_ops
 xpost_operator_cons
+xpost_operator_call_direct
 xpost_operator_cons_opcode
 xpost_operator_cons_wrapped
 xpost_operator_count
+xpost_operator_direct
 xpost_operator_dump
 xpost_operator_exec
 xpost_operator_init_optab

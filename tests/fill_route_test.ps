@@ -1,0 +1,67 @@
+% A page whose marks reach a device's compiled fill by every route the
+% machinery has to it. run-fill-route-test.sh renders it twice per
+% device, once by each route, and holds the two pages to being the same
+% bytes.
+%
+% What has to be on it is spans of every shape the fill is asked for:
+%
+%   An image scaled so that one source sample covers less than a device
+%   pixel. The interpolated path blends per device pixel, so its runs are
+%   one column each and the fill is called once per pixel -- which is the
+%   call this page exists to exercise, and the one an ordinary fill would
+%   not reach.
+%
+%   The same image at whole-numbered scale, where a run is many columns
+%   and one call covers them all.
+%
+%   A grey image as well as a colour one, since what the fill is handed
+%   is the device's own colour space and the two arrive as different
+%   numbers of components.
+%
+%   Plain fills around them, so a page that stopped drawing its images
+%   would still be a page and the comparison would still have something
+%   to compare -- a pair of empty pages match each other.
+
+<< /PageSize [120 100] >> setpagedevice
+
+/Img4 <4090C0F0 30F0A050 C0501080 F0208060> def
+/Img12 <FF0000 00FF00 0000FF 
+        FFFF00 FF00FF 00FFFF
+        804020 208040 402080
+        C0C0C0 606060 101010> def
+
+% a colour image at a scale that puts several source samples inside one
+% device pixel
+gsave
+    8 62 translate 30 30 scale
+    << /ImageType 1 /Width 2 /Height 2 /BitsPerComponent 8
+       /Decode [0 1 0 1 0 1]
+       /ImageMatrix [2 0 0 -2 0 2]
+       /DataSource Img12 >> image
+grestore
+
+% ... and the same at a scale that gives it runs of many columns
+gsave
+    46 62 translate 32 32 scale
+    << /ImageType 1 /Width 2 /Height 2 /BitsPerComponent 8
+       /Decode [0 1 0 1 0 1]
+       /ImageMatrix [2 0 0 -2 0 2]
+       /DataSource Img12 >> image
+grestore
+
+% a grey image, at a scale that falls between pixels on both axes
+gsave
+    84 62 translate 29.5 30.5 scale
+    << /ImageType 1 /Width 4 /Height 4 /BitsPerComponent 8
+       /Decode [0 1]
+       /ImageMatrix [4 0 0 -4 0 4]
+       /DataSource Img4 >> image
+grestore
+
+% plain marks, so the page is a page even if an image is dropped
+0.2 0.4 0.8 setrgbcolor 8 8 40 20 rectfill
+0.5 setgray 56 8 40 20 rectfill
+0 setgray 8 34 moveto 112 34 lineto 2 setlinewidth stroke
+
+showpage
+quit

@@ -160,6 +160,7 @@ device test check-image-devclip
 device test check-page-output
 device test check-pdf-docinfo
 device test check-test-devices
+device test fill-route
 # A device class is found by the shape of the name it is defined under,
 # and the two passes that find them run at load and at lockdown. The
 # lockdown one runs whether or not any device class was ever loaded, so

@@ -4957,6 +4957,21 @@ test('record-short',
 # controls: the copy withdrawn, so the count is shown to move; and a
 # pair of pages that must not match, so the byte comparison is shown to
 # see a difference at all.
+# A device that owns its raster declares a compiled rectangle fill, and the
+# machinery reaches it either through the operator call protocol or by
+# calling the function with the operands it already holds. Which route is
+# taken is a property of the method's declared shape, so a page must not be
+# able to tell -- and no page can be held to a recorded one for this, since
+# a page painted the second way is meant to be the page painted the first.
+# So the run makes both from one program and compares them to each other,
+# on two devices, each carrying its own fill.
+test('fill-route',
+  find_program('tests/run-fill-route-test.sh'),
+  args: [ xpost_exe, files('tests/fill_route_test.ps') ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 60)
+
 test('form-band',
   find_program('tests/run-form-band-test.sh'),
   args: [ xpost_exe, files('tests/form_band_test.ps') ],

@@ -368,6 +368,7 @@ tests/record_glyph_test.ps \
 tests/record_excess_test.ps \
 tests/record_spill_test.ps \
 tests/record_short_test.ps \
+tests/fill_route_test.ps \
 tests/form_band_test.ps \
 tests/form_nest_test.ps \
 tests/record_span_test.ps \
@@ -537,6 +538,7 @@ tests/run-golden-render.sh \
 tests/run-record-image-test.sh \
 tests/run-record-glyph-test.sh \
 tests/run-record-short-test.sh \
+tests/run-fill-route-test.sh \
 tests/run-form-band-test.sh \
 tests/run-form-nest-test.sh \
 tests/run-record-span-test.sh \

@@ -217,6 +217,16 @@ Xpost_Object xpost_operator_cons_wrapped(Xpost_Context *ctx,
 /**
  * @brief execute an operator
  */
+Xpost_Op_Func xpost_operator_direct(Xpost_Context *ctx,
+                                    unsigned opcode,
+                                    int n,
+                                    const Xpost_Object *sample);
+
+int xpost_operator_call_direct(Xpost_Context *ctx,
+                               Xpost_Op_Func fp,
+                               int n,
+                               const Xpost_Object *a);
+
 int xpost_operator_exec(Xpost_Context *ctx,
                         unsigned opcode);
 

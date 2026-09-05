@@ -1179,6 +1179,156 @@ int _exec_wrapped_proc(Xpost_Context *ctx, unsigned opcode, Xpost_Object proc)
     return 0;
 }
 
+/* Call a compiled operator's function with n operands.
+
+   The cast is what the call costs: the table holds every operator's
+   function under one pointer type and each is written with the operands
+   its signature declares, so the pointer is cast back to the arity being
+   called. The casts live here and nowhere else, so a call written
+   anywhere in the tree cannot get one of them wrong. */
+static int
+_call_fp(Xpost_Context *ctx, Xpost_Op_Func fp, int n, const Xpost_Object *a)
+{
+    switch (n)
+    {
+        case 0:
+            return ((int(*)(Xpost_Context*))fp)(ctx);
+        case 1:
+            return ((int(*)(Xpost_Context*,Xpost_Object))fp)
+                (ctx, a[0]);
+        case 2:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1]);
+        case 3:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1], a[2]);
+        case 4:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1], a[2], a[3]);
+        case 5:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1], a[2], a[3], a[4]);
+        case 6:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1], a[2], a[3], a[4], a[5]);
+        case 7:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1], a[2], a[3], a[4], a[5], a[6]);
+        case 8:
+            return ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))fp)
+                (ctx, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
+        default:
+            return unregistered;
+    }
+}
+
+/* Bind a compiled operator so it can be called without the operand
+   stack, or answer NULL where it cannot be.
+
+   An operator's operands normally arrive by being pushed onto the
+   operand stack, matched against the signature's declared types, and
+   moved to the hold stack. That is what makes an operator callable by a
+   program, and it is the right price for a call a program made. It is
+   the wrong price for a call the machinery makes to a compiled method
+   whose operands it built itself: the marshalling states, at run time
+   and per call, what the caller already knows.
+
+   So the knowing is done once, here, and the calling is done by
+   xpost_operator_call_direct. What is checked is everything the per-call
+   matching would have established: that the operator carries exactly one
+   signature, that it is implemented in C rather than by a recorded
+   procedure, that it takes the arity offered, and that the types it
+   declares accept the operands offered -- read off a sample the caller
+   will go on to pass, so a device declaring its method with other types
+   is refused here and takes the ordinary path instead.
+
+   A signature with a stack-checking function of its own is refused: such
+   a function reads the operand stack, which a direct call does not
+   fill. */
+Xpost_Op_Func
+xpost_operator_direct(Xpost_Context *ctx,
+                      unsigned opcode,
+                      int n,
+                      const Xpost_Object *sample)
+{
+    Xpost_Operator *optab;
+    Xpost_Operator op;
+    Xpost_Signature *sp;
+    byte *t;
+    int j;
+
+    if (n <= 0 || n > XPOST_OPERATOR_MAX_SIG)
+        return NULL;
+    optab = xpost_operator_table(ctx->gl);
+    op = optab[opcode];
+    if (op.n != 1)
+        return NULL;
+    sp = _optab_at(ctx->gl, op.sigadr);
+    if (!sp->fp || sp->in != n || sp->checkstack)
+        return NULL;
+    /* The declared types, read against the sample the same way the
+       per-call matching reads them against the stack: top-down, so the
+       last operand offered is the first type declared. Only the patterns
+       that accept an operand as it stands are taken. floattype is not
+       one of them -- it accepts an integer by promoting it in place on
+       the operand stack, which is a rewrite of an operand a direct call
+       does not have to rewrite -- so an operator declaring one is left
+       to the ordinary path rather than being called with an operand it
+       would have changed. */
+    t = _optab_at(ctx->gl, sp->t);
+    for (j = 0; j < n; j++)
+    {
+        int ty = xpost_object_get_type(sample[n - 1 - j]);
+
+        if (t[j] == anytype)
+            continue;
+        if (t[j] == ty)
+            continue;
+        if ((t[j] == numbertype) &&
+            ((ty == integertype) || (ty == realtype)))
+            continue;
+        if ((t[j] == floattype) && (ty == realtype))
+            continue;
+        return NULL;
+    }
+    return sp->fp;
+}
+
+/* Call what xpost_operator_direct bound, with operands the caller holds.
+
+   The bookkeeping kept is the part that is about the call and not about
+   the stack. The hold stack is not filled, so the record saying an
+   error may take the operands back from it is cleared rather than set;
+   the checks after the call are the ones every operator is read for,
+   and are kept because they are how an operator that failed without
+   returning a failure is caught. */
+int
+xpost_operator_call_direct(Xpost_Context *ctx,
+                           Xpost_Op_Func fp,
+                           int n,
+                           const Xpost_Object *a)
+{
+    int ret;
+
+    ctx->op_restore_n = 0;
+    ctx->opargsinhold = 0;
+    ret = _call_fp(ctx, fp, n, a);
+    if (ret)
+        return ret;
+    if (ctx->callback_error)
+    {
+        ret = (int)ctx->callback_error;
+        ctx->callback_error = 0;
+        return ret;
+    }
+    if (ctx->lo->push_refused)
+    {
+        ctx->lo->push_refused = 0;
+        return VMerror;
+    }
+    return 0;
+}
+
 int xpost_operator_exec(Xpost_Context *ctx,
                         unsigned opcode)
 {
@@ -1373,39 +1523,7 @@ int xpost_operator_exec(Xpost_Context *ctx,
     _xpost_operator_push_args_to_hold(ctx, ctx->lo, ctx->os, sp[i].in);
     hold = xpost_stack_at(ctx->lo, ctx->hold);
 
-    switch(sp[i].in)
-    {
-        case 0:
-            ret = ((int(*)(Xpost_Context*))sp[i].fp)(ctx); break;
-        case 1:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0]); break;
-        case 2:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1]); break;
-        case 3:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1], hold->data[2]); break;
-        case 4:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1], hold->data[2], hold->data[3]); break;
-        case 5:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1], hold->data[2], hold->data[3], hold->data[4]); break;
-        case 6:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1], hold->data[2], hold->data[3], hold->data[4], hold->data[5]); break;
-        case 7:
-            ret = ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1], hold->data[2], hold->data[3], hold->data[4], hold->data[5], hold->data[6]); break;
-        case 8:
-            ret =
-                ((int(*)(Xpost_Context*,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object,Xpost_Object))sp[i].fp)
-                (ctx, hold->data[0], hold->data[1], hold->data[2], hold->data[3], hold->data[4], hold->data[5], hold->data[6], hold->data[7]); break;
-        default:
-            ret = unregistered;
-    }
-  post:
+    ret = _call_fp(ctx, sp[i].fp, sp[i].in, hold->data);  post:
     if (ret)
         return ret;
     /* A stream backed by a procedure answers a read with end of data and

@@ -2593,6 +2593,10 @@ struct _blit_out
        compiled rectangle fill it declares */
     Xpost_Object devdic;
     unsigned int fillrect;
+    /* the same fill, bound for calling without the operand stack. Null
+       where the device's method is not one that can be: the stack path
+       is then taken, and the page is the same either way */
+    Xpost_Op_Func fillfp;
     /* how many components that fill takes, which is the device's
        colour space and not the shape of any row */
     int ncomp;
@@ -2678,23 +2682,44 @@ _blit_out_span(struct _blit_out *o, int dy, int dx0, int dx1,
     {
         Xpost_Context *ctx = o->ctx;
 
+        Xpost_Object a[8];
+        int n;
+
 #define COMP(v) xpost_real_cons((real)(((v) + 0.5) / 255.0))
         if (o->ncomp == 3)
         {
-            xpost_stack_push(ctx->lo, ctx->os, COMP(r));
-            xpost_stack_push(ctx->lo, ctx->os, COMP(g));
-            xpost_stack_push(ctx->lo, ctx->os, COMP(b));
+            a[0] = COMP(r);
+            a[1] = COMP(g);
+            a[2] = COMP(b);
+            n = 3;
         }
         else
-            xpost_stack_push(ctx->lo, ctx->os, COMP(gray));
+        {
+            a[0] = COMP(gray);
+            n = 1;
+        }
 #undef COMP
         /* the contract's rectangle is an inclusive span, so a run of n
            columns on one row is w = n-1 and h = 0 */
-        xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(dx0));
-        xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(dy));
-        xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(dx1 - dx0 - 1));
-        xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons(0));
-        xpost_stack_push(ctx->lo, ctx->os, o->devdic);
+        a[n++] = xpost_int_cons(dx0);
+        a[n++] = xpost_int_cons(dy);
+        a[n++] = xpost_int_cons(dx1 - dx0 - 1);
+        a[n++] = xpost_int_cons(0);
+        a[n++] = o->devdic;
+
+        /* One span of an image is one of these, so what the call costs is
+           paid once per sample the image puts down. The operands are
+           built here and their shapes are the ones the method was bound
+           against, so the stack they would be matched on carries nothing
+           the caller does not already hold. */
+        if (o->fillfp)
+            return xpost_operator_call_direct(ctx, o->fillfp, n, a);
+        {
+            int i;
+
+            for (i = 0; i < n; i++)
+                xpost_stack_push(ctx->lo, ctx->os, a[i]);
+        }
         return xpost_operator_exec(ctx, o->fillrect);
     }
 
@@ -3377,6 +3402,41 @@ int xpost_dev_blit_row(Xpost_Context *ctx,
         if (xpost_object_get_type(fr) != operatortype)
             return typecheck;
         out.fillrect = fr.mark_.padw;
+        /* Bind the fill for calling without the operand stack, against a
+           sample of exactly what every span will pass. One span is one
+           call and an image is one span per sample it puts down, so what
+           the ordinary call protocol costs is paid per sample; knowing
+           the method here costs it once. A device whose method this
+           cannot be done for answers null and is called the ordinary
+           way. */
+        {
+            Xpost_Object sample[8];
+            int ns = 0;
+
+            if (out.ncomp == 3)
+            {
+                sample[ns++] = xpost_real_cons(0.0);
+                sample[ns++] = xpost_real_cons(0.0);
+                sample[ns++] = xpost_real_cons(0.0);
+            }
+            else
+                sample[ns++] = xpost_real_cons(0.0);
+            sample[ns++] = xpost_int_cons(0);
+            sample[ns++] = xpost_int_cons(0);
+            sample[ns++] = xpost_int_cons(0);
+            sample[ns++] = xpost_int_cons(0);
+            sample[ns++] = out.devdic;
+            out.fillfp = xpost_operator_direct(ctx, out.fillrect, ns, sample);
+            /* The other route, asked for. Both paint the same page --
+               the operands are the same objects and the method is the
+               same function -- and the only way to hold that claim is to
+               make one run produce each and compare the two, which is
+               what tests/run-fill-route-test.sh does. It is a control
+               for a check and not a setting: a run that does not ask for
+               it takes the route it would have taken. */
+            if (getenv("XPOST_NODIRECT"))
+                out.fillfp = NULL;
+        }
         /* the screen is the device's own and it thresholds through it
            in the fill below, so nothing is thresholded here */
         out.htc = NULL;
