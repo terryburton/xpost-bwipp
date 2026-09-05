@@ -97,9 +97,26 @@
 #           eight-bit array and as their sixteen-bit widening screen a
 #           sixteen-step ramp to the same page, dot for dot.
 #
+# sh_radial_sampled p1 -- the whole of the second of the page's two
+#           cylinders, which this interpreter does not paint. Its
+#           shading names a sampled function declaring /Size [ 83 ] over
+#           a DataSource holding eighty-one samples: 486 bytes where
+#           eighty-three samples of three components at sixteen bits
+#           calls for 498. PLRM 3.10.1 says the source must be long
+#           enough to hold the entire sample array and that a source
+#           which is not is a rangecheck, so the shading is refused and
+#           the cylinder is not drawn. Correcting the declaration to the
+#           eighty-one the file carries draws it, and draws it in the
+#           same place: that is how the shortfall was established rather
+#           than inferred. The displaced ink is therefore the page the
+#           program asked for minus a figure it did not supply the data
+#           for, and painting it anyway would mean interpolating between
+#           samples that are not there.
+#
 gb_07-04-listing p1
 gb_07-05-listing p1
 gb_08-02-listing p1
 gb_10-02-listing p1
 gb_10-04-listing p1
 ht_type16_file p1
+sh_radial_sampled p1

@@ -48,6 +48,31 @@ width BitsPerSample 32  takes
 
 widths 8
 
+# How long a sampled function's source must be.
+#
+# PLRM 3.10.1: the DataSource must be long enough to hold the entire
+# sample array, as Size, Range and BitsPerSample indicate, and otherwise
+# a rangecheck occurs. So the length is settled from those three entries
+# when the function is set up, and not left to a read running off the
+# end of the string.
+#
+# Which sample a paint reaches depends on the geometry it is painting,
+# so a short table found the other way stops partway through a page it
+# has already marked, at a place that moves with the shading. The
+# program is told rangecheck either way; only the page says which
+# happened, and the short case below is probed for the page as well.
+#
+# A source with more in it than the array needs is not short and is
+# taken: the specification asks for long enough, not for exact.
+#
+#   source <exact|longer|short>  <takes|refuses>
+
+source exact    takes
+source longer   takes
+source short    refuses
+
+sources 3
+
 # Where this interpreter and the specification differ, and what is to
 # become of each difference.
 #
@@ -56,4 +81,6 @@ widths 8
 missing-required  settled  A function dictionary without an entry its type requires raises undefined, because the entry is fetched and the fetch is what fails. The same is true of a halftone, a shading and a form, so it is one behaviour across four families rather than this one being odd
 type-4-is-not-postscript  settled  A fourth function type exists in the page description language derived from this one, where it carries a program in a calculator notation. PLRM names three types and this is not among them, so a dictionary asking for it is refused. Accepting it would be implementing another language's feature and calling it this one's
 
-divergences 2
+file-source-not-read  thorn  PLRM 3.10.1 gives a sampled function's DataSource as a string or a positionable file. Only a string is read: the samples are taken out of the source by byte and a file has no byte to take, so a dictionary naming one is refused with typecheck. Reading the file into a string the size of the sample array is what this wants, and the size is already worked out for the length check above
+
+divergences 3

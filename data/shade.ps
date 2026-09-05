@@ -89,6 +89,22 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /ds f /DataSource get def
     /litds false def
     /max 2 bps exp 1 sub def
+
+    %  And the source is long enough to hold the sample array Size, Range
+    %  and BitsPerSample together call for; a source that is not is a
+    %  rangecheck (PLRM 3.10.1).
+    %
+    %  Asked here, once, from the three entries that say how big the array
+    %  is -- not discovered by a read running off the end. Which sample a
+    %  paint reaches depends on the geometry it is painting, so a short
+    %  table left to be found that way stops partway through a page it has
+    %  already begun to mark, at a place that moves with the shading, and
+    %  reports the read rather than the operator the program called.
+    ds type /stringtype eq {
+        f /Size get 1 exch { mul } forall
+        nc mul bps mul 7 add 8 idiv
+        ds length gt { /shfill cvx /rangecheck signalerror } if
+    } if
 } def
 
 %

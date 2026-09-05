@@ -44,6 +44,7 @@ fail=0
 grep -v '^[[:space:]]*#' "$register" | grep -v '^[[:space:]]*$' > "$work/reg"
 awk '$1 ~ /^[0-9]+$/ { print $1 " " $2 }' "$work/reg" | sort -n > "$work/reg.type"
 awk '$1 == "width" { print $2 " " $3 " " $4 }' "$work/reg" | sort > "$work/reg.width"
+awk '$1 == "source" { print $1 " " $2 " " $3 }' "$work/reg" | sort > "$work/reg.source"
 awk 'NF >= 3 && $2 ~ /^(settled|thorn|heading)$/ { print $1 }' "$work/reg" \
     | sort -u > "$work/reg.diverge"
 
@@ -178,11 +179,58 @@ if ! cmp -s "$work/reg.width" "$work/got.width"; then
     fail=1
 fi
 
+# ---- how long a sampled function's source must be
+#
+# PLRM 3.10.1 says the DataSource must be long enough to hold the whole
+# sample array Size, Range and BitsPerSample call for, and that a source
+# that is not is a rangecheck. Both sides are probed, and the short case
+# is probed for the page as well as for the error: which sample a paint
+# reaches depends on the geometry it is painting, so a short table found
+# by a read running off the end stops partway through a page it has
+# already marked -- the error is raised either way, and only the page
+# says which happened.
+: > "$work/got.source"
+while read -r entry which verdict; do
+    [ "$entry" = source ] || { echo "FAIL: the register has a source line for $entry"; fail=1; continue; }
+    case $which in
+        exact)  spec='/Size [2] /BitsPerSample 8 /DataSource <00FF>' ;;
+        longer) spec='/Size [2] /BitsPerSample 8 /DataSource <00FF7F>' ;;
+        short)  spec='/Size [8] /BitsPerSample 8 /DataSource <FF00FF00FF00>' ;;
+        *)      echo "FAIL: the register names a source case '$which' this"
+                echo "      guard has no data for, so it is held to nothing"
+                fail=1; continue ;;
+    esac
+    ans=$(paint "<< /FunctionType 0 /Domain [0 1] /Range [0 1] $spec >>")
+    case $ans in
+        ink\ *)     echo "source $which takes" >> "$work/got.source" ;;
+        rangecheck) echo "source $which refuses" >> "$work/got.source" ;;
+        *)          echo "source $which $ans" >> "$work/got.source" ;;
+    esac
+    if [ "$which" = short ] && [ "$ans" = rangecheck ]; then
+        case $(guard_pnm_ink "$work/case.pgm") in
+            blank) : ;;
+            *) echo "FAIL: a short sample source was refused only after the"
+               echo "      shading had marked the page. The program is told"
+               echo "      the same thing either way and keeps a page"
+               echo "      carrying part of a shading that raised."
+               fail=1 ;;
+        esac
+    fi
+done < "$work/reg.source"
+sort "$work/got.source" -o "$work/got.source"
+if ! cmp -s "$work/reg.source" "$work/got.source"; then
+    echo "FAIL: what a sampled function's source must hold is not what the"
+    echo "      register records:"
+    diff "$work/reg.source" "$work/got.source" 2>/dev/null | sed 's/^/      /'
+    fail=1
+fi
+
 count() {           # <keyword> <how many were derived>
     guard_hold_count "$work/reg" "$1" "$2" || fail=1
 }
 count types "$(grep -c . "$work/reg.type")"
 count widths "$(grep -c . "$work/reg.width")"
+count sources "$(grep -c . "$work/reg.source")"
 count divergences "$(grep -c . "$work/reg.diverge")"
 
 # ---- the divergences
@@ -191,6 +239,11 @@ ans=$(paint "<< /FunctionType 0 /Domain [0 1] /Range [0 1] /Size [2] >>")
 [ "$ans" = undefined ] && echo missing-required >> "$work/got.diverge"
 ans=$(paint "$(fn 4)")
 [ "$ans" = rangecheck ] && echo type-4-is-not-postscript >> "$work/got.diverge"
+# a source the specification allows and this does not read: a file
+printf '\000\377' > "$work/fnsrc.bin"
+ans=$(paint "<< /FunctionType 0 /Domain [0 1] /Range [0 1] /Size [2]
+                /BitsPerSample 8 /DataSource (fnsrc.bin) (r) file >>")
+[ "$ans" = typecheck ] && echo file-source-not-read >> "$work/got.diverge"
 sort -u "$work/got.diverge" -o "$work/got.diverge"
 
 guard_held=0
@@ -198,7 +251,7 @@ guard_hold_divergence function-facts "$work/reg.diverge" "$work/got.diverge"
 [ "$guard_held" -eq 0 ] || fail=1
 
 [ "$fail" = 0 ] || exit 1
-printf 'SUCCESS (%s function type(s) held to what computes, %s sample width(s) probed, %s divergence(s) each found by its own probe)\n' \
+printf 'SUCCESS (%s function type(s) held to what computes, %s sample width(s) probed, %s source length(s) probed, %s divergence(s) each found by its own probe)\n' \
     "$(grep -c . "$work/reg.type")" "$(grep -c . "$work/reg.width")" \
-    "$(grep -c . "$work/reg.diverge")"
+    "$(grep -c . "$work/reg.source")" "$(grep -c . "$work/reg.diverge")"
 exit 0
