@@ -4935,6 +4935,31 @@ static int _pdfinit(Xpost_Context *ctx, Xpost_Object devdic)
 }
 
 /* append a string's bytes to the accumulator (the marking methods' .put) */
+/* Written down where the run is gathered. */
+static int _pdf_text_emit(Pdf_Acc *a);
+
+/* Everything that reaches the content goes through here.
+
+   A text object holds the pen and nothing else may be said inside one,
+   so whatever is written next closes an open run first. Said in one
+   place because there is more than one writer: the PostScript side puts
+   operators down, the state machinery writes the operator it has just
+   built, a save and a restore write a bracket, a fill writes a path,
+   and the glyph machinery appends what it decomposed. A run left open
+   while any of them writes past it reaches the stream after that
+   writing -- text painted in the colour of whatever was drawn next, or
+   written into the page where the description being captured around it
+   should have carried it. Both were live defects.
+   
+   The emitter itself does not come through here: it is what closing a
+   run means. */
+static int _pdf_content(Pdf_Acc *a, const char *s, size_t n)
+{
+    if (a->txt.open && _pdf_text_emit(a))
+        return -1;
+    return xpost_strbuf_append(&a->content, s, n);
+}
+
 static int _pdfput(Xpost_Context *ctx, Xpost_Object str, Xpost_Object devdic)
 {
     Pdf_Acc a;
@@ -4943,8 +4968,7 @@ static int _pdfput(Xpost_Context *ctx, Xpost_Object str, Xpost_Object devdic)
 
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return undefined;
-    ret = xpost_strbuf_append(&a.content,
-                              xpost_string_get_pointer(ctx, str), str.comp_.sz);
+    ret = _pdf_content(&a, xpost_string_get_pointer(ctx, str), str.comp_.sz);
     if (ret)
         return ret;
     if (!_pdf_acc_put(ctx, priv, &a))
@@ -5053,7 +5077,7 @@ static int _pdfsend(Xpost_Context *ctx, Xpost_Object slot, Xpost_Object devdic)
     wrote = _pdf_gs_new(&a, slot.int_.val, a.gs->pend.s, a.gs->pend.len);
     if (wrote)
     {
-        ret = xpost_strbuf_append(&a.content, a.gs->pend.s, a.gs->pend.len);
+        ret = _pdf_content(&a, a.gs->pend.s, a.gs->pend.len);
         if (ret)
             return ret;
         if (!_pdf_acc_put(ctx, priv, &a))
@@ -5121,7 +5145,7 @@ static int _pdfsave(Xpost_Context *ctx, Xpost_Object devdic)
             a.gs->depth++;
         }
     }
-    ret = xpost_strbuf_append(&a.content, "q\n", 2);
+    ret = _pdf_content(&a, "q\n", 2);
     if (ret)
         return ret;
     if (!_pdf_acc_put(ctx, priv, &a))
@@ -5151,7 +5175,7 @@ static int _pdfrestore(Xpost_Context *ctx, Xpost_Object devdic)
                here knows. */
             memset(&a.gs->level[0], 0, sizeof(a.gs->level[0]));
     }
-    ret = xpost_strbuf_append(&a.content, "Q\n", 2);
+    ret = _pdf_content(&a, "Q\n", 2);
     if (ret)
         return ret;
     if (!_pdf_acc_put(ctx, priv, &a))
@@ -5201,6 +5225,12 @@ static int _pdfsubbegin(Xpost_Context *ctx, Xpost_Object nest,
         xpost_stack_push(ctx->lo, ctx->os, xpost_bool_cons(0));
         return 0;
     }
+    /* A run open when a capture begins belongs to the stream the
+       capture is being taken out of, so it is closed before the mark is
+       taken: left open it would be written after the capture ended and
+       land past the marks it was gathered among. */
+    if (a.txt.open && _pdf_text_emit(&a))
+        return VMerror;
     i = a.gs->insub;
     a.gs->subat[i] = a.content.len;
     a.gs->subdepth[i] = a.gs->depth;
@@ -5228,6 +5258,14 @@ static int _pdfsubend(Xpost_Context *ctx, Xpost_Object at, Xpost_Object devdic)
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return undefined;
     if (!_pdf_gs_of(ctx, priv, &a))
+        return VMerror;
+    /* And a run open when it ends belongs to what was captured: the
+       glyphs were drawn by the description being taken, so they go into
+       it. Left open, the run is written when something else next
+       reaches the content -- which is after the capture, into the
+       stream the description was taken out of, naming a font only the
+       description declares. */
+    if (a.txt.open && _pdf_text_emit(&a))
         return VMerror;
 
     /* Where the cell started is read off the record and not off the
@@ -5386,8 +5424,14 @@ static int _pdftextflush(Xpost_Context *ctx, Xpost_Object devdic)
    be. That is a few hundred bytes, and an indirect object apiece would
    cost more to refer to than to say.
 
-   Reading it also clears the record: the resources are written once for
-   the page, and the page after this one begins with none of its fonts.  */
+   Reading does NOT clear the record. The resources are written once for
+   the page and again for every pattern and every filed description on
+   it, because each of those is a content stream of its own and carries
+   its own resources; a read that emptied the record would hand the
+   whole set to whichever stream was written first and leave the rest --
+   the page among them -- declaring no font at all, while their content
+   went on naming one. The record is given up at the page end instead,
+   where the page's other records are.  */
 static int _pdffontres(Xpost_Context *ctx, Xpost_Object devdic)
 {
     Pdf_Acc a;
@@ -5460,18 +5504,6 @@ static int _pdffontres(Xpost_Context *ctx, Xpost_Object devdic)
     PUT(" >>");
 #undef PUT
 #undef PUTN
-    for (i = 0; i < a.nfnts; i++)
-        for (c = 0; c < 256; c++)
-            free(a.fnts[i].gname[c]);
-    free(a.fnts);
-    a.fnts = NULL;
-    a.nfnts = 0;
-    a.fntcap = 0;
-    if (!_pdf_acc_put(ctx, priv, &a))
-    {
-        xpost_strbuf_free(&b);
-        return VMerror;
-    }
     str = xpost_string_cons(ctx, (unsigned int)b.len, b.s);
     ret = xpost_object_get_type(str) == invalidtype ? VMerror : 0;
     xpost_strbuf_free(&b);
@@ -5482,6 +5514,30 @@ static int _pdffontres(Xpost_Context *ctx, Xpost_Object devdic)
 oom:
     xpost_strbuf_free(&b);
     return VMerror;
+}
+
+/* -  .pdffontclear  -
+   Give up the fonts the page named, at the page end. Every stream the
+   page is made of has had its resources written by then, and the page
+   after this one begins with none of them. */
+static int _pdffontclear(Xpost_Context *ctx, Xpost_Object devdic)
+{
+    Pdf_Acc a;
+    Xpost_Object priv;
+    int i, c;
+
+    if (!_pdf_acc_get(ctx, devdic, &priv, &a))
+        return undefined;
+    for (i = 0; i < a.nfnts; i++)
+        for (c = 0; c < 256; c++)
+            free(a.fnts[i].gname[c]);
+    free(a.fnts);
+    a.fnts = NULL;
+    a.nfnts = 0;
+    a.fntcap = 0;
+    if (!_pdf_acc_put(ctx, priv, &a))
+        return VMerror;
+    return 0;
 }
 
 int xpost_dev_pdf_text_flush(Xpost_Context *ctx, Xpost_Object devdic)
@@ -5601,13 +5657,7 @@ int xpost_dev_pdf_append(Xpost_Context *ctx, Xpost_Object devdic,
 
     if (!_pdf_acc_get(ctx, devdic, &priv, &a))
         return undefined;
-    /* A text object holds the pen and nothing else may be said inside
-       it, so anything else reaching the content closes the run first.
-       Every mark comes through here, which is what makes that one
-       place rather than every caller's business. */
-    if (a.txt.open && _pdf_text_emit(&a))
-        return VMerror;
-    ret = xpost_strbuf_append(&a.content, s, n);
+    ret = _pdf_content(&a, s, n);
     if (ret)
         return ret;
     if (!_pdf_acc_put(ctx, priv, &a))
@@ -5739,7 +5789,7 @@ static int _pdffillpoly(Xpost_Context *ctx,
             len += _pdf_fmt_num(tmp + len, rw); tmp[len++] = ' ';
             len += _pdf_fmt_num(tmp + len, rh); tmp[len++] = ' ';
             tmp[len++] = 'r'; tmp[len++] = 'e'; tmp[len++] = '\n';
-            ret = xpost_strbuf_append(&a.content, tmp, len);
+            ret = _pdf_content(&a, tmp, len);
             i = rnext - 1;      /* the loop's own increment finishes it */
             continue;
         }
@@ -5753,18 +5803,18 @@ static int _pdffillpoly(Xpost_Context *ctx,
             tmp[len++] = needmove ? 'm' : 'l';
             tmp[len++] = '\n';
             needmove = 0;
-            ret = xpost_strbuf_append(&a.content, tmp, len);
+            ret = _pdf_content(&a, tmp, len);
         }
         else if (!needmove)   /* null subpath separator: close the subpath */
         {
-            ret = xpost_strbuf_append(&a.content, "h\n", 2);
+            ret = _pdf_content(&a, "h\n", 2);
             needmove = 1;
         }
     }
     if (ret == 0 && !needmove)
-        ret = xpost_strbuf_append(&a.content, "h\n", 2);
+        ret = _pdf_content(&a, "h\n", 2);
     if (ret == 0)
-        ret = xpost_strbuf_append(&a.content, "f\n", 2);
+        ret = _pdf_content(&a, "f\n", 2);
 
     /* the struct is stored back even when an append failed: the appends
        that did land may have moved the buffer, and the stored copy must
@@ -7626,6 +7676,7 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             integertype, booleantype, integertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfopcount", (Xpost_Op_Func)_pdfopcount, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdffontres", (Xpost_Op_Func)_pdffontres, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".pdffontclear", (Xpost_Op_Func)_pdffontclear, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdftextflush", (Xpost_Op_Func)_pdftextflush, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfopget", (Xpost_Op_Func)_pdfopget, 2,
             integertype, dicttype); INSTALL;

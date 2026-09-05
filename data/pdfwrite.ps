@@ -2114,6 +2114,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             .dev //.internaldict /.pdfformbump get exec
         } if
         .dev //.internaldict /.pdfshclear get exec
+        % and the fonts the page named. The page and every pattern and
+        % description on it has had its resources written by now, and
+        % each of them declared the fonts from this one record; the page
+        % starting next names none of them yet.
+        .dev //.internaldict /.pdffontclear get exec
         0 .dev //.internaldict /.pdfopcut get exec
         (1 0 0 -1 0 ) .put height .pdfnumstr .put ( cm\n) .put
     } //.indevwork exec } bind

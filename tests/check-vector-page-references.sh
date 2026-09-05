@@ -131,6 +131,120 @@ done
 # already at the pen. Comparing the pages as bytes would fail on a
 # workload that is behaving.
 
+# --- and the fonts, which a page declares for itself the same way ------
+#
+# A page names a font the same way it names a description, and the same
+# thing has to be true of it: what the content names, the page carries.
+# The record the declaration is written from is one record for the whole
+# page, and a page is made of more streams than one -- its own, a
+# pattern's cell, a filed description -- each of which writes its own
+# resources from that record. A read that emptied it would hand every
+# font to whichever stream was written first and leave the rest naming
+# fonts they do not declare; a reader drops that text and says nothing
+# the producing run can see.
+#
+# So the workload is text on a page that also carries a pattern, which
+# is the arrangement that has to hold, and it is CompressPages false so
+# the content can be read against the resources.
+cat > "$work/fonts.ps" <<'EOF'
+<< /CompressPages false >> setdistillerparams
+/Cell << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 40 20]
+         /XStep 40 /YStep 20
+         /PaintProc { pop /Helvetica findfont 6 scalefont setfont
+                      2 6 moveto (tile) show } >> def
+/page {
+    /Pattern setcolorspace
+    Cell matrix makepattern setcolor
+    0 0 300 200 rectfill
+    0 setgray /Helvetica findfont 14 scalefont setfont
+    40 240 moveto (page text) show
+    showpage
+} def
+page page
+EOF
+rm -f "$work"/f-[0-9]*.pdf
+( cd "$work" && "$xpost" -q -d pdfwrite -o "f-%d.pdf" fonts.ps </dev/null >/dev/null 2>&1 )     || { echo "FAIL: the font run errored"; fail=1; }
+seen=0
+for f in "$work"/f-[0-9]*.pdf; do
+    [ -f "$f" ] || continue
+    seen=$((seen + 1))
+    # the page object, and the fonts its own resources define
+    page=$( awk '/\/Type \/Page[^s]/,/endobj/' "$f" )
+    named=$( grep -aoE '/F[0-9]+ [0-9.]+ Tf' "$f" | awk '{print $1}' | sed 's|^/||' | sort -u )
+    [ -n "$named" ] || { echo "FAIL: $(basename "$f") shows no text, so it tests nothing"
+                         fail=1; continue; }
+    for one in $named; do
+        case $page in
+            *"/$one <<"*) : ;;
+            *) echo "FAIL: $(basename "$f") shows text in /$one and the page"
+               echo "      declares no such font, so a reader drops the text"
+               fail=1 ;;
+        esac
+    done
+done
+[ "$seen" = 2 ] || { echo "FAIL: the font workload wrote $seen files for a two-page job"; fail=1; }
+
+# --- and where a run of text lands in the stream -----------------------
+#
+# A run of text is gathered rather than written a glyph at a time, so it
+# is held open while the next glyph might continue it. What closes it is
+# anything else reaching the content: a colour, a path, a bracket, the
+# end of a description being captured. A run left open past one of those
+# is written after it -- text painted in the colour of whatever was
+# drawn next, or written into the page when the cell being captured
+# around it should have carried it. Both are pages a reader draws
+# without complaint and a run cannot see.
+cat > "$work/order.ps" <<'EOF'
+<< /CompressPages false >> setdistillerparams
+/Cell << /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 40 20]
+         /XStep 40 /YStep 20
+         /PaintProc { pop /Helvetica findfont 6 scalefont setfont
+                      2 6 moveto (incell) show } >> def
+0 setgray /Helvetica findfont 14 scalefont setfont
+40 700 moveto (before) show
+1 0 0 setrgbcolor 40 600 100 40 rectfill
+/Pattern setcolorspace Cell matrix makepattern setcolor
+40 400 200 100 rectfill
+showpage
+EOF
+( cd "$work" && "$xpost" -q -d pdfwrite -o order.pdf order.ps </dev/null >/dev/null 2>&1 )     || { echo "FAIL: the ordering run errored"; fail=1; }
+o=$work/order.pdf
+if [ -s "$o" ]; then
+    # the page's own stream: the run set in black must be written before
+    # the colour of the box that follows it
+    pos_text=$( grep -aob '(before) Tj' "$o" | sed 1q | cut -d: -f1 )
+    pos_red=$(  grep -aob '1 0 0 rg'    "$o" | sed 1q | cut -d: -f1 )
+    if [ -z "$pos_text" ]; then
+        echo "FAIL: the ordering page shows no text, so it tests nothing"; fail=1
+    elif [ -z "$pos_red" ]; then
+        echo "FAIL: the ordering page states no colour after its text, so the"
+        echo "      order this holds is not being reached"; fail=1
+    elif [ "$pos_text" -gt "$pos_red" ]; then
+        echo "FAIL: a run of text is written after a colour set for what came"
+        echo "      after it, so the text is painted in that colour"
+        fail=1
+    fi
+    # the cell's glyphs belong to the cell, and to nothing else
+    cell=$( grep -ac 'incell' "$o" )
+    [ "$cell" -ge 1 ] || { echo "FAIL: the pattern cell's text is nowhere in the file"
+                           fail=1; }
+    # ... and they belong to the CELL, which is the stream that follows
+    # the pattern's own dictionary. A run still open when the capture
+    # ends is written wherever the content next goes, which is the page
+    # -- and the page names a font only the cell declares. Read from the
+    # cell's side rather than the page's: the page's stream is written
+    # before the page object that names it, so scanning forward from the
+    # page finds nothing and a check written that way passes on
+    # everything.
+    incell=$( awk '/\/PatternType/{p=1} p&&/stream$/{s=1;next} s&&/endstream/{exit} s' "$o" \
+              | grep -c 'incell' )
+    [ "${incell:-0}" -ge 1 ] || {
+        echo "FAIL: the pattern cell's own glyphs are not in the cell. A run"
+        echo "      still open when the capture ended is written into the"
+        echo "      stream the cell was taken out of instead"
+        fail=1; }
+fi
+
 # THE CONTROL. The workload has to reach the machinery this is about: a
 # page that filed nothing would satisfy every check above by having
 # nothing to resolve. Each writer's second page places descriptions, and
