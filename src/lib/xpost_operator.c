@@ -786,7 +786,11 @@ Xpost_Object xpost_operator_cons(Xpost_Context *ctx,
        first-character comparisons per registration, at startup only. */
 #define XPOST_OP_REF_CAPTURE(ref, refname) \
     if (name[0] == (refname)[0] && !strcmp(name, refname)) \
-        XPOST_OP_CODE(ctx, ref) = opcode;
+    { \
+        XPOST_OP_CODE(ctx, ref) = opcode; \
+        if ((size_t)opcode < sizeof ctx->op_inline / sizeof *ctx->op_inline) \
+            ctx->op_inline[opcode] = 1; \
+    }
     XPOST_OP_REFS(XPOST_OP_REF_CAPTURE)
 #undef XPOST_OP_REF_CAPTURE
 

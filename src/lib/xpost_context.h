@@ -229,6 +229,17 @@ struct _Xpost_Context {
     {
         XPOST_OP_REFS(XPOST_OP_REF_MEMBER)
     } opcode_shortcuts;
+
+    /**< whether an opcode is one the procedure walker recognises inline.
+         The walker's inline arms are a run of comparisons against the
+         shortcuts above, and an operator that is none of them pays every
+         one of them before falling through to the ordinary call --
+         MEASURED, between a third and two fifths of the operators a
+         drawing program executes do exactly that. One indexed read
+         answers it instead. Set as the operators register, beside the
+         shortcuts and for the same reason: a registration cannot forget
+         it. Indexed by opcode, which MAXOPS bounds. */
+    unsigned char op_inline[1024];
 #undef XPOST_OP_REF_MEMBER
 
 

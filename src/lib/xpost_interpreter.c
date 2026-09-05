@@ -918,6 +918,18 @@ int evalarray(Xpost_Context *ctx, Xpost_Object a)
 
                 ctx->currentobject = b;
 
+                /* An operator none of the arms below name is asked of
+                   none of them. They are a run of comparisons against
+                   the opcodes this walker knows, and an operator that is
+                   not one of them answers every comparison before
+                   reaching the ordinary call anyway -- MEASURED, between
+                   a third and two fifths of the operators a drawing
+                   program executes do exactly that. The table answers it
+                   in one read. */
+                if ((w >= sizeof ctx->op_inline / sizeof *ctx->op_inline)
+                    || !ctx->op_inline[w])
+                    goto generic_operator;
+
                 /* The size of a composite, which is a field of the
                    object and needs nothing read out of memory. Answered
                    here for the two kinds a program asks it of most --
