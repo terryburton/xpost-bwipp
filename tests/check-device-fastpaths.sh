@@ -41,6 +41,27 @@
 # nothing to call. Those are reasons. "Not done yet" is not one, and the
 # register says so where it is the truth.
 #
+# ---- one axis of several
+#
+# This asks whether a mark can be handed over cheaply. It is not the only
+# way a device avoids work, and a device is optimised when it carries
+# every mechanism its output shape admits rather than the same set as its
+# neighbour. The others, each with its own applicability:
+#
+#   PaintImage, PaintImageMasked, PaintStencil, FillPattern
+#                    take the object whole rather than a mark per sample,
+#                    per run or per tile
+#   DiscardsMarks    do not resolve the marks at all
+#   GlyphExtents     take a glyph's ink box rather than its pixels
+#   .recordimage, .recordglyph   record the object for replay
+#   .emptyrow, .groundrow        do not emit a row that is all ground
+#   .bandrows, .bandtop          do not hold a whole page
+#
+# The whole-object hooks are held below. The rest are classified by
+# tests/device-facts, which says what each entry is but does not demand
+# one, so a device that could carry one and does not is invisible there.
+# Adding them here is the way to make it visible.
+#
 #   $1  path to the source tree root
 #   $2  path to the built interpreter
 
@@ -66,6 +87,7 @@ XPOST_CENSUS=1
 export XPOST_CENSUS
 
 register=$src/tests/device-fastpaths
+register_facts=$src/tests/device-facts
 fleet=$src/tests/device-fleet.sh
 [ -f "$register" ] || { echo "FAILURES: $register is missing"; exit 1; }
 [ -f "$fleet" ] || { echo "FAILURES: $fleet is missing"; exit 1; }
@@ -94,6 +116,11 @@ SLOTS="PutPix GetPix BlendPix FillRect FillPoly"
           get type /operatortype eq { (compiled) }{ (procedure) } ifelse
       }{ pop pop (absent) } ifelse print (\n) print
     } forall
+    [ /PaintImage /PaintImageMasked /PaintStencil /FillPattern ]
+    { /S exch def
+      (W ) print D 60 string cvs print ( ) print S 60 string cvs print ( ) print
+      DEVICE S known { (present) }{ (absent) } ifelse print (\n) print
+    } forall
   } ifelse
 } forall
 EOF
@@ -108,6 +135,7 @@ if [ "$rc" -ne 0 ]; then
     exit 1
 fi
 printf '%s\n' "$out" | grep '^F ' | awk '{print $2, $3, $4}' | sort > "$work/said"
+printf '%s\n' "$out" | grep '^W ' | awk '{print $2, $3, $4}' | sort > "$work/wsaid"
 [ -s "$work/said" ] || { echo "FAILURES: no device stated any method"; exit 1; }
 
 # what the register excuses
@@ -122,7 +150,52 @@ guard_hold "$work/slow" "$work/excused" \
   "tests/device-fastpaths excuses a slot that is not slow, or a device that is gone. An excuse that stopped being true reads like one that was never examined:"
 [ "$guard_held" -eq 0 ] || exit 1
 
+# ---- the whole-object hooks
+#
+# A device whose output language has an image or a stencil in it is handed
+# one whole, before the image matrix is concatenated, rather than a mark
+# per sample or per run: data/paint.ps offers PaintImage,
+# PaintImageMasked and PaintStencil there. Which devices those are is not
+# named here -- a device carrying VectorGlyphs writes a document rather
+# than a raster, tests/device-facts says which they are and holds it, and
+# that is the same set -- so a fourth writer is held to this the day it
+# arrives.
+WHOLE="PaintImage PaintImageMasked PaintStencil FillPattern"
+awk '$2 == "VectorGlyphs" && $1 == "open" {
+        for (i = 3; i <= NF; i++) print $i }' "$register_facts" \
+    | LC_ALL=C sort -u > "$work/writers"
+if [ -s "$work/writers" ]; then
+    : > "$work/wwant"
+    while read -r d; do
+        for h in $WHOLE; do echo "$d $h"; done
+    done < "$work/writers" | LC_ALL=C sort -u > "$work/wwant"
+    awk '$3 != "absent" { print $1, $2 }' "$work/wsaid" \
+        | LC_ALL=C sort -u > "$work/whave"
+    grep -E '^whole ' "$register" | awk '{print $2, $3}' \
+        | LC_ALL=C sort -u > "$work/wexcused"
+    LC_ALL=C sort -u "$work/whave" "$work/wexcused" > "$work/wcovered"
+    # An excuse for a hook the device carries is one that stopped being
+    # true, and a set union would hide it: the device is covered either
+    # way, so the excuse has to be held to the absence it names.
+    LC_ALL=C comm -12 "$work/wexcused" "$work/whave" > "$work/wboth"
+    if [ -s "$work/wboth" ]; then
+        echo "FAIL: tests/device-fastpaths excuses a whole-object hook the"
+        echo "      device carries. An excuse that stopped being true reads"
+        echo "      like one that was examined:"
+        sed 's/^/      /' "$work/wboth"
+        guard_held=1
+    fi
+    guard_hold "$work/wwant" "$work/wcovered" \
+      "a device that writes a document does not take an image or a stencil whole, so it takes a mark per sample or per run. Give it the method, or a 'whole <device> <hook>' line in tests/device-fastpaths with the reason its language has no such construct:" \
+      "tests/device-fastpaths excuses a whole-object hook for a device that has it, or that does not write a document:"
+    [ "$guard_held" -eq 0 ] || exit 1
+fi
+
 n=$(wc -l < "$work/said" | tr -d ' ')
 e=$(wc -l < "$work/excused" | tr -d ' ')
+w=$(wc -l < "$work/wwant" 2>/dev/null | tr -d ' '); w=${w:-0}
+wx=$(wc -l < "$work/wexcused" 2>/dev/null | tr -d ' '); wx=${wx:-0}
 printf 'SUCCESS (%s device/slot pairs stated; %s of them take their marks\n' "$n" "$e"
-printf '         one at a time, each with a reason the register carries)\n'
+printf '         one at a time, each with a reason the register carries.\n'
+printf '         %s whole-object hooks asked of the devices that write a\n' "$w"
+printf '         document; %s of those excused)\n' "$wx"

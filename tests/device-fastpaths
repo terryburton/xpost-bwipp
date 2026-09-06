@@ -78,3 +78,27 @@ slow pbm GetPix
 slow pgm GetPix
 slow ppm GetPix
 slow tiff GetPix
+
+# ---- the whole-object hooks ------------------------------------------
+#
+# A device whose output language has an image or a stencil in it takes
+# one whole rather than a mark per sample or per run. Which devices
+# those are is read off tests/device-facts: a device carrying
+# VectorGlyphs writes a document rather than a raster, and that is the
+# same set. A line here excuses one that does not carry a hook.
+
+whole dscwrite FillPattern
+#   A pattern reaches a PDF as an object the page names and the consumer
+#   tiles, and a DSC program has no such object: data/dscwrite.ps undefs
+#   the method where it copies the PDF writer's class, beside the shading
+#   and masked-image writers it withdraws for the same reason. The tiling
+#   is resolved into the fills it makes instead, the route every device
+#   without the construct takes -- which is what every raster device does
+#   with a pattern, and why they cost more for one than a writer does.
+
+whole dscwrite PaintImageMasked
+#   What that hook emits is a PDF image dictionary carrying a mask, and
+#   a DSC program has no place for one: data/dscwrite.ps undefs it where
+#   it copies the PDF writer's class, and says so there. A masked image
+#   is resolved against its mask and painted instead, which is the route
+#   every device without the construct takes.
