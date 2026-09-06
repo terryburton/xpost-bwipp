@@ -611,6 +611,62 @@ xpost_memory_file_release_range(Xpost_Memory_File *mem,
 #endif
 }
 
+/* Brings the file's extent down to @p size, giving the host back
+   whatever it was holding above it.
+
+   What the file says its extent is and what the host has mapped have to
+   stay the same thing, because the extent is what the next grow is told
+   the mapping's current length is. A mapping extended in place is grown
+   again from that length: handed a length short of the mapping, the
+   extension takes the front of it and leaves the piece past that length
+   mapped with nothing addressing it. Nothing ever reads that piece and
+   it holds no pages, so it costs no resident memory and no checker that
+   watches the allocator sees it -- it is address space, and it is never
+   given back. A host that recycles a worker by virtual size is the one
+   thing that does see it, and it sees it grow by the same piece every
+   time a job is reverted.
+
+   The reservation backing has one mapping whose size never changes and
+   the allocator backing hands its block back whole, so for those the
+   extent is the only thing to bring down. */
+static void _xpost_memory_file_shrink(Xpost_Memory_File *mem, unsigned int size)
+{
+    if (size >= mem->max)
+        return;
+
+#if defined(XPOST_MEMORY_RESERVED_VM) || defined(_WIN32)
+    /* nothing to unmap: the extent is what is committed within a
+       reservation that outlives it */
+#elif defined (HAVE_MREMAP)
+    {
+        /* An extent is where the file's own cursor stands and is not a
+           multiple of the page, but a mapping is only ever given back a
+           whole page at a time. The range handed over therefore begins at
+           the first page boundary at or above the new extent -- rounding
+           up rather than down, so the page the extent stands in stays
+           mapped and nothing the file still addresses goes -- and runs to
+           the page the old extent stands in, which is where the host has
+           the mapping ending. */
+        size_t pg = xpost_memory_page_size;
+        size_t from = ((size_t)size + pg - 1) / pg * pg;
+        size_t to = ((size_t)mem->max + pg - 1) / pg * pg;
+        void *bytes = xpost_vm_ptr(mem, (unsigned int)from);
+
+        if (from < to && munmap(bytes, to - from) != 0)
+        {
+            /* the storage is still mapped, so the extent must go on saying
+               so -- a length the host disagrees with is the defect above */
+            XPOST_LOG_ERR("cannot give back %lu bytes at %lu (error: %s)",
+                          (unsigned long)(to - from), (unsigned long)from,
+                          strerror(errno));
+            return;
+        }
+    }
+#endif
+
+    mem->max = size;
+}
+
 /*
    Close, deallocate, and destroy memory file structure
  */
@@ -1168,23 +1224,24 @@ void xpost_memory_image_restore(Xpost_Memory_File *mem, const Xpost_Memory_Image
     mem->compact_pending = 0;
     mem->path_walk.ent = 0;
 
-    /* Hand back what the job grew. The revert pulled the live cursor down to
-       the baseline, so the pages the job committed above it are no longer
-       anyone's: release them to the system, so the worker's footprint tracks
-       the job it is running rather than the largest it ever ran, and bring
-       the arena's size down with the cursor, so globalvmstatus reports the
-       arena a job begins from and a job that fills the free space fills the
-       baseline rather than a peak an earlier job left. This is the page
-       return vmreclaim's compaction uses (xpost_memory_file_release_range);
-       the revert has already put the free lists back to the baseline's, so
-       the run above the cursor is handed back whole. A job whose peak fit
-       under the baseline pays nothing; one that grew the arena pays in
-       re-committing the room it needs the next time. */
+    /* Hand back what the job grew, in two steps. The arena's extent comes
+       down to the baseline's first, which gives the host back the storage
+       the job added and leaves globalvmstatus reporting the arena a job
+       begins from -- so a job that fills the free space fills the baseline
+       rather than a peak an earlier job left. Then the pages above the live
+       cursor within that extent go back too: the revert pulled the cursor
+       down to the baseline, so they are no longer anyone's, and the
+       worker's footprint tracks the job it is running rather than the
+       largest it ever ran. That second step is the page return vmreclaim's
+       compaction uses (xpost_memory_file_release_range); the revert has
+       already put the free lists back to the baseline's, so the run above
+       the cursor is handed back whole. A job whose peak fit under the
+       baseline pays nothing; one that grew the arena pays in re-committing
+       the room it needs the next time. */
+    _xpost_memory_file_shrink(mem, img->max);
     if (mem->max > mem->high_water)
         (void)xpost_memory_file_release_range(mem, mem->high_water,
                                               mem->max - mem->high_water);
-    if (mem->max > img->max)
-        mem->max = img->max;
 
     /* What the arena knows about itself, laid over the restored contents:
        everything above the live cursor is closed, and the entities the

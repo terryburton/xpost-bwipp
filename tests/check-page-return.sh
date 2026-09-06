@@ -36,6 +36,19 @@
 # pages truly go back is the process's resident memory. This reads it from
 # /proc/self/statm and holds each caller to returning a job's growth.
 #
+# Resident memory is not the whole of it either. Handing the pages back and
+# giving the storage up are two different things: the pages can go while the
+# mapping they were in stays, and then resident memory falls, the reported
+# figures fall, and the process's address space does not move. That is not a
+# cosmetic difference -- the extent the file says it has is what the next
+# grow tells the host the mapping currently is, so a file that renamed
+# itself down without unmapping hands the next grow a length short of the
+# mapping and leaves the piece past it mapped with nothing addressing it,
+# once per job, for the life of the process. Nothing above sees that, and a
+# leak checker does not either, because it watches the allocator and this is
+# a mapping. Address space is therefore read here as well, from field one of
+# the same file, and the boundary is held to giving it up.
+#
 # It is therefore a Linux test: where that file is absent it skips, and the
 # reported-figure invariance check-vm-growth makes stands for the reclaim on
 # the platforms whose own page return (DiscardVirtualMemory, a fixed re-map)
@@ -128,6 +141,9 @@ export XPOST_DATA_DIR
 # probe's own allocation.
 rss='(/proc/self/statm)(r)file dup token pop pop token pop'
 
+# Address space: field one of the same file, read the same way.
+vsz='(/proc/self/statm)(r)file token pop'
+
 # Grow about thirty-nine megabytes -- six hundred strings a word-size each --
 # so a page return stands well clear of measurement noise. The fall asserted
 # below is a fraction of it, so the test turns on whether the pages went back
@@ -151,12 +167,14 @@ grow='/keep 600 array def 0 1 599 { keep exch 65535 string put } for'
 # Control-D boundary's revert, discarding the job's whole virtual memory, can
 # -- and the next job reads resident memory back at the baseline.
 {
-    printf '/rss { %s } def\n' "$rss"
+    printf '/rss { %s } def\n/vsz { %s } def\n' "$rss" "$vsz"
     printf 'true setglobal\n%s\n' "$grow"
     printf '(BETWEEN peak ) print rss 20 string cvs print (\\n) print flush\n'
+    printf '(BETWEEN vpeak ) print vsz 20 string cvs print (\\n) print flush\n'
     printf '\004'
-    printf '/rss { %s } def\n' "$rss"
+    printf '/rss { %s } def\n/vsz { %s } def\n' "$rss" "$vsz"
     printf '(BETWEEN after ) print rss 20 string cvs print (\\n) print flush\n'
+    printf '(BETWEEN vafter ) print vsz 20 string cvs print (\\n) print flush\n'
     printf '\004'
 } > "$work/between"
 "$xpost" -q --no-sandbox -d null --jobserver < "$work/between" > "$work/between.out" 2>/dev/null
@@ -194,6 +212,8 @@ awk '
     /WITHIN after/  { wa = $3 }
     /BETWEEN peak/  { bp = $3 }
     /BETWEEN after/ { ba = $3 }
+    /BETWEEN vpeak/ { vp = $3 }
+    /BETWEEN vafter/ { va = $3 }
     /DEVICE few/    { df = $3 }
     /DEVICE many/   { dm = $3 }
     END {
@@ -221,9 +241,18 @@ awk '
             printf "resident grew %d pages over 40 extra setpagedevice jobs\n", dm - df
             bad = 1
         }
+        if (vp == "" || va == "")
+            { print "the between-job probe did not report both address-space figures"; bad = 1 }
+        else if (vp - va < want) {
+            printf "the job boundary did not give up the address space it grew into:\n"
+            printf "the program size fell %d pages, and giving the growth up is at\n", vp - va
+            printf "least %d -- the pages went back and the mapping they were in did not\n", want
+            bad = 1
+        }
         if (bad) exit 1
         printf "within a job vmreclaim returned %d pages; between jobs the boundary\n", wp - wa
-        printf "returned %d and held the device buffer flat (%d pages over 40 jobs)\n", bp - ba, dm - df
+        printf "returned %d resident and gave up %d of address space, and held the\n", bp - ba, vp - va
+        printf "device buffer flat (%d pages over 40 jobs)\n", dm - df
     }
 ' "$work/out" > "$work/problems" 2>&1
 rc=$?
