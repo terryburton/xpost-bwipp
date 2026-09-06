@@ -187,6 +187,7 @@ device test one-bytebuf
 device test output-buffer-release
 device test oversize-page
 device test page-*
+device test form-glyph-nest
 device test image-placement
 device test pdf-*
 device test pngalpha-device
@@ -338,6 +339,7 @@ graphics test setdash-finite
 graphics test shading-*
 graphics test show-*
 graphics test stencil-mask-size
+graphics test form-glyph-nest
 graphics test image-placement
 graphics test stencil-band
 graphics test thin-stroke

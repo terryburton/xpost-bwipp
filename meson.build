@@ -2325,6 +2325,19 @@ test('form-serial-restore',
 # execution (PLRM 4.7), and the claim is that the substitution changes
 # nothing: three pages, byte for byte, and a fourth that must differ so
 # the comparison is known to see a placement moved by less than a pixel.
+# A form placed inside a form, where the inner one holds glyphs. Coverage is
+# the one mark a drawing cannot be moved by a fraction of a pixel, so a
+# drawing holding a glyph may only be played on whole pixels -- and a form
+# whose own marks are a rectangle and a placement holds no mask of its own.
+# What is held here is that it knows it is carrying the inner form's.
+test('form-glyph-nest',
+  find_program('tests/check-form-glyph-nest.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 test('form-nest',
   find_program('tests/run-form-nest-test.sh'),
   args: [ xpost_exe, files('tests/form_nest_test.ps') ],

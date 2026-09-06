@@ -1579,9 +1579,37 @@ int xpost_record_glyph(Xpost_Record *rec, const real *colour,
                 y, y + (real)(m->h - 1));
 }
 
+/* The masks playing this record would put down, counting through the
+   drawings it places as well as the ones it holds itself.
+
+   A caller asks this to find out whether playing the record lays down
+   glyph coverage, because coverage is the one thing a drawing cannot be
+   moved by a fraction of a pixel: a mask carries the pixels a glyph
+   rasterised to, and where those pixels take their coverage from is the
+   fraction of a pixel the origin fell at. A record that holds no mask
+   itself but places a drawing that does would answer none, and a caller
+   trusting that would move it anywhere.
+
+   The table of drawings names each one once however many placements
+   name it, so a drawing placed many times is counted once. The walk is
+   bounded by the depth a placement is allowed to reach, which
+   xpost_record_place refuses to exceed. */
+static size_t _mask_count_at(const Xpost_Record *rec, int depth)
+{
+    size_t n, i, ns;
+
+    if (!rec || depth > XPOST_RECORD_NEST)
+        return 0;
+    n = _nmsk(rec);
+    ns = _nsub(rec);
+    for (i = 0; i < ns; i++)
+        n += _mask_count_at(_subs(rec)[i], depth + 1);
+    return n;
+}
+
 size_t xpost_record_mask_count(const Xpost_Record *rec)
 {
-    return rec ? _nmsk(rec) : 0;
+    return rec ? _mask_count_at(rec, 0) : 0;
 }
 
 size_t xpost_record_mask_bytes(const Xpost_Record *rec)

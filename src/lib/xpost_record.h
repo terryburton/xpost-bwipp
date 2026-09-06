@@ -440,7 +440,8 @@ int xpost_record_glyph(Xpost_Record *rec, const real *colour,
                        size_t at, real x, real y);
 
 /**
- * @brief How many coverage masks a record holds.
+ * @brief How many coverage masks playing a record would put down,
+ *        counting through the drawings it places as well as its own.
  */
 size_t xpost_record_mask_count(const Xpost_Record *rec);
 
