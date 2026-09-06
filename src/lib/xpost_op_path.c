@@ -2110,6 +2110,62 @@ int _closepath(Xpost_Context *ctx)
     return _path_append(ctx, gstate, &path, PATH_CMD_CLOSE, co, 2);
 }
 
+/* rects  .rectspath  -
+   Append the rectangles a flat array names to the current path, each as
+   a closed subpath, in the order they are given: four numbers to a
+   rectangle, its low corner and then its width and height.
+
+   It is the operators above in a loop and nothing else -- the corners
+   go through the same moveto and lineto, under the transformation in
+   force -- so the path is the one that construction builds. What it is
+   for is a caller with very many rectangles and one path to put them
+   in: the rectangles a stencil mask resolves into number in the
+   hundreds of thousands on a page, and reaching the operators through
+   the interpreter for each corner costs more than the path does. */
+static
+int _rectspath(Xpost_Context *ctx,
+               Xpost_Object rects)
+{
+    unsigned int n = rects.comp_.sz, i;
+
+    if (n % 4)
+        return rangecheck;
+    for (i = 0; i < n; i += 4)
+    {
+        Xpost_Object o;
+        double v[4];
+        int k, ret;
+
+        for (k = 0; k < 4; k++)
+        {
+            o = xpost_array_get(ctx, rects, i + k);
+            switch (xpost_object_get_type(o))
+            {
+                case integertype: v[k] = (double)o.int_.val; break;
+                case realtype:    v[k] = (double)o.real_.val; break;
+                default:          return typecheck;
+            }
+        }
+        ret = _moveto(ctx, xpost_real_cons((real)v[0]),
+                           xpost_real_cons((real)v[1]));
+        if (!ret)
+            ret = _lineto(ctx, xpost_real_cons((real)(v[0] + v[2])),
+                               xpost_real_cons((real)v[1]));
+        if (!ret)
+            ret = _lineto(ctx, xpost_real_cons((real)(v[0] + v[2])),
+                               xpost_real_cons((real)(v[1] + v[3])));
+        if (!ret)
+            ret = _lineto(ctx, xpost_real_cons((real)v[0]),
+                               xpost_real_cons((real)(v[1] + v[3])));
+        if (!ret)
+            ret = _closepath(ctx);
+        if (ret)
+            return ret;
+    }
+    return 0;
+}
+
+
 /* va vb vc  .tripoly  polygon true
    va vb vc  .tripoly  false
 
@@ -3376,6 +3432,7 @@ int xpost_oper_init_path_ops(Xpost_Context *ctx,
                              floattype, floattype, floattype, floattype, floattype, floattype, floattype, floattype);
     _rcurveto_cont_opcode = op.mark_.padw;
 
+    op = xpost_operator_cons(ctx, ".rectspath", (Xpost_Op_Func)_rectspath, 1, arraytype); INSTALL;
     op = xpost_operator_cons(ctx, "closepath", (Xpost_Op_Func)_closepath, 0);
     INSTALL;
 

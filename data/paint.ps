@@ -2244,13 +2244,7 @@ setglobal
                 /cm matrix currentmatrix def
                 0 by translate
                 paintpat {
-                    0 4 rects length 1 sub { /i exch def
-                        rects i get  rects i 1 add get
-                        rects i 2 add get  rects i 3 add get
-                        /rh exch def /rw exch def /ry exch def /rx exch def
-                        rx ry moveto rx rw add ry lineto
-                        rx rw add ry rh add lineto rx ry rh add lineto closepath
-                    } for
+                    rects .rectspath
                 }{
                     rects rectfill
                 } ifelse
