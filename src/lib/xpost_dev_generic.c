@@ -7734,6 +7734,186 @@ void xpost_device_retire_job(Xpost_Context *ctx, unsigned int baseline_depth)
     _device_release(ctx, devdic, destroy);
 }
 
+/* buf width height ink  .stencilscan  rects
+   The rectangles the set bits of a one-bit mask cover, as a run-length
+   reading of it: x y w h for each, four numbers to a rectangle, with y
+   counted from the first row of the buffer handed in.
+
+   A row resolves into runs of consecutive samples equal to ink, and a
+   run whose extent is the one a run on the row above has extends that
+   rectangle downwards instead of starting another. So a solid mask
+   comes back as one rectangle and a mask alternating every sample as
+   one per sample, and the union of what comes back is in either case
+   the region the bits describe.
+
+   Runs arrive in increasing order of their left edge on every row, so
+   the row above is looked up by walking a cursor along it rather than
+   by searching: the two rows are merged the way two sorted lists are.
+
+   The reading is a function of the bits alone -- no graphics state, no
+   device, no colour -- which is what lets the caller ask it a band of
+   rows at a time and hold the answers. */
+static int _stencilscan(Xpost_Context *ctx,
+                        Xpost_Object bufo,
+                        Xpost_Object wo,
+                        Xpost_Object ho,
+                        Xpost_Object inko)
+{
+    const unsigned char *buf;
+    Xpost_Object out;
+    int w, h, ink, rowbytes, x, y, i, ret;
+    int nrect = 0, caprect = 0;
+    int nprev = 0, ncur = 0, capprev = 0;
+    int *rx = NULL, *ry = NULL, *rw = NULL, *rh = NULL;
+    int *pstart = NULL, *pidx = NULL, *cstart = NULL, *cidx = NULL;
+
+    w = wo.int_.val;
+    h = ho.int_.val;
+    ink = inko.int_.val ? 1 : 0;
+    if (w <= 0 || h <= 0)
+        return xpost_stack_push(ctx->lo, ctx->os,
+                                xpost_object_cvlit(xpost_array_cons(ctx, 0))),
+               0;
+    /* w may be near INT_MAX, so w + 7 would overflow */
+    rowbytes = w / 8 + (w % 8 ? 1 : 0);
+    /* the mask has to fit the buffer it was handed in, counted in rows
+       so that the product of the two dimensions need not itself stay
+       within the integer range */
+    if ((int)(bufo.comp_.sz / (unsigned int)rowbytes) < h)
+        return rangecheck;
+    buf = (const unsigned char *)xpost_string_get_pointer(ctx, bufo);
+    if (!buf)
+        return VMerror;
+
+    for (y = 0; y < h; y++)
+    {
+        const unsigned char *row = buf + (size_t)y * rowbytes;
+        int cursor = 0;
+
+        ncur = 0;
+        x = 0;
+        while (x < w)
+        {
+            int x0, len, idx = -1;
+
+            if ((row[x >> 3] >> (7 - (x & 7)) & 1) != ink)
+            {
+                x++;
+                continue;
+            }
+            x0 = x;
+            while (++x < w && (row[x >> 3] >> (7 - (x & 7)) & 1) == ink)
+                ;
+            len = x - x0;
+
+            /* the row above, walked in step: its runs are in the same
+               order, so what cannot match this run's left edge any more
+               is passed over once and not looked at again */
+            while (cursor < nprev && pstart[cursor] < x0)
+                cursor++;
+            if (cursor < nprev && pstart[cursor] == x0
+                && rw[pidx[cursor]] == len)
+            {
+                idx = pidx[cursor];
+                rh[idx]++;
+                cursor++;
+            }
+            if (idx < 0)
+            {
+                if (nrect == caprect)
+                {
+                    int n = caprect ? caprect * 2 : 256;
+                    int *a;
+
+                    if ((a = realloc(rx, (size_t)n * sizeof *a)) == NULL)
+                        goto nomem;
+                    rx = a;
+                    if ((a = realloc(ry, (size_t)n * sizeof *a)) == NULL)
+                        goto nomem;
+                    ry = a;
+                    if ((a = realloc(rw, (size_t)n * sizeof *a)) == NULL)
+                        goto nomem;
+                    rw = a;
+                    if ((a = realloc(rh, (size_t)n * sizeof *a)) == NULL)
+                        goto nomem;
+                    rh = a;
+                    caprect = n;
+                }
+                rx[nrect] = x0;
+                ry[nrect] = y;
+                rw[nrect] = len;
+                rh[nrect] = 1;
+                idx = nrect;
+                nrect++;
+            }
+            if (ncur == capprev)
+            {
+                int n = capprev ? capprev * 2 : 256;
+                int *a;
+
+                if ((a = realloc(cstart, (size_t)n * sizeof *a)) == NULL)
+                    goto nomem;
+                cstart = a;
+                if ((a = realloc(cidx, (size_t)n * sizeof *a)) == NULL)
+                    goto nomem;
+                cidx = a;
+                if ((a = realloc(pstart, (size_t)n * sizeof *a)) == NULL)
+                    goto nomem;
+                pstart = a;
+                if ((a = realloc(pidx, (size_t)n * sizeof *a)) == NULL)
+                    goto nomem;
+                pidx = a;
+                capprev = n;
+            }
+            cstart[ncur] = x0;
+            cidx[ncur] = idx;
+            ncur++;
+        }
+        /* this row becomes the row above, and the arrays swap rather
+           than copy so that a tall mask costs no more than a short one */
+        {
+            int *t;
+
+            t = pstart; pstart = cstart; cstart = t;
+            t = pidx;   pidx   = cidx;   cidx   = t;
+            nprev = ncur;
+        }
+    }
+
+    if (nrect > 16383)
+    {
+        ret = limitcheck;
+        goto done;
+    }
+    out = xpost_object_cvlit(xpost_array_cons(ctx, 4 * nrect));
+    if (xpost_object_get_type(out) != arraytype)
+    {
+        ret = VMerror;
+        goto done;
+    }
+    ret = 0;
+    for (i = 0; i < nrect && !ret; i++)
+    {
+        ret = xpost_array_put(ctx, out, 4 * i, xpost_int_cons(rx[i]));
+        if (!ret)
+            ret = xpost_array_put(ctx, out, 4 * i + 1, xpost_int_cons(ry[i]));
+        if (!ret)
+            ret = xpost_array_put(ctx, out, 4 * i + 2, xpost_int_cons(rw[i]));
+        if (!ret)
+            ret = xpost_array_put(ctx, out, 4 * i + 3, xpost_int_cons(rh[i]));
+    }
+    if (!ret)
+        xpost_stack_push(ctx->lo, ctx->os, out);
+    goto done;
+
+nomem:
+    ret = VMerror;
+done:
+    free(rx); free(ry); free(rw); free(rh);
+    free(pstart); free(pidx); free(cstart); free(cidx);
+    return ret;
+}
+
 /* Installs the operators every device class is built out of: scan
    conversion, the page and buffer machinery, and the vector
    accumulator. */
@@ -7760,6 +7940,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".pathspanparts", (Xpost_Op_Func)_pathspanparts, 2,
                              stringtype, booleantype); INSTALL;
     op = xpost_operator_cons(ctx, ".blitrow", (Xpost_Op_Func)xpost_dev_blit_row, 1, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".stencilscan", (Xpost_Op_Func)_stencilscan, 4,
+                             stringtype, integertype, integertype, integertype); INSTALL;
     op = xpost_operator_cons(ctx, ".rectspan", (Xpost_Op_Func)_rectspan, 6,
             numbertype, numbertype, numbertype, numbertype,
             numbertype, numbertype); INSTALL;

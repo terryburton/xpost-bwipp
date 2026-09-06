@@ -2059,7 +2059,8 @@ setglobal
 %  The rectangles a stencil mask covers, as a run-length reading of its
 %  bits: consecutive rows sharing one extent merge into one taller
 %  rectangle, so the union of what comes back is the region the set bits
-%  describe.
+%  describe. The reading itself is a function of the bits alone and is
+%  compiled; what is decided here is when it need not be done again.
 %
 %  Answers from the cache in .gscratch where the same mask has been read
 %  before. A job that paints one small stencil over and over -- which is
@@ -2090,54 +2091,7 @@ setglobal
     found null ne {
         found
     }{
-        /rowbytes kw 7 add 8 idiv def
-        /cap kw 2 idiv 1 add kh mul def
-        /rxa cap array def /rya cap array def
-        /rwa cap array def /rha cap array def
-        /rn 0 def
-        /prev 0 dict def
-        0 1 kh 1 sub { /y exch def
-            /cur 8 dict def
-            /x 0 def
-            {
-                x kw ge { exit } if
-                kbuf y rowbytes mul x 8 idiv add get
-                x 8 mod 7 sub bitshift 1 and kink eq {
-                    /x0 x def
-                    {
-                        /x x 1 add def
-                        x kw ge { exit } if
-                        kbuf y rowbytes mul x 8 idiv add get
-                        x 8 mod 7 sub bitshift 1 and kink ne { exit } if
-                    } loop
-                    /rl x x0 sub def
-                    /ext false def
-                    prev x0 2 copy known {
-                        get dup rwa exch get rl eq {
-                            dup rha exch 2 copy get 1 add put
-                            cur x0 3 -1 roll put
-                            /ext true def
-                        }{ pop } ifelse
-                    }{ pop pop } ifelse
-                    ext not {
-                        rxa rn x0 put rya rn y put
-                        rwa rn rl put rha rn 1 put
-                        cur x0 rn put
-                        /rn rn 1 add def
-                    } if
-                }{
-                    /x x 1 add def
-                } ifelse
-            } loop
-            /prev cur def
-        } for
-        /rects rn 4 mul array def
-        0 1 rn 1 sub { /i exch def
-            rects i 4 mul       rxa i get put
-            rects i 4 mul 1 add rya i get put
-            rects i 4 mul 2 add rwa i get put
-            rects i 4 mul 3 add rha i get put
-        } for
+        /rects kbuf kw kh kink .stencilscan def
         .gscratch /.stencilcache get length 200 ge { .gscratch /.stencilcache 64 dict put } if
         /tuple [ kw kh kink kbuf dup length string copy rects ] def
         .gscratch /.stencilcache get hh 2 copy known {
