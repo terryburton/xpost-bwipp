@@ -6,9 +6,10 @@
 # sampled at all: the axis goes over as it stands, under the mapping from
 # the space the program painted in.
 #
-# The other shading types have no SVG form -- a function-based shading none
-# at all, a radial one a focal radius not every consumer reads -- so they
-# must still decompose, which is what makes the scope testable.
+# A radial shading goes over where SVG can state it, which is where one
+# circle lies wholly inside the other; a pair that slides clear has no focal
+# point to name and must still decompose, which is what makes the scope
+# testable rather than assumed.
 #   $1  path to the built xpost binary
 set -u
 xpost=${1:?usage: check-svg-shading.sh <xpost binary>}
@@ -89,6 +90,21 @@ run radialapart '0 0 300 300 rectclip
         && { echo "FAIL: a radial shading SVG cannot state was written as a gradient"; fail=1; }
     test "$(grep -c '<path' "$work/radialapart.svg")" -gt 2 \
         || { echo "FAIL: a declined radial shading painted almost nothing"; fail=1; }
+}
+
+# A shading painting in a space this writer is not offered is restated in one
+# it is: the geometry of an analytic shading does not depend on the space, so
+# the ramp its function describes is read at a row of points and the row goes
+# over as the gradient's stops. The shading reaches the file whole.
+run cie '0 0 200 200 rectclip
+<< /ShadingType 2
+   /ColorSpace [ /CIEBasedABC << /WhitePoint [0.9505 1 1.089] >> ]
+   /Coords [0 0 200 0]
+   /Function << /FunctionType 2 /Domain [0 1] /C0 [0 0 0] /C1 [1 1 1] /N 1 >> >> shfill' && {
+    grep -q '<linearGradient' "$work/cie.svg" \
+        || { echo "FAIL: an analytic shading was not restated into a gradient"; fail=1; }
+    n=$(grep -c '<path' "$work/cie.svg")
+    test "$n" -le 2 || { echo "FAIL: the restated shading left $n paths, so it decomposed"; fail=1; }
 }
 
 # a page with no shading names no gradient

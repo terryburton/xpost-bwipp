@@ -5,9 +5,10 @@
 # consumer's own arithmetic draws the gradient: no bands, and a fraction of
 # the size.
 #
-# The mesh types are not offered, their geometry being a stream this writer
-# does not rewrite, and they must still decompose -- which is what makes the
-# scope of the feature testable rather than assumed.
+# The mesh types go over as well, their vertices packed into the stream the
+# consumer reads them from. What still decomposes is a shading whose colours
+# this writer cannot say at all, which is what makes the scope of the feature
+# testable rather than assumed.
 #
 # CompressPages false leaves the content stream readable, so the `sh`
 # operator that paints the shading can be read alongside the resource it
@@ -128,16 +129,37 @@ grep -q '/ShadingType 6' "$work/patch.pdf" \
     || { echo "FAIL: a patch mesh did not reach the file as one"; fail=1; }
 grep -q '/BitsPerFlag' "$work/patch.pdf" \
     || { echo "FAIL: the patch mesh states no flag width"; fail=1; }
-# SCOPE. A shading in a space needing a resource of its own is not claimed,
-# and must still decompose -- without this the checks above would pass on a
-# writer that claimed everything and wrote the wrong thing for most of it.
+# A shading painting in a space this writer is not offered is restated in one
+# it is. The geometry of an analytic shading does not depend on the space at
+# all -- what the space decides is the colour along a ramp, and a ramp is a
+# function of one variable -- so the function is read at a row of points and
+# the row goes over as a sampled function in a device space. The shading
+# reaches the file whole, and only the ramp is approximated.
 mk cie '0 0 200 200 rectclip
 << /ShadingType 2
    /ColorSpace [ /CIEBasedABC << /WhitePoint [0.9505 1 1.089] >> ]
    /Coords [0 0 200 0]
    /Function << /FunctionType 2 /Domain [0 1] /C0 [0 0 0] /C1 [1 1 1] /N 1 >> >> shfill'
-grep -q '/ShadingType' "$work/cie.pdf" \
-    && { echo "FAIL: a shading in a space this cannot state was written as one"; fail=1; }
+grep -q '/ShadingType 2' "$work/cie.pdf" \
+    || { echo "FAIL: an analytic shading was not restated into a space this can say"; fail=1; }
+grep -q '/ColorSpace /DeviceRGB' "$work/cie.pdf" \
+    || { echo "FAIL: the restated shading does not paint in a device space"; fail=1; }
+grep -q '/FunctionType 0' "$work/cie.pdf" \
+    || { echo "FAIL: the restated ramp did not go over as a sampled function"; fail=1; }
+
+# SCOPE. A mesh states its colours at its vertices rather than through a
+# function, so there is no ramp to restate and it must still decompose --
+# without this arm the checks above would pass on a writer that claimed every
+# space and wrote the wrong colours for most of them.
+mk ciemesh '0 0 200 200 rectclip
+<< /ShadingType 4
+   /ColorSpace [ /CIEBasedABC << /WhitePoint [0.9505 1 1.089] >> ]
+   /BitsPerCoordinate 8 /BitsPerComponent 8 /BitsPerFlag 8
+   /Decode [0 200 0 200 0 1 0 1 0 1]
+   /DataSource <00 00 00 FF 00 00  00 FF 00 00 FF 00  00 80 FF 00 00 FF>
+>> shfill'
+grep -q '/ShadingType' "$work/ciemesh.pdf" \
+    && { echo "FAIL: a mesh in a space this cannot state was written as a shading"; fail=1; }
 
 grep -q '/FunctionType 3' "$work/stitched.pdf" \
     || { echo "FAIL: a stitching function did not reach the file"; fail=1; }

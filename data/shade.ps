@@ -1946,8 +1946,94 @@ end
     }{ pop false } ifelse
 } def
 
+%  A shading stated in a space no writer is offered, restated in one it
+%  is.
+%
+%  A writer takes a shading whole only where it can say the colours as
+%  well as the geometry, and the spaces it is offered are the device
+%  ones (.shdevcs): a shading painting in a CIE-based space is otherwise
+%  decomposed into flat pieces, and the pieces are what a reader then
+%  sees -- MEASURED against this interpreter's own raster of the same
+%  page, a decomposed radial differed over a third of it.
+%
+%  For the analytic types the geometry does not depend on the space at
+%  all: what the space decides is the colour at each point along the
+%  ramp, and a ramp is a function of one variable. So the function is
+%  read at a row of points, each colour is set in the space the shading
+%  states and read back as the components the device paints in, and what
+%  goes to the writer is the same shading with that row as its function.
+%  The geometry is untouched and stays exact; what is approximated is
+%  the ramp, at the resolution below.
+%
+%  The mesh types state their colours at their vertices rather than
+%  through a function, so there is no ramp to restate and they are left
+%  to the decomposition.
+/.shrampsamples 256 def
+
+/.shrestate {  % shdict  .  shdict' | null
+    dup /ShadingType get dup 2 eq exch 3 eq or not { pop null }{
+    dup /Function 2 copy known not { pop pop null }{
+    pop
+    10 dict begin
+    /shr exch def
+    /shrfn shr /Function get def
+    /shrcs shr /ColorSpace get def
+    /shrdom shr /Domain 2 copy known { get }{ pop pop [ 0 1 ] } ifelse def
+    /shrn //.shrampsamples def
+    /shrdata shrn 3 mul string def
+    /shrok true def
+    {
+        0 1 shrn 1 sub {
+            /shri exch def
+            /shrt shrdom 0 get
+                 shri shrn 1 sub div shrdom 1 get shrdom 0 get sub mul add def
+            gsave
+                shrcs setcolorspace
+                shrt shrfn //.xpostsys /.fneval get exec
+                dup 0 le { /shrok false def } if
+                { } repeat
+                setcolor
+                currentrgbcolor
+            grestore
+            /shrb exch def /shrg exch def /shrr exch def
+            shrdata shri 3 mul
+                shrr 0 lt { 0 }{ shrr 1 gt { 1 }{ shrr } ifelse } ifelse
+                255 mul 0.5 add cvi put
+            shrdata shri 3 mul 1 add
+                shrg 0 lt { 0 }{ shrg 1 gt { 1 }{ shrg } ifelse } ifelse
+                255 mul 0.5 add cvi put
+            shrdata shri 3 mul 2 add
+                shrb 0 lt { 0 }{ shrb 1 gt { 1 }{ shrb } ifelse } ifelse
+                255 mul 0.5 add cvi put
+        } for
+    } stopped { /shrok false def } if
+    shrok {
+        /shrout shr length 2 add dict def
+        shr { shrout 3 1 roll put } forall
+        shrout /ColorSpace /DeviceRGB put
+        shrout /Function <<
+            /FunctionType 0
+            /Domain [ shrdom 0 get shrdom 1 get ]
+            /Range [ 0 1 0 1 0 1 ]
+            /Size [ shrn ]
+            /BitsPerSample 8
+            /DataSource shrdata
+        >> put
+        shrout /Background known { shrout /Background undef } if
+        shrout
+    }{ null } ifelse
+    end
+    } ifelse } ifelse
+} def
+
 /.shtodevice {  % shdict  .  bool
     DEVICE /ShadingPaint known {
+        %  A shading in a space no writer is offered is restated in one
+        %  it is, where what the space decides is a ramp that can be.
+        dup /ColorSpace get //.shdevcsname exec null eq {
+            dup //.shrestate exec
+            dup null ne { exch pop }{ pop } ifelse
+        } if
         dup /ShadingType get //.shdevtypes exec
         1 index /ColorSpace get //.shdevcsname exec dup null ne
             exch pop and {
