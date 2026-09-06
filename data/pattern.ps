@@ -281,7 +281,21 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     bb 2 get bb 1 get lineto
                     bb 2 get bb 3 get lineto
                     bb 0 get bb 3 get lineto
-                    closepath clip newpath
+                    closepath
+
+                    %  A cell sharing no pixel with the region cannot
+                    %  mark, and its procedure is not run. The walk steps
+                    %  the cells over the region's bounding box, so a
+                    %  region that is not its own box -- the outline of a
+                    %  glyph, the notch of an L -- has cells falling
+                    %  wholly outside it, and each of those would
+                    %  otherwise paint a cell for the clip to throw away
+                    %  whole. PLRM 4.9.2 has the paint procedure called
+                    %  at unpredictable times and asks that it have no
+                    %  effect beyond painting the cell, so a cell nothing
+                    %  can show need not be painted.
+                    .clipmisses { grestore }{
+                    clip newpath
                     pat /PaintType get 2 eq {
                         graphicsdict /currgstate get /patbase get
                         dup null ne {
@@ -300,6 +314,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     null 1 //.pcallout exec
                     //.uncoloredcell /on wasuncol put
                     grestore
+                    } ifelse
                 } for
             } for
             } stopped

@@ -156,4 +156,45 @@ grestore
  5  5 inkat not (and leaves the rest of its square) assert
  9  9 inkat (on the same phase as a coloured one) assert
 
+% ------------------------------------- a cell nothing can show is not painted
+% The walk steps the cells over the region's bounding box, so a region
+% that is not its own box has cells falling wholly outside it. Such a cell
+% can mark nothing, and its paint procedure is not run: PLRM 4.9.2 calls
+% the procedure at unpredictable times and asks that it have no effect
+% beyond painting the cell, so one nothing can show need not be painted.
+%
+% The counter below is exactly the side effect that section asks a paint
+% procedure not to have. It is here only to count the runs. The two fills
+% are the whole test: an L and a rectangle of the same bounding box, so
+% the grid of cells is the same for both and only the shape differs.
+% Without the rectangle the count would have nothing to be smaller than,
+% and a counter that never ran would read as a skip.
+
+/runs 1 dict def
+/counted { << /PatternType 1 /PaintType 1 /TilingType 1
+              /BBox [0 0 8 8] /XStep 8 /YStep 8
+              /PaintProc { pop runs /n runs /n get 1 add put
+                           0 setgray 0 0 8 8 rectfill } >> } bind def
+
+clearpage
+runs /n 0 put
+gsave counted matrix makepattern setpattern 0 0 64 64 rectfill grestore
+/whole runs /n get def
+whole 0 gt (a rectangle paints the cells of its box) assert
+
+clearpage
+runs /n 0 put
+gsave counted matrix makepattern setpattern
+    0 0 moveto 64 0 lineto 64 8 lineto 8 8 lineto
+    8 64 lineto 0 64 lineto closepath fill
+grestore
+runs /n get whole lt (the L leaves cells its box holds unpainted) assert
+runs /n get whole 3 mul 5 div lt
+    (and it is the notch that goes, not a cell or two at an edge) assert
+runs /n get 0 gt (while the cells the L does cover are painted) assert
+ 4  4 inkat (the L's foot is inked) assert
+40  4 inkat (along its whole length) assert
+ 4 60 inkat (and so is its upright) assert
+40 40 inkat not (while the notch between them stays empty) assert
+
 verdict
