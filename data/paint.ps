@@ -2260,15 +2260,27 @@ setglobal
             { /aadone true def } if
         } if
         aadone not {
-        width height mul 16384 le {
-            % a small stencil's runs resolve once per distinct mask,
-            % consecutive equal-extent rows merged into taller
-            % rectangles, painted through fewer fills.
-            /rects buf width height ink //.stencilruns exec def
-            paintpat { newpath } if
+        % The runs a stencil resolves into are merged and painted by
+        % the compiled run-finder, whatever the stencil's size. It is
+        % asked a band of rows at a time so that what it answers is
+        % bounded: a mask alternating every pixel resolves a run per
+        % pixel, and a whole page of that would be an array of millions
+        % where a band of it is an array of thousands.
+        %
+        % The band is sized by area rather than by rows so that a wide
+        % stencil takes fewer rows and a narrow one more, and every
+        % band answers about the same number of runs.
+        /bandrows width 0 gt { 16384 width idiv }{ 1 } ifelse def
+        bandrows 1 lt { /bandrows 1 def } if
+        paintpat { newpath } if
+        0 bandrows height 1 sub { /by exch def
+            /bh height by sub def
+            bh bandrows gt { /bh bandrows def } if
+            /rects buf by rowbytes mul bh rowbytes mul getinterval
+                   width bh ink //.stencilruns exec def
             0 4 rects length 1 sub { /i exch def
-                rects i get rects i 1 add get
-                rects i 2 add get rects i 3 add get
+                rects i get  rects i 1 add get by add
+                rects i 2 add get  rects i 3 add get
                 paintpat {
                     /rh exch def /rw exch def /ry exch def /rx exch def
                     rx ry moveto rx rw add ry lineto
@@ -2277,35 +2289,8 @@ setglobal
                     rectfill
                 } ifelse
             } for
-            paintpat { //.xpostsys /.patternfill get exec } if
-        }{
-        paintpat { newpath } if
-        0 1 height 1 sub { /y exch def
-            /x 0 def
-            {
-                x width ge { exit } if
-                buf y rowbytes mul x 8 idiv add get
-                x 8 mod 7 sub bitshift 1 and ink eq {
-                    /x0 x def
-                    {
-                        /x x 1 add def
-                        x width ge { exit } if
-                        buf y rowbytes mul x 8 idiv add get
-                        x 8 mod 7 sub bitshift 1 and ink ne { exit } if
-                    } loop
-                    paintpat {
-                        x0 y moveto x y lineto
-                        x y 1 add lineto x0 y 1 add lineto closepath
-                    }{
-                        x0 y x x0 sub 1 rectfill
-                    } ifelse
-                }{
-                    /x x 1 add def
-                } ifelse
-            } loop
         } for
         paintpat { //.xpostsys /.patternfill get exec } if
-        } ifelse
         } if
         } ifelse
         } ifelse

@@ -1,0 +1,92 @@
+# Which devices take their marks one at a time, and why.
+#
+# A method stated as a compiled operator can be called by the machinery
+# that resolves marks: the span conversion fills through it, the image
+# blit writes rows through it, and the glyph walk binds it once for a
+# whole string. A method stated as a PostScript procedure can be called
+# by nothing but the interpreter, so the machinery hands it the marks
+# singly instead -- a call per span, per sample, per inked pixel.
+#
+# Each line below names a device and a slot that is not compiled, and is
+# followed by the reason. tests/check-device-fastpaths.sh holds this file
+# and the devices to each other: a slow slot with no line here fails, and
+# a line here for a slot that is compiled fails too.
+#
+# A reason is why the method CANNOT be compiled, not that nobody has. The
+# last group has no such reason and says so, with what it costs.
+
+# ---- the writers: the method is the output language ------------------
+#
+# A mark reaching one of these becomes a drawing instruction in the
+# language it writes. The method is where that language is spelled, and
+# it is spelled in PostScript because what it emits is PostScript-shaped
+# text. Compiling it would move the writer's syntax into C, which is the
+# opposite of where this tree keeps a policy.
+
+slow pdfwrite PutPix
+slow pdfwrite GetPix
+slow pdfwrite BlendPix
+slow pdfwrite FillRect
+slow pdfwrite FillPoly
+slow svgwrite PutPix
+slow svgwrite GetPix
+slow svgwrite BlendPix
+slow svgwrite FillRect
+slow svgwrite FillPoly
+slow dscwrite PutPix
+slow dscwrite GetPix
+slow dscwrite BlendPix
+slow dscwrite FillRect
+slow dscwrite FillPoly
+
+# ---- bbox: it takes no marks, only their bounds ----------------------
+#
+# The extent device answers where the ink would be. It is handed a
+# glyph's box rather than its pixels (GlyphExtents), and a mark it does
+# take is folded into four numbers. There is no bulk route to want.
+
+slow bbox PutPix
+slow bbox GetPix
+slow bbox BlendPix
+slow bbox FillRect
+slow bbox FillPoly
+
+# ---- null: the marks are dropped before they are resolved ------------
+#
+# The device that draws nothing carries DiscardsMarks, and the machinery
+# reads that entry and does not resolve the marks at all -- no sample is
+# converted, no run is filled, no glyph raster is walked. Compiling these
+# would make the calls cheap; not making them is cheaper still.
+
+slow null PutPix
+slow null GetPix
+slow null BlendPix
+slow null FillRect
+slow null FillPoly
+
+# ---- NO REASON: these cost, and the cost is measured -----------------
+#
+# These four keep their raster as the array of row strings the base
+# classes hold, and their rectangle, polygon and blend methods are
+# compiled against it. Their per-pixel pair is not, and the glyph walk
+# binds a direct call only when BOTH the blend and the pixel writer bind
+# (xpost_op_font.c) -- so text on these devices is an interpreter round
+# trip per inked pixel while every other raster device takes it in C.
+#
+# MEASURED, eight hundred lines of 200pt text, same build, all rc=0:
+# png 0.16s and raster:bgra 0.16s, against pgm 3.63s, ppm 5.38s and
+# tiff 5.46s. Between twenty-three and thirty-four times, for want of
+# one compiled method.
+#
+# This is a defect recorded, not a reason accepted. It is here so that
+# the guard passes on a tree whose state is known, and it should leave
+# with the compiled PutPix that removes it.
+
+slow pbm PutPix
+slow pbm GetPix
+slow pgm PutPix
+slow pgm GetPix
+slow ppm PutPix
+slow ppm GetPix
+slow tiff PutPix
+slow tiff GetPix
