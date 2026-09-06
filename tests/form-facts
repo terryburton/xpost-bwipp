@@ -59,7 +59,7 @@ entries 6
 cache raster-device      held    a device that takes marks as pixels can be stood in for by a recorder, and the drawing is the pixels it recorded
 cache clip-holds-box     held    the marks reaching a recorder are already cut to the clip, so a clip containing the whole of the form's box cuts nothing off what is captured
 cache clip-cuts-box      afresh  a form the clip cuts would be captured cut, and then placed cut somewhere the clip is not. The capture is refused rather than the placement being wrong
-cache screening-device   afresh  a device that turns a grey into a pattern of pixels does it at the position the marks land on, so marks captured at one position and replayed at another would carry the screen of the first
+cache screening-device   held    a recorder standing in for such a device declares the screen too and is told when it changes, so the record holds each screen beside the marks made under it and a replay puts the screen back before playing them -- the marks are screened where they land, not where they were captured
 cache read-only-form     held    the drawing is filed under a serial stamped into the form dictionary, and PLRM 8.2 has execform stamp and seal the operand dictionary whether or not the program sealed it first. So a form the program made read-only is filed like any other
 cache vector-device      held    a device given whole paths has no pixels to record, and holds the description in its own format instead: the marks are captured out of the stream they were painted into and filed as the construct the format has for one, named again at each placement. A device whose format has no such construct paints afresh, which is the answer this row gave for every path writer before any of them had one
 

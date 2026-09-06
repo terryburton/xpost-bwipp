@@ -3881,9 +3881,14 @@ static int _declares(Xpost_Context *ctx, Xpost_Object dic, const char *name)
  *
  *   The screen. A device rendering a grey as a pattern of pixels reads
  *   the threshold under each pixel, which is device state rather than
- *   something a mark carries. A drawing whose marks changed that state
- *   would leave it changed for the marks after it wherever the drawing
- *   was placed, so no drawing is held for such a device.
+ *   something a mark carries. So the recorder declares the screen its
+ *   target does and is told when the screen changes, the same way the
+ *   device would have been: the record holds each screen alongside the
+ *   marks made under it, and a replay puts the screen back before it
+ *   plays them. A drawing is therefore held for such a device, and the
+ *   marks in it are screened where they land rather than where they
+ *   were captured -- which is what painting them there would have done,
+ *   the threshold being a function of the position on the page.
  *
  *   The marks. A replay plays each mark by calling the method for its
  *   kind, so the device must offer all five.
@@ -3912,8 +3917,7 @@ static Xpost_Object _form_class(Xpost_Context *ctx, Xpost_Object devdic)
         return null;
     ncomp = (int)o.int_.val;
     if (!_declares(ctx, devdic, "nativecolorspace")
-        || _declares(ctx, devdic, "FillPath")
-        || _declares(ctx, devdic, "ScreenPaint"))
+        || _declares(ctx, devdic, "FillPath"))
         return null;
     for (i = 0; i < (int)(sizeof nameslot / sizeof *nameslot); i++)
         if (!xpost_dict_known_key(ctx,
@@ -3950,6 +3954,36 @@ static Xpost_Object _form_class(Xpost_Context *ctx, Xpost_Object devdic)
     if (!ret && _declares(ctx, devdic, "TextAlphaBits"))
         ret = xpost_dict_put(ctx, cls, nametextalphabits,
                              xpost_dict_get(ctx, devdic, nametextalphabits));
+    /* A recorder for a target that screens declares it too, so that the
+       painting machinery keeps a cell on the recorder and tells it when
+       that cell changes -- which is what puts the screen into the record
+       beside the marks it applies to. A recorder for a target that does
+       not screen declares none, and is never told.
+
+       The default matrix goes with it. A screen is stated as cells to
+       the inch and is built into a cell of pixels, so building one reads
+       the matrix that says how large a pixel is -- and the pixels the
+       cell is built for are the ones the drawing will be played onto,
+       which are the target's and not this stand-in's. */
+    if (!ret && _declares(ctx, devdic, "ScreenPaint"))
+    {
+        static const char *const screening[] = { "ScreenPaint", "defaultmatrix" };
+        int j;
+
+        for (j = 0; !ret && j < (int)(sizeof screening / sizeof *screening); j++)
+        {
+            Xpost_Object key = xpost_name_cons(ctx, screening[j]);
+
+            if (xpost_object_get_type(key) == invalidtype)
+                return null;
+            if (!xpost_dict_known_key(ctx,
+                                      xpost_context_select_memory(ctx, devdic),
+                                      devdic, key))
+                return null;
+            ret = xpost_dict_put(ctx, cls, key,
+                                 xpost_dict_get(ctx, devdic, key));
+        }
+    }
     if (!ret)
         ret = _install_suite(ctx, cls, ncomp);
     return ret ? null : cls;
