@@ -1697,8 +1697,68 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     %
     % It runs with the device current, from .emitpage, and reads the
     % counts and object numbers that method worked out.
-    /.pdfresources {  % withpatterns  .  -
-        /prpat exch def
+    % The forms a captured description places, as a set of their
+    % numbers.
+    %
+    %  A description that places another names it, and PDF resolves that
+    %  name through the description's own resources (PDF 32000-1 8.10.1)
+    %  rather than through the page's. So each description has to say
+    %  which ones it uses -- and only those, since naming all of them
+    %  puts every description's whole list in every description, which is
+    %  what the page already carries once.
+    %
+    %  Read off what was captured, which is where the placements are: the
+    %  chunks are joined first, because a name written across the join of
+    %  two of them is one name and not two halves.
+    /.pdffmused {  % chunks  .  formdict patterndict
+        12 dict begin
+        /fud 32 dict def
+        /fup2 32 dict def
+
+        %  Every name in one piece of the description, written down.
+        /fuscan {  % string prefix dict  .  -
+            /fudst exch def /fupre exch def /fur exch def
+            { fur fupre search
+                { pop pop /fur exch def
+                  /fun 0 def /fui 0 def
+                  { fui fur length ge { exit } if
+                    fur fui get dup 48 lt exch 57 gt or { exit } if
+                    /fun fun 10 mul fur fui get 48 sub add def
+                    /fui fui 1 add def
+                  } loop
+                  fui 0 gt { fudst fun true put } if
+                  /fur fur fui fur length fui sub getinterval def
+                }{ pop exit } ifelse
+            } loop
+        } def
+
+        %  The pieces are read one at a time rather than joined: a
+        %  description runs to more than a string can hold. A name
+        %  written across the join of two of them would be missed by
+        %  that, so the end of one piece and the start of the next are
+        %  read together as well -- sixteen bytes each side, which is
+        %  longer than any name this writes.
+        /futail () def
+        {
+            /fuk exch def
+            /fuh fuk length 16 lt { fuk length }{ 16 } ifelse def
+            futail length 0 gt {
+                /fuj futail length fuh add string def
+                fuj 0 futail putinterval
+                fuj futail length fuk 0 fuh getinterval putinterval
+                fuj (/Fm) fud fuscan
+                fuj (/P) fup2 fuscan
+            } if
+            fuk (/Fm) fud fuscan
+            fuk (/P) fup2 fuscan
+            /futail fuk fuk length fuh sub fuh getinterval def
+        } forall
+        fud fup2
+        end
+    } def
+
+    /.pdfresources {  % formdict|null patterndict|null  .  -
+        /prpused exch def /prused exch def
 
         % The fonts the content named, written whole rather than as
         % objects of their own: what the page carries is which face,
@@ -1716,20 +1776,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             ( >>) .vw
         } if
-        nimg 0 gt prpat nfm 0 gt and or {
+        nimg 0 gt nfm 0 gt or {
             ( /XObject <<) .vw
             0 1 nimg 1 sub {
                 /ii exch def
                 ( /Im) .vw ii 20 string cvs .vw
                 ( ) .vw imgobjs ii get 20 string cvs .vw ( 0 R) .vw
             } for
-            prpat {
-                0 1 nfm 1 sub {
-                    /fj exch def
+            0 1 nfm 1 sub {
+                /fj exch def
+                prused null eq { true }{ prused fj known } ifelse {
                     ( /Fm) .vw fj 20 string cvs .vw
                     ( ) .vw formobjs fj get 20 string cvs .vw ( 0 R) .vw
-                } for
-            } if
+                } if
+            } for
             ( >>) .vw
         } if
         /nop .dev //.internaldict /.pdfopcount get exec def
@@ -1756,12 +1816,15 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             } for
             ( >>) .vw
         } if
-        prpat npat 0 gt and {
+        npat 0 gt
+        prpused null eq { true }{ prpused length 0 gt } ifelse and {
             ( /Pattern <<) .vw
             0 1 npat 1 sub {
                 /prj exch def
-                ( /P) .vw prj 20 string cvs .vw
-                ( ) .vw patobjs prj get 20 string cvs .vw ( 0 R) .vw
+                prpused null eq { true }{ prpused prj known } ifelse {
+                    ( /P) .vw prj 20 string cvs .vw
+                    ( ) .vw patobjs prj get 20 string cvs .vw ( 0 R) .vw
+                } if
             } for
             ( >>) .vw
         } if
@@ -2003,6 +2066,23 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % This page's pattern objects. Every number is taken before any
         % of them is written, because each pattern carries the page's own
         % resources and those name the objects standing beside it.
+        % The form objects this file has not written yet. A description
+        % filed once is one object however many pages name it, so a page
+        % writes only what is new and every page's resources go on naming
+        % all of them. The number each was written as is kept on the
+        % entry, which is what lets a later page name an object written
+        % under an earlier one.
+        /formobjs nfm array def
+        0 1 nfm 1 sub {
+            /fmi exch def
+            /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
+            fme /obj known
+                { formobjs fmi fme /obj get put }
+                { /fmo .nextobj def
+                  formobjs fmi fmo put
+                  0 fmi fmo false .dev
+                      //.internaldict /.pdfresmark get exec } ifelse
+        } for
         /npat 1 .dev //.internaldict /.pdfrescount get exec def
         /patobjs npat array def
         0 1 npat 1 sub { patobjs exch .nextobj put } for
@@ -2032,29 +2112,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ( /Matrix [) .vw
             pte /mat get { .pdfnumstr .vw ( ) .vw } forall
             (] /Resources <<) .vw
-            false .pdfresources
+            pte /chunks get //.pdffmused exec .pdfresources
             ( >> /Length ) .vw ptlen 20 string cvs .vw
             ptf { ( /Filter /FlateDecode) .vw } if
             ( >>\nstream\n) .vw ptc { .vw } forall (\nendstream\nendobj\n) .vw
         } for
 
-        % The form objects this file has not written yet. A description
-        % filed once is one object however many pages name it, so a page
-        % writes only what is new and every page's resources go on naming
-        % all of them. The number each was written as is kept on the
-        % entry, which is what lets a later page name an object written
-        % under an earlier one.
-        /formobjs nfm array def
-        0 1 nfm 1 sub {
-            /fmi exch def
-            /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
-            fme /obj known
-                { formobjs fmi fme /obj get put }
-                { /fmo .nextobj def
-                  formobjs fmi fmo put
-                  0 fmi fmo false .dev
-                      //.internaldict /.pdfresmark get exec } ifelse
-        } for
         0 1 nfm 1 sub {
             /fmi exch def
             /fme 0 fmi .dev //.internaldict /.pdfresget get exec def
@@ -2073,7 +2136,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             (<< /Type /XObject /Subtype /Form /BBox [) .vw
             fme /bb get { .pdfnumstr .vw ( ) .vw } forall
             (] /Resources <<) .vw
-            false .pdfresources
+            fme /chunks get //.pdffmused exec .pdfresources
             ( >> /Length ) .vw fmlen 20 string cvs .vw
             fmf { ( /Filter /FlateDecode) .vw } if
             ( >>\nstream\n) .vw fmc { .vw } forall (\nendstream\nendobj\n) .vw
@@ -2087,7 +2150,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         pgobj 20 string cvs .vw ( 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ) .vw
         ws .vw ( ) .vw hs .vw (] /Contents ) .vw coobj 20 string cvs .vw
         ( 0 R /Resources <<) .vw
-        true .pdfresources
+        null null .pdfresources
         ( >> >>\nendobj\n) .vw
 
         % record the page in the tree's Kids list and bump the count
