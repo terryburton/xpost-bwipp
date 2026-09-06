@@ -5795,7 +5795,13 @@ static int _poly_rect_at(Xpost_Context *ctx, Xpost_Object poly,
 #define PDFNUMVAL(o) (xpost_object_get_type(o) == realtype ? (o).real_.val \
                                                            : (double)(o).int_.val)
 #define SAMENUM(a, b) (((a) - (b)) < 5e-5 && ((b) - (a)) < 5e-5)
-    double c[4][2];
+    /* Four corners, each read below before any is compared: the loop
+       either fills every one of them or returns. Written out as zeroes
+       because that is not what a reader of the merged loop state sees --
+       the analyser walking this function merges the iterations and then
+       permits a path where the body ran no times, which would reach the
+       comparisons with nothing read. The zeroes are never compared. */
+    double c[4][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
     int k;
 
     for (k = 0; k < 4; k++)
