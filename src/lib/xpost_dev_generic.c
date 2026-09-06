@@ -2027,6 +2027,97 @@ int _blendpixgray(Xpost_Context *ctx,
     return 0;
 }
 
+/* Write a whole pixel of a grayscale array-of-strings device.
+   The blend above is this with a coverage; this is the full-coverage
+   case the glyph walk asks for, and the walk binds a direct call only
+   where both it and the blend are compiled, so a device offering one
+   and not the other is walked through the interpreter a pixel at a time
+   (tests/device-fastpaths).
+
+   The value goes through the halftone screen where one is in force, as
+   the compiled rectangle fill puts it: a bilevel device carries a grey
+   only as a pattern of pixels, so what the page shows differs from one
+   pixel to the next and a writer storing the value whole would disagree
+   with every other way the same grey reaches the same device. That
+   disagreement is what tests/device_contract_test.ps asks about when it
+   holds PutPix and FillRect to each other on a pixel and its
+   neighbour. */
+static
+int _putpixgray(Xpost_Context *ctx,
+                Xpost_Object val,
+                Xpost_Object x,
+                Xpost_Object y,
+                Xpost_Object devdic)
+{
+    Xpost_Object imgdata, row;
+    int ix, iy, rw, gret;
+    unsigned char *p;
+    const unsigned char *cell;
+    int hw = 0, hh = 0;
+
+    cell = xpost_dev_ht_cell(ctx, devdic, &hw, &hh);
+    imgdata = xpost_dict_get(ctx, devdic, nameImgData);
+    if (xpost_object_get_type(imgdata) != arraytype)
+        return undefined;
+    ix = xpost_dev_pixel(xpost_object_number(x));
+    iy = xpost_dev_pixel(xpost_object_number(y));
+    /* the raster's extents widened into the signed type, as the blend
+       does: off the top and off the bottom both have to miss */
+    if (iy < 0 || iy >= (integer)imgdata.comp_.sz)
+        return 0;
+    row = xpost_array_get(ctx, imgdata, iy);
+    gret = _gray_row(ctx, row, 1, &p, &rw);
+    if (gret)
+        return gret;
+    if (ix < 0 || ix >= rw)
+        return 0;
+    if (cell)
+        p[ix] = xpost_dev_ht_ink(
+                    xpost_dev_ht_level(xpost_dev_num_to_component(val)),
+                    cell, hw, hh, ix, iy);
+    else
+        p[ix] = (unsigned char)(int)_channel(val, 255.0);
+    return 0;
+}
+
+/* The same for planar rgb devices (each row three component planes).
+   These render continuous tone, so no halftone cell applies -- the
+   compiled rectangle fill says the same of itself. */
+static
+int _putpixrgb(Xpost_Context *ctx,
+               Xpost_Object r,
+               Xpost_Object g,
+               Xpost_Object b,
+               Xpost_Object x,
+               Xpost_Object y,
+               Xpost_Object devdic)
+{
+    Xpost_Object imgdata, row;
+    unsigned char *pl[3];
+    int ix, iy, rw, ret, k;
+    int src[3];
+
+    imgdata = xpost_dict_get(ctx, devdic, nameImgData);
+    if (xpost_object_get_type(imgdata) != arraytype)
+        return undefined;
+    ix = xpost_dev_pixel(xpost_object_number(x));
+    iy = xpost_dev_pixel(xpost_object_number(y));
+    if (iy < 0 || iy >= (integer)imgdata.comp_.sz)
+        return 0;
+    row = xpost_array_get(ctx, imgdata, iy);
+    ret = _rgb_planes(ctx, row, 1, pl, &rw);
+    if (ret)
+        return ret;
+    if (ix < 0 || ix >= rw)
+        return 0;
+    src[0] = (int)_channel(r, 255.0);
+    src[1] = (int)_channel(g, 255.0);
+    src[2] = (int)_channel(b, 255.0);
+    for (k = 0; k < 3; k++)
+        pl[k][ix] = (unsigned char)src[k];
+    return 0;
+}
+
 /* Blend a coverage-weighted pixel for planar rgb devices (each row
    three component planes): per channel,
    dst += (val - dst) * cov / 255. The text operators use this for
@@ -7679,6 +7770,11 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
             numbertype, numbertype, numbertype, numbertype, numbertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".blendpixgray", (Xpost_Op_Func)_blendpixgray, 5,
             numbertype, numbertype, numbertype, numbertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".putpixgray", (Xpost_Op_Func)_putpixgray, 4,
+            numbertype, numbertype, numbertype, dicttype); INSTALL;
+    op = xpost_operator_cons(ctx, ".putpixrgb", (Xpost_Op_Func)_putpixrgb, 6,
+            numbertype, numbertype, numbertype, numbertype, numbertype,
+            dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".blendpixrgb", (Xpost_Op_Func)_blendpixrgb, 7,
             numbertype, numbertype, numbertype, numbertype, numbertype, numbertype, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".fillrectrgb", (Xpost_Op_Func)_fillrectrgb, 8,

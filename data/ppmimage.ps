@@ -58,6 +58,13 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /.ncomp 3
     /BlendPix //.internaldict /.blendpixrgb get
 
+    %  The whole-pixel writer beside the blend, screening as the
+    %  rectangle fill screens. The glyph walk binds a direct call only
+    %  where both are compiled, so a device offering the blend alone
+    %  is walked through the interpreter a pixel at a time
+    %  (tests/device-fastpaths).
+    /PutPix //.internaldict /.putpixrgb get
+
     % This device's page may arrive a band at a time: a header and then
     % raw rows, so a row goes out the moment it is finished and nothing
     % written has to be revisited. What a device states about itself is

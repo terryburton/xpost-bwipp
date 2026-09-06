@@ -64,29 +64,17 @@ slow null BlendPix
 slow null FillRect
 slow null FillPoly
 
-# ---- NO REASON: these cost, and the cost is measured -----------------
+# ---- the pixel reader: not on a bulk path ---------------------------
 #
 # These four keep their raster as the array of row strings the base
-# classes hold, and their rectangle, polygon and blend methods are
-# compiled against it. Their per-pixel pair is not, and the glyph walk
-# binds a direct call only when BOTH the blend and the pixel writer bind
-# (xpost_op_font.c) -- so text on these devices is an interpreter round
-# trip per inked pixel while every other raster device takes it in C.
-#
-# MEASURED, eight hundred lines of 200pt text, same build, all rc=0:
-# png 0.16s and raster:bgra 0.16s, against pgm 3.63s, ppm 5.38s and
-# tiff 5.46s. Between twenty-three and thirty-four times, for want of
-# one compiled method.
-#
-# This is a defect recorded, not a reason accepted. It is here so that
-# the guard passes on a tree whose state is known, and it should leave
-# with the compiled PutPix that removes it.
+# classes hold, and every method that takes marks in bulk is compiled
+# against it -- the rectangle fill, the polygon fill, the blend and the
+# pixel writer. GetPix is the odd one out and stays a procedure: nothing
+# resolving marks reads a pixel back. It is asked for by a program, one
+# call at a time by its nature, and a compiled one would answer the same
+# question at the same rate.
 
-slow pbm PutPix
 slow pbm GetPix
-slow pgm PutPix
 slow pgm GetPix
-slow ppm PutPix
 slow ppm GetPix
-slow tiff PutPix
 slow tiff GetPix

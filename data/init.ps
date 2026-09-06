@@ -436,6 +436,7 @@ systemdict /CENSUS known
       userdict /.internaldict get /CENSUS true put
       systemdict /CENSUS undef } if
 [ /.fillpoly /.fillrectgray /.fillrectrgb /.blendpixgray /.blendpixrgb
+  /.putpixgray /.putpixrgb
   /.pdfinit /.pdfput /.flatecompress /.vmreserve /.rundied ]
 { dup systemdict exch get .internaldict 3 1 roll put } forall
 
