@@ -290,9 +290,12 @@ answer pdfwrite set:1,2,3,4,5,6,7 data/pdfwrite.ps
     and every mesh type as the same dictionary carrying a stream of packed
     records -- a vertex for a Gouraud mesh, a whole patch for a patch one,
     whose length follows the flag that opens it.
-answer svgwrite set:2,3 data/svgwrite.ps
+answer svgwrite set:1,2,3 data/svgwrite.ps
     SVG has a gradient for the axial case and one for part of the radial
-    case; a function-based shading has no SVG form and decomposes.
+    case, and for a function-based shading it has nothing at all -- that
+    one is written as the pixels it comes to, sampled over its domain,
+    because its colour is an arbitrary function of two variables and no
+    SVG construct says one.
     An SVG radial gradient is one circle and a focal point with no radius
     of its own (SVG 1.1 13.2.3), where the shading names two circles with
     independent centres and radii (PLRM 4.9.3), so only the shadings whose
@@ -790,8 +793,10 @@ method .svgfull svgwrite
 method .svghex svgwrite
 method .svgnum svgwrite
 method .svgrgb svgwrite
+method .svgc255 svgwrite
 method .svgsame svgwrite
 method .svgshaxial svgwrite
+method .svgshfn svgwrite
 method .svgshradial svgwrite
 method .svgtriplane svgwrite
 method .t0build dscwrite pdfwrite

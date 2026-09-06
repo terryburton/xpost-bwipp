@@ -1047,7 +1047,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % the axial case and nothing for the others: a function-based shading
     % has no SVG form at all, and a radial one needs a focal radius that
     % not every consumer reads. Those decompose, as they always have.
-    /ShadingTypes << 2 true 3 true >>
+    /ShadingTypes << 1 true 2 true 3 true >>
 
     % A colour, whatever space the shading states it in, as the RGB an SVG
     % stop takes. The count is the function's own, so the space is read off
@@ -1206,8 +1206,134 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /ShadingPaint {  % shdict IMAGE  .  bool
     24 {
         /shsh exch def
-        shsh /ShadingType get 3 eq { .svgshradial }{ .svgshaxial } ifelse
+        shsh /ShadingType get dup 1 eq
+            { pop .svgshfn }
+            { 3 eq { .svgshradial }{ .svgshaxial } ifelse }
+        ifelse
     } //.indevwork exec } bind
+
+    % A function-based shading, as the pixels it comes to.
+    %
+    %  This is the one shading type that is not a colour running along a
+    %  line or across a shape: its colour is whatever a function of two
+    %  variables says it is, at each point of a rectangle. SVG has no
+    %  construct for that -- a gradient runs one way and a mesh of
+    %  triangles says a colour that is affine across each of them, and an
+    %  arbitrary function is neither. What is left that says it exactly
+    %  is the pixels, so the function is sampled over its domain and the
+    %  samples are written as the picture they are.
+    %
+    %  Sampled at pixel centres, which is where the value of a cell is:
+    %  the four corners of a cell are the corners of neighbouring cells
+    %  too, and a grid taken at corners is a grid of the wrong size.
+    %
+    %  How many samples is a budget rather than a resolution, because the
+    %  document has no resolution: it is read at whatever size the reader
+    %  chooses. The domain's size on the page settles the shape of the
+    %  grid, and the budget settles how much of it there is, so a wide
+    %  flat shading is sampled wide and flat rather than square.
+    /.svgshfnbudget 262144 def
+
+    %  A component in [0,1] as the byte a picture stores it in.
+    /.svgc255 {  % v  .  int
+        dup 0 lt { pop 0 }{ dup 1 gt { pop 1 } if } ifelse
+        255 mul 0.5 add cvi
+    } bind
+
+    /.svgshfn {  % -  .  bool
+        /shdom shsh /Domain 2 copy known { get }{ pop pop [ 0 1 0 1 ] } ifelse def
+        /shfnf shsh /Function get def
+        /shx0 shdom 0 get def /shx1 shdom 1 get def
+        /shy0 shdom 2 get def /shy1 shdom 3 get def
+        /shnc shsh /ColorSpace get dup type /arraytype eq { 0 get } if
+              dup /DeviceGray eq { pop 1 }{
+              dup /DeviceRGB eq { pop 3 }{
+              /DeviceCMYK eq { 4 }{ 0 } ifelse } ifelse } ifelse def
+        shnc 0 eq shx1 shx0 sub 0 eq or shy1 shy0 sub 0 eq or
+        { false }{
+
+        %  The domain's extent where the marks land, which is the shape
+        %  the grid is cut to.
+        gsave
+        shsh /Matrix 2 copy known { get concat }{ pop pop } ifelse
+        /shbx0 9e99 def /shby0 9e99 def /shbx1 -9e99 def /shby1 -9e99 def
+        [ [ shx0 shy0 ] [ shx1 shy0 ] [ shx1 shy1 ] [ shx0 shy1 ] ] {
+            aload pop transform
+            /shty exch def /shtx exch def
+            shtx shbx0 lt { /shbx0 shtx def } if
+            shtx shbx1 gt { /shbx1 shtx def } if
+            shty shby0 lt { /shby0 shty def } if
+            shty shby1 gt { /shby1 shty def } if
+        } forall
+        grestore
+        /shdw shbx1 shbx0 sub abs dup 1 lt { pop 1 } if def
+        /shdh shby1 shby0 sub abs dup 1 lt { pop 1 } if def
+
+        %  One sample a pixel, brought within the budget by the same
+        %  factor on both sides so the grid keeps the domain's shape.
+        /shsc shdw shdh mul 3 mul //.svgshfnbudget div def
+        shsc 1 gt { /shsc shsc sqrt def }{ /shsc 1 def } ifelse
+        /shgw shdw shsc div ceiling cvi dup 1 lt { pop 1 } if def
+        /shgh shdh shsc div ceiling cvi dup 1 lt { pop 1 } if def
+
+        /shrows [ 0 1 shgh 1 sub { /shj exch def
+            /shrow shgw 3 mul string def
+            0 1 shgw 1 sub { /shi exch def
+                shx0 shi 0.5 add shgw div shx1 shx0 sub mul add
+                shy0 shj 0.5 add shgh div shy1 shy0 sub mul add
+                shfnf //.xpostsys /.fneval2 get exec pop
+                %  the components, as the three a picture carries
+                shnc 1 eq {
+                    .svgc255 dup /shbb exch def dup /shgg exch def /shrr exch def
+                }{ shnc 3 eq {
+                    .svgc255 /shbb exch def
+                    .svgc255 /shgg exch def
+                    .svgc255 /shrr exch def
+                }{
+                    %  PLRM 7.2.4: each additive component is what the
+                    %  subtractive one and the black together leave
+                    /shkk exch def /shyy exch def /shmm2 exch def /shcc exch def
+                    1 shcc  shkk add dup 1 gt { pop 1 } if sub .svgc255 /shrr exch def
+                    1 shmm2 shkk add dup 1 gt { pop 1 } if sub .svgc255 /shgg exch def
+                    1 shyy  shkk add dup 1 gt { pop 1 } if sub .svgc255 /shbb exch def
+                } ifelse } ifelse
+                shrow shi 3 mul       shrr put
+                shrow shi 3 mul 1 add shgg put
+                shrow shi 3 mul 2 add shbb put
+            } for
+            shrow
+        } for ] def
+
+        %  Where the grid lands: a cell of it onto the domain, the
+        %  domain through the shading's own matrix, and that onto the
+        %  page.
+        /shm1 [ shx1 shx0 sub shgw div 0 0 shy1 shy0 sub shgh div shx0 shy0 ] def
+        /shm2 shsh /Matrix 2 copy known { get }{ pop pop [ 1 0 0 1 0 0 ] } ifelse def
+        /shmm shm1 shm2 matrix concatmatrix matrix currentmatrix matrix concatmatrix def
+
+        /shopenf .clipgroup def
+        shrows shgw shgh //.internaldict /.pngencode get exec {
+            /shpng exch def
+            (<image transform="matrix\() .put
+            shmm 0 get .svgnum (,) .put shmm 1 get .svgnum (,) .put
+            shmm 2 get .svgnum (,) .put shmm 3 get .svgnum (,) .put
+            shmm 4 get .svgnum (,) .put shmm 5 get .svgnum
+            (\)" x="0" y="0" width=") .put shgw .svgnum
+            (" height=") .put shgh .svgnum
+            (" preserveAspectRatio="none" image-rendering="auto") .put
+            ( xlink:href="data:image/png;base64,) .put
+            shpng .b64stream
+            ("/>\n) .put
+            shopenf { (</g>\n) .put } if
+            true
+        }{
+            %  No encoder in this build: the shading is left to the
+            %  decomposition, which says it in shapes.
+            shopenf { (</g>\n) .put } if
+            false
+        } ifelse
+        } ifelse
+    } bind
 
     % An axial shading as an SVG gradient. The device states this type, so
     % the answer is always that it was written.
