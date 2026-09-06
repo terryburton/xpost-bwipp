@@ -139,6 +139,8 @@ record path tests/device-facts
 record test check-device-facts
 record path tests/device-fastpaths
 record test check-device-fastpaths
+record path tests/painting-operators.exempt
+record test check-painting-operators
 record width witness
 
 # ---- device: what a page is painted into and written out as

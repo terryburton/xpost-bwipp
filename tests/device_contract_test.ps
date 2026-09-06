@@ -54,6 +54,7 @@
 /getpix   { dev dup /GetPix   get exec } def
 /fillpoly { dev dup /FillPoly get exec } def
 /drawrect { dev dup /DrawRect get exec } def
+/blendpix { dev dup /BlendPix get exec } def
 
 % --- what the class copy put on the instance -------------------------
 % An instance is a copy of its class dictionary made by .copydict, which
@@ -456,6 +457,51 @@ readable {
         white [ [166 106] [166 106] [166 106] ] fillpoly
         166 106 white? not (a polygon of one point marks nothing) assert
     } if
+
+    % --- what the coverage blend paints at its two ends --------------
+    %
+    % At full coverage the blend paints what the pixel writer paints; at
+    % none it leaves the ground. A device whose two disagree there blends
+    % every glyph edge wrongly, and nothing else asks: the blend is the
+    % one marking method this file had never exercised. The glyph walk
+    % binds the blend and the writer as a pair, so a device carrying one
+    % compiled and the other not is walked a pixel at a time
+    % (tests/device-fastpaths).
+    dev /BlendPix known {
+        20 40 6 6 clear4
+        { white 255 21 41 blendpix } (BlendPix at full coverage) try
+        21 41 white? (BlendPix at full coverage paints) assert
+        { white 0 22 41 blendpix } (BlendPix at no coverage) try
+        22 41 white? not (BlendPix at no coverage leaves the ground) assert
+    } if
+
+    % --- what an image and a stencil leave on the raster -------------
+    %
+    % Each resolves its samples into marks through the device, and each
+    % has a bulk route and a per-sample one; which a device takes follows
+    % from what its methods are spelled as, and both routes have to leave
+    % the same page. Painted flat and read back inside, so the assertion
+    % does not depend on which way the image matrix turns the samples.
+    % The tier above works in device space, calling the methods
+    % directly; an operator paints through the current transform, so
+    % where its marks land is asked of the transform rather than
+    % assumed. The centre of the unit square is carried to the device
+    % and the patch is cleared around it.
+    /atdev { % -  .  -   sets ipx ipy from the unit square's centre
+        0.5 0.5 transform round cvi /ipy exch def round cvi /ipx exch def
+    } def
+
+    gsave 20 50 translate 4 4 scale atdev grestore
+    ipx 2 sub ipy 2 sub 5 5 clear4
+    { gsave /DeviceGray setcolorspace 20 50 translate 4 4 scale
+      2 2 8 [ 2 0 0 -2 0 2 ] { <FFFFFFFF> } image grestore } (image) try
+    ipx ipy white? (image paints) assert
+
+    gsave 20 60 translate 4 4 scale atdev grestore
+    ipx 2 sub ipy 2 sub 5 5 clear4
+    { gsave 1 setgray 20 60 translate 4 4 scale
+      2 2 true [ 2 0 0 -2 0 2 ] { <C0C0> } imagemask grestore } (imagemask) try
+    ipx ipy white? (imagemask paints) assert
 } if
 
 % --- what a device that retains marks answers a read -----------------

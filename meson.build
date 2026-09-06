@@ -6194,6 +6194,17 @@ test('check-device-fastpaths',
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 240)
 
+# And that the cross-product which runs one workload per device runs
+# every painting operator, rather than the ones its author had in mind.
+# A device roster is held to the interpreter; an operator list held to
+# nothing stops being true without saying so.
+test('check-painting-operators',
+  find_program('tests/check-painting-operators.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir() ],
+  timeout: 120)
+
 # The same question asked of the other family the file machinery has: a
 # filter is one of seventeen names, two of which refuse to be built from
 # a name alone and four of which are in a build only if it found a

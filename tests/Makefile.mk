@@ -63,6 +63,8 @@ tests/check-device-facts.sh \
 tests/device-facts \
 tests/check-device-fastpaths.sh \
 tests/device-fastpaths \
+tests/check-painting-operators.sh \
+tests/painting-operators.exempt \
 tests/check-filter-facts.sh \
 tests/filter-facts \
 tests/check-halftone-facts.sh \

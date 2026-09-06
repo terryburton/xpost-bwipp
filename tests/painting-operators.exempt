@@ -1,0 +1,22 @@
+# Operators defined among the painters that do not paint.
+#
+# tests/check-painting-operators.sh reads the painting operators off the
+# files that define them and holds them to the cross-product in
+# tests/device_features_test.ps. An operator listed here is one that
+# lives in those files without marking a page, and the reason it does
+# not is written beside it. A line here for an operator no file defines
+# fails, so an exemption cannot outlive what it was written about.
+
+# The hit-testing family (PLRM 8.2 infill and its five siblings). Each
+# asks whether a point or a rectangle would be covered if the path were
+# painted, and answers a boolean: the question is about the path and the
+# clip, and the device is never handed a mark. They sit in
+# data/paint.ps because they answer it by the same machinery a fill
+# resolves its spans with, which is what makes the answer agree with
+# what a fill would do.
+infill
+ineofill
+instroke
+inufill
+inueofill
+inustroke

@@ -120,3 +120,44 @@ slotsrun 6 ge (the device offered its marking slots to be called) assert
 % line rather than running into it
 (\n) print
 verdict
+
+% The rest of the painting operators. Which they are is not a matter of
+% taste: tests/check-painting-operators.sh reads them off the files that
+% define them -- data/paint.ps, the show family in data/font.ps, the
+% rectangle pair in data/init.ps and shfill in data/shade.ps -- and holds
+% that list to this one, so an operator added there and not exercised
+% here fails rather than arriving unasked-about.
+
+{ newpath 0 250 moveto 40 0 rlineto 0 40 rlineto -40 0 rlineto closepath
+  newpath 10 260 moveto 20 0 rlineto 0 20 rlineto -20 0 rlineto closepath
+  eofill }                                    (eofill paints) works
+{ 0 280 40 20 rectstroke }                    (rectstroke paints) works
+{ gsave 0 310 translate 0 0 40 20 rectfill grestore }
+                                              (a second rectfill paints) works
+
+% the userpath painters: the same three fills and stroke, taking their
+% path as an object rather than from the graphics state
+{ gsave 120 250 translate
+  { 0 0 moveto 30 0 rlineto 0 30 rlineto closepath } ufill grestore }
+                                              (ufill paints) works
+{ gsave 160 250 translate
+  { 0 0 moveto 30 0 rlineto 0 30 rlineto closepath } ueofill grestore }
+                                              (ueofill paints) works
+{ gsave 200 250 translate
+  { 0 0 moveto 30 30 rlineto } ustroke grestore }
+                                              (ustroke paints) works
+
+% the show family: every way a string of glyphs can be placed
+{ /Helvetica findfont 14 scalefont setfont
+  newpath 0 340 moveto 2 0 32 (Ag) widthshow }  (widthshow paints) works
+{ newpath 0 360 moveto 1 0 (Ag) ashow }         (ashow paints) works
+{ newpath 0 380 moveto 2 0 32 1 0 (Ag) awidthshow }
+                                                (awidthshow paints) works
+{ newpath 0 400 moveto { pop pop } (Ag) kshow } (kshow paints) works
+{ newpath 0 420 moveto (Ag) [ 8 8 ] xshow }     (xshow paints) works
+{ newpath 0 440 moveto (Ag) [ 0 0 ] yshow }     (yshow paints) works
+{ newpath 0 460 moveto (Ag) [ 8 0 8 0 ] xyshow } (xyshow paints) works
+
+% erasepage last of all: it wipes the page, so anything asked after it
+% would be asked of a page this test had just cleared.
+{ erasepage }                                   (erasepage clears) works
