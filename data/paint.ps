@@ -445,6 +445,16 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  turn, and a part holding no band is nothing to paint.
 %
 .xpostsys /.fillparts {  % [ spans ... ]  .  -
+    DEVICE /DiscardsMarks known {
+        %  A device that drops the marks it is handed has no colour to
+        %  convert one for.
+        %  The parts are dropped here rather than at the device, which
+        %  reaches the same answer without converting a colour and
+        %  applying a transfer for each of them. The page is still
+        %  marked: what marks a page is that something was painted, not
+        %  where the paint went.
+        { dup length 2 gt { true //.setpagemarked exec } if pop } forall
+    }{
     {
         dup length 2 gt {
             [ //.currentcolordict DEVICE /nativecolorspace get get exec
@@ -457,6 +467,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             pop
         } ifelse
     } forall
+    } ifelse
 } put
 
 %
@@ -1453,8 +1464,18 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % once a run rather than once a pixel.
         /prevsamp ncomp array def
         /prevset false def
+        %  A device that drops the marks it is handed is handed none.
+        %  Every sample below is painted with a rectfill of its own, so
+        %  an image costs one fill per pixel here -- which is the price
+        %  of turning samples into marks, and there is nothing to turn
+        %  them into. The rows are still read: the data source is the
+        %  program's procedure and what it consumes is observable, so it
+        %  is run exactly as often as it would have been.
+        /discardsmarks DEVICE /DiscardsMarks known def
+        discardsmarks { true //.setpagemarked exec } if
         0 1 height 1 sub { /y exch def
             //.imgrowread exec
+            discardsmarks not {
             0 1 width 1 sub { /x exch def
                 /base x ncomp mul def
                 /paintit true def
@@ -1530,6 +1551,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
                     } ifelse
                 } if
             } for
+            } if
         } for
         } ifelse } ifelse
 
@@ -2203,6 +2225,14 @@ setglobal
                 true //.setpagemarked exec
             } if
         }{
+        % A device that drops what it is handed is handed nothing. The
+        % runs below cost a mark each and every one would go nowhere;
+        % the samples above are read whatever happens, because the data
+        % source is the program's procedure and what it consumes is
+        % observable, so only the painting is skipped.
+        DEVICE /DiscardsMarks known {
+            true //.setpagemarked exec
+        }{
 
         % Invert into a fresh matrix: the operand matrix belongs to
         % the caller, who may reuse it (a Type 3 font mutating one
@@ -2277,6 +2307,7 @@ setglobal
         paintpat { //.xpostsys /.patternfill get exec } if
         } ifelse
         } if
+        } ifelse
         } ifelse
         end
     grestore

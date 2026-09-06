@@ -256,6 +256,7 @@ src/lib/xpost_op_font.c      name_dotgraphicsdict   reset xpost_oper_init_font_o
 src/lib/xpost_op_font.c      name_dotmarked         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_dotnotdef         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_dotpagestate      reset xpost_oper_init_font_ops
+src/lib/xpost_op_font.c      name_DiscardsMarks     reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_dotrecordglyph    reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_flushpage         reset xpost_oper_init_font_ops
 src/lib/xpost_op_font.c      name_h                 reset xpost_oper_init_font_ops

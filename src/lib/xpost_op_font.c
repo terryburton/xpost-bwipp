@@ -115,6 +115,7 @@ static Xpost_Object name_TextRuns;
 static Xpost_Object name_FontType;
 static Xpost_Object name_GlyphData;
 static Xpost_Object name_GlyphExtents;
+static Xpost_Object name_DiscardsMarks;
 static Xpost_Object name_Metrics;
 static Xpost_Object name_PaintType;
 static Xpost_Object name_Private;
@@ -163,6 +164,7 @@ static struct { Xpost_Object *slot; const char *spelling; } _op_font_names[] =
     { &name_dotnotdef, ".notdef" },
     { &name_dotpagestate, ".pagestate" },
     { &name_dotrecordglyph, ".recordglyph" },
+    { &name_DiscardsMarks, "DiscardsMarks" },
     { &name_BlendPix, "BlendPix" },
     { &name_CIDFontType, "CIDFontType" },
     { &name_CharStrings, "CharStrings" },
@@ -395,6 +397,7 @@ typedef struct textstate
     Xpost_Object fillrect;  /* the device's FillRect, for extent reporting */
     int sepindex;           /* separation registered with the device, or -1 */
     double septint;         /* the separation's tint */
+    int discards;           /* the device drops the marks it is handed */
     int clipkind;           /* one of the CLIP_ constants above */
     int cx0, cy0, cx1, cy1; /* the region's pixel bounds, half-open */
     const clipband *bands;  /* the region's bands, ascending, when CLIP_BANDS */
@@ -2837,6 +2840,12 @@ textstate _text_state_get(Xpost_Context *ctx,
        device's FillRect instead */
     vec = xpost_dict_get(ctx, devdic, name_GlyphExtents);
     ts.extents = xpost_object_get_type(vec) == booleantype && vec.int_.val;
+    /* a device that drops the marks it is handed needs no glyph
+       rasterization either: what the walk resolves is which pixels the
+       glyph covers so each can be handed over, and this one has nobody
+       to hand them to. Asked once for the string, as the two above are */
+    vec = xpost_dict_get(ctx, devdic, name_DiscardsMarks);
+    ts.discards = xpost_object_get_type(vec) == booleantype && vec.int_.val;
     memset(&ts.fillrect, 0, sizeof ts.fillrect);  /* invalidtype */
     if (ts.extents)
         ts.fillrect = xpost_dict_get(ctx, devdic, name_FillRect);
@@ -3413,6 +3422,21 @@ void _draw_bitmap(Xpost_Context *ctx,
        glyph hand over the same bytes and the record holds one copy.
        A device whose space takes a colour no record holds, and a mask
        there is no memory for, both leave this at the route that paints. */
+    /* A device that drops what it is handed is handed nothing. The walk
+       below exists to resolve which pixels a glyph covers so that each
+       can be given to the device, one call per inked pixel; giving them
+       to a device that discards them costs the whole of that walk to
+       produce nothing. The page is still marked -- what marks it is that
+       a glyph was painted, not where the ink went -- and the clip has
+       already rejected a glyph that falls outside the region, so the
+       rows left here are ink the region keeps. */
+    if (ts->discards)
+    {
+        if ((i1 > i0) && (width > 0))
+            *inked = 1;
+        return;
+    }
+
     glyphop = xpost_dict_get(ctx, devdic, name_dotrecordglyph);
     if (xpost_object_get_type(glyphop) == operatortype
         && (ncomp == 1 || ncomp == 3) && width > 0 && i1 > i0)

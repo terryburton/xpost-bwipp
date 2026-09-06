@@ -599,6 +599,21 @@ open .ncomp bgr jpeg pbm pgm png pngalpha ppm raster tiff record
     why.
 disposition settled
 
+open DiscardsMarks null
+    That the marks handed to this device are dropped rather than kept,
+    so the work of preparing one need not be done at all. NoOutput above
+    says only that a device does not rasterize, which the vector writers
+    also say while recording every mark they are given; this says the
+    mark itself goes nowhere, and data/paint.ps therefore drops a fill's
+    parts without converting a colour for each of them.
+    It is not a question here because one device carrying an entry is not
+    yet a family answering anything, and only the null device throws away
+    what it is handed. What would make it one is a second device that
+    discards -- a measuring device that wanted the page's extent without
+    its colour, say -- at which point what may be skipped for a discarder
+    would be worth stating per device rather than assumed.
+disposition settled
+
 open NoOutput bbox dscwrite null pdfwrite svgwrite record
     That this device puts no pixels down, so data/device.ps leaves it
     the class's own polygon fill rather than substituting the compiled

@@ -51,6 +51,11 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /nativecolorspace /DeviceGray
     /dimensions [0 0]
     /NoOutput true  % This device draws nothing: keep its no-op methods
+    %  And it keeps nothing either: where NoOutput only says a device does
+    %  not rasterize -- the vector writers say it too, and record what they
+    %  are handed -- this says the marks themselves are dropped, so the work
+    %  of preparing one need not be done.
+    /DiscardsMarks true
 
     /.copydict //.classcopydict
     /.instance //.classinstance
