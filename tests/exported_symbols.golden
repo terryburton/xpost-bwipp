@@ -297,6 +297,7 @@ xpost_handle_count
 xpost_handle_device_release
 xpost_handle_drop
 xpost_handle_hold
+xpost_handle_note_baseline
 xpost_handle_release_entity
 xpost_handle_release_memory_file
 xpost_handle_release_orphans
@@ -427,8 +428,8 @@ xpost_oper_init_stack_ops
 xpost_oper_init_string_ops
 xpost_oper_init_token_ops
 xpost_oper_init_type_ops
-xpost_operator_cons
 xpost_operator_call_direct
+xpost_operator_cons
 xpost_operator_cons_opcode
 xpost_operator_cons_wrapped
 xpost_operator_count

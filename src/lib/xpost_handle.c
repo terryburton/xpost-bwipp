@@ -50,6 +50,10 @@ typedef struct
        was never told to give up gets to */
     void (*reclaim)(void *block);
     int held;                    /* the block is the holder's to free */
+    /* the entity carrying this handle was there when the job baseline
+       was taken, so the boundary will bring it back: the block is the
+       baseline's and not a job's to give up */
+    int baseline;
     void *block;
 } Xpost_Handle_Slot;
 
@@ -135,6 +139,7 @@ static Xpost_Handle_Slot *_slot_record(Xpost_Memory_File *mem,
     _slots[index].release = 0;
     _slots[index].reclaim = NULL;
     _slots[index].held = held;
+    _slots[index].baseline = 0;
     _slots[index].block = block;
     return &_slots[index];
 }
@@ -328,6 +333,18 @@ void xpost_handle_release_entity(Xpost_Memory_File *mem,
 
     if (!slot)
         return;
+    /* Not while a baseline names it. The job-boundary revert restores
+       the entity byte for byte, so an entity the baseline carried is
+       still there in the next job whatever this one did with it -- and
+       a job that drops the page device it began with, or the font it
+       began with, and then collects would otherwise leave that entity
+       naming storage this call had freed. The next job reaches it
+       through a handle to nothing: its Destroy answers undefined, the
+       job is flushed, and the run reports success. The block is given
+       up where the baseline itself goes, in
+       xpost_handle_release_memory_file(). */
+    if (slot->baseline)
+        return;
     /* What the block names goes with the block. A device's state is
        given up by its Destroy, which the run makes; a device the run
        never made it to -- one a restore took back, or one nothing named
@@ -380,6 +397,15 @@ void xpost_handle_release_orphans(Xpost_Memory_File *mem)
             free(_slots[i].block);
         memset(&_slots[i], 0, sizeof(_slots[i]));
     }
+}
+
+void xpost_handle_note_baseline(Xpost_Memory_File *mem)
+{
+    unsigned int i;
+
+    for (i = 1; i < _nslots; i++)
+        if (_slots[i].mem == mem)
+            _slots[i].baseline = (_slots[i].ent != 0);
 }
 
 unsigned int xpost_handle_count(void)

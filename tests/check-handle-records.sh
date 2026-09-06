@@ -174,7 +174,75 @@ if [ "$rc" -ne 0 ]; then
     exit 1
 fi
 
+
+# A JOB THAT DROPS WHAT IT BEGAN WITH. The sweep above is about blocks a
+# job made. This is the other side of the same boundary: a block the
+# BASELINE named, which the job stopped naming and a collection in the
+# same job then reached.
+#
+# Installing a page device drops the one the run started with, so
+# nothing names that device's entity any more and a collection is
+# entitled to reclaim it. The revert then restores the entity -- byte
+# for byte, handle number and all -- and the next job is handed a device
+# whose block was freed in the job before. What that job sees is its
+# Destroy answering undefined, being flushed, and the run reporting
+# success: every job after the first is lost and nothing says so.
+#
+# The reading is the count again, and the assertion is that every job
+# ran: a job flushed before its closing print reports no closing count.
+: > "$work/stream2"
+i=0
+while [ "$i" -lt "$njobs" ]; do
+    {
+        printf '(HR start %d ) print %s 20 string cvs print (\\n) print flush\n' \
+               "$i" "$count"
+        printf '<< /PageSize [200 200] >> setpagedevice\n2 vmreclaim\n'
+        printf '(HR end %d ) print %s 20 string cvs print (\\n) print flush\n' \
+               "$i" "$count"
+        printf '\004'
+    } >> "$work/stream2"
+    i=$((i + 1))
+done
+
+"$xpost" -q --no-sandbox -d raster -o /dev/null --jobserver \
+    < "$work/stream2" > "$work/out2" 2>"$work/err2"
+
+LC_ALL=C awk -v n="$njobs" '
+    /^HR start / { nstart++
+                   if (base == "") base = $4 + 0
+                   if ($4 + 0 != base) {
+                       if (++grew <= 3)
+                           printf "job %s began with %d records where the first began with %d: the boundary gave up one the baseline still names\n", $3, $4, base
+                       bad = 1
+                   }
+                 }
+    /^HR end /   { nend++ }
+    END {
+        if (nstart != n) { printf "%d of %d jobs began\n", nstart, n; bad = 1 }
+        if (nend != n) {
+            printf "%d of %d jobs ran to their end: a job that drops the device it\n", nend, n
+            printf "        began with and collects left the next one a handle to nothing\n"
+            bad = 1
+        }
+        if (bad) exit 1
+    }
+' "$work/out2" > "$work/problems2" 2>&1
+rc=$?
+
+if [ "$rc" -ne 0 ]; then
+    echo "FAILURES: a block the baseline named did not survive the job that"
+    echo "      stopped naming it:"
+    sed 's/^/      /' "$work/problems2"
+    if [ -s "$work/err2" ]; then
+        echo "      the run said:"
+        sed 's/^/      /' "$work/err2" | head -5
+    fi
+    exit 1
+fi
+
 printf 'SUCCESS (%d jobs, the most of them making %s blocks held outside\n' \
        "$njobs" "$(cat "$work/problems")"
 printf '         virtual memory and leaving them named at the boundary; every\n'
-printf '         job began with the record count the first began with)\n'
+printf '         job began with the record count the first began with, and\n'
+printf '         %d jobs that dropped the device they began with and\n' "$njobs"
+printf '         collected each left the next job one that still worked)\n'

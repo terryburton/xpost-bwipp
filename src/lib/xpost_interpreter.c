@@ -4544,6 +4544,12 @@ static int _job_capture_baseline(Xpost_Context *ctx)
         return 0;
     if (!xpost_memory_image_capture(ctx->gl, ctx->job_baseline_gl))
         return 0;
+    /* The blocks these two banks name now are the baseline's. Whatever a
+       job does with the entities carrying them, the revert brings those
+       entities back, so a collection in between must not give the blocks
+       up (xpost_handle_note_baseline). */
+    xpost_handle_note_baseline(ctx->lo);
+    xpost_handle_note_baseline(ctx->gl);
     /* Only the global bank. The local bank is where the interpreter
        works, so it grows on almost every render, and each grow has to
        collapse the private view and build it again -- churn that costs

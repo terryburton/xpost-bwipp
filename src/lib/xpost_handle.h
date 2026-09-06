@@ -248,6 +248,24 @@ void xpost_handle_release_memory_file(Xpost_Memory_File *mem);
 void xpost_handle_release_orphans(Xpost_Memory_File *mem);
 
 /**
+ * @brief Note which blocks the job baseline names.
+ *
+ * Called where a job baseline is captured, once per bank. Every block
+ * an entity of this bank names at that moment is the baseline's: the
+ * boundary revert restores those entities byte for byte, so they are
+ * there again in the next job however the job in between treats them.
+ *
+ * A job may drop one -- installing its own page device drops the one it
+ * began with -- and a collection in the same job would then give up the
+ * block and the record of it while the baseline still names the entity.
+ * The revert brings the entity back naming storage that has been freed,
+ * and the next job to reach through it gets nothing. Blocks noted here
+ * are held against that, and go where the baseline goes, at
+ * xpost_handle_release_memory_file().
+ */
+void xpost_handle_note_baseline(Xpost_Memory_File *mem);
+
+/**
  * @brief How many blocks are recorded: the count of live handles.
  *
  * A recorded block is held by this process and named from virtual
