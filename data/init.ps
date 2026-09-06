@@ -2594,7 +2594,9 @@ setglobal
                 /seq seq 1 add def
                 held
                     { fc key << /owner fd /drawing cap /seq seq
-                                /tx cm 4 get /ty cm 5 get >> put }
+                                /tx cm 4 get /ty cm 5 get
+                                /masks cap //.internaldict /.recordglyphs
+                                       get exec pop >> put }
                     { cap dup /Destroy get exec
                       fc key << /owner fd /seq seq >> put }
                 ifelse
@@ -2639,6 +2641,21 @@ setglobal
             % for rather than at the one the drawing was made at.
             /dx cm 4 get fe /tx get sub def
             /dy cm 5 get fe /ty get sub def
+
+            % A glyph is held as the pixels it rasterised to, and where
+            % those pixels take their coverage from is the fraction of a
+            % pixel the glyph's origin fell at. Every other mark is held
+            % as itself and is resolved into pixels as it is played, so
+            % it lands at the fraction of a pixel the placement asks
+            % for; a mask cannot, having been resolved already. So a
+            % drawing holding glyphs is played only where the placement
+            % is a whole number of pixels from the one it was captured
+            % at, and is painted afresh where it is not -- which is what
+            % painting it there does, and is what the page would have
+            % been without a drawing held at all.
+            fe /masks 2 copy known { get }{ pop pop 0 } ifelse 0 gt
+            dx dup truncate eq not dy dup truncate eq not or and
+            { fd //.execformdirect exec }{
             DEVICE /.recordplace known {
                 % A device holding a record of its own is given the
                 % placement to write down, so the drawing is held once
@@ -2647,6 +2664,7 @@ setglobal
             }{
                 fe /drawing get DEVICE dx dy
                     //.internaldict /.replayplace get exec
+            } ifelse
             } ifelse
         }{
             fd //.execformdirect exec
