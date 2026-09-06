@@ -1596,6 +1596,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /gtripoly //.internaldict /.tripoly get def
     /gtrishadeop //.internaldict /.trishade get def
 
+    % A writer that says a shaded triangle itself is asked the colour
+    % question too, and the plan binds no conversion for it: the plan is
+    % about a painter reached from C, which wants the device's own
+    % polygon fill, and a writer taking whole paths has none to offer.
+    %
+    % Resolved here, with the mesh's own dictionary current and nothing
+    % of a patch above it. The conversion is reached by name, a name is
+    % resolved against the dictionaries in force, and resolving it once a
+    % patch has opened its own would bind what that patch can see rather
+    % than what the mesh means.
+    currentdict /gconv get null eq
+    DEVICE /PaintShadedTri known and
+    //.xpostsys /.colorroute get exec /direct eq and {
+        /gconv //.currentcolordict DEVICE /nativecolorspace get
+               2 copy known { get }{ pop pop null } ifelse
+               dup type /nametype eq { load } if def
+    } if
+
     % Settled at the first patch and kept for the mesh: it is a property
     % of the pipeline, and every patch of one mesh paints through the
     % same one. `store` writes it back where the reader left it open.
