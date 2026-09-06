@@ -647,6 +647,7 @@ tests/startup_device_test.c \
 tests/startup_surface_api_test.c \
 tests/startup_surface_test.ps \
 tests/stencil_mask_size_test.ps \
+tests/stencil_band_test.ps \
 tests/strbuf_test.c \
 tests/stream_exec_test.ps \
 tests/string_bounds_test.c \

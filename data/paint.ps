@@ -2232,17 +2232,33 @@ setglobal
             bh bandrows gt { /bh bandrows def } if
             /rects buf by rowbytes mul bh rowbytes mul getinterval
                    width bh ink //.stencilruns exec def
-            0 4 rects length 1 sub { /i exch def
-                rects i get  rects i 1 add get by add
-                rects i 2 add get  rects i 3 add get
+            rects length 0 gt {
+                % The band's rectangles go over together. They are the
+                % same rectangles either way, and the whole band is one
+                % pass through the scan converter where a rectangle at a
+                % time was a pass each -- with the path built, filled and
+                % thrown away again for every one of them.
+                %
+                % A band counts its rows from its own first, so the space
+                % is moved to the band rather than each rectangle being
+                % moved into the page's. The current path is the caller's
+                % under a pattern colour, and a matrix put back by hand
+                % leaves it standing where a grestore would drop it.
+                /cm matrix currentmatrix def
+                0 by translate
                 paintpat {
-                    /rh exch def /rw exch def /ry exch def /rx exch def
-                    rx ry moveto rx rw add ry lineto
-                    rx rw add ry rh add lineto rx ry rh add lineto closepath
+                    0 4 rects length 1 sub { /i exch def
+                        rects i get  rects i 1 add get
+                        rects i 2 add get  rects i 3 add get
+                        /rh exch def /rw exch def /ry exch def /rx exch def
+                        rx ry moveto rx rw add ry lineto
+                        rx rw add ry rh add lineto rx ry rh add lineto closepath
+                    } for
                 }{
-                    rectfill
+                    rects rectfill
                 } ifelse
-            } for
+                cm setmatrix
+            } if
         } for
         paintpat { //.xpostsys /.patternfill get exec } if
         } if

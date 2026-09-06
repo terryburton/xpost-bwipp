@@ -198,6 +198,7 @@ device test setpagedevice-policies
 device test startup-device
 device test startup-page
 device test stencil-mask-size
+device test stencil-band
 device test svg-*
 device test vecbase
 device test dsc-vocabulary
@@ -336,6 +337,7 @@ graphics test setdash-finite
 graphics test shading-*
 graphics test show-*
 graphics test stencil-mask-size
+graphics test stencil-band
 graphics test thin-stroke
 graphics test trapping
 graphics width witness

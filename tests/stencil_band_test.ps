@@ -1,0 +1,113 @@
+%!testlib
+% Where the rows of a tall stencil land, run through
+% `xpost -q --no-sandbox -d null` by run-ps-test.sh.
+%
+% A stencil is resolved into the rectangles its set bits cover, and that
+% is done a band of rows at a time so that what comes back is bounded: a
+% mask alternating every sample resolves a run per sample, and a whole
+% page of that would be an array of millions where a band of it is an
+% array of thousands.
+%
+% A band therefore counts its rows from its own first row and not from
+% the mask's, and something has to put each band back where it belongs.
+% Nothing else here would catch that being wrong: a mask short enough to
+% resolve in one band lands correctly however the offset is applied, and
+% a uniform mask lands correctly even if a band is placed on top of
+% another. So the mask below is taller than one band and its rows differ,
+% and the assertions sit either side of the band boundaries.
+%
+% The band is sized by area -- 16384 samples -- so a mask this wide takes
+% eight rows to a band, and forty rows is five bands.
+
+/W 2048 def
+/H 40 def
+/BANDROWS 8 def
+
+/.fillpoly     1183615869 internaldict /.fillpoly get def
+/.fillrectgray 1183615869 internaldict /.fillrectgray get def
+
+/DEV W H .privatedict /newPGMIMAGEdevice get exec def
+DEV begin
+    /defaultmatrix [ 1 0 0 -1 0 H ] def
+    /FillPoly /.fillpoly load def
+    /FillRect /.fillrectgray load def
+end
+.privatedict /.gstatetemplate get exec /device DEV put
+graphicsdict /currgstate get /device DEV put
+initgraphics
+
+/inkat { % ux uy . bool
+    transform floor cvi exch floor cvi exch
+    DEV dup /GetPix get exec 128 lt
+} bind def
+
+% the mask: every even row solid, every odd row clear. The rows of a
+% band are indistinguishable from each other only if a band is dropped
+% whole, and the alternation puts a boundary between rows 7 and 8.
+/rowbytes W 7 add 8 idiv def
+/bits rowbytes H mul string def
+0 1 H 1 sub {
+    /r exch def
+    r 2 mod 0 eq {
+        0 1 rowbytes 1 sub {
+            bits exch r rowbytes mul add 16#FF put
+        } for
+    } if
+} for
+
+/clearpage { gsave 1 setgray 0 0 W H rectfill grestore } bind def
+
+clearpage
+0 setgray
+gsave
+    W H scale
+    << /ImageType 1 /Width W /Height H /BitsPerComponent 1
+       /DataSource bits /ImageMatrix [ W 0 0 H 0 0 ] /Decode [1 0] >>
+    imagemask
+grestore
+
+% The image matrix here has a positive y scale, so image space runs the
+% same way user space does and mask row r covers the user row r. The
+% probe reads the middle of that row.
+/rowinked { % r . bool
+    0.5 add 1 exch inkat
+} bind def
+
+ 0 rowinked (the mask's first row is inked) assert
+ 1 rowinked not (and the row under it is not) assert
+ 2 rowinked (the alternation holds inside the first band) assert
+
+% either side of the first band boundary
+ 6 rowinked (the last inked row of the first band) assert
+ 7 rowinked not (its clear row) assert
+ 8 rowinked (the second band's first row is inked, and is where the
+             mask says and not where the band counted it) assert
+ 9 rowinked not (the alternation carries across the boundary) assert
+
+% and across the later ones, so a band placed one further out each time
+% is caught as well as one placed at the mask's origin
+16 rowinked (the third band lands on the mask's rows) assert
+17 rowinked not (with its alternation intact) assert
+24 rowinked (the fourth band too) assert
+32 rowinked (and the fifth) assert
+39 rowinked not (the last row of the mask is the clear one) assert
+
+% a positive control for the reading itself: with every row inked there
+% is no alternation to check, and every row of every band must be inked.
+% Without this a probe that answered false everywhere would pass half
+% the assertions above.
+clearpage
+0 1 bits length 1 sub { bits exch 16#FF put } for
+0 setgray
+gsave
+    W H scale
+    << /ImageType 1 /Width W /Height H /BitsPerComponent 1
+       /DataSource bits /ImageMatrix [ W 0 0 H 0 0 ] /Decode [1 0] >>
+    imagemask
+grestore
+ 0 rowinked (a solid mask inks its first row) assert
+ 7 rowinked (and the last row of the first band) assert
+ 8 rowinked (and the first of the second) assert
+39 rowinked (and its last row) assert
+
+verdict

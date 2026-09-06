@@ -5855,6 +5855,18 @@ test('stencil-mask-size',
   suite: cost_fast,
   env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
 
+# Where the rows of a tall stencil land. The mask is resolved a band of rows
+# at a time so that the array of rectangles stays bounded, and a band counts
+# its rows from its own first: something has to put each band back where the
+# mask says. A mask short enough for one band lands correctly however that is
+# done, and a uniform one lands correctly even if a band is dropped on top of
+# another, so the mask here is five bands tall with rows that differ.
+test('stencil-band',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/stencil_band_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Differential corpus: render whatever real-program corpora the developer has
 # fetched (tests/corpus/fetch.sh) through xpost and Ghostscript and report the
 # per-page difference. Skips when no corpus is present or the reference tools
