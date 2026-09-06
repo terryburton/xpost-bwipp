@@ -7734,6 +7734,40 @@ void xpost_device_retire_job(Xpost_Context *ctx, unsigned int baseline_depth)
     _device_release(ctx, devdic, destroy);
 }
 
+/* buf width height ink  .stencilhash  int
+   The number a stencil's bits and dimensions come to, by which a
+   reading of them already made is found again.
+
+   It is a hash and not an identity: what it answers for is a lookup,
+   and the caller holds a copy of the bits beside each reading and
+   compares them before using it, so two masks coming to one number
+   cost a second reading rather than the wrong region. Reading it here
+   rather than a byte at a time in PostScript is what keeps the lookup
+   cheaper than the reading it stands in for. */
+static int _stencilhash(Xpost_Context *ctx,
+                        Xpost_Object bufo,
+                        Xpost_Object wo,
+                        Xpost_Object ho,
+                        Xpost_Object inko)
+{
+    const unsigned char *buf;
+    unsigned int hh, i, n;
+
+    hh = (unsigned int)(((wo.int_.val * 31 + ho.int_.val) * 33)
+                        + inko.int_.val);
+    n = bufo.comp_.sz;
+    if (n)
+    {
+        buf = (const unsigned char *)xpost_string_get_pointer(ctx, bufo);
+        if (!buf)
+            return VMerror;
+        for (i = 0; i < n; i++)
+            hh = (hh * 33 + buf[i]) & 0xFFFFFFu;
+    }
+    xpost_stack_push(ctx->lo, ctx->os, xpost_int_cons((integer)hh));
+    return 0;
+}
+
 /* buf width height ink  .stencilscan  rects
    The rectangles the set bits of a one-bit mask cover, as a run-length
    reading of it: x y w h for each, four numbers to a rectangle, with y
@@ -7941,6 +7975,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
                              stringtype, booleantype); INSTALL;
     op = xpost_operator_cons(ctx, ".blitrow", (Xpost_Op_Func)xpost_dev_blit_row, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".stencilscan", (Xpost_Op_Func)_stencilscan, 4,
+                             stringtype, integertype, integertype, integertype); INSTALL;
+    op = xpost_operator_cons(ctx, ".stencilhash", (Xpost_Op_Func)_stencilhash, 4,
                              stringtype, integertype, integertype, integertype); INSTALL;
     op = xpost_operator_cons(ctx, ".rectspan", (Xpost_Op_Func)_rectspan, 6,
             numbertype, numbertype, numbertype, numbertype,

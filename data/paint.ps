@@ -2072,10 +2072,7 @@ setglobal
 .xpostsys /.stencilruns {  % buf width height ink  .  rects
     10 dict begin
     /kink exch def /kh exch def /kw exch def /kbuf exch def
-    /hh kw 31 mul kh add 33 mul kink add def
-    0 1 kbuf length 1 sub {
-        kbuf exch get hh 33 mul add 16#FFFFFF and /hh exch def
-    } for
+    /hh kbuf kw kh kink .stencilhash def
     /found null def
     .gscratch /.stencilcache get hh 2 copy known {
         get {
