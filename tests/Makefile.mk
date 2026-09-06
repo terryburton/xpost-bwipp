@@ -162,6 +162,7 @@ tests/check-pdf-empty-job.sh \
 tests/check-pdf-accumulator-cost.sh \
 tests/check-pdf-save-resource.sh \
 tests/check-vector-page-references.sh \
+tests/check-image-placement.sh \
 tests/check-pdf-shading.sh \
 tests/check-svg-shading.sh \
 tests/check-vector-stroke-clip.sh \

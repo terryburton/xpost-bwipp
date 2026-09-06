@@ -234,9 +234,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     .emitclip
 
     % image space to device space, so what follows draws in samples
-    dim 0 get .pdfnum ( ) .put dim 1 get .pdfnum ( ) .put
-    dim 2 get .pdfnum ( ) .put dim 3 get .pdfnum ( ) .put
-    dim 4 get .pdfnum ( ) .put dim 5 get .pdfnum ( cm\n) .put
+    dim 0 get .pdfmatnum ( ) .put dim 1 get .pdfmatnum ( ) .put
+    dim 2 get .pdfmatnum ( ) .put dim 3 get .pdfmatnum ( ) .put
+    dim 4 get .pdfmatnum ( ) .put dim 5 get .pdfmatnum ( cm\n) .put
 
     % The matrix above put user space in samples, and the page opened with
     % the flip that carries y-down device units to the page -- so image
@@ -315,9 +315,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     .emitclip
 
     % image space to device space, so what follows draws in samples
-    dsm 0 get .pdfnum ( ) .put dsm 1 get .pdfnum ( ) .put
-    dsm 2 get .pdfnum ( ) .put dsm 3 get .pdfnum ( ) .put
-    dsm 4 get .pdfnum ( ) .put dsm 5 get .pdfnum ( cm\n) .put
+    dsm 0 get .pdfmatnum ( ) .put dsm 1 get .pdfmatnum ( ) .put
+    dsm 2 get .pdfmatnum ( ) .put dsm 3 get .pdfmatnum ( ) .put
+    dsm 4 get .pdfmatnum ( ) .put dsm 5 get .pdfmatnum ( cm\n) .put
 
     % streamed for the same reason an image's samples are: a hex literal
     % long enough for a real stencil is one the scanner refuses

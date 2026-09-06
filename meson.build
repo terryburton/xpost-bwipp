@@ -2448,6 +2448,20 @@ test('vector-page-references',
   suite: cost_fast,
   timeout: 180)
 
+# Where an image lands when a writer states its placement. An image is stated
+# on its own grid, so the matrix carrying it to the page is the extent over
+# the sample count -- and whatever is kept of that number is multiplied by the
+# sample count again when the far edge lands. A page written and read back
+# here is the page it was written from, which says so without appealing to
+# any consumer.
+test('image-placement',
+  find_program('tests/check-image-placement.sh'),
+  priority: guard_priority,
+  args: [ xpost_exe ],
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' },
+  suite: cost_fast,
+  timeout: 180)
+
 # Analytic shadings reach the PDF as shading dictionaries rather than as the
 # flat cells a decomposition would leave: the consumer draws the gradient.
 test('pdf-shading',

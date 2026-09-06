@@ -155,6 +155,56 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 } put
 
 %
+%  A number written with more of its fraction than a coordinate needs.
+%
+%  Two places is a hundredth of a device unit, which is finer than a
+%  coordinate can be seen at. It is not fine enough for the entries of a
+%  matrix, because a matrix is applied to something and its error is
+%  multiplied by whatever that is. What these matrices are applied to is
+%  an image, stated on its own grid: the scale carrying it to the device
+%  is the extent divided by the sample count, so a mask 761 samples tall
+%  placed over 500 units has a scale of 0.6570302, and 0.66 puts its last
+%  row two units from where it belongs.
+%
+%  How much of the fraction is worth writing follows the size of the
+%  number, because a small scale is the one with many samples behind it
+%  and is exactly where the error is multiplied most; a large scale has
+%  few samples and needs less. So a magnitude of one or under is given
+%  nine places and the rest five, and neither scaling leaves the range an
+%  integer covers. A magnitude too large to scale at all is written as
+%  the whole number it is, as the coordinate form does at its own size.
+%
+%  Rounded before it is asked whether there is a fraction to write, for
+%  the reason .num2str gives: which side of a whole number a value landed
+%  on is the arithmetic's business and not the text's. The zeros a
+%  fraction does not need are taken off the end, so a whole number reads
+%  as one and an exact scale is as short as it ever was.
+%
+.xpostsys /.num2strfine {  % num  .  str
+    6 dict begin
+    /v exch def
+    v abs 21000 gt {
+        v cvi 20 string cvs
+    }{
+        /m v abs 1 le { 1000000000 }{ 100000 } ifelse def
+        /n v m mul round cvi def
+        /sgn n 0 lt { /n n neg def (-) }{ () } ifelse def
+        /f n m mod def
+        /s sgn n m idiv 20 string cvs //.strcat exec def
+        f 0 eq { s }{
+            %  the places, zero-filled: adding the scale puts a leading
+            %  one in front of them, and it is dropped again
+            /d f m add 20 string cvs dup length 1 sub 1 exch getinterval def
+            { d dup length 1 sub get 48 eq
+                { /d d 0 d length 1 sub getinterval def }{ exit } ifelse
+            } loop
+            s (.) //.strcat exec d //.strcat exec
+        } ifelse
+    } ifelse
+    end
+} put
+
+%
 %  The device-resolution scale carried in the defaultmatrix fixup applied
 %  after construction; a raw 1:1 device answers 1 1. Dividing a device
 %  dimension by its scale yields the page size in points, which is how

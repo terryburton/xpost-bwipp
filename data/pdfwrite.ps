@@ -844,7 +844,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .qsave
         % the clip is in device space, so it goes on before the mapping
         .emitclip
-        shdesc /ctm get { .pdfnum ( ) .put } forall ( cm\n) .put
+        shdesc /ctm get { .pdfmatnum ( ) .put } forall ( cm\n) .put
         (/Sh) .put shidx 20 string cvs .put ( sh\n) .put
         .qrestore
 
@@ -1007,6 +1007,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % exponential), through the vector writers' shared formatter.
     /.pdfnum {  % num  .  -
         //.num2str exec .put
+    } bind
+
+    %  An entry of a matrix, which needs more of its fraction than a
+    %  coordinate does: the error in it is multiplied by whatever the
+    %  matrix is applied to, and a matrix carrying an image is applied to
+    %  its samples. See .num2strfine.
+    /.pdfmatnum {  % num  .  -
+        //.num2strfine exec .put
     } bind
 
     % Format a number in PDF syntax to a fresh string at the accumulator's
@@ -1540,12 +1548,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % arrive pre-clipped, images cannot
         .emitclip
         [ piw 0 0 pih neg 0 pih ] pim matrix concatmatrix
-        dup 0 get .pdfnum ( ) .put
-        dup 1 get .pdfnum ( ) .put
-        dup 2 get .pdfnum ( ) .put
-        dup 3 get .pdfnum ( ) .put
-        dup 4 get .pdfnum ( ) .put
-        5 get .pdfnum ( cm\n) .put
+        dup 0 get .pdfmatnum ( ) .put
+        dup 1 get .pdfmatnum ( ) .put
+        dup 2 get .pdfmatnum ( ) .put
+        dup 3 get .pdfmatnum ( ) .put
+        dup 4 get .pdfmatnum ( ) .put
+        5 get .pdfmatnum ( cm\n) .put
         (/Im) .put piidx 20 string cvs .put ( Do\n) .put .qrestore
     } //.indevwork exec }
 
@@ -1592,12 +1600,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         .qsave
         .emitclip
         [ miw 0 0 mih neg 0 mih ] mim matrix concatmatrix
-        dup 0 get .pdfnum ( ) .put
-        dup 1 get .pdfnum ( ) .put
-        dup 2 get .pdfnum ( ) .put
-        dup 3 get .pdfnum ( ) .put
-        dup 4 get .pdfnum ( ) .put
-        5 get .pdfnum ( cm\n) .put
+        dup 0 get .pdfmatnum ( ) .put
+        dup 1 get .pdfmatnum ( ) .put
+        dup 2 get .pdfmatnum ( ) .put
+        dup 3 get .pdfmatnum ( ) .put
+        dup 4 get .pdfmatnum ( ) .put
+        5 get .pdfmatnum ( cm\n) .put
         (/Im) .put miidx 20 string cvs .put ( Do\n) .put .qrestore
     } //.indevwork exec }
 
@@ -1664,12 +1672,12 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % the unit square the XObject is drawn in, mapped to the samples
         % and then to the device, exactly as a sampled image is placed
         [ psw 0 0 psh neg 0 psh ] psm matrix concatmatrix
-        dup 0 get .pdfnum ( ) .put
-        dup 1 get .pdfnum ( ) .put
-        dup 2 get .pdfnum ( ) .put
-        dup 3 get .pdfnum ( ) .put
-        dup 4 get .pdfnum ( ) .put
-        5 get .pdfnum ( cm\n) .put
+        dup 0 get .pdfmatnum ( ) .put
+        dup 1 get .pdfmatnum ( ) .put
+        dup 2 get .pdfmatnum ( ) .put
+        dup 3 get .pdfmatnum ( ) .put
+        dup 4 get .pdfmatnum ( ) .put
+        5 get .pdfmatnum ( cm\n) .put
         (/Im) .put psidx 20 string cvs .put ( Do\n) .put .qrestore
     } //.indevwork exec }
 

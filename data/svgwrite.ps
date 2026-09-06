@@ -160,6 +160,14 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         //.num2str exec .put
     } bind
 
+    %  An entry of a matrix, which needs more of its fraction than a
+    %  coordinate does: the error in it is multiplied by whatever the
+    %  matrix is applied to, and what these matrices are applied to is an
+    %  image stated on its own grid of samples. See .num2strfine.
+    /.svgmatnum {  % num  .  -
+        //.num2strfine exec .put
+    } bind
+
     /.svghexdig (0123456789abcdef) readonly def
 
     % One channel as the two hex digits an SVG paint takes, scaled and
@@ -407,9 +415,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         {
             /qkpng exch def
             (<image transform="matrix\() .put
-            qkmat 0 get .svgnum (,) .put qkmat 1 get .svgnum (,) .put
-            qkmat 2 get .svgnum (,) .put qkmat 3 get .svgnum (,) .put
-            qkmat 4 get .svgnum (,) .put qkmat 5 get .svgnum
+            qkmat 0 get .svgmatnum (,) .put qkmat 1 get .svgmatnum (,) .put
+            qkmat 2 get .svgmatnum (,) .put qkmat 3 get .svgmatnum (,) .put
+            qkmat 4 get .svgmatnum (,) .put qkmat 5 get .svgmatnum
             (\)" x="0" y="0" width=") .put qkw .svgnum
             (" height=") .put qkh .svgnum
             ("  preserveAspectRatio="none") .put
@@ -483,9 +491,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             %  the lossy one only where it is actually smaller
             /siuj sijpg null ne { sijl sipl lt }{ false } ifelse def
             (<image transform="matrix\() .put
-            sim 0 get .svgnum (,) .put sim 1 get .svgnum (,) .put
-            sim 2 get .svgnum (,) .put sim 3 get .svgnum (,) .put
-            sim 4 get .svgnum (,) .put sim 5 get .svgnum
+            sim 0 get .svgmatnum (,) .put sim 1 get .svgmatnum (,) .put
+            sim 2 get .svgmatnum (,) .put sim 3 get .svgmatnum (,) .put
+            sim 4 get .svgmatnum (,) .put sim 5 get .svgmatnum
             (\)" x="0" y="0" width=") .put siw .svgnum
             (" height=") .put sih .svgnum
             (" preserveAspectRatio="none" image-rendering=") .put
@@ -500,9 +508,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /sirowb siw 3 mul sipad add def
         /sisz 54 sirowb sih mul add def
         (<image transform="matrix\() .put
-        sim 0 get .svgnum (,) .put sim 1 get .svgnum (,) .put
-        sim 2 get .svgnum (,) .put sim 3 get .svgnum (,) .put
-        sim 4 get .svgnum (,) .put sim 5 get .svgnum
+        sim 0 get .svgmatnum (,) .put sim 1 get .svgmatnum (,) .put
+        sim 2 get .svgmatnum (,) .put sim 3 get .svgmatnum (,) .put
+        sim 4 get .svgmatnum (,) .put sim 5 get .svgmatnum
         (\)" x="0" y="0" width=") .put siw .svgnum
         (" height=") .put sih .svgnum
         (" preserveAspectRatio="none" image-rendering=") .put
@@ -677,9 +685,9 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         /smcg .clipgroup def
         /smg graphicsdict /currgstate get def
         (<g transform="matrix\() .put
-        smm 0 get .svgnum (,) .put smm 1 get .svgnum (,) .put
-        smm 2 get .svgnum (,) .put smm 3 get .svgnum (,) .put
-        smm 4 get .svgnum (,) .put smm 5 get .svgnum
+        smm 0 get .svgmatnum (,) .put smm 1 get .svgmatnum (,) .put
+        smm 2 get .svgmatnum (,) .put smm 3 get .svgmatnum (,) .put
+        smm 4 get .svgmatnum (,) .put smm 5 get .svgmatnum
         (\)"><rect x="0" y="0" width=") .put smw .svgnum
         (" height=") .put smh .svgnum
         (" fill=) .put

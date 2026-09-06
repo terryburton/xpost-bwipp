@@ -756,6 +756,7 @@ method .imagequality dscwrite pdfwrite
 method .fnref pdfwrite
 method PatternCell pdfwrite svgwrite
 method PlaceForm dscwrite pdfwrite svgwrite
+method .pdfmatnum dscwrite pdfwrite
 method .pdfnum dscwrite pdfwrite
 method .pdfnumstr dscwrite pdfwrite
 method .pdfoverprint dscwrite pdfwrite
@@ -791,6 +792,7 @@ method .streamreset dscwrite pdfwrite
 method StrokePath dscwrite pdfwrite svgwrite
 method .svgfull svgwrite
 method .svghex svgwrite
+method .svgmatnum svgwrite
 method .svgnum svgwrite
 method .svgrgb svgwrite
 method .svgc255 svgwrite
