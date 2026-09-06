@@ -1006,12 +1006,24 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  the identity all bend it, and a plane would then chord what the
 %  subdivision follows.
 %
-%  So the road is required to be no road at all: no function, no tint
-%  space, the shading painting in the space the device paints in, and a
-%  transfer that gives back what it is given. The last is the only one
-%  that has to be measured, and it is measured across the range rather
-%  than at a point, because two points agreeing says nothing about a
-%  third between them.
+%  What is required is therefore that the road be straight, not that
+%  there be no road: no function and no tint space, a shading painting
+%  in one of the device spaces, and a conversion from that space to the
+%  device's components -- the transfer included -- that carries a
+%  straight line to a straight line. A shading in the space the device
+%  paints in is the case where the road is nothing at all, and it is not
+%  the only straight one: a grey is a fixed sum of the three components
+%  an RGB shading carries, so a plane in the one is a plane in the other.
+%
+%  Straightness is measured rather than reasoned about, and measured
+%  over the space rather than at a point, because points agreeing says
+%  nothing about what lies between them. A map is straight where every
+%  edge of the unit cube is carried to a straight line and where the
+%  corners add: the midpoint of an edge reaches the midpoint of its
+%  image, and a corner reached by two axes together is the two apart
+%  less the origin. A clamp, a gamma or any other bend fails one of
+%  those, and the subdivision paints the shading following the bend as
+%  it does for a function or a tint space.
 %
 %  ASKED ONCE FOR THE MESH, not once per triangle: it is a property of
 %  the pipeline and not of any colour that travels it, so no triangle
@@ -1019,33 +1031,95 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  path saved wherever the triangles were small -- MEASURED on a page of
 %  small shadings, 6.9 seconds became 21.
 %
+/.gcolcomps {  % name  .  int
+    dup /DeviceGray eq { pop 1 }{
+    dup /DeviceRGB eq { pop 3 }{
+    dup /DeviceCMYK eq { pop 4 }{ pop 0 } ifelse } ifelse } ifelse
+} def
+
 /.gcolidentity {  % -  .  bool
-    6 dict begin
-    /n DEVICE /nativecolorspace get
-       dup /DeviceGray eq { pop 1 }{
-       dup /DeviceRGB eq { pop 3 }{
-       dup /DeviceCMYK eq { pop 4 }{ pop 0 } ifelse } ifelse } ifelse def
-    % A device space may be written as the name or as an array holding
-    % just the name (PLRM 4.8.2), and a mesh commonly writes the array.
+    12 dict begin
+    /n DEVICE /nativecolorspace get //.gcolcomps exec def
+
+    % The space a device space is written in is read by the writers'
+    % own reader, which takes the bare name and the array holding it
+    % alike (PLRM 4.8.2); a mesh commonly writes the array.
     /cs sh /ColorSpace get def
     cs type /arraytype eq { cs length 1 eq { /cs cs 0 get def } if } if
-    /csok cs type /nametype eq
-          { cs DEVICE /nativecolorspace get eq }{ false } ifelse def
+    /m cs type /nametype eq { cs //.gcolcomps exec }{ 0 } ifelse def
+
+    % One point of the source space, as the device components it reaches.
+    % A null where the road refused to carry it, which fails the test
+    % below rather than being read as an answer.
+    /at {  % [c0..cm-1]  .  [d0..dn-1] | null
+        //.gcoldev exec dup length n eq not { pop null } if
+    } def
+
+    /axis {  % i v  .  [c0..cm-1]
+        2 dict begin /v exch def /i exch def
+            [ 0 1 m 1 sub { i eq { v }{ 0 } ifelse } for ]
+        end
+    } def
+
+    /pair {  % i j  .  [c0..cm-1]
+        2 dict begin /j exch def /i exch def
+            [ 0 1 m 1 sub { dup i eq exch j eq or { 1 }{ 0 } ifelse } for ]
+        end
+    } def
+
+    % Two device colours agreeing to within half a 255th in every
+    % component, which is finer than the flatness the subdivision itself
+    % accepts before filling a piece in one colour.
+    /near {  % [a] [b]  .  bool
+        2 dict begin /b exch def /a exch def
+            a null eq b null eq or
+                { false }
+                { /q true def
+                  0 1 n 1 sub { /k exch def
+                      a k get b k get sub abs 1 510 div gt { /q false def } if
+                  } for
+                  q }
+            ifelse
+        end
+    } def
+
     n 0 gt
+    m 0 gt and
     shfn null eq and
     gtint null eq and
-    csok and
     {
-        /ok true def
-        0 1 16 {
-            /v exch 16 div def
-            /got [ n { v } repeat ] //.gcoldev exec def
-            got length n eq {
-                0 1 n 1 sub {
-                    got exch get v sub abs 1 510 div gt { /ok false def } if
+        /o [ 0 1 m 1 sub { pop 0 } for ] at exec def
+        /e [ 0 1 m 1 sub { 1 axis exec at exec } for ] def
+        /ok o null ne def
+        ok { 0 1 m 1 sub { e exch get null eq { /ok false def } if } for } if
+
+        % Every edge of the cube is carried to a straight line: the
+        % midpoint of an axis reaches the midpoint of its image.
+        ok {
+            0 1 m 1 sub { /i exch def
+                ok {
+                    i 0.5 axis exec at exec
+                    [ 0 1 n 1 sub { /k exch def
+                        o k get e i get k get add 2 div } for ]
+                    near exec not { /ok false def } if
+                } if
+            } for
+        } if
+
+        % And the corners add: a corner two axes reach together is the
+        % two apart, less the origin they share.
+        ok {
+            0 1 m 2 sub { /i exch def
+                i 1 add 1 m 1 sub { /j exch def
+                    ok {
+                        i j pair exec at exec
+                        [ 0 1 n 1 sub { /k exch def
+                            e i get k get e j get k get add o k get sub } for ]
+                        near exec not { /ok false def } if
+                    } if
                 } for
-            }{ /ok false def } ifelse
-        } for
+            } for
+        } if
         ok
     }{ false } ifelse
     end
