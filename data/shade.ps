@@ -1153,9 +1153,22 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     /dc vc //.gvertdev exec def
     /n da length def
     n 0 gt db length n eq and dc length n eq and {
-        va vb vc
-        [ da aload pop db aload pop dc aload pop ]
-        gdev gtrishadeop
+        /dcols [ da aload pop db aload pop dc aload pop ] def
+        gdev null ne { va vb vc dcols gdev gtrishadeop }{ false } ifelse
+        {
+            true
+        }{
+            % A device the plane cannot be painted into from C may still
+            % be able to say one. A writer whose format carries a colour
+            % running across a shape takes the triangle whole here, which
+            % is what keeps a mesh the size of the mesh: the alternative
+            % is the subdivision below, and a triangle cut until each
+            % piece is flat is thousands of pieces where this is one.
+            DEVICE /PaintShadedTri known
+                { va vb vc dcols DEVICE dup /PaintShadedTri get exec }
+                { false }
+            ifelse
+        } ifelse
     }{ false } ifelse
     end
 } def
@@ -1460,6 +1473,20 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     %
     % The conversion is fetched rather than named: it is executable, and
     % naming it would run it.
+    %
+    % A writer that says a shaded triangle itself needs the conversion
+    % too, and the plan binds none for it: the plan is about a painter
+    % reached from C, which wants the device's own polygon fill, and a
+    % writer taking whole paths has none to offer. The colour question is
+    % a different one from the painter question, so where the device
+    % answers the first it is asked the second on its own.
+    currentdict /gconv get null eq
+    DEVICE /PaintShadedTri known and
+    //.xpostsys /.colorroute get exec /direct eq and {
+        /gconv //.currentcolordict DEVICE /nativecolorspace get
+               2 copy known { get }{ pop pop null } ifelse
+               dup type /nametype eq { load } if def
+    } if
     /gcpath currentdict /gconv get null ne
             { //.gcolidentity exec }{ false } ifelse def
     sh /ShadingType get 5 eq {

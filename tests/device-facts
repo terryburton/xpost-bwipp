@@ -740,6 +740,7 @@ method PaintImage dscwrite pdfwrite svgwrite
 method PaintStencil dscwrite pdfwrite svgwrite
 method ShadingPaint pdfwrite svgwrite
 method PaintImageMasked pdfwrite svgwrite
+method PaintShadedTri svgwrite
 method .shdescribe pdfwrite
 method .meshputint pdfwrite
 method .meshputval pdfwrite
@@ -792,6 +793,7 @@ method .svgrgb svgwrite
 method .svgsame svgwrite
 method .svgshaxial svgwrite
 method .svgshradial svgwrite
+method .svgtriplane svgwrite
 method .t0build dscwrite pdfwrite
 method .t4build dscwrite pdfwrite
 method .takecolor bgr jpeg pbm pgm png pngalpha ppm raster tiff

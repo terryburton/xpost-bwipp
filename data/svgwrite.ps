@@ -1080,6 +1080,129 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
     % extend, and SVG has no spread that stops. A stop of no opacity at
     % that end says the same thing: pad carries it outward, so beyond the
     % axis nothing is laid down.
+    % A mesh triangle, with its colour running across it.
+    %
+    %  A triangle's colour is affine in position: each component is the
+    %  one plane through the three corner values, c = a*x + b*y + d. A
+    %  gradient says exactly that -- two stops along an axis, constant
+    %  across it -- but says it for every component at once, along ONE
+    %  axis. The three components have three planes and three gradient
+    %  directions, so no single gradient carries a triangle.
+    %
+    %  Three do, one per component, each running from nothing to that
+    %  component alone, ADDED. Screen adds where the layers meet in
+    %  different components, since screen(x, 0) is x, and the group is
+    %  isolated so the page underneath is not one of the things added.
+    %
+    %  Both spellings of both properties are written. A consumer reading
+    %  the presentation attribute and one reading the style property are
+    %  both consumers this has to be right in, and a group that loses its
+    %  isolation adds the page to the sum and paints the triangle white.
+    %
+    %  The plane is solved in device space, so what the gradient states
+    %  are the pixels the marks land on and no transform has to travel
+    %  with it.
+    /.svgtriplane {  % x0 y0 x1 y1 x2 y2 v0 v1 v2  .  a b d true | false
+        9 dict begin
+        /v2 exch def /v1 exch def /v0 exch def
+        /y2 exch def /x2 exch def /y1 exch def /x1 exch def
+        /y0 exch def /x0 exch def
+        /det x0 y1 y2 sub mul y0 x1 x2 sub mul sub x1 y2 mul y1 x2 mul sub add def
+        det abs 1e-9 lt
+            { false }
+            { v0 y1 y2 sub mul y0 v1 v2 sub mul sub v1 y2 mul v2 y1 mul sub add det div
+              x0 v1 v2 sub mul v0 x1 x2 sub mul sub x1 v2 mul x2 v1 mul sub add det div
+              x0 y1 v2 mul v1 y2 mul sub mul
+                y0 x1 v2 mul v1 x2 mul sub mul sub
+                v0 x1 y2 mul y1 x2 mul sub mul add det div
+              true }
+        ifelse
+        end
+    } bind
+
+    /PaintShadedTri {  % va vb vc cols IMAGE  .  bool
+    32 {
+        /tcol exch def /tvc exch def /tvb exch def /tva exch def
+        /tn tcol length 3 idiv def
+
+        %  The corners where the marks land. A vertex carries its
+        %  coordinates ahead of its colour, which is what a mesh reads.
+        tva 0 get tva 1 get transform /ty0 exch def /tx0 exch def
+        tvb 0 get tvb 1 get transform /ty1 exch def /tx1 exch def
+        tvc 0 get tvc 1 get transform /ty2 exch def /tx2 exch def
+
+        %  A triangle with no area states no plane, and is left to the
+        %  subdivision, which fills it flat and loses nothing.
+        tx0 ty1 ty2 sub mul ty0 tx1 tx2 sub mul sub
+            tx1 ty2 mul ty1 tx2 mul sub add abs 1e-9 lt
+        { false }{
+            /tid .state /.svggrads get def
+            .state /.svggrads tid 3 add put
+
+            %  Each component's own plane, said as its own gradient. A
+            %  component whose plane is level has no direction to run in
+            %  and is written as the flat colour it is.
+            0 1 2 {
+                /tk exch def
+                tx0 ty0 tx1 ty1 tx2 ty2
+                tn 1 eq
+                    { tcol 0 get tcol 1 get tcol 2 get }
+                    { tcol tk get tcol tn tk add get tcol tn 2 mul tk add get }
+                ifelse
+                .svgtriplane exec {
+                    /td exch def /tb exch def /ta exch def
+                    /tq ta ta mul tb tb mul add def
+                    tq 1e-12 lt {
+                        %  a level component runs in no direction and is
+                        %  written as the flat colour it is, below
+                    }{
+                        (<linearGradient id="xt) .put tid tk add 20 string cvs .put
+                        (" gradientUnits="userSpaceOnUse" x1=") .put
+                        td neg ta mul tq div .svgnum
+                        (" y1=") .put td neg tb mul tq div .svgnum
+                        (" x2=") .put td neg ta mul tq div ta tq div add .svgnum
+                        (" y2=") .put td neg tb mul tq div tb tq div add .svgnum
+                        ("><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#) .put
+                        tk 0 eq { (ff0000) }{ tk 1 eq { (00ff00) }{ (0000ff) } ifelse } ifelse .put
+                        ("/></linearGradient>\n) .put
+                    } ifelse
+                }{ } ifelse
+            } for
+
+            (<g style="isolation:isolate" isolation="isolate">\n) .put
+            0 1 2 {
+                /tk exch def
+                tx0 ty0 tx1 ty1 tx2 ty2
+                tn 1 eq
+                    { tcol 0 get tcol 1 get tcol 2 get }
+                    { tcol tk get tcol tn tk add get tcol tn 2 mul tk add get }
+                ifelse
+                .svgtriplane exec {
+                    /td exch def /tb exch def /ta exch def
+                    (<path d="M) .put tx0 .svgnum ( ) .put ty0 .svgnum
+                    (L) .put tx1 .svgnum ( ) .put ty1 .svgnum
+                    (L) .put tx2 .svgnum ( ) .put ty2 .svgnum
+                    (Z" fill=) .put
+                    ta ta mul tb tb mul add 1e-12 lt {
+                        %  level: the component is the constant it solved to
+                        ("#) .put
+                        0 1 2 {
+                            tk eq { td 0 lt { 0 }{ td 1 gt { 1 }{ td } ifelse } ifelse
+                                    255 mul cvi }{ 0 } ifelse
+                            dup 16 lt { (0) .put } if 16 2 string cvrs .put
+                        } for
+                        (") .put
+                    }{
+                        ("url\(#xt) .put tid tk add 20 string cvs .put (\)") .put
+                    } ifelse
+                    ( style="mix-blend-mode:screen" mix-blend-mode="screen"/>\n) .put
+                }{ } ifelse
+            } for
+            (</g>\n) .put
+            true
+        } ifelse
+    } //.indevwork exec } bind
+
     /ShadingPaint {  % shdict IMAGE  .  bool
     24 {
         /shsh exch def
