@@ -137,6 +137,8 @@ record test check-page-output
 record test check-device-skeleton
 record path tests/device-facts
 record test check-device-facts
+record path tests/device-fastpaths
+record test check-device-fastpaths
 record width witness
 
 # ---- device: what a page is painted into and written out as

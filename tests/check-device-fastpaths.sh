@@ -58,6 +58,7 @@ case $xpost in
 esac
 guard_require_interpreter "$xpost"
 guard_workdir
+guard_srcdata "$src"
 
 # The machinery's own names, which a run reporting on the interpreter is
 # handed and a run of a program is not.
@@ -66,7 +67,6 @@ export XPOST_CENSUS
 
 register=$src/tests/device-fastpaths
 fleet=$src/tests/device-fleet.sh
-srcdata=$src/data
 [ -f "$register" ] || { echo "FAILURES: $register is missing"; exit 1; }
 [ -f "$fleet" ] || { echo "FAILURES: $fleet is missing"; exit 1; }
 
@@ -116,27 +116,11 @@ grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$register" \
 
 # a slot that is not compiled and not excused
 awk '$3 != "compiled" { print $1, $2 }' "$work/said" | sort -u > "$work/slow"
-comm -23 "$work/slow" "$work/excused" > "$work/unexcused"
-# an excuse for something that is compiled or gone
-comm -13 "$work/slow" "$work/excused" > "$work/stale"
-
-bad=0
-if [ -s "$work/unexcused" ]; then
-    bad=1
-    echo "FAILURES: a device takes its marks one at a time and the register"
-    echo "      does not say why. Add a line to tests/device-fastpaths as"
-    echo "      'slow <device> <slot>' with the reason it cannot be compiled,"
-    echo "      or give the device a compiled method:"
-    sed 's/^/      /' "$work/unexcused"
-fi
-if [ -s "$work/stale" ]; then
-    bad=1
-    echo "FAILURES: the register excuses a slot that is not slow, or a device"
-    echo "      that is gone. An excuse that stopped being true reads like one"
-    echo "      that was never examined:"
-    sed 's/^/      /' "$work/stale"
-fi
-[ "$bad" -eq 0 ] || exit 1
+guard_held=0
+guard_hold "$work/slow" "$work/excused" \
+  "a device takes its marks one at a time and tests/device-fastpaths does not say why. Add a 'slow <device> <slot>' line with the reason it cannot be compiled, or give the device a compiled method:" \
+  "tests/device-fastpaths excuses a slot that is not slow, or a device that is gone. An excuse that stopped being true reads like one that was never examined:"
+[ "$guard_held" -eq 0 ] || exit 1
 
 n=$(wc -l < "$work/said" | tr -d ' ')
 e=$(wc -l < "$work/excused" | tr -d ' ')

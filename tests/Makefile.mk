@@ -61,6 +61,8 @@ tests/check-handle-records.sh \
 tests/check-device-roster.sh \
 tests/check-device-facts.sh \
 tests/device-facts \
+tests/check-device-fastpaths.sh \
+tests/device-fastpaths \
 tests/check-filter-facts.sh \
 tests/filter-facts \
 tests/check-halftone-facts.sh \

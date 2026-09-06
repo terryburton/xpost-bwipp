@@ -6182,6 +6182,18 @@ test('check-device-facts',
   args: [ meson.current_source_dir(), xpost_exe ],
   timeout: 240)
 
+# Whether each device takes its marks in bulk or one at a time, and
+# whether a device taking them singly has a reason on file. A method the
+# resolving machinery cannot call is one it hands marks to through the
+# interpreter, which costs a call per span, per sample, per inked pixel
+# and is attributed to nothing.
+test('check-device-fastpaths',
+  find_program('tests/check-device-fastpaths.sh'),
+  priority: guard_priority,
+  suite: cost_fast,
+  args: [ meson.current_source_dir(), xpost_exe ],
+  timeout: 240)
+
 # The same question asked of the other family the file machinery has: a
 # filter is one of seventeen names, two of which refuse to be built from
 # a name alone and four of which are in a build only if it found a
