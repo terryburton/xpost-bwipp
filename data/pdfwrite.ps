@@ -618,7 +618,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         % gives. A free-form mesh states a flag with each vertex and a
         % lattice states none, stating how many vertices make a row
         % instead (PDF 8.7.4.5).
-        shmesh null ne {
+        shmesh null ne shd /packed known or {
             /shnc shd /cs get dup /DeviceGray eq { pop 1 }{
                  /DeviceCMYK eq { 4 }{ 3 } ifelse } ifelse def
             /shst shd /st get def
@@ -640,6 +640,23 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             %  span, and once more to pack them. The cursor moves by
             %  what each record turned out to hold, so a mesh whose
             %  records differ in length is read as it is written.
+            shd /packed known {
+                %  Written as it stands, with the widths and the ranges it
+                %  was packed to: reading it out to write it again would
+                %  cost precision and say the same thing.
+                ( /BitsPerCoordinate ) .ow shd /pbpc get 20 string cvs .ow
+                ( /BitsPerComponent ) .ow shd /pbpcomp get 20 string cvs .ow
+                shd /pbpf known
+                    { ( /BitsPerFlag ) .ow shd /pbpf get 20 string cvs .ow } if
+                shd /vpr known
+                    { ( /VerticesPerRow ) .ow shd /vpr get 20 string cvs .ow } if
+                ( /Decode [) .ow
+                shd /pdecode get { ( ) .ow .pdfnumstr .ow } forall
+                (] /Length ) .ow shd /packed get length 20 string cvs .ow
+                ( >>\nstream\n) .ow
+                shd /packed get .ow
+                (\nendstream\nendobj\n) .ow
+            }{
             /shx0 1e10 def /shx1 -1e10 def /shy0 1e10 def /shy1 -1e10 def
             /shp 0 def
             { shp shmesh length ge { exit } if
@@ -690,6 +707,7 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
             ( >>\nstream\n) .ow
             mbstr 0 mbn getinterval .ow
             (\nendstream\nendobj\n) .ow
+            } ifelse
         }{
             ( >>\nendobj\n) .ow
         } ifelse
@@ -763,7 +781,22 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         %  wants a stream, and one is restated as the other.
         sh /DataSource known {
             sh /ShadingType get dup 4 ge exch 7 le and {
-                d /mesh [ sh /DataSource get { } forall ] put
+                %  A source already packed is kept as the bytes it is: the
+                %  language packs a mesh the way a written document does
+                %  (PLRM 4.9.3, PDF 32000-1 8.7.4.5.5), so what was read is
+                %  what is written, and the widths and ranges it was packed
+                %  to go with it. An array is numbers instead, and is
+                %  packed at Emit.
+                sh /DataSource get type /stringtype eq {
+                    d /packed sh /DataSource get dup length string copy put
+                    d /pbpc sh /BitsPerCoordinate get put
+                    d /pbpcomp sh /BitsPerComponent get put
+                    sh /BitsPerFlag known
+                        { d /pbpf sh /BitsPerFlag get put } if
+                    d /pdecode [ sh /Decode get { } forall ] put
+                }{
+                    d /mesh [ sh /DataSource get { } forall ] put
+                } ifelse
                 sh /VerticesPerRow known
                     { d /vpr sh /VerticesPerRow get put } if
             } if

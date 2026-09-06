@@ -1899,6 +1899,31 @@ end
     } forall
 } def
 
+%  The sample widths a written document states a packed mesh in
+%  (PDF 32000-1 8.7.4.5.5). A source already packed is carried across
+%  only where what it was packed to is one of them; anything else is
+%  read out and written again, which is what an array is.
+/.shdevbpc << 1 true 2 true 4 true 8 true 12 true 16 true 24 true 32 true >> readonly def
+/.shdevbpcomp << 1 true 2 true 4 true 8 true 12 true 16 true >> readonly def
+/.shdevbpf << 2 true 4 true 8 true >> readonly def
+
+%  Whether a packed source may be carried across as it stands: the
+%  widths have to be ones the document can state, and a lattice states
+%  no flag.
+/.shdevpackedok {  % shdict  .  bool
+    dup /BitsPerCoordinate 2 copy known
+        { get //.shdevbpc exch known }{ pop pop false } ifelse
+    1 index /BitsPerComponent 2 copy known
+        { get //.shdevbpcomp exch known }{ pop pop false } ifelse and
+    1 index /ShadingType get 5 eq
+        { 1 index /Decode known and }
+        { 1 index /BitsPerFlag 2 copy known
+              { get //.shdevbpf exch known }{ pop pop false } ifelse and
+          1 index /Decode known and }
+    ifelse
+    exch pop
+} def
+
 /.shdevmeshok {  % shdict  .  bool
     dup /ShadingType get //.shmeshtypes exch known {
         dup /DataSource known {
@@ -1906,7 +1931,17 @@ end
                 dup //.shdevrowok exec
                 1 index //.shdevflagok exec and
                 exch //.shdevextentok exec and
-            }{ pop false } ifelse
+            }{
+                %  A source already packed to widths the document states
+                %  goes across as the bytes it is: the language packs a
+                %  mesh the way a written document does (PLRM 4.9.3), so
+                %  reading it out to write it again would only cost
+                %  precision.
+                dup /DataSource get type /stringtype eq
+                    { //.shdevpackedok exec }
+                    { pop false }
+                ifelse
+            } ifelse
         }{ pop false } ifelse
     }{ pop false } ifelse
 } def

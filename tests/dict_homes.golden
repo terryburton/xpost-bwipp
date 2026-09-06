@@ -29,7 +29,7 @@
 # dictionaries a loop copies into their home are written down nowhere a
 # scan can read as a definition, so they are held by the first direction
 # alone.
-entries 553
+entries 557
 
 # Graphics-state template slots (data/gstate.ps). The list is the whole
 # fails the check, so a new slot is declared here in the commit that adds
@@ -75,6 +75,9 @@ entries 553
 .xpostsys /.sepallcolor
 .xpostsys /.sepcolorant
 .xpostsys /.shbpsok
+.xpostsys /.shdevbpc
+.xpostsys /.shdevbpcomp
+.xpostsys /.shdevbpf
 .xpostsys /.shdevcs
 .xpostsys /.shdevcsname
 .xpostsys /.shdevextentok
@@ -83,6 +86,7 @@ entries 553
 .xpostsys /.shdevfn1
 .xpostsys /.shdevfnok
 .xpostsys /.shdevmeshok
+.xpostsys /.shdevpackedok
 .xpostsys /.shdevrowok
 .xpostsys /.shdevtypes
 .xpostsys /.shmeshtypes

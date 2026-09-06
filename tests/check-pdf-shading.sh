@@ -75,6 +75,17 @@ mk patch '0 0 200 200 rectclip
       190 70  190 10  130 10  70 10
       1 0 0  0 1 0  0 0 1  1 1 0 ] >> shfill'
 
+# A mesh whose vertices the program already packed reaches the file as the
+# bytes it is. The language packs a mesh the way a written document does
+# (PLRM 4.9.3, PDF 32000-1 8.7.4.5.5), so reading it out to write it again
+# would only cost precision. Packed at eight bits a coordinate here, which
+# is what tells the two routes apart: a mesh given as numbers is packed at
+# Emit, and that route always writes sixteen.
+mk packedmesh '0 0 200 200 rectclip
+<< /ShadingType 4 /ColorSpace /DeviceRGB /BitsPerCoordinate 8 /BitsPerComponent 8
+   /BitsPerFlag 8 /Decode [0 255 0 255 0 1 0 1 0 1]
+   /DataSource <000A0AFF0000 00BE0A00FF00 0064BE0000FF> >> shfill'
+
 # a page with no shading names no shading resource -- the control that proves
 # the checks below are reading this feature and not something always present
 mk plain '0 0 1 setrgbcolor 10 10 100 100 rectfill'
@@ -88,6 +99,14 @@ for t in axial:2 radial:3 funcbased:1; do
     grep -Eq ' sh$| sh ' "$work/$n.pdf" \
         || { echo "FAIL: no sh operator in the $n content stream"; fail=1; }
 done
+
+grep -q '/ShadingType 4' "$work/packedmesh.pdf" \
+    || { echo "FAIL: a packed mesh did not reach the file as a mesh"; fail=1; }
+grep -q '/BitsPerCoordinate 8' "$work/packedmesh.pdf" \
+    || { echo "FAIL: a packed mesh was read out and written again rather than"
+         echo "      carried across at the width it was packed to"; fail=1; }
+grep -Eq ' sh$| sh ' "$work/packedmesh.pdf" \
+    || { echo "FAIL: no sh operator for the packed mesh"; fail=1; }
 
 grep -q '/Coords' "$work/axial.pdf"  || { echo "FAIL: axial carries no /Coords"; fail=1; }
 grep -q '/Extend \[true true' "$work/axial.pdf" \
