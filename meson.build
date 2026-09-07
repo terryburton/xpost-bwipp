@@ -2461,6 +2461,18 @@ test('vector-page-references',
   suite: cost_fast,
   timeout: 180)
 
+# Where a radial shading puts its colours. Two readings of PLRM 4.9.3 are
+# right for every family whose circles nest and whose ends do not extend --
+# which is nearly all of them -- and wrong for the rest: taking only the
+# greatest root leaves the far side of a family that sweeps clear of itself
+# unpainted, and reading the colours only over the box the circles occupy
+# leaves everything an extending family reaches beyond them.
+test('radial-shading',
+  find_program('tests/run-ps-test.sh'),
+  args: [ xpost_exe, files('tests/radial_shading_test.ps') ],
+  suite: cost_fast,
+  env: { 'XPOST_DATA_DIR': meson.current_source_dir() / 'data' })
+
 # Where an image lands when a writer states its placement. An image is stated
 # on its own grid, so the matrix carrying it to the page is the extent over
 # the sample count -- and whatever is kept of that number is multiplied by the

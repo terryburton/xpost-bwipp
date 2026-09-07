@@ -189,6 +189,7 @@ device test oversize-page
 device test page-*
 device test form-glyph-nest
 device test image-placement
+device test radial-shading
 device test pdf-*
 device test pngalpha-device
 device test png-filter-vocabulary
@@ -336,6 +337,7 @@ graphics test render-state-bank
 graphics test save-restore-ctm
 graphics test save-restore-matrix
 graphics test setdash-finite
+graphics test radial-shading
 graphics test shading-*
 graphics test show-*
 graphics test stencil-mask-size

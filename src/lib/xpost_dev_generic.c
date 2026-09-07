@@ -80,6 +80,16 @@ static Xpost_Object namerepeat;
 static Xpost_Object namecvx;
 static Xpost_Object nameRbracket;
 static Xpost_Object nameImgData;
+/* the entries .radialraster reads its shading out of, resolved as the
+   operator installs: a name spelled at every call would be interned on
+   a path a job re-enters */
+static Xpost_Object name_rr[16];
+static const char *const name_rr_spelling[16] = {
+    "im", "x0", "y0", "r0", "x1", "y1", "r1",
+    "e0", "e1", "ncomp", "bx", "by", "bw", "bh", "ramp", NULL
+};
+enum { RR_IM, RR_X0, RR_Y0, RR_R0, RR_X1, RR_Y1, RR_R1,
+       RR_E0, RR_E1, RR_NCOMP, RR_BX, RR_BY, RR_BW, RR_BH, RR_RAMP };
 static Xpost_Object nameFillRect;
 static Xpost_Object namepdfPrivate;
 static Xpost_Object namedotground;
@@ -7734,6 +7744,238 @@ void xpost_device_retire_job(Xpost_Context *ctx, unsigned int baseline_depth)
     _device_release(ctx, devdic, destroy);
 }
 
+/* dict  .radialraster  rows mbits
+   A radial shading solved for each device pixel, as rows of samples and
+   a mask saying which pixels the shading does not reach.
+
+   PLRM 4.9.3 gives a point the colour of the GREATEST s whose circle
+   passes through it, the circles being drawn in order of increasing s,
+   and a circle of negative radius being no circle at all. That is a
+   quadratic in s at each point, so the whole shading is one pass over
+   the pixels rather than a fill for every band the parameter is cut
+   into.
+
+   The dict carries: `im` the six numbers taking a device coordinate
+   back to the space the shading was stated in, `x0 y0 r0 x1 y1 r1` the
+   two circles, `t0 t1` the ends of the parameter, `e0 e1` whether the
+   shading extends past them, `ramp` the colours at 256 points along it
+   with `ncomp` components each, and `bx by bw bh` the device box to
+   solve over.
+
+   A pixel the shading does not reach is left out through the mask
+   rather than given a colour, which is what Extend false means: the
+   page shows through where no circle passes. */
+static int _radialraster(Xpost_Context *ctx,
+                         Xpost_Object dict)
+{
+    Xpost_Object o, rampo, rows, mbits;
+    double im[6], x0, y0, r0, x1, y1, r1, tol;
+    double dx, dy, dr, a;
+    int e0, e1, ncomp, bx, by, bw, bh, i, j, k, ret;
+    int mrowb;
+    const unsigned char *rampsrc;
+    unsigned char ramp[256 * 4];
+    unsigned char *mrow = NULL, *srow = NULL;
+
+#define NUM(nm, into) do { \
+        o = xpost_dict_get(ctx, dict, name_rr[nm]); \
+        if (xpost_object_get_type(o) != integertype \
+            && xpost_object_get_type(o) != realtype) \
+            return typecheck; \
+        (into) = xpost_object_number(o); \
+    } while (0)
+#define INT(nm, into) do { \
+        o = xpost_dict_get(ctx, dict, name_rr[nm]); \
+        if (xpost_object_get_type(o) != integertype) return typecheck; \
+        (into) = o.int_.val; \
+    } while (0)
+#define BOOL(nm, into) do { \
+        o = xpost_dict_get(ctx, dict, name_rr[nm]); \
+        (into) = xpost_object_get_type(o) == booleantype && o.int_.val; \
+    } while (0)
+
+    o = xpost_dict_get(ctx, dict, name_rr[RR_IM]);
+    if (xpost_object_get_type(o) != arraytype || o.comp_.sz != 6)
+        return typecheck;
+    for (i = 0; i < 6; i++)
+    {
+        Xpost_Object e = xpost_array_get(ctx, o, i);
+        if (xpost_object_get_type(e) != integertype
+            && xpost_object_get_type(e) != realtype)
+            return typecheck;
+        im[i] = xpost_object_number(e);
+    }
+    NUM(RR_X0, x0); NUM(RR_Y0, y0); NUM(RR_R0, r0);
+    NUM(RR_X1, x1); NUM(RR_Y1, y1); NUM(RR_R1, r1);
+    BOOL(RR_E0, e0); BOOL(RR_E1, e1);
+    INT(RR_NCOMP, ncomp);
+    INT(RR_BX, bx); INT(RR_BY, by); INT(RR_BW, bw); INT(RR_BH, bh);
+    if (ncomp < 1 || ncomp > 4 || bw <= 0 || bh <= 0)
+        return rangecheck;
+    if (bw > 1 << 15 || bh > 1 << 15)
+        return limitcheck;
+
+    rampo = xpost_dict_get(ctx, dict, name_rr[RR_RAMP]);
+    if (xpost_object_get_type(rampo) != stringtype
+        || rampo.comp_.sz < (unsigned int)(256 * ncomp))
+        return rangecheck;
+    rampsrc = (const unsigned char *)xpost_string_get_pointer(ctx, rampo);
+    if (!rampsrc)
+        return VMerror;
+    /* Taken away from virtual memory before anything is allocated in it.
+       The rows below are built there, and an allocation may move what
+       the arena holds -- a pointer into it read before that is a pointer
+       into where the ramp used to be. */
+    memcpy(ramp, rampsrc, (size_t)(256 * ncomp));
+
+    dx = x1 - x0; dy = y1 - y0; dr = r1 - r0;
+    a = dx*dx + dy*dy - dr*dr;
+    /* Half a device pixel, said in the parameter: the rim moves
+       sqrt(dx*dx+dy*dy) + |dr| across the page over the whole of s, so
+       this is how much of s half a pixel of it is worth. A point that
+       falls this little outside the range the shading is drawn over is
+       within half a pixel of its first or last circle, and the circle
+       covers it -- which is what scan converting that circle does, and
+       what the bands this stands in for did. */
+    {
+        double reach = sqrt(dx*dx + dy*dy) + fabs(dr);
+
+        tol = reach > 1e-9 ? 0.5 / reach : 0.0;
+    }
+
+    mrowb = bw / 8 + (bw % 8 ? 1 : 0);
+    rows = xpost_object_cvlit(xpost_array_cons(ctx, bh));
+    if (xpost_object_get_type(rows) != arraytype)
+        return VMerror;
+    xpost_stack_push(ctx->lo, ctx->hold, rows);
+    mbits = xpost_object_cvlit(xpost_string_cons(ctx,
+                                                (unsigned int)(mrowb * bh),
+                                                NULL));
+    if (xpost_object_get_type(mbits) != stringtype)
+        return VMerror;
+
+    srow = malloc((size_t)bw * ncomp);
+    mrow = malloc((size_t)mrowb);
+    if (!srow || !mrow) { free(srow); free(mrow); return VMerror; }
+
+    for (j = 0; j < bh; j++)
+    {
+        Xpost_Object rowo;
+
+        memset(mrow, 0, (size_t)mrowb);
+        for (i = 0; i < bw; i++)
+        {
+            double px = (double)(bx + i) + 0.5;
+            double py = (double)(by + j) + 0.5;
+            /* back to the space the circles were stated in */
+            double ux = im[0]*px + im[2]*py + im[4];
+            double uy = im[1]*px + im[3]*py + im[5];
+            double fx = ux - x0, fy = uy - y0;
+            double b = -2.0*(fx*dx + fy*dy + r0*dr);
+            double c = fx*fx + fy*fy - r0*r0;
+            double best = 0.0;
+            int have = 0;
+
+            /* The circles are painted in order of increasing s, each
+               over the ones before, so a point takes the colour of the
+               GREATEST s whose circle PASSES THROUGH it -- a root of the
+               quadratic, and not merely an s whose disc covers it.
+
+               Where the greater root lies outside the range the shading
+               is drawn over, the lesser one may still lie inside it, and
+               that is the circle the point is on. Taking only the
+               greater and giving up leaves the whole far side of a
+               family whose circles sweep clear of one another unpainted.
+
+               A circle of negative radius is no circle, so a root that
+               asks for one is not one either. */
+            {
+                double root[2];
+                int nroot = 0, k2;
+
+                if (fabs(a) < 1e-12)
+                {
+                    if (fabs(b) > 1e-12)
+                        root[nroot++] = -c/b;
+                }
+                else
+                {
+                    double disc = b*b - 4.0*a*c;
+
+                    if (disc >= 0.0)
+                    {
+                        double sq = sqrt(disc);
+
+                        root[nroot++] = (-b + sq)/(2.0*a);
+                        root[nroot++] = (-b - sq)/(2.0*a);
+                    }
+                }
+                /* greatest first, so the first one that stands is the
+                   answer */
+                if (nroot == 2 && root[1] > root[0])
+                {
+                    double t = root[0]; root[0] = root[1]; root[1] = t;
+                }
+                for (k2 = 0; k2 < nroot && !have; k2++)
+                {
+                    double sv = root[k2];
+
+                    if (r0 + sv*dr < 0.0)
+                        continue;
+                    if (sv < 0.0)
+                    {
+                        if (!e0 && sv < -tol) continue;
+                        sv = 0.0;
+                    }
+                    else if (sv > 1.0)
+                    {
+                        if (!e1 && sv > 1.0 + tol) continue;
+                        sv = 1.0;
+                    }
+                    best = sv;
+                    have = 1;
+                }
+            }
+            if (!have)
+            {
+                mrow[i >> 3] |= (unsigned char)(0x80u >> (i & 7));
+                for (k = 0; k < ncomp; k++)
+                    srow[(size_t)i*ncomp + k] = 0;
+                continue;
+            }
+            {
+                int at = (int)(best * 255.0 + 0.5);
+
+                if (at < 0) at = 0;
+                if (at > 255) at = 255;
+                for (k = 0; k < ncomp; k++)
+                    srow[(size_t)i*ncomp + k] = ramp[at*ncomp + k];
+            }
+        }
+        rowo = xpost_object_cvlit(xpost_string_cons(ctx,
+                                                    (unsigned int)(bw * ncomp),
+                                                    (char *)srow));
+        if (xpost_object_get_type(rowo) != stringtype)
+        { free(srow); free(mrow); return VMerror; }
+        ret = xpost_array_put(ctx, rows, j, rowo);
+        if (ret) { free(srow); free(mrow); return ret; }
+        for (i = 0; i < mrowb; i++)
+        {
+            ret = xpost_string_put(ctx, mbits, (unsigned int)(j*mrowb + i),
+                                   mrow[i]);
+            if (ret) { free(srow); free(mrow); return ret; }
+        }
+    }
+    free(srow); free(mrow);
+    xpost_stack_pop(ctx->lo, ctx->hold);
+    xpost_stack_push(ctx->lo, ctx->os, rows);
+    xpost_stack_push(ctx->lo, ctx->os, mbits);
+    return 0;
+#undef NUM
+#undef INT
+#undef BOOL
+}
+
 /* buf width height ink  .stencilhash  int
    The number a stencil's bits and dimensions come to, by which a
    reading of them already made is found again.
@@ -7978,6 +8220,8 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
                              stringtype, integertype, integertype, integertype); INSTALL;
     op = xpost_operator_cons(ctx, ".stencilhash", (Xpost_Op_Func)_stencilhash, 4,
                              stringtype, integertype, integertype, integertype); INSTALL;
+    op = xpost_operator_cons(ctx, ".radialraster", (Xpost_Op_Func)_radialraster, 1,
+                             dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".rectspan", (Xpost_Op_Func)_rectspan, 6,
             numbertype, numbertype, numbertype, numbertype,
             numbertype, numbertype); INSTALL;
@@ -8083,6 +8327,15 @@ int xpost_oper_init_generic_device_ops(Xpost_Context *ctx,
     op = xpost_operator_cons(ctx, ".pdfsepcount", (Xpost_Op_Func)_pdfsepcount, 1, dicttype); INSTALL;
     op = xpost_operator_cons(ctx, ".pdfsepget", (Xpost_Op_Func)_pdfsepget, 2,
             integertype, dicttype); INSTALL;
+    {
+        int rri;
+
+        for (rri = 0; name_rr_spelling[rri]; rri++)
+            if (xpost_object_get_type((name_rr[rri] =
+                    xpost_name_cons(ctx, name_rr_spelling[rri])))
+                == invalidtype)
+                return VMerror;
+    }
     if (xpost_object_get_type((nameImgData = xpost_name_cons(ctx, "ImgData"))) == invalidtype)
         return VMerror;
     if (xpost_object_get_type((nameFillRect = xpost_name_cons(ctx, "FillRect"))) == invalidtype)

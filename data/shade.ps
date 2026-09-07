@@ -635,6 +635,138 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
 %  the gradient; an extended outer end floods the clip first and an
 %  extended inner end is the innermost circle itself.
 %
+%  One row of the raster a radial shading solved to, handed over as the
+%  painter pulls. The rows are made all at once and read one at a time,
+%  which is the shape every image source here has.
+%
+/.rprowread {  % statedict  .  rowstring
+    begin rows i get /i i 1 add def end
+} def
+
+%  A radial shading painted by solving for each pixel rather than by
+%  filling the region the rim sweeps between one step and the next.
+%
+%  PLRM 4.9.3 gives a point the colour of the greatest s whose circle
+%  passes through it, which is a quadratic at the point; the compiled
+%  half solves it over a box of device pixels and answers the samples and
+%  a mask saying where no circle reached. What comes back is painted as
+%  an image under a mask, which is the road every other raster takes to
+%  the page -- so the device, the clip and the colour are the ones an
+%  image already goes through.
+%
+%  Answered false where any of that does not hold, and the caller paints
+%  the bands instead: a device that does not take a raster, a colour the
+%  ramp cannot be sampled in, a matrix under which a circle is not a
+%  circle, or a box too large to hold.
+%
+/.radialpixels {  % -  .  bool
+    %  a device that writes rows, and a rule this can paint under
+    DEVICE /ImgData known
+    DEVICE /FillRect 2 copy known
+        { get type /operatortype eq }{ pop pop false } ifelse
+    or
+    //.xpostsys /.patternactive get exec not and
+    {
+        20 dict begin
+        %  The box. With neither end extended the shading reaches no
+        %  further than the two circles it is stated by, so their boxes
+        %  bound it; where either end extends it reaches as far as the
+        %  clip allows, and the clip is then the only bound there is.
+        %  Either way it is cut to the clip, since nothing outside that
+        %  paints, and the pixels inside it that no circle reaches are
+        %  the ones the mask leaves alone.
+        /rpwide ex 0 get ex 1 get or def
+        /rpx0 cx0 cr0 sub cx1 cr1 sub 2 copy gt { exch } if pop def
+        /rpx1 cx0 cr0 add cx1 cr1 add 2 copy lt { exch } if pop def
+        /rpy0 cy0 cr0 sub cy1 cr1 sub 2 copy gt { exch } if pop def
+        /rpy1 cy0 cr0 add cy1 cr1 add 2 copy lt { exch } if pop def
+        /rpmnx 9e99 def /rpmny 9e99 def /rpmxx -9e99 def /rpmxy -9e99 def
+        [ rpx0 rpy0 rpx1 rpy0 rpx1 rpy1 rpx0 rpy1 ]
+        0 2 6 { /rpk exch def
+            dup rpk get 1 index rpk 1 add get transform
+            dup rpmny lt { dup /rpmny exch def } if
+            dup rpmxy gt { dup /rpmxy exch def } if pop
+            dup rpmnx lt { dup /rpmnx exch def } if
+            dup rpmxx gt { dup /rpmxx exch def } if pop
+        } for pop
+        .cliprect {
+            /rpcy1 exch def /rpcx1 exch def /rpcy0 exch def /rpcx0 exch def
+            rpwide {
+                /rpmnx rpcx0 def /rpmny rpcy0 def
+                /rpmxx rpcx1 def /rpmxy rpcy1 def
+            } if
+            rpmnx rpcx0 lt { /rpmnx rpcx0 def } if
+            rpmny rpcy0 lt { /rpmny rpcy0 def } if
+            rpmxx rpcx1 gt { /rpmxx rpcx1 def } if
+            rpmxy rpcy1 gt { /rpmxy rpcy1 def } if
+            /rpbx rpmnx floor cvi def
+            /rpby rpmny floor cvi def
+            /rpbw rpmxx ceiling cvi rpbx sub def
+            /rpbh rpmxy ceiling cvi rpby sub def
+            rpbw 0 gt rpbh 0 gt and rpbw 16384 le and rpbh 16384 le and {
+                %  The colours at 256 points along the parameter, read in
+                %  the space the shading states and kept as the device
+                %  ones, so the space is answered once here and not at
+                %  every pixel.
+                /rpramp 768 string def
+                /rpok true def
+                %  The whole row of colours is read inside one graphics
+                %  state, and it is closed however the reading ended: a
+                %  function that raises part way through would otherwise
+                %  leave the state it was read under standing, and what
+                %  paints instead paints under it.
+                gsave
+                sh /ColorSpace get setcolorspace
+                {
+                    0 1 255 {
+                        /rpi exch def
+                        t0 rpi 255 div t1 t0 sub mul add
+                        shfn //.xpostsys /.fneval get exec
+                        { } repeat setcolor currentrgbcolor
+                        /rpb exch def /rpg exch def /rpr exch def
+                        rpramp rpi 3 mul
+                            rpr 0 lt { 0 }{ rpr 1 gt { 1 }{ rpr } ifelse } ifelse
+                            255 mul 0.5 add cvi put
+                        rpramp rpi 3 mul 1 add
+                            rpg 0 lt { 0 }{ rpg 1 gt { 1 }{ rpg } ifelse } ifelse
+                            255 mul 0.5 add cvi put
+                        rpramp rpi 3 mul 2 add
+                            rpb 0 lt { 0 }{ rpb 1 gt { 1 }{ rpb } ifelse } ifelse
+                            255 mul 0.5 add cvi put
+                    } for
+                } stopped { /rpok false def } if
+                grestore
+                rpok {
+                    /rpim matrix currentmatrix matrix invertmatrix def
+                    << /im rpim
+                       /x0 cx0 /y0 cy0 /r0 cr0
+                       /x1 cx1 /y1 cy1 /r1 cr1
+                       /e0 ex 0 get /e1 ex 1 get
+                       /ramp rpramp /ncomp 3
+                       /bx rpbx /by rpby /bw rpbw /bh rpbh
+                    >> .radialraster
+                    /rpmask exch def /rprows exch def
+                    /rpstate 4 dict def
+                    rpstate /rows rprows put
+                    rpstate /i 0 put
+                    gsave
+                        /DeviceRGB setcolorspace
+                        rpbw rpbh 8
+                        matrix currentmatrix
+                            [ 1 0 0 1 rpbx neg rpby neg ] matrix concatmatrix
+                        [ rpstate //.rprowread /exec load ] cvx
+                        [ 0 1 0 1 0 1 ] 3
+                        rpmask rpbw rpbh null
+                        /image //.xpostsys /.imagepaintm get exec
+                    grestore
+                    true
+                }{ false } ifelse
+            }{ false } ifelse
+        }{ false } ifelse
+        end
+    }{ false } ifelse
+} def
+
 /.radialsh {  % shdict  .  -
     20 dict begin
     /sh exch def
@@ -725,12 +857,19 @@ currentdict .jobstore .xpostsys begin begin begin  % Bake the helper names; see 
         } for
     } def
 
+    %  Solved for each pixel where the device takes a raster and the
+    %  colour road is straight: the parameter at a point is a quadratic
+    %  and the whole shading is one pass, where the bands below are a
+    %  fill apiece.
+    //.xpostsys /.radialpixels get exec not {
+
     %  The stretches are painted in increasing s, and the declared range is
     %  given its own steps so that extending the shading cannot coarsen the
     %  part the function actually describes.
     slo 0 lt { slo 0 .blendrun } if
     0 1 .blendrun
     shi 1 gt { 1 shi .blendrun } if
+    } if
     end
 } def
 

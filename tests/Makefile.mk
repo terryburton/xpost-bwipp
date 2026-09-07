@@ -492,6 +492,7 @@ tests/name_lookup_cost_test.ps \
 tests/stack_ceiling_cost_test.ps \
 tests/path_walk_cost_test.ps \
 tests/pattern_phase_test.ps \
+tests/radial_shading_test.ps \
 tests/pattern_space_test.ps \
 tests/colour_space_family_test.ps \
 tests/crd_render_test.ps \

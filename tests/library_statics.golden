@@ -135,6 +135,7 @@ src/lib/xpost_dev_generic.c  nameDeviceGray        reset xpost_oper_init_generic
 src/lib/xpost_dev_generic.c  nameDeviceRGB         reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  nameDrawLine          reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  nameFillRect          reset xpost_oper_init_generic_device_ops
+src/lib/xpost_dev_generic.c  name_rr               reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  nameImgData           reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  nameRbracket          reset xpost_oper_init_generic_device_ops
 src/lib/xpost_dev_generic.c  namecvx               reset xpost_oper_init_generic_device_ops
