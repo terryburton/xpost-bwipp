@@ -750,3 +750,68 @@ grep -aq '/Type /Pattern' "$patpdf" && {
     echo "FAIL: a shading pattern was filed as a tiling pattern's cell"
     exit 1; }
 echo "shading pattern keeps its route OK"
+
+# --- which way round a subpath was walked reaches the document ---
+#
+# A fill winds nonzero (PLRM 4.5.2 and PDF 8.5.3.3), so a subpath walked
+# against the one enclosing it cuts a hole in it and one walked with it
+# does not. Direction is the whole of what says which: the two pages
+# below differ in nothing else, and one is a ring while the other is a
+# solid square.
+#
+# PDF's re appends its corners in one fixed order, so it says a
+# rectangle without saying which way round one was drawn. The rectangle
+# whose corners come round the way re walks them is written as re; the
+# one walked the other way is written as its own move, lines and close.
+# So the page with a hole in it writes its two squares differently and
+# the page without writes them the same way -- and the shortcut is still
+# taken, which is what keeps a page of rectangles to one operator
+# each.
+#
+# Read off the content, which the distiller parameter leaves
+# uncompressed for the purpose. Both squares are centred on the page, so
+# the numbers are the same whichever way the device's axes run.
+windps=$(mktemp)
+windpdf=./wind-$$.pdf
+wind2pdf=./wind2-$$.pdf
+trap 'rm -f "$pdf" "$discard" "$perpdf" "$infops" "$infopdf" "$sepps" "$seppdf" "$mpps" "$mppdf" "$eoclipps" "$eoclippdf" "$statps" "$statpdf" "$clipps" "$clippdf" "$patps" "$patpdf" "$patbig" "$windps" "$windpdf" "$wind2pdf"' EXIT INT TERM
+windprog() {   # $1 the inner square's second corner, $2 its fourth
+cat <<WEOF
+<< /CompressPages false >> setdistillerparams
+<< /PageSize [400 400] >> setpagedevice
+0 setgray
+100 100 moveto 300 100 lineto 300 300 lineto 100 300 lineto closepath
+150 150 moveto $1 lineto 250 250 lineto $2 lineto closepath
+fill
+showpage
+WEOF
+}
+# the inner square against the outer one: a ring
+windprog '150 250' '250 150' > "$windps"
+run_xpost "the counter-wound fill run" -d pdfwrite -o "$windpdf" "$windps"
+# and with it: a solid square
+windprog '250 150' '150 250' > "$windps"
+run_xpost "the same-wound fill run" -d pdfwrite -o "$wind2pdf" "$windps"
+rm -f "$windps"
+
+windsquares() {   # $1 pdf  ->  how many of the two squares are re
+    grep -acE '^(100 100 200 200|150 150 100 100) re$' "$1"
+}
+nre=$(windsquares "$windpdf")
+nh=$(grep -ac '^h$' "$windpdf")
+[ "$nre" = 1 ] && [ "$nh" = 1 ] || {
+    echo "FAIL: the ring's two squares went out as $nre rectangle operators"
+    echo "      and $nh closed subpaths, want one of each. Written both ways"
+    echo "      round as re they wind together and the hole fills in, which"
+    echo "      is a page nothing in the file's structure disagrees with."
+    exit 1; }
+nre2=$(windsquares "$wind2pdf")
+nh2=$(grep -ac '^h$' "$wind2pdf")
+case "$nre2 $nh2" in
+    '2 0' | '0 2') ;;
+    *) echo "FAIL: the solid square's two squares went out as $nre2 rectangle"
+       echo "      operators and $nh2 closed subpaths; wound the same way they"
+       echo "      have to be written the same way"
+       exit 1 ;;
+esac
+echo "subpath direction reaches the document OK"

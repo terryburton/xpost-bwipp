@@ -134,6 +134,15 @@ inkbox() {      # $1 pgm  $2 width  $3 height  -> prints the box
         END { if (seen) print x0, y0, x1, y1; else print "blank" }'
 }
 
+# One pixel of a raster, by its place on the grid. What a hole is made of
+# is the pixels in the middle of a figure, and a count over the whole page
+# answers about the boundary as readily as about the middle.
+pixelat() {     # $1 pgm  $2 width  $3 height  $4 x  $5 y  -> the byte
+    pixels "$1" "$2" "$3" | od -An -v -tu1 \
+      | awk -v idx="$(( $5 * $2 + $4 ))" '
+            { for (i = 1; i <= NF; i++) { if (n == idx) { print $i; exit }; n++ } }'
+}
+
 # How many pixels of a raster are dark.
 inkcount() {    # $1 pgm  $2 width  $3 height  -> prints a count
     pixels "$1" "$2" "$3" | od -An -v -tu1 \
@@ -209,6 +218,20 @@ cat > "$work/stroke.ps" <<'EOF'
 10 10 moveto 15 13.5 lineto 10 17 lineto
 25 10 moveto 32 17 lineto 39 10 lineto
 stroke
+showpage
+EOF
+
+# A subpath walked against the one around it, which the nonzero fill
+# rule reads as a hole (PLRM 4.5.2). Nothing but the direction the inner
+# square is walked in says so, and a writer that dropped it would put a
+# solid square on the page while the file stayed well formed. A consumer
+# is the only reader that can tell the two apart.
+cat > "$work/hole.ps" <<'EOF'
+<< /PageSize [100 100] >> setpagedevice
+0 setgray
+10 10 moveto 90 10 lineto 90 90 lineto 10 90 lineto closepath
+30 30 moveto 30 70 lineto 70 70 lineto 70 30 lineto closepath
+fill
 showpage
 EOF
 
@@ -366,6 +389,42 @@ if [ "$have_poppler" = yes ]; then
     else
         fail=1
     fi
+    # -- the hole a counter-wound subpath cuts --------------------------
+    #
+    # Judged by the hole rather than by a pixel budget. The two scan
+    # conversions place an interior boundary a pixel apart, which puts a
+    # band of a couple of hundred pixels around a 40-point square either
+    # way, so the count of differing pixels is reported and not held to:
+    # what a lost direction does is fill the hole in, and that is the
+    # figure's own middle and a quarter of its area.
+    run_xpost "the wound-hole pdfwrite run" \
+              -d pdfwrite -o "$work/hole.pdf" "$work/hole.ps" || fail=1
+    run_xpost "the wound-hole raster run" \
+              -d pgm -o "$work/hole.pgm" "$work/hole.ps" || fail=1
+    if consume "$work/hole.pdf" 100 100 "$work/hole.consumed.pgm"; then
+        d=$(pixdiff "$work/hole.pgm" "$work/hole.consumed.pgm" 100 100) || fail=1
+        echo "wound hole: $d of 10000 pixels differ at the boundaries"
+        mid=$(pixelat "$work/hole.consumed.pgm" 100 100 50 50)
+        [ "${mid:-0}" -ge 128 ] || {
+            echo "FAIL: the middle of the ring is dark in the PDF, so the"
+            echo "      inner subpath wound with the outer one instead of"
+            echo "      against it and the hole filled in"
+            fail=1; }
+        # The ring is an 80-point square less the 40-point square the
+        # inner subpath takes out of it: 6400 pixels less 1600. The two
+        # renderings may differ around each boundary; they cannot differ
+        # by the hole.
+        na=$(inkcount "$work/hole.pgm" 100 100)
+        nb=$(inkcount "$work/hole.consumed.pgm" 100 100)
+        echo "wound hole: interpreter $na dark pixels, consumer $nb, ring is 4800"
+        [ "$((nb - na))" -lt 800 ] && [ "$((na - nb))" -lt 800 ] || {
+            echo "FAIL: the consumer paints $nb dark pixels against the"
+            echo "      interpreter's $na; the hole is 1600 of them"
+            fail=1; }
+    else
+        fail=1
+    fi
+
     [ "$fail" = 0 ] && echo "consumer imaging OK"
 else
     echo "note: poppler absent, the imaging comparison is not made"

@@ -5936,6 +5936,16 @@ static int _poly_rect_at(Xpost_Context *ctx, Xpost_Object poly,
         ;
     else
         return 0;
+    /* Only the direction re itself walks. The operator is defined by the
+       corners it appends and the order it appends them in, so it says a
+       rectangle but cannot say which way round one was drawn, and a
+       subpath counter-wound to cut a hole written as re winds with the
+       subpath around it instead and fills the hole in. The two edges of
+       a rectangle meet at a right angle, so their cross product is the
+       direction. */
+    if ((c[1][0] - c[0][0]) * (c[2][1] - c[1][1])
+        - (c[1][1] - c[0][1]) * (c[2][0] - c[1][0]) < 0)
+        return 0;
     *x = c[0][0] < c[2][0] ? c[0][0] : c[2][0];
     *y = c[0][1] < c[2][1] ? c[0][1] : c[2][1];
     *w = c[0][0] < c[2][0] ? c[2][0] - c[0][0] : c[0][0] - c[2][0];

@@ -1930,6 +1930,20 @@ static int _subpath_is_rect(const char *p, unsigned int o, unsigned int used,
     else
         return 0;
 #undef SAMENUM
+    /* Only the direction re itself walks. The operator is defined by the
+       corners it appends and the order it appends them in, so it says a
+       rectangle but cannot say which way round one was drawn, and the
+       rectangle walked the other way written as re comes back reversed.
+       Direction is what separates a hole from ink under the nonzero rule
+       -- a figure with a hole in it is one contour walked one way and
+       the contour of its hole walked the other -- so a subpath walked
+       against re is written as the subpath it is. The two edges
+       of a rectangle meet at a right angle, so their cross product is
+       the direction; a rectangle enclosing nothing has none, and fills
+       the same either way round. */
+    if ((c[1][0] - c[0][0]) * (c[2][1] - c[1][1])
+        - (c[1][1] - c[0][1]) * (c[2][0] - c[1][0]) < 0)
+        return 0;
     *x = c[0][0] < c[2][0] ? c[0][0] : c[2][0];
     *y = c[0][1] < c[2][1] ? c[0][1] : c[2][1];
     *w = c[0][0] < c[2][0] ? c[2][0] - c[0][0] : c[0][0] - c[2][0];
