@@ -105,8 +105,9 @@ Level 2 operators
      its entry ignored, where PLRM 4.10.6 would have it refused)
  [X] setblackgeneration (recorded only)
  [X] setundercolorremoval (recorded only)
- [X] makepattern (every tile repaints its cell; text through a CMap
-     composite under a pattern colour paints the underlying colour)
+ [X] makepattern (every tile that can mark repaints its cell; text
+     through a CMap composite under a pattern colour paints the
+     underlying colour)
  [X] findfont, definefont and undefinefont as the Font category's
      operations (a name the host does not carry is substituted for by
      findresource as it is by findfont, which is the reading 3.9.2's
@@ -583,7 +584,8 @@ Interpreter parameters
  [ ] C.3.3  MaxUPathItem, MaxUPathCache, MaxPatternItem, MaxPatternCache.
      Two of the three caches these bound are not here at all. There is no
      user path cache and no pattern cache -- a pattern repaints its cell
-     every tile, which is recorded above -- so for these four there is
+     at every tile that can mark, which is recorded above -- so for these
+     four there is
      nothing to bound. The form cache is the third and is bounded:
      MaxFormCache and MaxFormItem are carried, and CurFormCache reports
      what its drawings come to.

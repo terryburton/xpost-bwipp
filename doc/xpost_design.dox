@@ -1406,6 +1406,22 @@ programs    xpost              the command-line interpreter
  * between the two roads is large: the fallback spends a fill on every
  * half-pixel, which is why the question is asked per triangle rather
  * than settled per page.
+ *
+ * A radial shading is not walked at all where the device takes rows.
+ * The parameter at a point is arithmetic -- the circles are drawn in
+ * order of increasing s, each over the ones before, so a point takes
+ * the colour of the greatest s whose circle passes through it, and at
+ * a given point that is a quadratic in s. So it is solved for every
+ * device pixel and the answer handed over as a raster of samples under
+ * a mask saying where no circle reached, which is the road an image
+ * already takes to the page. The cost is then the area painted rather
+ * than the number of steps the parameter was cut into, and a point
+ * takes the colour its own circle gives rather than the colour of the
+ * step it happened to fall in. Cutting the parameter into steps and
+ * filling the region the rim sweeps between one step and the next
+ * remains for what the solve cannot take: a device that does not paint
+ * rows, a pattern colour, a colour the ramp cannot be sampled in, or an
+ * area too large to hold at once.
  * Halftone screens are threshold cells derived once per screen
  * change: the cell's geometry is computed at one site whatever
  * shape described it, the per-pixel question is asked at one
@@ -1451,6 +1467,19 @@ programs    xpost              the command-line interpreter
  * it -- scale it, restyle it, search it -- that it cannot do with the
  * fills a decomposition leaves.
  *
+ * A writer's terms are not only the shading's type but the space its
+ * colours are stated in, and the spaces a writer is offered are the
+ * device ones. Where the type can go over and the space cannot, the
+ * geometry is not the difficulty: for the analytic types it does not
+ * depend on the space at all, and what the space decides is the colour
+ * along a ramp, which is a function of one variable. So the function is
+ * read at a row of points, each colour is set in the space the shading
+ * states and read back as the components the device paints in, and the
+ * shading goes over whole with that row as its function. The geometry
+ * stays exact and only the ramp is approximated. The mesh types state
+ * their colours at their vertices rather than through a function, so
+ * there is no ramp to restate and they are left to the decomposition.
+ *
  * Which constructs a writer has is the writer's own answer, stated on
  * it, because one format's native form is another's absence. A device
  * declares the shading types it holds natively on @c /ShadingTypes, and
@@ -1472,6 +1501,22 @@ programs    xpost              the command-line interpreter
  * proportional to the page rather than to the description. The store is
  * keyed by the content itself, so two callers that build the same
  * description independently still share one copy.
+ *
+ * The third rule is about how much of a number is written down. A
+ * coordinate is written to the precision the page can show, because a
+ * hundredth of a device unit is finer than a mark can be seen at and
+ * every further digit is paid for on every coordinate of every page.
+ * An entry of a matrix is not a coordinate: a matrix is applied to
+ * something, and its error is multiplied by whatever that is. What
+ * these matrices are applied to is an image, stated on its own grid,
+ * so the scale carrying it to the page is the extent divided by the
+ * sample count -- and an error there is that error times the sample
+ * count when the far edge of the image lands. So matrix entries are
+ * written to more of their fraction than coordinates are, and how much
+ * more follows the size of the number, a small scale being the one with
+ * many samples behind it. The test of this is not a comparison with
+ * anything: a page a writer states and this interpreter reads back is
+ * the page it was written from.
  *
  * A fourth structural device, bbox, renders nothing and reports the
  * bounding box of what would have been painted. It declares the
